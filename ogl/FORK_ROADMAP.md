@@ -8,12 +8,12 @@
 - Legacy native viewer: separate nexverse-viewer checkout, develop-current; it has uncommitted work and must not be overwritten
 - Python toolchain: isolated venv .venv-firestorm, autobuild 3.10.2
 - Baseline target: ReleaseOS with OpenSim support
-- Login URL: not yet verified; HTTPS get_grid_info connection test failed, so do not assume :443 is the simulator login endpoint
+- Grid login advertised by public /get_grid_info: http://hg.stadt-nexverse.de:80/ (HTTP 200). HTTPS port 443 was not reachable. Do not test real credentials over this unsecured endpoint before TLS is resolved.
 
 ## 10 implementation blocks
 1. Clone stable Firestorm release and register upstream/fork remotes. DONE
 2. Prepare isolated Python build environment and inspect system requirements. DONE (system compiler prerequisites outstanding)
-3. Verify reproducible ReleaseOS configure/build on Linux. OPEN
+3. Verify reproducible ReleaseOS configure/build on Linux. IN PROGRESS (OpenSim CMake configure PASS; compilation stopped by deliberate 100s limit at 126/1355 without compiler errors; full executable not yet built).
 4. Verify authentic OpenSim/OpenGenesisLINK login and full 3D region rendering. OPEN
 5. Implement isolated OGL branding, launcher and user-data separation. OPEN
 6. Verify full avatar wearables, appearance, attachments, animations. OPEN
