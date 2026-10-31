@@ -20,7 +20,10 @@ int main() {
         for (unsigned j=0;j<9;++j)quads[t].position[j]=coords[t][j];
     constexpr float near=0.1f, far=256.f;
     std::array<float,64> depth{};
-    auto encode=[](float distance) ->float{
+    // MSVC requires explicit capture of these local floating constants.
+    // GCC can accept the original empty-capture lambda, but our C++ tests
+    // must have identical semantics across Linux, Windows and macOS.
+    auto encode=[near,far](float distance) ->float{
         return (far/(far-near))*(1.f-near/distance);
     };
     depth.fill(encode(2.f));
