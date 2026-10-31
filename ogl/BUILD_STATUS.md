@@ -370,3 +370,19 @@ Fehlerberichte eingefügt werden.
   sowie kompletter Linux-Viewer-Build grün.
 - Die Ursache in der echten Region ist noch nicht entschieden:
   [`RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md`](RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md).
+
+
+## 31.10.2026 – Live-Depth-Abweichungen: verbesserte Mesh-Erfassung
+
+- 35 von 37 Vulkan-Treffern lagen weiter weg als die
+  entsprechenden GL-Oberflächen: fehlende vordere
+  Volume-Faces sind ein Hauptverdacht.
+- Entwicklungs-Szenenscanner priorisiert jetzt Kandidaten
+  nach Blickrichtung/Entfernung, verteilt GPU-Budget über
+  mehr Objekte und erfasst verteilte statt nur erste
+  Face-Dreiecke.
+- Optionaler periodischer anonymer Coverage-Log,
+  mobile Vulkan-Tests, OpenGL-Fallback und Linux-Viewer.
+- Noch offen: Echtwelt-Login mit neuem Build und
+  Depth-Agreement-Gegenprobe.
+- [`RTX_FOREGROUND_MESH_CAPTURE_2026_10_31.md`](RTX_FOREGROUND_MESH_CAPTURE_2026_10_31.md).

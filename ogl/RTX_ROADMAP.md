@@ -627,3 +627,29 @@ Das bestehende 8×8-GPU-Probe-System bleibt gedrosselt,
 **Weiter offen:** Ursache anhand eines neuen echten OpenSim-Logs
 belegen und anschließend zielgenau beheben. Die GPU-Scene-
 Erfassung bleibt unvollständig; noch keine Weltschatten.
+
+
+## 31.10.2026 – nächster Live-Fehlerfix: Vordergrund-Mesh-Sampling
+
+- Neue reale NexVerse-Messung: **50** gültige OpenGL-Oberflächen,
+  **37** Vulkan-Kameraray-Treffer, aber nur **2** korrekte
+  Depth-Werte; **35 GPU-Treffer lagen hinter der GL-Oberfläche**.
+- Im alten Scanner bekamen die ersten Meshes der internen
+  Objektliste jeweils bis zu 512 Dreiecke; nur die ersten
+  32 Indextriangles eines Faces wurden berücksichtigt.
+  Das führt zu großen Vordergrund-Lücken im Snapshot.
+- Der Opt-in-Scanner **priorisiert jetzt nahe, sichtbare
+  Volumenobjekte**, verteilt 8.192 GPU-Dreiecke fairer
+  über bis zu 256 Objekte (max. 128 pro Objekt) und
+  sampelt über die vollständige Indexliste eines Faces.
+- Ungeriggte Attachments können ebenfalls mit erfasst
+  werden. Rigged-/Skinned-Avatar-Oberflächen bleiben offen.
+- Neuer anonymer Logbericht über Kandidatenzahl,
+  ausgewählte Objekte, Mesh- und Terrain-Dreiecke.
+- 48 Python-/29 Native-Tests mit portablem Prioritäts- und
+  Index-Sampler, vollständiger Linux-Build plus OpenGL-Fallback.
+- [`RTX_FOREGROUND_MESH_CAPTURE_2026_10_31.md`](RTX_FOREGROUND_MESH_CAPTURE_2026_10_31.md).
+
+Noch keine vollständige Region-BVH oder RTX-Weltschatten.
+Der nächste Live-Test muss klären, ob `primary_farther`
+gegenüber den bisherigen 35 Treffern sinkt.

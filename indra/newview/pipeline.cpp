@@ -31,6 +31,7 @@
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h" // bounded geometry format
 #include "../../ogl/modules/include/ogl/ogl_scene_validation.h" // prefilter mesh triangles
 #include "../../ogl/modules/include/ogl/ogl_terrain_patch.h" // optional low-poly terrain occluders
+#include "../../ogl/modules/include/ogl/ogl_scene_sampling.h" // conservative RT scene selection
 #include <vector>
 
 // library includes
@@ -9534,7 +9535,9 @@ void LLPipeline::renderDeferredLighting()
                                 LLVector3(x,y,0.f));
                         });
                 }
+                const size_t terrain_triangles = triangles.size();
                 unsigned nearby_objects = 0;
+                unsigned sampled_objects = 0;
                 const S32 total_objects = gObjectList.getNumObjects();
                 const S32 max_objects = llmin(total_objects, 4096);
                 static S32 scan_cursor = 0;
@@ -9543,47 +9546,92 @@ void LLPipeline::renderDeferredLighting()
                     ogl_triangle_budget > 1024 ? 256u : 96u;
                 const S32 face_triangle_budget =
                     ogl_triangle_budget > 1024 ? 32 : 16;
-                for (S32 i = 0; i < max_objects &&
-                        nearby_objects < nearby_budget &&
-                        triangles.size() < ogl_triangle_budget; ++i)
+                // Candidate discovery is separate from triangle allocation.
+                // Previously a few early mesh objects could consume all
+                // 8192 slots, leaving visible foreground objects absent.
+                std::vector<std::pair<float, LLVOVolume*>> candidates;
+                candidates.reserve(llmin(max_objects, 512));
+                const LLVector3 camera_forward = camera->getAtAxis();
+                for (S32 i = 0; i < max_objects; ++i)
                 {
                     LLViewerObject* object =
                         gObjectList.getObject((start + i) % total_objects);
-                    if (!object || object->isDead() || object->isAttachment() ||
+                    if (!object || object->isDead() ||
                         object->isRiggedMesh() || object->getPCode() != LL_PCODE_VOLUME)
                         continue;
+                    // Unrigged attachments are ordinary transformable volumes,
+                    // and may be in front of the user's OpenGL depth buffer.
                     LLVOVolume* volume_object = static_cast<LLVOVolume*>(object);
                     LLVolume* volume = volume_object->getVolume();
                     if (!volume || volume->getNumVolumeFaces() <= 0)
                         continue;
-                    const LLVector3 position = volume_object->getRenderPosition();
-                    if ((position - eye).lengthSquared() > 90.f * 90.f)
-                        continue;
-                    const LLVector3 scale = volume_object->getScale();
-                    const LLQuaternion rotation = volume_object->getRenderRotation();
+                    const LLVector3 delta = volume_object->getRenderPosition()-eye;
+                    const float distance_sq = delta.lengthSquared();
+                    if (distance_sq > 90.f*90.f) continue;
+                    float priority = static_cast<float>(i);
+                    if (ogl_triangle_budget > 1024) {
+                        const float distance=std::sqrt(distance_sq);
+                        const float cosine=distance>1.e-4f ?
+                            (delta*camera_forward)/distance : 1.f;
+                        const float extent=volume_object->getScale().length();
+                        priority=ogl::scene_priority(distance,cosine,extent);
+                    }
+                    candidates.emplace_back(priority, volume_object);
+                }
+                if (ogl_triangle_budget > 1024)
+                    std::stable_sort(candidates.begin(),candidates.end(),
+                        [](const auto& a,const auto& b) {
+                            return a.first < b.first;
+                        });
+                const size_t max_per_object =
+                    ogl_triangle_budget > 1024 ? 128u : 512u;
+                for (const auto& candidate : candidates)
+                {
+                    if (nearby_objects >= nearby_budget ||
+                        triangles.size() >= ogl_triangle_budget) break;
+                    LLVOVolume* volume_object=candidate.second;
+                    if (!volume_object || volume_object->isDead()) continue;
+                    LLVolume* volume=volume_object->getVolume();
+                    if (!volume || volume->getNumVolumeFaces()<=0) continue;
+                    const LLVector3 position=volume_object->getRenderPosition();
+                    const LLVector3 scale=volume_object->getScale();
+                    const LLQuaternion rotation=volume_object->getRenderRotation();
                     ++nearby_objects;
+                    size_t object_triangles = 0;
                     std::vector<ogl_rtx_triangle> local_faces;
                     if (ogl_triangle_budget>1024)
                         local_faces.reserve(64);
                     const S32 face_count = llmin(volume->getNumVolumeFaces(), 16);
                     for (S32 f = 0; f < face_count &&
-                            triangles.size() < ogl_triangle_budget; ++f)
+                            triangles.size() < ogl_triangle_budget &&
+                            object_triangles < max_per_object; ++f)
                     {
                         const LLVolumeFace& face = volume->getVolumeFace(f);
                         if (!face.mPositions || !face.mIndices ||
                             face.mNumIndices <= 0 || face.mNumVertices <= 0)
                             continue;
-                        const S32 face_triangles =
-                            llmin(face.mNumIndices / 3, face_triangle_budget);
+                        const S32 face_triangles = llmin(
+                            llmin(face.mNumIndices / 3,face_triangle_budget),
+                            static_cast<S32>(max_per_object-object_triangles));
                         for (S32 t = 0; t < face_triangles &&
                                 triangles.size() < ogl_triangle_budget; ++t)
                         {
+                            // Approximate all regions of high-poly faces,
+                            // rather than only their first triangles.
+                            const uint32_t triangle_index =
+                                ogl_triangle_budget > 1024 ?
+                                ogl::spread_triangle_index(
+                                    static_cast<uint32_t>(face.mNumIndices/3),
+                                    static_cast<uint32_t>(face_triangles),
+                                    static_cast<uint32_t>(t)) :
+                                static_cast<uint32_t>(t);
                             ogl_rtx_triangle triangle{};
                             ogl_rtx_triangle local_triangle{};
                             bool valid = true;
                             for (S32 v = 0; v < 3; ++v)
                             {
-                                const U16 index = face.mIndices[t * 3 + v];
+                                const U16 index =
+                                    face.mIndices[triangle_index * 3 + v];
                                 if (index >= face.mNumVertices)
                                 {
                                     valid = false;
@@ -9598,12 +9646,14 @@ void LLPipeline::renderDeferredLighting()
                             }
                             if (valid && ogl::is_valid_triangle(triangle)) {
                                 triangles.emplace_back(triangle);
+                                ++object_triangles;
                                 if (ogl_triangle_budget>1024 &&
                                     ogl::is_valid_triangle(local_triangle))
                                     local_faces.emplace_back(local_triangle);
                             }
                         }
                     }
+                    if (object_triangles) ++sampled_objects;
                     if (!local_faces.empty() && ogl_tracked_ids.size()<1024) {
                         float pose[12]{};
                         ogl_object_pose(volume_object,pose);
@@ -9620,6 +9670,17 @@ void LLPipeline::renderDeferredLighting()
                 // the first 4,096 objects when region objects exceed budget.
                 if (total_objects > 0)
                     scan_cursor = (start + max_objects) % total_objects;
+                // Sparse, anonymous coverage feedback for the user's
+                // real-world GPU/GL-depth mismatch diagnostic.
+                static unsigned scene_report_number = 0;
+                if (ogl_triangle_budget > 1024 &&
+                    (++scene_report_number % 20u == 1u))
+                    LL_INFOS("OGLRTX") << "OGL RTX scene selection: candidates="
+                        << candidates.size() << " sampled_objects="
+                        << sampled_objects << " mesh_triangles="
+                        << (triangles.size()-terrain_triangles)
+                        << " terrain_triangles=" << terrain_triangles
+                        << " cap=" << ogl_triangle_budget << LL_ENDL;
                 if (!triangles.empty())
                     ogl_rtx_submit_world_triangles(
                         triangles.front().position,

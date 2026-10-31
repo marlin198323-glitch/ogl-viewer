@@ -377,6 +377,18 @@ class PublicGraphicsContracts(unittest.TestCase):
             ROOT / "indra/newview/pipeline.cpp").read_text())
         self.assertIn("ogl_vulkan_tlas_instance_refit",cmake)
 
+    def test_foreground_priority_and_stratified_mesh_sampling(self):
+        src=(ROOT / "indra/newview/pipeline.cpp").read_text()
+        helper=(ROOT / "ogl/modules/include/ogl/ogl_scene_sampling.h").read_text()
+        cmake=(ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        self.assertIn("ogl::scene_priority(distance,cosine,extent)",src)
+        self.assertIn("std::stable_sort(candidates.begin()",src)
+        self.assertIn("ogl::spread_triangle_index(",src)
+        self.assertIn("object_triangles < max_per_object",src)
+        self.assertIn("128u : 512u",src)
+        self.assertIn("ogl_scene_priority_and_mesh_sampling",cmake)
+        self.assertIn("uint64_t(2) * sample_index",helper)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

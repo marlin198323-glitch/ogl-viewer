@@ -85,6 +85,14 @@ def report():
             reason = ("no triangle snapshot recorded yet" if world_started else
                       "last log never reached the 3D world")
             print("RTX world geometry sample: not observed (" + reason + ")")
+        selected = re.findall(
+            r"OGL RTX scene selection: candidates=(\d+) sampled_objects=(\d+) "
+            r"mesh_triangles=(\d+) terrain_triangles=(\d+) cap=(\d+)",text)
+        if selected:
+            candidates, sampled_objects, mesh_tris, terrain_tris, budget = selected[-1]
+            print(f"RTX scene selection: {sampled_objects}/{candidates} "
+                  f"near candidate objects; {mesh_tris} mesh triangles, "
+                  f"{terrain_tris} terrain triangles; budget {budget}")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)

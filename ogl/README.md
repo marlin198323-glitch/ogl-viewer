@@ -208,3 +208,12 @@ ob die GPU eine Oberfläche vor oder hinter der GL-Tiefe
 trifft. Hardware-GPU-Tests für beide Fälle sind vorhanden;
 ein weiterer Live-Test entscheidet über die nächste
 Korrektur. [Technische Auswertung](RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md).
+
+
+**Vordergrund-Mesh-Verbesserung:** Nach einem Live-Test mit
+35 Vulkan-Primärtreffern *hinter* den sichtbaren GL-Oberflächen
+sammelt der optionale RTX-Scanner nahe, im Blick liegende
+Objekte zuerst, begrenzt ihre einzelnen Dreieckbudgets
+und entnimmt Mesh-Face-Dreiecke über die gesamte Indexliste.
+[Details und Abnahme](RTX_FOREGROUND_MESH_CAPTURE_2026_10_31.md).
+Noch keine vollständige Regions-BVH und keine RTX-Weltschatten.

@@ -287,6 +287,12 @@ target_include_directories(ogl_dynamic_scene_test PRIVATE include)
 target_compile_features(ogl_dynamic_scene_test PRIVATE cxx_std_17)
 add_test(NAME ogl_dynamic_scene_updates COMMAND ogl_dynamic_scene_test)
 
+# Deterministic bounded selection over full OpenSim mesh-face index ranges.
+add_executable(ogl_scene_sampling_test ../tests/test_scene_sampling.cpp)
+target_include_directories(ogl_scene_sampling_test PRIVATE include)
+target_compile_features(ogl_scene_sampling_test PRIVATE cxx_std_17)
+add_test(NAME ogl_scene_priority_and_mesh_sampling COMMAND ogl_scene_sampling_test)
+
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)
 target_include_directories(ogl_scene_validation_test PRIVATE include)
