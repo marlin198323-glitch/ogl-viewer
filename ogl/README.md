@@ -56,3 +56,13 @@ Grafikkartenmarken geprüft. Das optionale, allgemeine Qualitätsprofil
 Überschreiben persönlicher Einstellungen bereitgestellt. Die GPU-RT-
 Funktionen sind weiter in Entwicklung; es werden noch keine RTX-Pixel
 berechnet. [Kompatibilitätsmatrix](PUBLIC_GRAPHICS_COMPATIBILITY.md).
+
+
+## Raytracing-Entwicklung: 10 Blöcke
+
+Die aktuelle RTX-Entwicklungsrunde baut einen **wirklich ausgeführten**
+Vulkan-Ray-Query-Compute-Shader und testet ein 8x8-Schattenraster
+mit 64 Strahlen. Bis die echte OpenSim-Weltgeometrie und das OpenGL-
+Compositing angeschlossen sind, werden im Viewer selbst weiter keine
+RTX-Schatten angezeigt. [Testbericht und nächste Schritte](
+RTX_10_BLOCKS_2026_10_31.md).

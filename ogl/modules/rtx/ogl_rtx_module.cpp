@@ -1,4 +1,5 @@
 #include "ogl/ogl_rtx_api.h"
+#include "ogl/ogl_scene_validation.h"
 #include <vulkan/vulkan.h>
 #if defined(_WIN32)
 #  define WIN32_LEAN_AND_MEAN
@@ -8,6 +9,8 @@
 #endif
 #include <cstdio>
 #include <cmath>
+#include <cstring>
+#include <cstdint>
 #include <algorithm>
 #include <set>
 #include <string>
@@ -41,6 +44,7 @@ ogl_log_fn logger = nullptr;
 ogl_rtx_frame_state latest_frame{};
 uint64_t received_frames = 0;
 std::vector<ogl_rtx_triangle> captured_geometry;
+uint64_t geometry_revision = 0;
 void report(std::string message) {
     std::snprintf(status.message, sizeof(status.message), "%s", message.c_str());
 }
@@ -168,6 +172,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     latest_frame = {};
     received_frames = 0;
     captured_geometry.clear();
+    geometry_revision = 0;
     detect();
     std::string gpu = status.gpu_name[0] ? status.gpu_name : "none";
     logger(1, (std::string("OGL RTX capability: gpu=") + gpu +
@@ -202,14 +207,21 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     if (!status.hardware_ready || count > OGL_RTX_MAX_SCENE_TRIANGLES ||
         (count && !triangles)) return 0;
     if (!count) {
-        captured_geometry.clear();
-        return 1; // Clear stale objects after teleport/region change.
+        if (!captured_geometry.empty()) {
+            captured_geometry.clear();
+            ++geometry_revision; // Teleport/region change invalidates old AS.
+        }
+        return 1;
     }
     for (uint32_t i = 0; i < count; ++i)
-        for (float coordinate : triangles[i].position)
-            if (!std::isfinite(coordinate)) return 0;
+        if (!ogl::is_valid_triangle(triangles[i])) return 0;
+    const size_t data_size = size_t(count) * sizeof(ogl_rtx_triangle);
+    if (captured_geometry.size() == count &&
+        std::memcmp(captured_geometry.data(), triangles, data_size) == 0)
+        return 1; // avoid rebuilding BLAS for unchanged scene samples
     const bool first_batch = captured_geometry.empty();
     captured_geometry.assign(triangles, triangles + count);
+    ++geometry_revision;
     if (first_batch && logger)
         logger(1, (std::string("OGL RTX captured real OpenSim triangles=") +
                    std::to_string(count) +
@@ -218,4 +230,15 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void) {
     return static_cast<uint32_t>(captured_geometry.size());
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_geometry_revision(void) {
+    return geometry_revision;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_copy_geometry(
+    ogl_rtx_triangle *dest, uint32_t capacity)
+{
+    const uint32_t count = static_cast<uint32_t>(captured_geometry.size());
+    if (!dest || count == 0 || capacity < count) return 0;
+    std::memcpy(dest, captured_geometry.data(), size_t(count) * sizeof(*dest));
+    return count;
 }

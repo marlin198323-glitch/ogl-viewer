@@ -98,6 +98,7 @@ class ViewerManifest(LLManifest,FSViewerManifest):
         # each user's settings only if missing (never overwrites a custom file).
         with self.prefix(src="app_settings/ogl", dst="app_settings/ogl"):
             self.path("NexVerse%20Cinematic.xml")
+            self.path("rtx/ray_query_shadow.comp.spv")
 
         if self.is_packaging_viewer():
             with self.prefix(src_dst="app_settings"):

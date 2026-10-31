@@ -115,3 +115,19 @@ Fehlerberichte eingefügt werden.
   wird der Test übersprungen statt den OpenGL-Build zu blockieren.
 - Keine Raytracing-Effekte im Viewer: Real-World-Geometrieanbindung,
   GPU-Ray-Query-Shader und Schatten-Compositing stehen noch aus.
+
+
+## 31.10.2026 – 10er RTX-Block: echtes GPU-Ray-Query-Testergebnis
+
+- Vulkan-Compute-Shader mit 8x8 Strahlen auf GPU kompiliert und ausgeführt.
+  Ergebnis: 36 korrekt verdeckte, 28 sichtbare Ray-Samples.
+- CPU-Geometrie: 1.024 Dreiecke im Belastungstest, Revisionsnummern,
+  Bounds-Checks, copy-out und Invalidierungsprüfung.
+- GLSL-/SPIR-V-Validierung und plattformübergreifende Paketintegration.
+- Linux OGL-Viewer C++-Build PASS; SPIR-V und RT-Modul im lokalen
+  Testpaket verifiziert. OpenGL bleibt unverändert aktiv.
+- Tests: 24 Python-Vertragsprüfungen und 8 native C++/Vulkan-Tests.
+- Trotz funktionierender Ray Queries ist die reale OpenSim-Welt noch
+  nicht an den GPU-BLAS-/TLAS-Builder angeschlossen. Keine sichtbare
+  Raytracing-Darstellung im Viewer. Siehe
+  [`RTX_10_BLOCKS_2026_10_31.md`](RTX_10_BLOCKS_2026_10_31.md).

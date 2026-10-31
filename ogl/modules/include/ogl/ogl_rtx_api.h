@@ -61,6 +61,14 @@ typedef struct ogl_rtx_triangle {
 OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(const ogl_rtx_triangle *triangles,
                                                uint32_t count);
 OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void);
+/* Monotonic revision. Increments only for a changed, accepted snapshot. */
+OGL_MODULE_EXPORT uint64_t ogl_rtx_geometry_revision(void);
+/* Copy last snapshot into caller-owned storage (all-or-nothing).
+ * Return number copied or zero when empty / insufficient capacity.
+ * C ABI operations currently run on the same viewer rendering thread.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_rtx_copy_geometry(ogl_rtx_triangle *dest,
+                                                 uint32_t capacity);
 
 /* Read-only status; valid until module is unloaded. Never store credentials. */
 OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status(void);

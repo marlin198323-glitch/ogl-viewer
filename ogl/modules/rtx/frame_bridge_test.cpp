@@ -25,8 +25,13 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_submit_geometry"));
     const auto triangle_count = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_rtx_received_triangles"));
+    const auto geometry_revision = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library, "ogl_rtx_geometry_revision"));
+    const auto copy_geometry = reinterpret_cast<uint32_t(*)(ogl_rtx_triangle*,uint32_t)>(
+        dlsym(library, "ogl_rtx_copy_geometry"));
     assert(start && stop && status && submit && count &&
-           submit_geometry && triangle_count);
+           submit_geometry && triangle_count &&
+           geometry_revision && copy_geometry);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, log_cb};
     assert(start(&host) == 0);
     assert(count() == 0);
@@ -53,6 +58,8 @@ int main(int argc, char** argv) {
         assert(count() == 0);
     }
     assert(triangle_count() == 0);
+    assert(geometry_revision() == 0);
+    assert(copy_geometry(nullptr, 0) == 0);
     ogl_rtx_triangle valid_triangle{};
     valid_triangle.position[3] = 1.0f;
     valid_triangle.position[7] = 1.0f;
@@ -65,16 +72,59 @@ int main(int argc, char** argv) {
     ogl_rtx_triangle nan_triangle = valid_triangle;
     nan_triangle.position[0] = std::numeric_limits<float>::quiet_NaN();
     assert(submit_geometry(&nan_triangle, 1) == 0);
+    ogl_rtx_triangle degenerate_triangle{};
+    assert(submit_geometry(&degenerate_triangle, 1) == 0);
+    ogl_rtx_triangle out_of_range = valid_triangle;
+    out_of_range.position[0] = 1.1e6f;
+    assert(submit_geometry(&out_of_range, 1) == 0);
     if (status()->hardware_ready) {
         assert(submit_geometry(&valid_triangle, 1) == 1);
         assert(triangle_count() == 1);
+        assert(geometry_revision() == 1);
+        ogl_rtx_triangle copied{};
+        assert(copy_geometry(&copied, 0) == 0);
+        assert(copy_geometry(&copied, 1) == 1);
+        for (unsigned j = 0; j < 9; ++j)
+            assert(copied.position[j] == valid_triangle.position[j]);
+        assert(submit_geometry(&valid_triangle, 1) == 1);
+        assert(geometry_revision() == 1); // byte-identical scene deduped
+        ogl_rtx_triangle moved = valid_triangle;
+        moved.position[0] = 0.2f;
+        assert(submit_geometry(&moved, 1) == 1);
+        assert(geometry_revision() == 2);
+        assert(copy_geometry(&copied, 1) == 1);
+        assert(copied.position[0] == 0.2f);
         assert(submit_geometry(&nan_triangle, 1) == 0);
         assert(triangle_count() == 1); // invalid updates cannot destroy last valid geometry
         assert(submit_geometry(nullptr, 0) == 1);
         assert(triangle_count() == 0); // teleport/region change invalidates stale geometry
+        assert(geometry_revision() == 3);
+        assert(copy_geometry(&copied, 1) == 0);
+        assert(submit_geometry(nullptr, 0) == 1);
+        assert(geometry_revision() == 3); // repeated clear is idempotent
+        std::vector<ogl_rtx_triangle> bulk(OGL_RTX_MAX_SCENE_TRIANGLES);
+        for (size_t i = 0; i < bulk.size(); ++i) {
+            bulk[i] = valid_triangle;
+            const float offset = float(i) * 0.25f;
+            for (unsigned vertex = 0; vertex < 3; ++vertex)
+                bulk[i].position[3 * vertex] += offset;
+        }
+        assert(submit_geometry(bulk.data(), bulk.size()) == 1);
+        assert(triangle_count() == bulk.size());
+        assert(geometry_revision() == 4);
+        std::vector<ogl_rtx_triangle> buffer(bulk.size());
+        assert(copy_geometry(buffer.data(), bulk.size() - 1) == 0);
+        assert(copy_geometry(buffer.data(), bulk.size()) == bulk.size());
+        assert(buffer[1023].position[0] == bulk[1023].position[0]);
+        assert(submit_geometry(bulk.data(), bulk.size()) == 1);
+        assert(geometry_revision() == 4);
+        assert(submit_geometry(nullptr, 0) == 1);
+        assert(triangle_count() == 0);
+        assert(geometry_revision() == 5);
     } else {
         assert(submit_geometry(&valid_triangle, 1) == 0);
         assert(triangle_count() == 0);
+        assert(geometry_revision() == 0);
     }
     assert(status()->rendering_active == 0);
     stop();

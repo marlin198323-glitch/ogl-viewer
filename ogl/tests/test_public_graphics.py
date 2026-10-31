@@ -72,6 +72,29 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('SKIP_RETURN_CODE 77 TIMEOUT 30', cmake)
         self.assertIn('ogl_vulkan_blas_tlas_gpu', cmake)
 
+    def test_spirv_shader_is_valid_binary_and_matches_shadow_contract(self):
+        from struct import unpack
+        path = ROOT / "indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+        shader = ROOT / "ogl/modules/rtx/shaders/ray_query_shadow.comp"
+        data = path.read_bytes()
+        self.assertGreater(len(data), 200)
+        self.assertEqual(len(data) % 4, 0)
+        self.assertEqual(unpack("<I", data[:4])[0], 0x07230203)
+        source = shader.read_text()
+        self.assertIn("GL_EXT_ray_query", source)
+        self.assertIn("layout(local_size_x = 8, local_size_y = 8", source)
+        self.assertIn("rayQueryInitializeEXT", source)
+        self.assertIn("rayQueryProceedEXT", source)
+        self.assertIn("uint occlusion[64]", source)
+
+    def test_geometry_validation_shared_between_viewer_and_module(self):
+        pipeline = (ROOT / "indra/newview/pipeline.cpp").read_text()
+        module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn("ogl::is_valid_triangle(triangle)", pipeline)
+        self.assertIn("ogl::is_valid_triangle(triangles[i])", module)
+        self.assertIn("ogl_rtx_geometry_revision", module)
+        self.assertIn("ogl_rtx_copy_geometry", module)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

@@ -68,7 +68,8 @@ Multi-GPU-Kopplung.
 - [ ] Multi-GPU-Identitätsabgleich (OpenGL ↔ Vulkan)
 - [x] Isolierter Vulkan-GPU-BLAS- und TLAS-Build mit Testdreieck und Instanz
 - [ ] Echte OpenSim-Geometrie an den GPU-Builder anbinden, inkrementell aktualisieren
-- [ ] Ray-Query-Schattenbild berechnen und in das OpenGL-Weltbild einfügen
+- [x] Isolierter 8x8-Vulkan-Compute-Test: 64 Ray Queries, 36 Treffer, 28 Misses
+- [ ] Ray-Query-Schattenbild aus realer Weltgeometrie berechnen und in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer
 - [ ] Finales Lizenz-/Third-Party-Notices- und Release-Audit

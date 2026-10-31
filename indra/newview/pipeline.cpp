@@ -29,6 +29,7 @@
 #include "pipeline.h"
 #include "oglrtxhost.h" // OGL: optional Vulkan RTX scene bridge
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h" // bounded geometry format
+#include "../../ogl/modules/include/ogl/ogl_scene_validation.h" // prefilter mesh triangles
 #include <vector>
 
 // library includes
@@ -9503,7 +9504,8 @@ void LLPipeline::renderDeferredLighting()
                                 for (S32 axis = 0; axis < 3; ++axis)
                                     triangle.position[v * 3 + axis] = vertex.mV[axis];
                             }
-                            if (valid) triangles.emplace_back(triangle);
+                            if (valid && ogl::is_valid_triangle(triangle))
+                                triangles.emplace_back(triangle);
                         }
                     }
                 }

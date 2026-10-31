@@ -44,7 +44,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev ninja-build
+          sudo apt-get install -y libvulkan-dev ninja-build glslang-tools spirv-tools
+      - name: Validate bundled Vulkan ray-query shader
+        if: runner.os == 'Linux'
+        run: |
+          glslangValidator -V --target-env vulkan1.2 -S comp ogl/modules/rtx/shaders/ray_query_shadow.comp -o /tmp/ogl_ray_query_shadow.spv
+          spirv-val --target-env vulkan1.2 /tmp/ogl_ray_query_shadow.spv
+          spirv-val --target-env vulkan1.2 indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv
       - name: Windows Vulkan headers (no proprietary SDK required)
         if: runner.os == 'Windows'
         shell: pwsh

@@ -111,7 +111,36 @@ in einen Device-Address-Puffer und führt auf der GPU folgendes aus:
 Zahlen; keine verbindlichen Speichervorgaben für andere GPUs).
 
 **Nicht erledigt:** Reale OpenSim-Szenendreiecke sind noch nicht mit diesem
-GPU-Builder verbunden. Es werden noch keine Strahlen berechnet und keine
-Schattentextur gerendert oder in das OpenGL-Bild eingefügt.
+GPU-Builder verbunden. **Dieser historische Abschnitt** wurde inzwischen
+um einen isolierten Ray-Query-GPU-Test ergänzt: 64 Teststrahlen erzeugen
+korrekt eine 8x8-Okklusionsmaske. Die echte NexVerse-Szenengeometrie bleibt
+aber weiterhin unverbunden und im OpenGL-Bild erscheint keine RTX-Maske.
 Der Viewer benutzt weiterhin OpenGL. Ein isolierter GPU-Test ist keine
 Raytracing-Freigabe für Endnutzer.
+
+
+## 31.10.2026 – Ray-Query-Compute-Shader und Szenenrevisionen
+
+- Shader `ogl/modules/rtx/shaders/ray_query_shadow.comp`, übersetzt nach
+  SPIR-V und mit `spirv-val` auf Vulkan 1.2 geprüft.
+- BLAS für ein Dreieck und TLAS mit Instanz auf der GPU aufgebaut.
+- 64 Ray Queries ergeben eine **korrekte 8x8-Schattenmaske**:
+  **36 Treffer / 28 Nichttreffer**, nach der GPU-Ausführung ausgelesen.
+- Vorstufe für echte Shadow-Maps: `VK_KHR_ray_query`, Compute-Pipeline,
+  Descriptor-Set mit TLAS und Ergebnis-Storage-Buffer sind funktionsfähig.
+- SPIR-V als öffentliches Viewer-Asset unter
+  `indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv`.
+- Geometrie-API erhält eine Revisionsnummer und bounded Snapshot-Kopie.
+  Unveränderte Dreiecke erhöhen die Revision nicht; Teleport/Leerszene
+  löst ein klares Zurücksetzen aus.
+- Gemeinsame finite/degenerate-Validierung ist im Viewer-Export und
+  RTX-Modul integriert. Die Modultests prüfen auch 1.024 Dreiecke.
+- Für GPU-freie Rechner bleiben alle nichtgrafischen Tests aktiv; Vulkan-
+  RT-Tests melden SKIP, der OpenGL-Viewer bleibt unabhängig.
+- Dokumentierte Einzelabnahme:
+  [`RTX_10_BLOCKS_2026_10_31.md`](RTX_10_BLOCKS_2026_10_31.md).
+
+**Nicht erledigt:** Live-BLAS aus der geladenen NexVerse-Region, GPU-
+Szenenupdates, weltweite Sonnen-/Materialdaten, Echtzeit-Shadow-Denoiser
+und das eigentliche OpenGL-Compositing. `rendering_active=0` bleibt
+deshalb korrekt. Endnutzer sehen noch kein hardwareberechnetes RTX-Bild.

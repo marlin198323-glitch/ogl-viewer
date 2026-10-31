@@ -1,12 +1,14 @@
 // OGL public Vulkan BLAS acceptance: build a real one-triangle GPU
 // acceleration structure. No image rendering, no OpenSim data, no server.
 // No hardware: CTest SKIP (77). GPU/API failure after selection: FAIL (1).
-// Shader/TLAS/OpenGL compositing are separate milestones.
+// Real ray-query compute shader tested; OpenGL compositing still pending.
 #include <vulkan/vulkan.h>
 #include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <set>
 #include <string>
 #include <vector>
@@ -28,14 +30,25 @@ struct VulkanContext {
     VkAccelerationStructureKHR tlas = VK_NULL_HANDLE;
     PFN_vkDestroyAccelerationStructureKHR destroy_blas = nullptr;
     Buffer vertices, scratch, storage;
-    Buffer instance_buffer, tlas_scratch, tlas_storage;
+    Buffer instance_buffer, tlas_scratch, tlas_storage, query_results;
+    VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
+    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+    VkPipeline ray_pipeline = VK_NULL_HANDLE;
+    VkShaderModule shader = VK_NULL_HANDLE;
     ~VulkanContext() {
         if (device) {
             vkDeviceWaitIdle(device);
+            if (ray_pipeline) vkDestroyPipeline(device, ray_pipeline, nullptr);
+            if (shader) vkDestroyShaderModule(device, shader, nullptr);
+            if (pipeline_layout) vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+            if (descriptor_pool) vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
+            if (descriptor_layout) vkDestroyDescriptorSetLayout(device, descriptor_layout, nullptr);
             if (tlas && destroy_blas) destroy_blas(device, tlas, nullptr);
             if (blas && destroy_blas) destroy_blas(device, blas, nullptr);
             for (const Buffer* b : {&vertices, &scratch, &storage,
-                                    &instance_buffer, &tlas_scratch, &tlas_storage}) {
+                                    &instance_buffer, &tlas_scratch, &tlas_storage,
+                                    &query_results}) {
                 if (b->buffer) vkDestroyBuffer(device, b->buffer, nullptr);
                 if (b->memory) vkFreeMemory(device, b->memory, nullptr);
             }
@@ -101,7 +114,11 @@ bool has_extension(VkPhysicalDevice gpu, const std::set<std::string>& required) 
     return true;
 }
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::puts("FAIL: expected one compiled SPIR-V shader file argument");
+        return 1;
+    }
     VulkanContext c;
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "OGL universal Vulkan BLAS acceptance";
@@ -444,6 +461,150 @@ int main() {
     std::printf("PASS: GPU TLAS built with 1 BLAS instance, AS bytes=%llu scratch bytes=%llu\n",
         static_cast<unsigned long long>(top_sizes.accelerationStructureSize),
         static_cast<unsigned long long>(top_sizes.buildScratchSize));
-    std::puts("No ray-query shader, shadow output, or OpenGL compositing yet.");
+    // A real Vulkan ray query: one ray hits the triangle, one deliberately
+    // misses. Results are returned through a host-visible storage buffer.
+    std::ifstream input(argv[1], std::ios::binary | std::ios::ate);
+    if (!input) { std::puts("FAIL: ray-query SPIR-V missing"); return 1; }
+    const auto shader_bytes = input.tellg();
+    if (shader_bytes <= 0 || shader_bytes > 65536 || shader_bytes % 4 != 0)
+        return 1;
+    std::vector<uint32_t> code(static_cast<size_t>(shader_bytes) / 4);
+    input.seekg(0);
+    input.read(reinterpret_cast<char*>(code.data()), shader_bytes);
+    if (!input || code.empty() || code.front() != 0x07230203u)
+        return 1;
+    VkShaderModuleCreateInfo shader_info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    shader_info.codeSize = static_cast<size_t>(shader_bytes);
+    shader_info.pCode = code.data();
+    if (vkCreateShaderModule(c.device, &shader_info, nullptr, &c.shader) != VK_SUCCESS)
+        return 1;
+
+    VkDescriptorSetLayoutBinding bindings[2]{};
+    bindings[0].binding = 0;
+    bindings[0].descriptorCount = 1;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[1].binding = 1;
+    bindings[1].descriptorCount = 1;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutCreateInfo layout_info{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    layout_info.bindingCount = 2;
+    layout_info.pBindings = bindings;
+    if (vkCreateDescriptorSetLayout(c.device, &layout_info, nullptr,
+                                    &c.descriptor_layout) != VK_SUCCESS)
+        return 1;
+    VkDescriptorPoolSize pool_sizes[2]{};
+    pool_sizes[0] = {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1};
+    pool_sizes[1] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1};
+    VkDescriptorPoolCreateInfo descriptor_pool_info{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    descriptor_pool_info.maxSets = 1;
+    descriptor_pool_info.poolSizeCount = 2;
+    descriptor_pool_info.pPoolSizes = pool_sizes;
+    if (vkCreateDescriptorPool(c.device, &descriptor_pool_info, nullptr,
+                               &c.descriptor_pool) != VK_SUCCESS)
+        return 1;
+    VkDescriptorSetAllocateInfo descriptor_alloc{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    descriptor_alloc.descriptorPool = c.descriptor_pool;
+    descriptor_alloc.descriptorSetCount = 1;
+    descriptor_alloc.pSetLayouts = &c.descriptor_layout;
+    VkDescriptorSet descriptor = VK_NULL_HANDLE;
+    if (vkAllocateDescriptorSets(c.device, &descriptor_alloc, &descriptor) != VK_SUCCESS)
+        return 1;
+
+    constexpr uint32_t result_count = 8u * 8u;
+    constexpr uint32_t result_bytes = result_count * sizeof(uint32_t);
+    if (!allocate_buffer(c, c.query_results, result_bytes,
+                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false))
+        return 1;
+    mapped = nullptr;
+    if (vkMapMemory(c.device, c.query_results.memory, 0, result_bytes, 0,
+                    &mapped) != VK_SUCCESS)
+        return 1;
+    std::memset(mapped, 0xFF, result_bytes);
+    vkUnmapMemory(c.device, c.query_results.memory);
+
+    VkWriteDescriptorSetAccelerationStructureKHR accel_descriptor{
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
+    accel_descriptor.accelerationStructureCount = 1;
+    accel_descriptor.pAccelerationStructures = &c.tlas;
+    VkDescriptorBufferInfo result_descriptor{};
+    result_descriptor.buffer = c.query_results.buffer;
+    result_descriptor.range = result_bytes;
+    VkWriteDescriptorSet writes[2]{};
+    for (auto& w : writes) {
+        w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w.dstSet = descriptor;
+        w.descriptorCount = 1;
+    }
+    writes[0].dstBinding = 0;
+    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    writes[0].pNext = &accel_descriptor;
+    writes[1].dstBinding = 1;
+    writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    writes[1].pBufferInfo = &result_descriptor;
+    vkUpdateDescriptorSets(c.device, 2, writes, 0, nullptr);
+
+    VkPipelineLayoutCreateInfo pipeline_layout_info{
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipeline_layout_info.setLayoutCount = 1;
+    pipeline_layout_info.pSetLayouts = &c.descriptor_layout;
+    if (vkCreatePipelineLayout(c.device, &pipeline_layout_info, nullptr,
+                               &c.pipeline_layout) != VK_SUCCESS)
+        return 1;
+    VkPipelineShaderStageCreateInfo stage{
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stage.module = c.shader;
+    stage.pName = "main";
+    VkComputePipelineCreateInfo compute{
+        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    compute.stage = stage;
+    compute.layout = c.pipeline_layout;
+    if (vkCreateComputePipelines(c.device, VK_NULL_HANDLE, 1, &compute,
+                                 nullptr, &c.ray_pipeline) != VK_SUCCESS)
+        return 1;
+    if (vkResetCommandPool(c.device, c.pool, 0) != VK_SUCCESS)
+        return 1;
+    if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS)
+        return 1;
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, c.ray_pipeline);
+    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_COMPUTE,
+                            c.pipeline_layout, 0, 1, &descriptor, 0, nullptr);
+    vkCmdDispatch(command, 1, 1, 1);
+    if (vkEndCommandBuffer(command) != VK_SUCCESS)
+        return 1;
+    if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
+        vkQueueWaitIdle(c.queue) != VK_SUCCESS)
+        return 1;
+    mapped = nullptr;
+    if (vkMapMemory(c.device, c.query_results.memory, 0, result_bytes, 0,
+                    &mapped) != VK_SUCCESS)
+        return 1;
+    std::array<uint32_t, result_count> results{};
+    std::memcpy(results.data(), mapped, result_bytes);
+    vkUnmapMemory(c.device, c.query_results.memory);
+    uint32_t hits = 0;
+    for (unsigned y = 0; y < 8; ++y) {
+        for (unsigned x = 0; x < 8; ++x) {
+            const uint32_t actual = results[y * 8 + x];
+            const uint32_t expected = (x + y <= 7) ? 1u : 0u;
+            if (actual != expected) {
+                std::printf("FAIL: GPU shadow mask (%u,%u) expected=%u actual=%u\n",
+                            x, y, expected, actual);
+                return 1;
+            }
+            hits += actual;
+        }
+    }
+    std::printf("PASS: GPU 8x8 ray-query shadow mask; occluded=%u visible=%u\n",
+                hits, result_count - hits);
+    if (hits != 36) return 1;
+    std::puts("Viewer OpenGL unchanged; shadow mask not yet composited into world.");
     return 0;
 }

@@ -54,7 +54,9 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
         target_compile_features(ogl_vulkan_blas_smoke PRIVATE cxx_std_17)
         target_include_directories(ogl_vulkan_blas_smoke PRIVATE "${OGL_VULKAN_HEADER_DIR}")
         target_link_libraries(ogl_vulkan_blas_smoke PRIVATE "${OGL_VULKAN_RUNTIME}")
-        add_test(NAME ogl_vulkan_blas_tlas_gpu COMMAND ogl_vulkan_blas_smoke)
+        add_test(NAME ogl_vulkan_blas_tlas_gpu
+                 COMMAND ogl_vulkan_blas_smoke
+                 "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv")
         set_tests_properties(ogl_vulkan_blas_tlas_gpu PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
     endif()
 
@@ -87,6 +89,12 @@ if(UNIX)
     add_test(NAME ogl_module_handshake
              COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>)
 endif()
+
+# Pure C++ geometry validation for both the OpenGL collector and Vulkan.
+add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)
+target_include_directories(ogl_scene_validation_test PRIVATE include)
+target_compile_features(ogl_scene_validation_test PRIVATE cxx_std_17)
+add_test(NAME ogl_scene_validation COMMAND ogl_scene_validation_test)
 
 # Pure C++ HTTP login allowlist contract. It never opens the network.
 add_executable(ogl_grid_http_policy_test ../tests/test_grid_http_policy.cpp)

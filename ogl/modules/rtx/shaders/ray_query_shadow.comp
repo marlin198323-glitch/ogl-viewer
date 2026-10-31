@@ -1,0 +1,25 @@
+#version 460
+#extension GL_EXT_ray_query : require
+
+// Deterministic GPU ray-query acceptance, not a viewer renderer.
+// 8x8 deterministic ray queries across the test triangle's xy plane.
+// A 0.3-pixel offset avoids ambiguous triangle boundary intersections.
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(set = 0, binding = 0) uniform accelerationStructureEXT scene;
+layout(set = 0, binding = 1, std430) buffer Results {
+    uint occlusion[64];
+} outputBuffer;
+
+void main() {
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    const uint index = pixel.y * 8u + pixel.x;
+    const vec3 origin = vec3((float(pixel.x) + 0.3) / 8.0,
+                             (float(pixel.y) + 0.3) / 8.0, 2.0);
+    rayQueryEXT query;
+    rayQueryInitializeEXT(query, scene,
+        gl_RayFlagsOpaqueEXT, 0xffu,
+        origin, 0.001, vec3(0.0, 0.0, -1.0), 5.0);
+    while (rayQueryProceedEXT(query)) {}
+    outputBuffer.occlusion[index] = rayQueryGetIntersectionTypeEXT(
+        query, true) == gl_RayQueryCommittedIntersectionTriangleEXT ? 1u : 0u;
+}
