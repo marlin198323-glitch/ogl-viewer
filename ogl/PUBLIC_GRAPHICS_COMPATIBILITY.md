@@ -83,6 +83,7 @@ Multi-GPU-Kopplung.
 - [x] Vulkan-Diagnose verarbeitet 64 ausgerichtete OpenGL-Tiefenwerte für Sonnenstrahlen
 - [ ] Vulkan erhält vollständige Tiefen- und Normalen-Renderziele ohne synchronen CPU-Readback
 - [ ] Vollständige dynamische OpenSim-Geometrie inklusive Terrain und Avatare erfassen
+- [x] Abgesicherten 8×8-Vulkan-Ergebnis-Preview als klar gekennzeichnetes Entwickler-UI hinzufügen
 - [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer

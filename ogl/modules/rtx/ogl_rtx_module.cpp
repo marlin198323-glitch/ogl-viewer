@@ -245,6 +245,7 @@ void poll_probe_on_viewer_thread() {
         fresh.struct_size = sizeof(fresh);
         fresh.version = OGL_RTX_SHADOW_DEBUG_VERSION;
         fresh.geometry_revision = geometry_revision;
+        fresh.sample_sequence = outcome.revision;
         fresh.width = 8;
         fresh.height = 8;
         fresh.occluded = outcome.occluded;

@@ -49,6 +49,8 @@ using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_rtx_submit_frame_fn rtx_submit_frame = nullptr;
 using ogl_rtx_submit_geometry_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
+using ogl_rtx_triangles_fn = uint32_t (*)();
+ogl_rtx_triangles_fn rtx_received_triangles = nullptr;
 using ogl_rtx_copy_shadow_debug_fn = int (*)(ogl_rtx_shadow_debug*);
 ogl_rtx_copy_shadow_debug_fn rtx_copy_shadow_debug = nullptr;
 using ogl_rtx_submit_depth_fn = int (*)(const ogl_rtx_depth_debug*);
@@ -100,6 +102,8 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_frame"));
     rtx_submit_geometry = reinterpret_cast<ogl_rtx_submit_geometry_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
+    rtx_received_triangles = reinterpret_cast<ogl_rtx_triangles_fn>(
+        ogl_resolve_module(rtx_module_handle, "ogl_rtx_received_triangles"));
     rtx_copy_shadow_debug = reinterpret_cast<ogl_rtx_copy_shadow_debug_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_copy_shadow_debug"));
     rtx_submit_depth = reinterpret_cast<ogl_rtx_submit_depth_fn>(
@@ -137,6 +141,7 @@ void ogl_shutdown_rtx_module() {
     rtx_rendering_enabled = false;
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
+    rtx_received_triangles = nullptr;
     rtx_copy_shadow_debug = nullptr;
     rtx_submit_depth = nullptr;
 #endif
@@ -201,8 +206,9 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 
 // Firestorm's future diagnostic compositor can request a _current_ sample.
 // The GPU module remains a black box; no OpenGL/Vulkan calls here.
-bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
-    std::size_t capacity, std::uint64_t* geometry_revision)
+bool ogl_rtx_copy_debug_shadow_sample(std::uint8_t* pixels,
+    std::size_t capacity, std::uint64_t* geometry_revision,
+    std::uint64_t* sample_sequence)
 {
 #if LL_LINUX || LL_WINDOWS
     if (!rtx_module_handle || !rtx_hardware_ready ||
@@ -223,13 +229,22 @@ bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
     if (hit_count != debug.occluded) return false;
     std::memcpy(pixels, debug.pixels, OGL_RTX_SHADOW_DEBUG_PIXELS);
     if (geometry_revision) *geometry_revision = debug.geometry_revision;
+    if (sample_sequence) *sample_sequence = debug.sample_sequence;
     return true;
 #else
     (void)pixels;
     (void)capacity;
     (void)geometry_revision;
+    (void)sample_sequence;
     return false;
 #endif
+}
+
+bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
+    std::size_t capacity, std::uint64_t* geometry_revision)
+{
+    return ogl_rtx_copy_debug_shadow_sample(
+        pixels, capacity, geometry_revision, nullptr);
 }
 
 
@@ -245,7 +260,8 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
         const char* env = std::getenv("OGL_RTX_DEPTH_PROBE");
         return env && std::strcmp(env, "1") == 0;
     }();
-    if (!enabled || !rtx_hardware_ready || !rtx_submit_depth || !texture ||
+    if (!enabled || !rtx_hardware_ready || !rtx_submit_depth ||
+        !rtx_received_triangles || rtx_received_triangles() == 0 || !texture ||
         width < 8 || height < 8 || width > 32768 || height > 32768)
         return;
     using Clock = std::chrono::steady_clock;

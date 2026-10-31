@@ -164,7 +164,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("capacity < OGL_RTX_SHADOW_DEBUG_PIXELS", host)
         self.assertIn("if (hit_count != debug.occluded) return false;", host)
         self.assertIn("ogl_rtx_copy_shadow_debug(", module)
-        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 1u", api)
+        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 2u", api)
         self.assertIn("uint8_t pixels[OGL_RTX_SHADOW_DEBUG_PIXELS]", api)
 
     def test_camera_rayquery_path_is_perspective_and_optional(self):
@@ -252,6 +252,29 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("depth_guided_sun.comp.spv", manifest)
         self.assertIn("near_clip_m", camera)
         self.assertIn("far_clip_m", camera)
+
+    def test_rtx_debug_preview_is_separate_and_opt_in(self):
+        ui = (ROOT / "indra/newview/llviewerdisplay.cpp").read_text()
+        host = (ROOT / "indra/newview/oglrtxhost.cpp").read_text()
+        api = (ROOT / "ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn('std::getenv("OGL_RTX_DEBUG_OVERLAY")', ui)
+        self.assertIn('std::getenv("OGL_RTX_DEPTH_GUIDED_PROBE")', ui)
+        self.assertIn('!isAgentAvatarValid()', ui)
+        self.assertIn('ogl_rtx_copy_debug_shadow_sample(', ui)
+        self.assertIn("sample_sequence == 0", ui)
+        self.assertIn("now - sample_received > std::chrono::seconds(8)", ui)
+        self.assertIn('"NOT WORLD SHADOWS"', ui)
+        self.assertIn("LLViewerFetchedTexture::sWhiteImagep", ui)
+        self.assertIn("ogl_draw_rtx_shadow_debug_preview();", ui)
+        self.assertIn('ogl_resolve_module(rtx_module_handle, "ogl_rtx_received_triangles")', host)
+        self.assertIn("rtx_received_triangles() == 0", host)
+        self.assertIn("bool ogl_rtx_copy_debug_shadow_mask(", host)
+        self.assertIn("bool ogl_rtx_copy_debug_shadow_sample(", host)
+        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 2u", api)
+        self.assertIn("uint64_t sample_sequence", api)
+        self.assertIn("fresh.sample_sequence = outcome.revision;", module)
+        self.assertIn("rendering_active=0", module)
 
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

@@ -275,3 +275,17 @@ Fehlerberichte eingefügt werden.
   OpenGL-Renderer. Vollständiger Linux-Build und Fallbacktests grün.
 - Live-OpenSim-Abnahme sowie sichtbare RTX-Schatten weiterhin offen.
 - [`RTX_10_BLOCKS_2026_10_31_P11.md`](RTX_10_BLOCKS_2026_10_31_P11.md).
+
+
+## 31.10.2026 – zwölfte RTX-Runde: lokaler 2D-Debug-Preview
+
+- GPU-Debug-Maske über ABI v2 (`sample_sequence`) an
+  eine kleine gekennzeichnete 8×8-Vorschau im Firestorm-UI gekoppelt.
+- Opt-in, Avatar-/Hardware-/Gültigkeitsprüfung, 8-Sekunden-TTL.
+- Optionaler Depth-Readback erst bei empfangener Weltgeometrie.
+- Ein-Kommando-Entwicklertest:
+  `bash ogl/scripts/run-rtx-preview-test.sh`.
+- Linux-C++-Viewer und 38 Python-/21 native Tests bestanden.
+- Der 2D-Preview wurde noch nicht in einer echten angemeldeten
+  OpenSim-Sitzung visuell abgenommen; keine RTX-Weltschatten.
+- [`RTX_10_BLOCKS_2026_10_31_P12.md`](RTX_10_BLOCKS_2026_10_31_P12.md).

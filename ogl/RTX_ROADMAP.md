@@ -410,3 +410,36 @@ konventionelle Depth-Rekonstruktion; die tatsächliche Projektions-
 Konvention der eingeloggten Stadt-NexVerse-Welt muss noch
 abgenommen werden. Keine vollständige Region, kein Compositing,
 keine interaktive Bildrate, kein `rendering_active=1`.
+
+
+## 31.10.2026 – zwölfte RTX-10er-Runde: sichtbare 8×8-Debug-Vorschau
+
+- Firestorm erhält erstmals einen rein diagnostischen **2D-UI-Preview**
+  aus der tatsächlich fertig berechneten Vulkan-Shadow-Maske.
+  Der Preview zeichnet ein kleines 8×8-Raster: Rot = Sonnenstrahl
+  verdeckt; Türkis = nicht verdeckt.
+- Die Anzeige ist mit **„RTX DEBUG / 8x8 – NOT WORLD SHADOWS“**
+  gekennzeichnet und erscheint nur bei explizitem Developer-Opt-in
+  `OGL_RTX_DEBUG_OVERLAY=1` zusammen mit dem Depth-Guided-Modus.
+  Ohne geladenen Avatar oder gültiges GPU-Ergebnis bleibt sie weg.
+- Shadow-Debug-ABI v2 transportiert `sample_sequence` für
+  erfolgreiche GPU-Aufträge. Die alte Host-Abfrage bleibt
+  kompatibel, der neue Host-Zugriff liefert zusätzlich die Sequenz.
+- UI-Vorschau prüft die Maske (0/1 + Trefferzahl), aktualisiert
+  auf neue Sequenznummern und verschwindet nach 8 Sekunden
+  ohne neues GPU-Ergebnis; die reale Weltbeleuchtung bleibt
+  unverändert.
+- Die optionale Deferred-Depth-Probe startet nun **erst nach Empfang
+  realer Weltgeometrie**, nicht mehr schon im ersten Frame vor
+  dem 180-Frame-Mesh-Snapshot.
+- `ogl/scripts/run-rtx-preview-test.sh` startet den abgesicherten
+  Entwicklertest mit allen Opt-ins und normaler 60-Sekunden-Drossel.
+- 38 Python-Tests, 21 native Tests, vollständiger Linux-Viewer-Build
+  und No-Vulkan-Fallback erfolgreich.
+- [`RTX_10_BLOCKS_2026_10_31_P12.md`](RTX_10_BLOCKS_2026_10_31_P12.md).
+
+**Keine fertigen Schatten in Stadt NexVerse**: Die UI-Vorschau ist
+kein Compositing, keine vollständige Szene und keine Echtzeit-
+Schattenkarte. Ihre tatsächliche Bilddarstellung muss der Nutzer
+in einer eingeloggten lokalen OGL-Sitzung abnehmen.
+`rendering_active=0` bleibt bestehen.

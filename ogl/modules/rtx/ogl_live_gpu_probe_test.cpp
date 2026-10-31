@@ -104,6 +104,8 @@ int main(int argc, char** argv) {
             assert(attempts()==1 && successes()==1);
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_debug(&debug)==1 && debug.occluded==0);
+            assert(debug.sample_sequence > 0);
+            const uint64_t original_sample_sequence = debug.sample_sequence;
             // New depth input must invalidate old shadow mask before GPU
             // finishes the next pass, despite unchanged camera and mesh.
             std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -118,6 +120,7 @@ int main(int argc, char** argv) {
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_debug(&debug)==1);
             assert(debug.geometry_revision==1);
+            assert(debug.sample_sequence > original_sample_sequence);
             stop();
             dlclose(library);
             std::puts("PASS: depth-guided GPU jobs use valid aligned grids; update without mesh changes");
@@ -140,6 +143,8 @@ int main(int argc, char** argv) {
             assert(copy_debug(&debug) == 1);
             assert(debug.width == 8 && debug.height == 8);
             assert(debug.geometry_revision == 1);
+            assert(debug.sample_sequence > 0);
+            const uint64_t original_sample_sequence = debug.sample_sequence;
             uint32_t hits = 0;
             for (const auto pixel : debug.pixels) {
                 assert(pixel <= 1);
@@ -160,6 +165,7 @@ int main(int argc, char** argv) {
                 for (unsigned i = 0; i < 30; ++i) assert(frame(&state) == 1);
                 assert(copy_debug(&debug) == 1);
                 assert(debug.geometry_revision == 1); // only camera changed
+                assert(debug.sample_sequence > original_sample_sequence);
                 stop();
                 dlclose(library);
                 std::puts("PASS: same mesh with changed camera launches fresh GPU rays");

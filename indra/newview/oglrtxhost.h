@@ -27,6 +27,12 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
 bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
     std::size_t capacity, std::uint64_t* geometry_revision);
 
+// Same validated shadow mask, plus monotonic GPU publication sequence.
+// UI diagnostics may use the sequence to expire or refresh old samples.
+bool ogl_rtx_copy_debug_shadow_sample(std::uint8_t* pixels,
+    std::size_t capacity, std::uint64_t* geometry_revision,
+    std::uint64_t* sample_sequence);
+
 // Optional whole-view 8x8 NEAREST depth grid from the REAL deferred OpenGL
 // depth texture. GPU-only downsample, single synchronous readback/minute with
 // OGL_RTX_DEPTH_PROBE=1. Not used for visible shadows.

@@ -27,6 +27,12 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llviewerdisplay.h"
+#include "oglrtxhost.h"
+
+#include <array>
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
 
 #include "fsyspath.h"
 #include "hexdump.h"
@@ -1895,6 +1901,83 @@ void render_ui_3d()
     stop_glerror();
 }
 
+// Debug-only view into the REAL async GPU mask, not world lighting.
+ // The preview is deliberately outside the deferred renderer: it must never
+ // modify color, depth, normals, shadow state or lighting in the 3D world.
+static void ogl_draw_rtx_shadow_debug_preview()
+{
+#if LL_LINUX || LL_WINDOWS
+    static const bool enabled = [] {
+        const char* preview = std::getenv("OGL_RTX_DEBUG_OVERLAY");
+        const char* depth = std::getenv("OGL_RTX_DEPTH_GUIDED_PROBE");
+        return preview && std::strcmp(preview, "1") == 0 &&
+               depth && std::strcmp(depth, "1") == 0;
+    }();
+    if (!enabled || !ogl_rtx_hardware_supported() ||
+        !isAgentAvatarValid() || gDisconnected || !gViewerWindow)
+        return;
+
+    std::array<std::uint8_t, 64> mask{};
+    std::uint64_t geometry_revision = 0;
+    std::uint64_t sample_sequence = 0;
+    if (!ogl_rtx_copy_debug_shadow_sample(mask.data(), mask.size(),
+                                           &geometry_revision, &sample_sequence) ||
+        sample_sequence == 0)
+        return;
+
+    using Clock = std::chrono::steady_clock;
+    static std::uint64_t last_sequence = 0;
+    static Clock::time_point sample_received{};
+    const auto now = Clock::now();
+    if (last_sequence != sample_sequence) {
+        last_sequence = sample_sequence;
+        sample_received = now;
+    }
+    // Do not pretend an old 8x8 mask is a current realtime shadow.
+    if (now - sample_received > std::chrono::seconds(8))
+        return;
+
+    const S32 width = gViewerWindow->getWindowWidthScaled();
+    const S32 height = gViewerWindow->getWindowHeightScaled();
+    if (width < 230 || height < 220)
+        return;
+    constexpr S32 cell = 15;
+    const S32 left = width - 168;
+    const S32 top = height - 16;
+
+    LLGLSUIDefault gls_ui;
+    LLGLDisable depth_test(GL_DEPTH_TEST);
+    LLGLDisable scissor(GL_SCISSOR_TEST);
+    gUIProgram.bind();
+    // gUIProgram multiplies vertex colour with a sampled texture.
+    // Bind Firestorm's own white image, not an unbound sampler.
+    gGL.getTexUnit(0)->bind(LLViewerFetchedTexture::sWhiteImagep, true);
+
+    gl_rect_2d(left-10, top+5, left+132, top-171,
+               LLColor4(0.06f, 0.09f, 0.15f, 0.96f));
+    for (unsigned y=0; y<8; ++y) {
+        for (unsigned x=0; x<8; ++x) {
+            const S32 x0 = left + S32(x)*cell;
+            const S32 y1 = top-38-S32(7-y)*cell;
+            // Red = occluded sunray. Teal = no occluder.
+            const LLColor4 color = mask[y*8+x] ?
+                LLColor4(0.95f,0.29f,0.22f,1.f) :
+                LLColor4(0.08f,0.48f,0.48f,1.f);
+            gl_rect_2d(x0, y1, x0+cell-2, y1-cell+2, color);
+        }
+    }
+    LLFontGL::getFontSansSerifSmall()->renderUTF8(
+        "RTX DEBUG / 8x8", 0, left, top-12, LLColor4::white);
+    LLFontGL::getFontSansSerifSmall()->renderUTF8(
+        "NOT WORLD SHADOWS", 0, left, top-156,
+        LLColor4(0.96f,0.77f,0.43f,1.f));
+    gGL.getTexUnit(0)->unbind(LLTexUnit::TT_TEXTURE);
+    gUIProgram.unbind();
+#else
+    // The portable OpenGL preview is available on Linux and Windows.
+#endif
+}
+
 void render_ui_2d()
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_UI;
@@ -2016,6 +2099,10 @@ void render_ui_2d()
     {
         gViewerWindow->draw();
     }
+
+    // Developer-only 8x8 Vulkan result preview; never world compositing.
+    // It is drawn AFTER normal UI targets, so RenderUIBuffer modes agree.
+    ogl_draw_rtx_shadow_debug_preview();
 
     // reset current origin for font rendering, in case of tiling render
     LLFontGL::sCurOrigin.set(0, 0);

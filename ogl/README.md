@@ -149,3 +149,13 @@ synthetische GPU-Szenen mit Hindernis bestehen den Ray-Query-Test.
 Der Standard-Viewer benutzt weiterhin ausschließlich OpenGL;
 **noch keine sichtbaren RTX-Schatten**.
 [Technische Abnahme](RTX_10_BLOCKS_2026_10_31_P11.md).
+
+
+Die **zwölfte RTX-10er-Runde** zeigt die 8×8-GPU-Schattenmaske
+optional als ausdrücklich gekennzeichnete Diagnosevorschau
+im OGL Viewer an. Der neue Dev-Starter
+`bash ogl/scripts/run-rtx-preview-test.sh` aktiviert nur
+den kontrollierten Testmodus. Die UI enthält den Hinweis
+**„NOT WORLD SHADOWS“**. Normaler OpenGL-Betrieb und die
+3D-Weltbeleuchtung bleiben unverändert.
+[Technischer Bericht und Abnahme](RTX_10_BLOCKS_2026_10_31_P12.md).
