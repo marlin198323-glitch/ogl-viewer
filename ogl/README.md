@@ -66,3 +66,9 @@ mit 64 Strahlen. Bis die echte OpenSim-Weltgeometrie und das OpenGL-
 Compositing angeschlossen sind, werden im Viewer selbst weiter keine
 RTX-Schatten angezeigt. [Testbericht und nächste Schritte](
 RTX_10_BLOCKS_2026_10_31.md).
+
+
+Die **zweite RTX-10er-Runde** prüft bereits die komplette isolierte
+Datenkette `OGL-Geometrie-ABI → GPU-BLAS/TLAS → Ray-Query-Maske` mit
+64 und 1.024 Beispiel-Dreiecken. Die Live-Render-Integration fehlt
+weiterhin. [Abnahmebericht](RTX_10_BLOCKS_2026_10_31_P2.md).

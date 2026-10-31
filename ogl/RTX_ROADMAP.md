@@ -144,3 +144,30 @@ Raytracing-Freigabe für Endnutzer.
 Szenenupdates, weltweite Sonnen-/Materialdaten, Echtzeit-Shadow-Denoiser
 und das eigentliche OpenGL-Compositing. `rendering_active=0` bleibt
 deshalb korrekt. Endnutzer sehen noch kein hardwareberechnetes RTX-Bild.
+
+
+## 31.10.2026 – zweite 10er-Runde: OGL-ABI → Vulkan-GPU
+
+- Der eigenständige Vulkan-Builder kann einen Snapshot über die gleiche
+  native C-ABI annehmen, die der Viewer für seine OpenSim-Dreiecke benutzt.
+  Es werden synthetische Testdreiecke durch das OGL-Modul eingereicht,
+  kopiert und anschließend für BLAS, TLAS und die 64 GPU-Strahlen verwendet.
+- Zwei GPU-Tests bestehen: 64 Dreiecke und 1.024 Dreiecke.
+  Die resultierende 8×8-Testmaske bleibt korrekt (36/28).
+- Kritischer GPU-Sicherheitsfehler behoben: Eine TLAS hat eine Instanz,
+  auch wenn die BLAS 1.024 Dreiecke enthält. BLAS-Primitive-Count darf
+  nicht als TLAS-Instanzanzahl verwendet werden.
+- GPU-freie Systeme überspringen die Vulkan-Tests kontrolliert;
+  reiner OpenGL-Betrieb bleibt erhalten.
+- Die Szene meldet CPU-Snapshot-Anzahl und Revision ohne Objektnamen;
+  eine spätere Leerszene oder ein Teleport erzeugt ein
+  `CPU scene cleared`-Ereignis. Der Diagnosebericht erkennt den
+  chronologisch letzten Zustand.
+- Ausführlicher Nachweis:
+  [`RTX_10_BLOCKS_2026_10_31_P2.md`](RTX_10_BLOCKS_2026_10_31_P2.md).
+
+**Nicht als erledigt melden:** Der produktive Viewer baut noch keine
+GPU-BLAS aus der *aktuell verbundenen* OpenSim-Region auf; diese
+Schnittstelle ist bislang nur isoliert mit Testdaten abgenommen.
+Es gibt noch keine Raytracing-Schatten im sichtbaren OGL-Viewer,
+kein GPU/GL-Compositing und keinen Endnutzer-RTX-Schalter.

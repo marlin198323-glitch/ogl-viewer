@@ -63,7 +63,13 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR', src)
         self.assertIn('VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR', src)
         self.assertIn('build_blas(command, 1, &build_info, ranges)', src)
-        self.assertIn('build_blas(command, 1, &top_build, ranges)', src)
+        self.assertIn('build_blas(command, 1, &top_build, top_ranges)', src)
+        self.assertIn('top_range.primitiveCount = instance_count', src)
+        self.assertIn('range.primitiveCount = primitive_count', src)
+        self.assertIn('ogl_vulkan_module_scene_64', cmake)
+        self.assertIn('ogl_vulkan_module_scene_1024', cmake)
+        self.assertIn('copy(scene.data(), count) == count', src)
+        self.assertIn('VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR', src)
         self.assertIn('instance.accelerationStructureReference = blas_address', src)
         self.assertIn('vkQueueWaitIdle(c.queue)', src)
         self.assertIn('vkResetCommandPool(c.device, c.pool, 0)', src)
@@ -94,6 +100,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("ogl::is_valid_triangle(triangles[i])", module)
         self.assertIn("ogl_rtx_geometry_revision", module)
         self.assertIn("ogl_rtx_copy_geometry", module)
+        self.assertIn("OGL RTX CPU scene snapshot: triangles=", module)
+        self.assertIn("OGL RTX CPU scene cleared revision=", module)
 
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

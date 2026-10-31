@@ -131,3 +131,19 @@ Fehlerberichte eingefügt werden.
   nicht an den GPU-BLAS-/TLAS-Builder angeschlossen. Keine sichtbare
   Raytracing-Darstellung im Viewer. Siehe
   [`RTX_10_BLOCKS_2026_10_31.md`](RTX_10_BLOCKS_2026_10_31.md).
+
+
+## 31.10.2026 – zweite 10er-Runde: Vulkan-Modul-Geometrie auf GPU
+
+- Portable Vulkan-Testpipeline lädt ein OGL-Modul als SO/DLL und
+  verarbeitet dessen validierte Dreiecks-Snapshots auf der GPU.
+- Tests auf NVIDIA RTX 4070 SUPER: 64 und 1.024 Dreiecke;
+  jeweils BLAS/TLAS erfolgreich, GPU-Ray-Query-8×8-Maske 36/28.
+- TLAS-PrimitiveCount-Fehler bei größeren BLAS korrigiert.
+- Diagnoselogs enthalten nur Dreiecksanzahl/Revision und beachten
+  eine spätere Teleport-Invalidierung.
+- Nachweis: 30 Python-Tests und 10 native Vulkan-/C++-Tests;
+  normaler Linux-Viewer kompiliert, Shader und Modul ausgeliefert.
+- **Noch kein sichtbares Raytracing im Viewer**: Live-Weltgeometrie
+  ist nicht an einen persistenten GPU-Renderer angeschlossen.
+  Siehe `RTX_10_BLOCKS_2026_10_31_P2.md`.

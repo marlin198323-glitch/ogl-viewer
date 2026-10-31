@@ -78,7 +78,7 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('camera->getOrigin().mV', pipeline)
         self.assertIn('ogl_rtx_submit_frame', module)
         self.assertIn('ogl_rtx_submit_geometry', module)
-        self.assertIn('OGL RTX captured real OpenSim triangles=', module)
+        self.assertIn('OGL RTX CPU scene snapshot: triangles=', module)
         self.assertIn('rendering_active=0', module)
         self.assertIn('OGL_RTX_MAX_SCENE_TRIANGLES', pipeline)
         self.assertIn('gObjectList.getObject(', pipeline)

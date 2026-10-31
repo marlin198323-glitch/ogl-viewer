@@ -63,11 +63,13 @@ Multi-GPU-Kopplung.
 - [x] Vulkan-RT-Modul wird bei verfügbaren SDK-Headern mit dem Viewer gebaut
 - [x] Linux-OpenGL-Fallback- und ABI-Tests
 - [x] Quellcode und Modul unter Linux erfolgreich gebaut
-- [ ] Windows-CI-Modulbuild / kompletter Windows-Viewer-Start getestet
+- [x] Linux-/Windows-CI für portable Vulkan-RT-Module
+- [ ] Vollständiger Windows-Viewer-Start und Installer-Abnahme
 - [ ] AMD/Intel-RT-Hardware geprüft
 - [ ] Multi-GPU-Identitätsabgleich (OpenGL ↔ Vulkan)
 - [x] Isolierter Vulkan-GPU-BLAS- und TLAS-Build mit Testdreieck und Instanz
-- [ ] Echte OpenSim-Geometrie an den GPU-Builder anbinden, inkrementell aktualisieren
+- [x] OGL-Geometrie-ABI mit 64 und 1.024 synthetischen Dreiecken an Vulkan-BLAS/TLAS angebunden
+- [ ] Echte Live-OpenSim-Snapshots im Viewer fortlaufend an GPU-BLAS/TLAS übergeben
 - [x] Isolierter 8x8-Vulkan-Compute-Test: 64 Ray Queries, 36 Treffer, 28 Misses
 - [ ] Ray-Query-Schattenbild aus realer Weltgeometrie berechnen und in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen

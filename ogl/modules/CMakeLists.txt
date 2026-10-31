@@ -52,12 +52,26 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
         # A GPU/driver is optional in CI, so lack of RT is an explicit SKIP.
         add_executable(ogl_vulkan_blas_smoke rtx/vulkan_blas_smoke.cpp)
         target_compile_features(ogl_vulkan_blas_smoke PRIVATE cxx_std_17)
-        target_include_directories(ogl_vulkan_blas_smoke PRIVATE "${OGL_VULKAN_HEADER_DIR}")
-        target_link_libraries(ogl_vulkan_blas_smoke PRIVATE "${OGL_VULKAN_RUNTIME}")
+        target_include_directories(ogl_vulkan_blas_smoke PRIVATE
+            include "${OGL_VULKAN_HEADER_DIR}")
+        target_link_libraries(ogl_vulkan_blas_smoke PRIVATE
+            "${OGL_VULKAN_RUNTIME}" ${CMAKE_DL_LIBS})
         add_test(NAME ogl_vulkan_blas_tlas_gpu
                  COMMAND ogl_vulkan_blas_smoke
                  "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv")
         set_tests_properties(ogl_vulkan_blas_tlas_gpu PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+        # Exercise module snapshot ABI -> GPU acceleration structures.
+        # Hardware-free runners skip with 77 instead of blocking OpenGL.
+        add_test(NAME ogl_vulkan_module_scene_64
+                 COMMAND ogl_vulkan_blas_smoke
+                 "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                 --module $<TARGET_FILE:ogl_rtx_module> 64)
+        add_test(NAME ogl_vulkan_module_scene_1024
+                 COMMAND ogl_vulkan_blas_smoke
+                 "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                 --module $<TARGET_FILE:ogl_rtx_module> 1024)
+        set_tests_properties(ogl_vulkan_module_scene_64 ogl_vulkan_module_scene_1024
+                             PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
     endif()
 
     if(UNIX)

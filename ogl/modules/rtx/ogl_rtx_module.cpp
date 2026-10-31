@@ -210,6 +210,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
         if (!captured_geometry.empty()) {
             captured_geometry.clear();
             ++geometry_revision; // Teleport/region change invalidates old AS.
+            if (logger)
+                logger(1, (std::string("OGL RTX CPU scene cleared revision=") +
+                           std::to_string(geometry_revision)).c_str());
         }
         return 1;
     }
@@ -222,10 +225,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     const bool first_batch = captured_geometry.empty();
     captured_geometry.assign(triangles, triangles + count);
     ++geometry_revision;
-    if (first_batch && logger)
-        logger(1, (std::string("OGL RTX captured real OpenSim triangles=") +
-                   std::to_string(count) +
-                   "; Vulkan BLAS/TLAS and ray tracing not enabled yet.").c_str());
+    // Log numbers only, never login data or private scene object names.
+    // Keep updates sparse to avoid I/O overhead in populated OpenSim regions.
+    if (logger && (first_batch || geometry_revision % 30 == 0))
+        logger(1, (std::string("OGL RTX CPU scene snapshot: triangles=") +
+                   std::to_string(count) + " revision=" +
+                   std::to_string(geometry_revision) +
+                   "; GPU scene bridge test only; no in-viewer raytracing").c_str());
     return 1;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void) {

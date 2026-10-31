@@ -3,15 +3,82 @@
 // No hardware: CTest SKIP (77). GPU/API failure after selection: FAIL (1).
 // Real ray-query compute shader tested; OpenGL compositing still pending.
 #include <vulkan/vulkan.h>
+#include "ogl/ogl_rtx_api.h"
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#else
+#  include <dlfcn.h>
+#endif
 #include <set>
 #include <string>
 #include <vector>
+
+// The same portable C ABI used by the live OpenSim viewer.
+using GeometrySubmit = int (*)(const ogl_rtx_triangle*, uint32_t);
+using GeometryCopy = uint32_t (*)(ogl_rtx_triangle*, uint32_t);
+using GeometryRevision = uint64_t (*)();
+
+void diagnostic_log(int, const char*) {}
+
+static bool load_scene_from_module(const char* path, uint32_t count,
+                                   std::vector<ogl_rtx_triangle>& scene) {
+#if defined(_WIN32)
+    HMODULE module = LoadLibraryExA(path, nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    if (!module) return false;
+    auto symbol = [&](const char* name) -> void* {
+        return reinterpret_cast<void*>(GetProcAddress(module, name));
+    };
+#else
+    void* module = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!module) return false;
+    auto symbol = [&](const char* name) -> void* { return dlsym(module, name); };
+#endif
+    auto start = reinterpret_cast<ogl_module_start_fn>(symbol("ogl_module_start"));
+    auto stop = reinterpret_cast<ogl_module_stop_fn>(symbol("ogl_module_stop"));
+    auto submit = reinterpret_cast<GeometrySubmit>(symbol("ogl_rtx_submit_geometry"));
+    auto copy = reinterpret_cast<GeometryCopy>(symbol("ogl_rtx_copy_geometry"));
+    auto revision = reinterpret_cast<GeometryRevision>(symbol("ogl_rtx_geometry_revision"));
+    bool ok = false;
+    if (start && stop && submit && copy && revision) {
+        ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, diagnostic_log};
+        if (start(&host) == 0) {
+            std::vector<ogl_rtx_triangle> input(count);
+            for (uint32_t i = 0; i < count; ++i) {
+                // Mimic the viewer C ABI: one unit triangle followed by
+                // many physically separate mesh faces outside the ray mask.
+                float x = i ? 8.0f + float(i % 64) * 2.f : 0.f;
+                float y = i ? 8.0f + float(i / 64) * 2.f : 0.f;
+                input[i].position[0] = x;
+                input[i].position[1] = y;
+                input[i].position[3] = x + 1.f;
+                input[i].position[4] = y;
+                input[i].position[6] = x;
+                input[i].position[7] = y + 1.f;
+            }
+            scene.resize(count);
+            ok = submit(input.data(), count) == 1 &&
+                 revision() == 1 &&
+                 copy(scene.data(), count) == count &&
+                 std::memcmp(scene.data(), input.data(), count * sizeof(ogl_rtx_triangle)) == 0;
+            stop();
+        }
+    }
+#if defined(_WIN32)
+    FreeLibrary(module);
+#else
+    dlclose(module);
+#endif
+    return ok;
+}
 
 struct Buffer {
     VkBuffer buffer = VK_NULL_HANDLE;
@@ -115,9 +182,19 @@ bool has_extension(VkPhysicalDevice gpu, const std::set<std::string>& required) 
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        std::puts("FAIL: expected one compiled SPIR-V shader file argument");
+    if (argc != 2 && !(argc == 5 && std::strcmp(argv[2], "--module") == 0)) {
+        std::puts("FAIL: use <shader.spv> [--module <ogl_rtx.so/dll> <triangle_count>]");
         return 1;
+    }
+    uint32_t wanted_triangles = 1;
+    if (argc == 5) {
+        char* end = nullptr;
+        const unsigned long n = std::strtoul(argv[4], &end, 10);
+        if (!end || *end || n < 1 || n > OGL_RTX_MAX_SCENE_TRIANGLES) {
+            std::puts("FAIL: triangle_count must be 1-1024");
+            return 1;
+        }
+        wanted_triangles = static_cast<uint32_t>(n);
     }
     VulkanContext c;
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -248,11 +325,23 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // A single triangle. This exact 9-float layout matches the OGL scene ABI.
-    constexpr std::array<float, 9> triangle{0.f, 0.f, 0.f,
-                                           1.f, 0.f, 0.f,
-                                           0.f, 1.f, 0.f};
-    if (!allocate_buffer(c, c.vertices, sizeof(triangle),
+    // Build from the same validated OGL geometry ABI used by the live viewer.
+    // In standalone mode keep the deterministic unit triangle fixture.
+    // In module mode prove C ABI snapshot -> Vulkan GPU BLAS -> TLAS -> rays.
+    std::vector<ogl_rtx_triangle> triangles(wanted_triangles);
+    if (argc == 5) {
+        if (!load_scene_from_module(argv[3], wanted_triangles, triangles)) {
+            std::puts("FAIL: OGL module scene snapshot transfer");
+            return 1;
+        }
+    } else {
+        triangles[0].position[3] = 1.f;
+        triangles[0].position[7] = 1.f;
+    }
+    static_assert(sizeof(ogl_rtx_triangle) == 9 * sizeof(float),
+                  "Triangle ABI must be packed xyz floats");
+    const VkDeviceSize vertex_bytes = triangles.size() * sizeof(ogl_rtx_triangle);
+    if (!allocate_buffer(c, c.vertices, vertex_bytes,
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -261,9 +350,9 @@ int main(int argc, char** argv) {
         return 1;
     }
     void* mapped = nullptr;
-    if (vkMapMemory(c.device, c.vertices.memory, 0, sizeof(triangle), 0, &mapped) != VK_SUCCESS)
+    if (vkMapMemory(c.device, c.vertices.memory, 0, vertex_bytes, 0, &mapped) != VK_SUCCESS)
         return 1;
-    std::memcpy(mapped, triangle.data(), sizeof(triangle));
+    std::memcpy(mapped, triangles.data(), vertex_bytes);
     vkUnmapMemory(c.device, c.vertices.memory);
 
     VkAccelerationStructureGeometryTrianglesDataKHR vertices{
@@ -271,7 +360,7 @@ int main(int argc, char** argv) {
     vertices.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     vertices.vertexData.deviceAddress = buffer_address(c, c.vertices);
     vertices.vertexStride = 3 * sizeof(float);
-    vertices.maxVertex = 2;
+    vertices.maxVertex = wanted_triangles * 3 - 1;
     vertices.indexType = VK_INDEX_TYPE_NONE_KHR;
     if (!vertices.vertexData.deviceAddress) return 1;
 
@@ -287,11 +376,12 @@ int main(int argc, char** argv) {
     build_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     build_info.geometryCount = 1;
     build_info.pGeometries = &geometry;
-    constexpr uint32_t count = 1;
+    const uint32_t primitive_count = wanted_triangles;
+    constexpr uint32_t instance_count = 1;
     VkAccelerationStructureBuildSizesInfoKHR sizes{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     get_build_sizes(c.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-                    &build_info, &count, &sizes);
+                    &build_info, &primitive_count, &sizes);
     if (!sizes.accelerationStructureSize || !sizes.buildScratchSize) {
         std::puts("FAIL: invalid BLAS size response");
         return 1;
@@ -344,7 +434,7 @@ int main(int argc, char** argv) {
     begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS) return 1;
     VkAccelerationStructureBuildRangeInfoKHR range{};
-    range.primitiveCount = 1;
+    range.primitiveCount = primitive_count;
     const VkAccelerationStructureBuildRangeInfoKHR* ranges[] = {&range};
     build_blas(command, 1, &build_info, ranges);
     if (vkEndCommandBuffer(command) != VK_SUCCESS) return 1;
@@ -365,8 +455,8 @@ int main(int argc, char** argv) {
         std::puts("FAIL: completed BLAS has no GPU device address");
         return 1;
     }
-    std::printf("PASS: GPU BLAS built from 1 triangle on %s, AS bytes=%llu scratch bytes=%llu\n",
-        chosen.deviceName,
+    std::printf("PASS: GPU BLAS built from %u ABI triangles on %s, AS bytes=%llu scratch bytes=%llu\n",
+        wanted_triangles, chosen.deviceName,
         static_cast<unsigned long long>(sizes.accelerationStructureSize),
         static_cast<unsigned long long>(sizes.buildScratchSize));
 
@@ -412,7 +502,7 @@ int main(int argc, char** argv) {
     VkAccelerationStructureBuildSizesInfoKHR top_sizes{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     get_build_sizes(c.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-                    &top_build, &count, &top_sizes);
+                    &top_build, &instance_count, &top_sizes);
     if (!top_sizes.accelerationStructureSize || !top_sizes.buildScratchSize) {
         std::puts("FAIL: invalid TLAS size response");
         return 1;
@@ -445,7 +535,13 @@ int main(int argc, char** argv) {
         return 1;
     if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS)
         return 1;
-    build_blas(command, 1, &top_build, ranges);
+    // TLAS contains ONE instance even if its BLAS has 1024 triangles.
+    // Reusing BLAS primitiveCount here reads beyond the instance buffer,
+    // potentially causing Vulkan DEVICE_LOST on real GPUs.
+    VkAccelerationStructureBuildRangeInfoKHR top_range{};
+    top_range.primitiveCount = instance_count;
+    const VkAccelerationStructureBuildRangeInfoKHR* top_ranges[] = {&top_range};
+    build_blas(command, 1, &top_build, top_ranges);
     if (vkEndCommandBuffer(command) != VK_SUCCESS)
         return 1;
     if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||

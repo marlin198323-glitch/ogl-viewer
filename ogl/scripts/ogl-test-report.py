@@ -27,6 +27,24 @@ def disk_size(path: Path) -> str:
         return "unavailable"
 
 
+# Use chronological log order; a region teleport invalidates the last
+# geometry even if an earlier snapshot still appears in this log.
+SCENE_EVENT = re.compile(
+    r"OGL RTX CPU scene (?:snapshot: triangles=(\d+) revision=(\d+)"
+    r"|cleared revision=(\d+))"
+)
+
+
+def latest_scene_event(log_text: str):
+    matches = list(SCENE_EVENT.finditer(log_text))
+    if not matches:
+        return None
+    match = matches[-1]
+    if match.group(3) is not None:
+        return ("cleared", 0, int(match.group(3)))
+    return ("sample", int(match.group(1)), int(match.group(2)))
+
+
 def report():
     print("OGL Viewer – local Linux Mint test")
     print("Binary:", "present" if BINARY.is_file() else "missing")
@@ -50,8 +68,16 @@ def report():
             r"OGLRTX[^\n]*GPU [^\n]*hardware_ready=(\d+) rendering_active=(\d+)",
             text
         )
+        last_scene = latest_scene_event(text)
         scene_batches = re.findall(r"OGL RTX captured real OpenSim triangles=(\d+)", text)
-        if scene_batches:
+        if last_scene:
+            kind, count, revision = last_scene
+            if kind == "cleared":
+                print("RTX world geometry sample: cleared (region change/empty scene)")
+            else:
+                print("RTX world geometry sample:", count, "triangles received")
+            print("RTX geometry revision:", revision)
+        elif scene_batches:
             print("RTX world geometry sample:", scene_batches[-1], "triangles received")
         else:
             reason = ("no triangle snapshot recorded yet" if world_started else
