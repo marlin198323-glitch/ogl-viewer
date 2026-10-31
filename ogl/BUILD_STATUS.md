@@ -78,3 +78,22 @@ production-ready until these gates pass.
 - Contract checks: 9/9 passed; module checks: 3/3 passed.
 - Full C++ incremental rebuild and runtime staging passed.
 - See [`NEXVERSE_GRID.md`](NEXVERSE_GRID.md) for the complete profile.
+
+## 2026-10-31 – HTTPS deployment preparation (no server deployment)
+
+- Verified `hg.stadt-nexverse.de` resolves to `195.90.222.105`;
+  TCP/80 OpenSim/OSWebServer works, but public TCP/443 refuses connections.
+- Authorized Linux Mint and Pi devices are **not** the grid host.
+  SSH from Mint to the real grid host failed authentication.
+- Added Caddy HTTPS/TLS-ALPN-only reverse proxy template and read-only
+  host preflight under `ogl/server/`. Locally validated the Caddyfile
+  using Caddy 2.6.2 (no grid-server changes made).
+- Added cautious client HTTPS activation tool: validates GridInfo over
+  HTTPS with system certificate trust, then updates one OGL source value
+  only with `--activate`. Current `--check` correctly BLOCKS because
+  the public grid's HTTPS service is unavailable.
+- Changed login *style* label from Firestorm to OGL (underlying settings
+  filename unchanged). Works with both login panel layouts.
+- 13/13 OGL source and safety tests + 3/3 native module tests passed.
+- The actual OpenSim HTTPS endpoint has **not** been installed. No
+  login, avatar, mesh or in-world ray tracing can be accepted yet.

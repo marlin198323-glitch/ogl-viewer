@@ -1,0 +1,28 @@
+# Stadt NexVerse OpenSim ROBUST HTTPS front end
+# Target host: hg.stadt-nexverse.de (DNS must resolve to this server)
+#
+# Port 80 remains owned by the existing OpenSim service.
+# No HTTP -> HTTPS redirect is introduced, preserving old Hypergrid links.
+# Caddy listens on 443 and verifies ACME ownership using TLS-ALPN-01.
+#
+# IMPORTANT: Run on the grid host ONLY, after verifying port 443 is available
+# and an existing HTTP OpenSim service is reachable locally on 127.0.0.1:80.
+{
+	auto_https disable_redirects
+}
+
+https://hg.stadt-nexverse.de {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+
+	reverse_proxy 127.0.0.1:80 {
+		# Caddy passes Host and sets X-Forwarded-Proto/For by default.
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+		}
+	}
+}
