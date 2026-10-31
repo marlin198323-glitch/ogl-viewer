@@ -32,16 +32,6 @@
 	</menu_item_check>
 	<menu_item_separator/>
 	<menu_item_check
-		label="NexVerse chat: avatar, name and time per message"
-		name="ogl_modern_conversation_cards">
-		<menu_item_check.on_check
-			function="CheckControl"
-			parameter="OGLModernConversationCards"/>
-		<menu_item_check.on_click
-			function="ToggleControl"
-			parameter="OGLModernConversationCards"/>
-	</menu_item_check>
-	<menu_item_check
 		label="Use V1 style chat headers"
 		name="plain_text_chat_history">
 		<menu_item_check.on_check

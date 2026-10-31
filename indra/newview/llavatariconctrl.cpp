@@ -157,6 +157,7 @@ void LLAvatarIconIDCache::remove    (const LLUUID& avatar_id)
 LLAvatarIconCtrl::Params::Params()
 :   avatar_id("avatar_id"),
     draw_tooltip("draw_tooltip", true),
+    circular("circular", false),
     default_icon_name("default_icon_name"),
     symbol_hpad("symbol_hpad"),
     symbol_vpad("symbol_vpad"),
@@ -179,7 +180,8 @@ LLAvatarIconCtrl::LLAvatarIconCtrl(const LLAvatarIconCtrl::Params& p)
     mSymbolHpad(p.symbol_hpad),
     mSymbolVpad(p.symbol_vpad),
     mSymbolSize(p.symbol_size),
-    mSymbolPos(p.symbol_pos)
+    mSymbolPos(p.symbol_pos),
+    mCircular(p.circular)
 {
     mPriority = LLViewerFetchedTexture::BOOST_ICON;
 
@@ -198,6 +200,53 @@ LLAvatarIconCtrl::LLAvatarIconCtrl(const LLAvatarIconCtrl::Params& p)
     {
         LLIconCtrl::setValue(mDefaultIconName, LLViewerFetchedTexture::BOOST_UI);
     }
+}
+
+// The default Firestorm presentation remains untouched. Chat widgets
+// explicitly opt into circular="true". For an actual cached resident
+// picture, draw its texture on a circular polygon instead of drawing
+// the rectangular image and covering the corners with a fake border.
+// If no actual portrait has loaded yet, use the native fallback icon.
+void LLAvatarIconCtrl::draw()
+{
+    LLPointer<LLUIImage> portrait = getImage();
+    if (!mCircular || portrait.isNull() ||
+        portrait->getImage().isNull() || !getValue().isUUID())
+    {
+        LLIconCtrl::draw();
+        return;
+    }
+
+    const LLRect rect=getLocalRect();
+    const F32 w=static_cast<F32>(rect.getWidth());
+    const F32 h=static_cast<F32>(rect.getHeight());
+    const F32 radius=0.5f*llmin(w,h);
+    if (radius <= 0.f)
+    {
+        LLUICtrl::draw();
+        return;
+    }
+    const F32 cx=rect.mLeft+0.5f*w;
+    const F32 cy=rect.mBottom+0.5f*h;
+    const F32 alpha=mUseDrawContextAlpha ?
+        getDrawContext().mAlpha : getCurrentTransparency();
+    gGL.getTexUnit(0)->bind(portrait->getImage());
+    // Profile portraits are displayed untinted, with normal UI opacity.
+    gGL.color4f(1.f,1.f,1.f,alpha);
+    constexpr S32 segments=64;
+    gGL.begin(LLRender::TRIANGLE_FAN);
+    gGL.texCoord2f(0.5f,0.5f);
+    gGL.vertex2f(cx,cy);
+    for (S32 i=0;i<=segments;++i)
+    {
+        const F32 angle=F_TWO_PI*static_cast<F32>(i)/segments;
+        const F32 x=cosf(angle);
+        const F32 y=sinf(angle);
+        gGL.texCoord2f(0.5f+0.5f*x,0.5f+0.5f*y);
+        gGL.vertex2f(cx+radius*x,cy+radius*y);
+    }
+    gGL.end();
+    LLUICtrl::draw();
 }
 
 LLAvatarIconCtrl::~LLAvatarIconCtrl()

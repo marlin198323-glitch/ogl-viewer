@@ -1488,9 +1488,7 @@ void FSChatHistory::appendMessage(const LLChat& chat, const LLSD &args, const LL
 
     F32 alpha = 1.f;
     LLUIColor txt_color = LLUIColorTable::instance().getColor("White");
-    LLUIColor name_color = LLUIColorTable::instance().getColor(
-        args["ogl_message_cards"].asBoolean() ?
-        "OGLChatAccent" : "ChatNameColor");
+    LLUIColor name_color = LLUIColorTable::instance().getColor("ChatNameColor");
     LLViewerChat::getChatColor(chat, txt_color, alpha, LLSD().with("is_local", is_local));
     LLFontGL* fontp = LLViewerChat::getChatFont();
     std::string font_name = LLFontGL::nameFromFont(fontp);
@@ -1778,12 +1776,7 @@ void FSChatHistory::appendMessage(const LLChat& chat, const LLSD &args, const LL
             && mLastFromID == chat.mFromID
             && mLastMessageTime.notNull()
             && (new_message_time.secondsSinceEpoch() - mLastMessageTime.secondsSinceEpoch()) < 60.0
-            && mIsLastMessageFromLog == message_from_log
-            // NexVerse modern chat cards must show an avatar, name and
-            // timestamp for EACH actual IM, including consecutive messages
-            // from the same resident. Nearby-chat and legacy mode keep
-            // the existing, compact 60-second grouping.
-            && !args["ogl_message_cards"].asBoolean())
+            && mIsLastMessageFromLog == message_from_log)  //distinguish between current and previous chat session's histories
         {
             view = getSeparator();
             p.top_pad = mTopSeparatorPad;

@@ -35,7 +35,6 @@
 #include "fsfloaterim.h"
 #include "fsfloaternearbychat.h"
 #include "llavatariconctrl.h"
-#include "llgroupiconctrl.h"
 #include "lluictrlfactory.h"
 #include "llfloaterreg.h"
 #include "llchiclet.h"
@@ -380,26 +379,18 @@ void FSFloaterIMContainer::addFloater(LLFloater* floaterp,
     // sidebar. TabContainer's custom-icon mode owns the created control,
     // and the existing profile-image cache resolves it asynchronously.
     // Nearby chat and Contacts have no associated resident avatar.
-    if (session && mTabContainer)
+    if (session && mTabContainer && session->isP2PSessionType() &&
+        session->mOtherParticipantID.notNull())
     {
-        LLIconCtrl* portrait = nullptr;
-        if (session->isGroupSessionType())
-        {
-            LLGroupIconCtrl::Params params;
-            params.group_id = session->mSessionID;
-            portrait = LLUICtrlFactory::instance().create<LLGroupIconCtrl>(params);
-        }
-        else if (session->isP2PSessionType() &&
-                 session->mOtherParticipantID.notNull())
-        {
-            LLAvatarIconCtrl::Params params;
-            params.avatar_id = session->mOtherParticipantID;
-            portrait = LLUICtrlFactory::instance().create<LLAvatarIconCtrl>(params);
-        }
+        // Only actual resident portraits are an allowed visual addition.
+        // Group, Contacts and Nearby tabs retain their original symbols.
+        LLAvatarIconCtrl::Params params;
+        params.avatar_id = session->mOtherParticipantID;
+        params.circular = true;
+        LLAvatarIconCtrl* portrait =
+            LLUICtrlFactory::instance().create<LLAvatarIconCtrl>(params);
         if (portrait)
-        {
             mTabContainer->setTabImage(floaterp, portrait);
-        }
     }
 
     if (!select_added_floater && active_floater)

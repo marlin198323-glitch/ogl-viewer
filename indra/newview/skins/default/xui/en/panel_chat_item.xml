@@ -3,26 +3,21 @@
 <panel
   name="instant_message"
   width="300"
-  height="190"
-  background_visible="true"
-  bg_opaque_image="Rounded_Rect"
-  bg_alpha_image="Rounded_Rect"
-  bg_opaque_image_overlay="OGLChatMessage"
-  bg_alpha_image_overlay="OGLChatMessage"
+  height="180"
   follows="all">
-     <avatar_icon
+     <avatar_icon circular="true"
         follows="left|top"
-        height="32"
+        height="18"
         image_name="Generic_Person"
         layout="topleft"
-        left="5"
+        left="3"
         mouse_opaque="true"
         name="avatar_icon"
-        top="4"
-        width="32" />
+        top="3"
+        width="18" />
 	<text_chat
       top="3"
-      left="49"
+      left="30"
       right="-10"
       height="120"
       text_color="White"

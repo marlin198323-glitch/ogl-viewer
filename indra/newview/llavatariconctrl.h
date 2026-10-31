@@ -104,6 +104,8 @@ public:
     {
         Optional<LLUUID>        avatar_id;
         Optional<bool>          draw_tooltip;
+        // Chat-only opt-in; default UI avatar icons retain square images.
+        Optional<bool>          circular;
         Optional<std::string>   default_icon_name;
         Optional<S32>           symbol_hpad,
                                 symbol_vpad,
@@ -125,6 +127,8 @@ public:
 // [/SL:KB]
 
     virtual void setValue(const LLSD& value);
+    // Genuine round profile image; no opaque rounded-square overlay.
+    void draw() override;
 
     // LLAvatarPropertiesProcessor observer trigger
     virtual void processProperties(void* data, EAvatarProcessorType type);
@@ -143,6 +147,7 @@ protected:
                                 mSymbolVpad,
                                 mSymbolSize;
     LLAvatarIconCtrlEnums::ESymbolPos   mSymbolPos;
+    bool                         mCircular;
 
     bool updateFromCache();
 

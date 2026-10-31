@@ -53,18 +53,6 @@
 #include "rlvhandler.h"
 // [/RLVa:KB]
 
-// Nearby chat toasts share the user's active NexVerse message-card mode.
-static std::string oglToastArrivalTime()
-{
-    const time_t received = time_corrected();
-    std::string time_text = "[" + LLTrans::getString("TimeHour") +
-                            "]:[" + LLTrans::getString("TimeMin") + "]";
-    LLSD timestamp;
-    timestamp["datetime"] = static_cast<S32>(received);
-    LLStringUtil::format(time_text, timestamp);
-    return time_text;
-}
-
 static constexpr S32 msg_left_offset = 10;
 static constexpr S32 msg_right_offset = 10;
 static constexpr S32 msg_height_pad = 5;
@@ -259,21 +247,19 @@ void LLFloaterIMNearbyChatToastPanel::init(LLSD& notification)
 
     mMsgText->setText(std::string(""));
 
-    const bool ogl_cards = gSavedSettings.getBOOL("OGLModernConversationCards");
-    if (ogl_cards || notification["chat_style"].asInteger() != CHAT_STYLE_IRC)
+    if ( notification["chat_style"].asInteger() != CHAT_STYLE_IRC )
     {
-        // A real arrival timestamp (not a synthetic historical timestamp).
-        // Keep the protocol-provided, already-RLVa-filtered sender name.
-        const std::string str_sender = ogl_cards ?
-            fromName + "   " + oglToastArrivalTime() + "\n" :
-            fromName + " ";
+        std::string str_sender;
+
+        str_sender = fromName;
+
+        str_sender+=" ";
 
         //append sender name
         if (mSourceType == CHAT_SOURCE_AGENT || mSourceType == CHAT_SOURCE_OBJECT)
         {
             LLStyle::Params style_params_name;
-            style_params_name.color = LLUIColorTable::instance().getColor(
-                ogl_cards ? "OGLChatAccent" : "HTMLLinkColor");
+            style_params_name.color = LLUIColorTable::instance().getColor("HTMLLinkColor");
             style_params_name.font.name = LLFontGL::nameFromFont(messageFont);
             style_params_name.font.size = LLFontGL::sizeFromFont(messageFont);
 
@@ -292,17 +278,7 @@ void LLFloaterIMNearbyChatToastPanel::init(LLSD& notification)
         }
         else
         {
-            if (ogl_cards)
-            {
-                LLStyle::Params system_name_style;
-                system_name_style.color =
-                    LLUIColorTable::instance().getColor("OGLChatAccent");
-                mMsgText->appendText(str_sender, false, system_name_style);
-            }
-            else
-            {
-                mMsgText->appendText(str_sender, false);
-            }
+            mMsgText->appendText(str_sender, false);
         }
     }
 
@@ -368,10 +344,7 @@ void LLFloaterIMNearbyChatToastPanel::init(LLSD& notification)
 
 void    LLFloaterIMNearbyChatToastPanel::snapToMessageHeight    ()
 {
-    // The 32px portrait and the sender/time header must fit even
-    // if the actual message is just a one-word reply.
-    const S32 min_height = gSavedSettings.getBOOL("OGLModernConversationCards") ? 40 : 25;
-    S32 new_height = llmax (mMsgText->getTextPixelHeight() + 2*mMsgText->getVPad() + 2*msg_height_pad, min_height);
+    S32 new_height = llmax (mMsgText->getTextPixelHeight() + 2*mMsgText->getVPad() + 2*msg_height_pad, 25);
 
     LLRect panel_rect = getRect();
 
@@ -490,14 +463,7 @@ void LLFloaterIMNearbyChatToastPanel::draw()
             else if(mSourceType == CHAT_SOURCE_SYSTEM)
                 icon->setValue(LLSD("SL_Logo"));
             else if(mSourceType == CHAT_SOURCE_AGENT)
-            {
-                // Do not render the profile portrait if RLVa suppressed
-                // identifying data. The same flag controls the tooltip.
-                if (mShowIconTooltip)
-                    icon->setValue(mFromID);
-                else
-                    icon->setValue(LLSD("Unknown_Icon"));
-            }
+                icon->setValue(mFromID);
             else if(!mFromID.isNull())
                 icon->setValue(mFromID);
         }

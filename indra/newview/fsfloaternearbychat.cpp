@@ -280,14 +280,8 @@ static std::string appendTime()
 void FSFloaterNearbyChat::addMessage(const LLChat& chat,bool archive,const LLSD &args)
 {
     LLChat& tmp_chat = const_cast<LLChat&>(chat);
-    // Use the same resident portraits, name/time header and message body
-    // as IM, group and conference chat. The toggle is shared across all
-    // visible transcript surfaces and remains reversible in Chat Options.
-    const bool ogl_cards = gSavedSettings.getBOOL("OGLModernConversationCards");
-    bool use_plain_text_chat_history =
-        !ogl_cards && gSavedSettings.getBOOL("PlainTextChatHistory");
-    bool show_timestamps_nearby_chat =
-        ogl_cards || gSavedSettings.getBOOL("FSShowTimestampsNearbyChat");
+    bool use_plain_text_chat_history = gSavedSettings.getBOOL("PlainTextChatHistory");
+    bool show_timestamps_nearby_chat = gSavedSettings.getBOOL("FSShowTimestampsNearbyChat");
     // [FIRE-1641 : SJ]: Option to hide timestamps in nearby chat - add Timestamp when show_timestamps_nearby_chat is true
     if (show_timestamps_nearby_chat)
     {
@@ -299,7 +293,6 @@ void FSFloaterNearbyChat::addMessage(const LLChat& chat,bool archive,const LLSD 
 
     tmp_chat.mFromName = chat.mFromName;
     LLSD chat_args = args;
-    chat_args["ogl_message_cards"] = ogl_cards;
     chat_args["use_plain_text_chat_history"] = use_plain_text_chat_history;
     chat_args["show_time"] = show_timestamps_nearby_chat;
     chat_args["is_local"] = true;
