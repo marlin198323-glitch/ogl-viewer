@@ -194,3 +194,24 @@ kein GPU/GL-Compositing und keinen Endnutzer-RTX-Schalter.
 auf dem GPU-Renderer abgenommen, dauerhafte BLAS/TLAS-Weltverwaltung,
 sichtbare Raytracing-Schatten und OpenGL/Vulkan-Komposition.
 `rendering_active=0` darf noch nicht geändert werden.
+
+
+## 31.10.2026 – vierte 10er-Runde: Vulkan-Probe asynchron
+
+- `ogl_async_gpu_queue.h`: ein dedizierter Worker für die bereits
+  existierende Vulkan-BLAS/TLAS-/Ray-Query-Probe. CPU-Snapshots werden
+  begrenzt kopiert und nur nach explizitem Entwickler-Opt-in verarbeitet.
+- `ogl_rtx_submit_geometry` führt **keine** synchronen Vulkan-Aufrufe
+  mehr aus; es übermittelt lediglich den neuesten CPU-Snapshot.
+- Veraltete Warteschlangeneinträge und Ergebnisse nach Teleport werden
+  verworfen. Ein GPU-Fehler stoppt weitere Tests.
+- Die OGL-Logausgabe bleibt ausschließlich im Viewer-Thread. Worker
+  wird vor dem Entladen seiner GPU-Bibliothek sauber beendet.
+- Zusätzliche native Tests prüfen No-GPU-Fallback, Verzögerungen,
+  Deduplizierung, Szenenwechsel und Shutdown.
+- Details: [`RTX_10_BLOCKS_2026_10_31_P4.md`](RTX_10_BLOCKS_2026_10_31_P4.md).
+
+**Unverändert:** Die Vulkan-Probe baut GPU-BLAS/TLAS pro Testauftrag
+neu auf. Kein persistentes Vulkan-Gerät und kein sichtbares RT-Bild.
+`rendering_active=0` bleibt korrekt. Öffentliche Nutzer benötigen
+weder Opt-in noch einen Vulkan-RT-fähigen Rechner.

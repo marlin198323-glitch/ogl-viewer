@@ -70,7 +70,8 @@ Multi-GPU-Kopplung.
 - [x] Isolierter Vulkan-GPU-BLAS- und TLAS-Build mit Testdreieck und Instanz
 - [x] OGL-Geometrie-ABI mit 64 und 1.024 synthetischen Dreiecken an Vulkan-BLAS/TLAS angebunden
 - [x] Opt-in-Developer-Probe: vorhandene RTX-Modul-Snapshots an GPU BLAS/TLAS übergeben
-- [ ] Dauerhafte, asynchrone Live-OpenSim-Snapshots an GPU-BLAS/TLAS übergeben
+- [x] Entwicklerprobe aus Render-Thread gelöst: begrenzte, asynchrone CPU-Snapshot-Queue
+- [ ] Persistentem GPU-Gerät/BLAS/TLAS aktualisierbare Live-OpenSim-Snapshots zuführen
 - [x] Isolierter 8x8-Vulkan-Compute-Test: 64 Ray Queries, 36 Treffer, 28 Misses
 - [ ] Ray-Query-Schattenbild aus realer Weltgeometrie berechnen und in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen

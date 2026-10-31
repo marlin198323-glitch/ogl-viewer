@@ -80,3 +80,10 @@ CPU-Szenenprobe eine echte GPU-Ray-Query-Diagnose berechnet.
 Der öffentliche Viewer aktiviert sie nicht automatisch. Die
 3D-Welt erhält **noch keine sichtbaren RTX-Schatten**.
 [Technischer Abnahmebericht](RTX_10_BLOCKS_2026_10_31_P3.md).
+
+
+Die **vierte RTX-10er-Runde** verlagert die experimentelle Vulkan-GPU-Probe
+aus dem Viewer-Render-Thread in eine begrenzte, herstellerunabhängige
+asynchrone Warteschlange. Teleports, Fehlerfälle, Hardware-Fallback und
+Shutdown sind abgesichert. **Noch keine sichtbaren Raytracing-Schatten.**
+[Details](RTX_10_BLOCKS_2026_10_31_P4.md).

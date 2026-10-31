@@ -160,3 +160,16 @@ Fehlerberichte eingefügt werden.
 - Fallbacktests für fehlende Vulkan-Features und fehlende Probe-DLL/SO.
   Default-OpenGL ist unverändert. Rate-Limit und Fail-Closed für Probe.
 - [`RTX_10_BLOCKS_2026_10_31_P3.md`](RTX_10_BLOCKS_2026_10_31_P3.md).
+
+
+## 31.10.2026 – vierte RTX-10er-Runde (Async GPU Probe)
+
+- OpenGL-Render-Thread wird nicht mehr durch den BLAS/TLAS-/Ray-Query-
+  Diagnoseaufruf blockiert; begrenzte Queue mit einem GPU-Worker.
+- Mehrfache Szenensnapshots: latest-wins, stale results invalidiert.
+- GPU-/Thread-Fehler: diagnostischen GPU-Pfad abschalten, OpenGL aktiv.
+- Ausdrückliches Entwickler-Opt-in bleibt Pflicht.
+- Kompletter Linux-Viewer C++-Build inklusive beider separaten SOs
+  und SPIR-V-Ressource erfolgreich.
+- Native GPU- und CPU-Regressionen, sowie No-Vulkan-Fallback getestet.
+- Bericht: [`RTX_10_BLOCKS_2026_10_31_P4.md`](RTX_10_BLOCKS_2026_10_31_P4.md).

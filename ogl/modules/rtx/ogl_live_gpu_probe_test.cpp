@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstring>
 #include <cstdio>
+#include <chrono>
+#include <thread>
 #include <dlfcn.h>
 #include <vector>
 
@@ -55,7 +57,17 @@ int main(int argc, char** argv) {
 
     if (status()->hardware_ready && status()->ray_query) {
         assert(frame(&state) == 1);
+        const auto beginning = std::chrono::steady_clock::now();
         assert(submit(tris.data(), tris.size()) == 1);
+        // Submit must never wait for GPU BLAS/TLAS in this thread.
+        const auto elapsed = std::chrono::steady_clock::now() - beginning;
+        assert(elapsed < std::chrono::milliseconds(250));
+        if (!missing) {
+            for (unsigned i = 0; i < 500 && successes() == 0; ++i) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                frame(&state); // poll completion without submitting a new job
+            }
+        }
         assert(attempts() == (missing ? 0u : 1u));
         assert(successes() == (missing ? 0u : 1u));
         // Same geometry: no new GPU invocation.

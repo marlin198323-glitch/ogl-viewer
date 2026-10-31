@@ -33,6 +33,8 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
     add_library(ogl_rtx_module SHARED rtx/ogl_rtx_module.cpp)
     target_include_directories(ogl_rtx_module PRIVATE include "${OGL_VULKAN_HEADER_DIR}")
     target_compile_features(ogl_rtx_module PRIVATE cxx_std_17)
+    find_package(Threads REQUIRED)
+    target_link_libraries(ogl_rtx_module PRIVATE Threads::Threads)
     if(CMAKE_DL_LIBS)
         target_link_libraries(ogl_rtx_module PRIVATE ${CMAKE_DL_LIBS})
     endif()
@@ -148,6 +150,16 @@ if(UNIX)
     add_test(NAME ogl_module_handshake
              COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>)
 endif()
+
+# Async queue contract is GPU- and vendor-independent: latest-wins,
+# no render-thread blocking, no callbacks after module unload.
+find_package(Threads REQUIRED)
+add_executable(ogl_async_gpu_queue_test ../tests/test_async_gpu_queue.cpp)
+target_include_directories(ogl_async_gpu_queue_test PRIVATE include)
+target_compile_features(ogl_async_gpu_queue_test PRIVATE cxx_std_17)
+target_link_libraries(ogl_async_gpu_queue_test PRIVATE Threads::Threads)
+add_test(NAME ogl_async_gpu_queue COMMAND ogl_async_gpu_queue_test)
+set_tests_properties(ogl_async_gpu_queue PROPERTIES TIMEOUT 10)
 
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)
