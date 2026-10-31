@@ -82,7 +82,8 @@ Multi-GPU-Kopplung.
 - [ ] Echte Deferred-Depth-Live-Daten in einer angemeldeten NexVerse-Region abnehmen
 - [x] Vulkan-Diagnose verarbeitet 64 ausgerichtete OpenGL-Tiefenwerte für Sonnenstrahlen
 - [ ] Vulkan erhält vollständige Tiefen- und Normalen-Renderziele ohne synchronen CPU-Readback
-- [ ] Vollständige dynamische OpenSim-Geometrie inklusive Terrain und Avatare erfassen
+- [x] Bounded Entwickler-Szenensnapshot bis 8.192 Dreiecke inklusive grobem Terrain einbinden
+- [ ] Vollständige dynamische OpenSim-Geometrie mit echten Terrain-Patches, Avataren, Materialsicherheit und Updates erfassen
 - [x] Abgesicherten 8×8-Vulkan-Ergebnis-Preview als klar gekennzeichnetes Entwickler-UI hinzufügen
 - [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen

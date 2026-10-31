@@ -180,7 +180,16 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                  COMMAND ogl_vulkan_blas_smoke
                  "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
                  --module $<TARGET_FILE:ogl_rtx_module> 1024)
+        add_test(NAME ogl_vulkan_module_scene_4096
+                 COMMAND ogl_vulkan_blas_smoke
+                 "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                 --module $<TARGET_FILE:ogl_rtx_module> 4096)
+        add_test(NAME ogl_vulkan_module_scene_8192
+                 COMMAND ogl_vulkan_blas_smoke
+                 "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                 --module $<TARGET_FILE:ogl_rtx_module> 8192)
         set_tests_properties(ogl_vulkan_module_scene_64 ogl_vulkan_module_scene_1024
+                             ogl_vulkan_module_scene_4096 ogl_vulkan_module_scene_8192
                              PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
     endif()
 
@@ -237,6 +246,12 @@ add_executable(ogl_depth_grid_validation_test ../tests/test_depth_grid_validatio
 target_include_directories(ogl_depth_grid_validation_test PRIVATE include)
 target_compile_features(ogl_depth_grid_validation_test PRIVATE cxx_std_17)
 add_test(NAME ogl_depth_grid_validation COMMAND ogl_depth_grid_validation_test)
+
+# Terrain patch geometry validation is portable and GPU independent.
+add_executable(ogl_terrain_patch_test ../tests/test_terrain_patch.cpp)
+target_include_directories(ogl_terrain_patch_test PRIVATE include)
+target_compile_features(ogl_terrain_patch_test PRIVATE cxx_std_17)
+add_test(NAME ogl_terrain_patch_geometry COMMAND ogl_terrain_patch_test)
 
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)

@@ -45,6 +45,7 @@ public:
         uint32_t gpu_device_creations = 0;
         uint32_t blas_builds = 0;
         uint32_t cache_hits = 0;
+        uint32_t wall_ms = 0; // end-to-end Vulkan worker wall time, not GPU timer
         int return_code = 1;
     };
     struct Stats {

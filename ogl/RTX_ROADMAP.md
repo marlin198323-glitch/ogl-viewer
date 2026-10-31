@@ -471,3 +471,34 @@ in einer eingeloggten lokalen OGL-Sitzung abnehmen.
 **Noch offen:** erneuter echter OpenSim-Login und visuelle Abnahme
 der 8×8-Debug-Anzeige. Keine RTX-Weltbeleuchtung und keine
 sichtbaren hochwertigen Echtzeit-Rays; `rendering_active=0`.
+
+
+## 31.10.2026 – dreizehnte RTX-10er-Runde: mehr echte Schattenwerfer
+
+- Auf dem Live-Bild des Nutzers erscheint die 8×8-RTX-**Diagnose** mit
+  `NOT WORLD SHADOWS` – die Beschriftung ist sachlich korrekt,
+  denn noch keine echten RTX-Pixel werden in der 3D-Welt beleuchtet.
+- Bisher nur 1.024 Dreiecke pro rotierendem OpenSim-Objektteilscan.
+  Das native RTX-Scene-ABI akzeptiert jetzt bis zu **8.192 Dreiecke**.
+  Die größere Erfassung ist explizit an `OGL_RTX_SCENE_PROBE=1`
+  gekoppelt; der OpenGL-Viewer ohne Entwicklermodus behält
+  das normale 1.024-Dreiecke-CPU-Sample.
+- Bis zu 256 nahe Volumenobjekte pro Capture und bis zu
+  32 Dreiecke pro Face bei aktivierter Entwicklerdiagnose.
+- Der Szenenscanner ergänzt eine begrenzte *näherungsweise
+  Terrain-Triangulierung* aus tatsächlichen regionalen
+  Höhenwerten: 20×20 Zellen à 5m, maximal 800 Terrain-Dreiecke.
+  Agent-/Region-Koordinaten, Regionsgrenze und ungültige
+  Terrain-Höhen werden abgesichert.
+- Portable Terrain-Geometrie-Tests, Vulkan-BLAS-/TLAS-Tests mit
+  4.096 und 8.192 Dreiecken; Option ohne Vulkan behält Fallback.
+- Anonyme `worker_wall_ms`-Zeitmessung im asynchronen GPU-Worker
+  zur Bewertung des größeren Budgets (kein direkter GPU-Timer).
+- 41 Python- und 24 native Tests; vollständiger Linux-Firestorm-Build.
+- [`RTX_10_BLOCKS_2026_10_31_P13.md`](RTX_10_BLOCKS_2026_10_31_P13.md).
+
+**Weiterhin offen:** GPU-Schattenmasken in einen echten
+Sonnenlicht-Renderpass mit ausreichender Bildauflösung, korrekten
+Materialien und G-Puffer-Daten einspeisen. Die Beschriftung
+`NOT WORLD SHADOWS` wird nicht entfernt, bevor das tatsächlich
+umgesetzt und im Viewer bildlich abgenommen ist.

@@ -60,7 +60,7 @@ OGL_MODULE_EXPORT uint64_t ogl_rtx_received_frames(void);
  * volume faces in agent coordinates. No GPU ray tracing is implied.
  * Caller owns the memory; callee copies it synchronously.
  */
-#define OGL_RTX_MAX_SCENE_TRIANGLES 1024u
+#define OGL_RTX_MAX_SCENE_TRIANGLES 8192u
 typedef struct ogl_rtx_triangle {
     float position[9]; /* three xyz vertices, in agent-space meters */
 } ogl_rtx_triangle;

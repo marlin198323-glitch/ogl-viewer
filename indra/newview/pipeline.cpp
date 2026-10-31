@@ -30,6 +30,7 @@
 #include "oglrtxhost.h" // OGL: optional Vulkan RTX scene bridge
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h" // bounded geometry format
 #include "../../ogl/modules/include/ogl/ogl_scene_validation.h" // prefilter mesh triangles
+#include "../../ogl/modules/include/ogl/ogl_terrain_patch.h" // optional low-poly terrain occluders
 #include <vector>
 
 // library includes
@@ -9470,19 +9471,46 @@ void LLPipeline::renderDeferredLighting()
             // receives and validates world-space triangle data for now.
             // Keep expensive volume traversal off the every-frame path.
             static unsigned ogl_geometry_frame_counter = 0;
+            // Keep the larger RT scene capture deliberately developer-only.
+            // Public OpenGL remains independent of graphics card and avoids
+            // spending time walking extra objects or building big BLAS data.
+            static const U32 ogl_triangle_budget = []() -> U32 {
+                const char* mode = std::getenv("OGL_RTX_SCENE_PROBE");
+                return mode && std::strcmp(mode,"1")==0 ?
+                    OGL_RTX_MAX_SCENE_TRIANGLES : 1024u;
+            }();
             if (++ogl_geometry_frame_counter >= 180)
             {
                 ogl_geometry_frame_counter = 0;
                 std::vector<ogl_rtx_triangle> triangles;
-                triangles.reserve(OGL_RTX_MAX_SCENE_TRIANGLES);
-                unsigned nearby_objects = 0;
+                triangles.reserve(ogl_triangle_budget);
                 const LLVector3 eye = camera->getOrigin();
+                if (ogl_triangle_budget > 1024 && ogl_rtx_region)
+                {
+                    const LLVector3 region_origin =
+                        ogl_rtx_region->getOriginAgent();
+                    const LLVector3 region_eye = eye - region_origin;
+                    ogl::append_nearby_terrain_triangles(triangles,
+                        region_eye.mV[0], region_eye.mV[1],
+                        ogl_rtx_region->getWidth(), region_origin.mV,
+                        ogl_triangle_budget,
+                        [ogl_rtx_region](float x, float y) -> float {
+                            return ogl_rtx_region->getLandHeightRegion(
+                                LLVector3(x,y,0.f));
+                        });
+                }
+                unsigned nearby_objects = 0;
                 const S32 total_objects = gObjectList.getNumObjects();
                 const S32 max_objects = llmin(total_objects, 4096);
                 static S32 scan_cursor = 0;
                 const S32 start = total_objects ? scan_cursor % total_objects : 0;
-                for (S32 i = 0; i < max_objects && nearby_objects < 96 &&
-                        triangles.size() < OGL_RTX_MAX_SCENE_TRIANGLES; ++i)
+                const unsigned nearby_budget =
+                    ogl_triangle_budget > 1024 ? 256u : 96u;
+                const S32 face_triangle_budget =
+                    ogl_triangle_budget > 1024 ? 32 : 16;
+                for (S32 i = 0; i < max_objects &&
+                        nearby_objects < nearby_budget &&
+                        triangles.size() < ogl_triangle_budget; ++i)
                 {
                     LLViewerObject* object =
                         gObjectList.getObject((start + i) % total_objects);
@@ -9501,15 +9529,16 @@ void LLPipeline::renderDeferredLighting()
                     ++nearby_objects;
                     const S32 face_count = llmin(volume->getNumVolumeFaces(), 16);
                     for (S32 f = 0; f < face_count &&
-                            triangles.size() < OGL_RTX_MAX_SCENE_TRIANGLES; ++f)
+                            triangles.size() < ogl_triangle_budget; ++f)
                     {
                         const LLVolumeFace& face = volume->getVolumeFace(f);
                         if (!face.mPositions || !face.mIndices ||
                             face.mNumIndices <= 0 || face.mNumVertices <= 0)
                             continue;
-                        const S32 face_triangles = llmin(face.mNumIndices / 3, 16);
+                        const S32 face_triangles =
+                            llmin(face.mNumIndices / 3, face_triangle_budget);
                         for (S32 t = 0; t < face_triangles &&
-                                triangles.size() < OGL_RTX_MAX_SCENE_TRIANGLES; ++t)
+                                triangles.size() < ogl_triangle_budget; ++t)
                         {
                             ogl_rtx_triangle triangle{};
                             bool valid = true;

@@ -303,3 +303,16 @@ Fehlerberichte eingefügt werden.
 - Vollständiger Linux-Viewer-Build und Fallback-Tests grün;
   Abnahme im realen Viewer nach Neustart noch erforderlich.
 - [`RTX_LIVE_FIX_2026_10_31.md`](RTX_LIVE_FIX_2026_10_31.md).
+
+
+## 31.10.2026 – RTX-Geometrieausbau als Vorstufe zu Weltschatten
+
+- Developer-only GPU-Szenenbudget auf 8.192 Dreiecke erhöht,
+  größerer Suchbereich in Volumenfaces, bounded Terrain-Heightfield.
+- GPU-BLAS/TLAS-Proben mit 4.096 und 8.192 Dreiecken,
+  portable Terrainvalidierung und OpenGL-Fallback grün.
+- Messung der Worker-Wandzeit (`worker_wall_ms`) als
+  Leistungsindikator, nicht GPU-Zeitmessung.
+- Vollständiger Linux-Viewer erfolgreich gebaut, die RTX-UI bleibt
+  ausschließlich eine diagnostische 8×8-Vorschau.
+- [`RTX_10_BLOCKS_2026_10_31_P13.md`](RTX_10_BLOCKS_2026_10_31_P13.md).

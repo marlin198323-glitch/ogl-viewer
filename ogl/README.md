@@ -159,3 +159,13 @@ den kontrollierten Testmodus. Die UI enthält den Hinweis
 **„NOT WORLD SHADOWS“**. Normaler OpenGL-Betrieb und die
 3D-Weltbeleuchtung bleiben unverändert.
 [Technischer Bericht und Abnahme](RTX_10_BLOCKS_2026_10_31_P12.md).
+
+
+Die **dreizehnte RTX-10er-Runde** erweitert den optionalen
+OpenSim-GPU-Scene-Snapshot auf bis zu 8.192 Dreiecke und
+ergänzt eine begrenzte Triangulierung realer regionaler
+Terrain-Höhen. Damit können mehr tatsächliche Schattenwerfer
+auf der Vulkan-GPU geprüft werden. Die rote/türkise Anzeige
+`NOT WORLD SHADOWS` bleibt **korrekt**, denn eine
+hochaufgelöste Integration in den Sonnenlicht-Renderer fehlt
+weiterhin. [Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P13.md).

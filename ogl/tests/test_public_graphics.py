@@ -291,6 +291,22 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("assert(debug.geometry_revision==2);", test)
         self.assertIn("assert(submit(nullptr,0)==1)", test)
 
+    def test_large_opt_in_world_occluder_capture(self):
+        source = (ROOT / "indra/newview/pipeline.cpp").read_text()
+        api = (ROOT / "ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        cmake = (ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        terrain = (ROOT / "ogl/modules/include/ogl/ogl_terrain_patch.h").read_text()
+        self.assertIn("OGL_RTX_MAX_SCENE_TRIANGLES 8192u", api)
+        self.assertIn('std::getenv("OGL_RTX_SCENE_PROBE")', source)
+        self.assertIn("ogl::append_nearby_terrain_triangles(", source)
+        self.assertIn("ogl_rtx_region->getLandHeightRegion(", source)
+        self.assertIn("face_triangle_budget", source)
+        self.assertIn("ogl_vulkan_module_scene_8192", cmake)
+        self.assertIn("ogl_vulkan_module_scene_4096", cmake)
+        self.assertIn("ogl_terrain_patch_geometry", cmake)
+        self.assertIn("radius_cells = 10", terrain)
+        self.assertIn("out.size() + 2 > triangle_budget", terrain)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

@@ -719,7 +719,7 @@ static int execute_gpu_scene(const char* shader_path,
         return 1;
     if (vkBeginCommandBuffer(c.command, &begin) != VK_SUCCESS)
         return 1;
-    // TLAS contains ONE instance even if its BLAS has 1024 triangles.
+    // TLAS contains ONE instance regardless of its BLAS triangle count.
     // Reusing BLAS primitiveCount here reads beyond the instance buffer,
     // potentially causing Vulkan DEVICE_LOST on real GPUs.
     VkAccelerationStructureBuildRangeInfoKHR top_range{};
