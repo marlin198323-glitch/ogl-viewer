@@ -9527,6 +9527,12 @@ void LLPipeline::renderDeferredLighting()
             }
         }
 
+        // Opt-in only: sample eight real depth texels from the existing
+        // deferred buffer. This does NOT display raytraced world shadows.
+        if (!gCubeSnapshot && ogl_rtx_hardware_supported())
+            ogl_rtx_probe_deferred_depth(mRT->deferredScreen.getDepth(),
+                mRT->deferredScreen.getWidth(), mRT->deferredScreen.getHeight());
+
         if (gPipeline.hasRenderType(LLPipeline::RENDER_TYPE_HUD))
         {
             gPipeline.toggleRenderType(LLPipeline::RENDER_TYPE_HUD);

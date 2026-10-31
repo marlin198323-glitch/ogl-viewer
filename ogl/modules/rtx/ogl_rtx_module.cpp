@@ -1,6 +1,7 @@
 #include "ogl/ogl_rtx_api.h"
 #include "ogl/ogl_scene_validation.h"
 #include "ogl/ogl_camera_validation.h"
+#include "ogl/ogl_depth_validation.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_async_gpu_queue.h"
 #include <vulkan/vulkan.h>
@@ -107,6 +108,8 @@ std::vector<ogl_rtx_triangle> captured_geometry;
 uint64_t geometry_revision = 0;
 ogl_rtx_shadow_debug last_shadow_debug{};
 bool shadow_debug_valid = false;
+ogl_rtx_depth_debug last_depth_debug{};
+bool depth_debug_valid = false;
 void report(std::string message) {
     std::snprintf(status.message, sizeof(status.message), "%s", message.c_str());
 }
@@ -307,6 +310,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     geometry_revision = 0;
     last_shadow_debug = {};
     shadow_debug_valid = false;
+    last_depth_debug = {};
+    depth_debug_valid = false;
     probe_worker.reset(); // join before unloading Vulkan function pointers
     gpu_probe_cleanup();
     probe_opt_in = false;
@@ -415,6 +420,8 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     captured_geometry.clear();
     last_shadow_debug = {};
     shadow_debug_valid = false;
+    last_depth_debug = {};
+    depth_debug_valid = false;
     logger = nullptr;
 }
 extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
@@ -444,6 +451,10 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
         probe_view_dirty = true;
         if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
     }
+    // A depth tile belongs to exactly one submitted frame. No reuse after
+    // camera motion, resize, new lighting or a later rendered frame.
+    last_depth_debug = {};
+    depth_debug_valid = false;
     latest_frame = *frame;
     ++received_frames;
     if (probe_worker) {
@@ -520,6 +531,32 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_copy_geometry(
     return count;
 }
 
+
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
+    const ogl_rtx_depth_debug *sample)
+{
+    if (!sample || !status.hardware_ready || !received_frames ||
+        sample->struct_size != sizeof(*sample) ||
+        sample->version != OGL_RTX_DEPTH_DEBUG_VERSION ||
+        sample->viewport_width == 0 || sample->viewport_height == 0 ||
+        std::fabs((float(sample->viewport_width) / sample->viewport_height) -
+                  latest_frame.aspect_ratio) > 0.15f ||
+        !ogl::valid_depth_tile(sample->viewport_width, sample->viewport_height,
+                               sample->x, sample->y, sample->normalized_depth))
+        return 0;
+    last_depth_debug = *sample; // bounded copy, no GPU or file I/O
+    depth_debug_valid = true;
+    return 1;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(
+    ogl_rtx_depth_debug *output)
+{
+    if (!output || output->struct_size != sizeof(*output) ||
+        output->version != OGL_RTX_DEPTH_DEBUG_VERSION || !depth_debug_valid)
+        return 0;
+    *output = last_depth_debug;
+    return 1;
+}
 
 extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_shadow_debug(
     ogl_rtx_shadow_debug *output)

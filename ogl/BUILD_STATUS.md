@@ -230,3 +230,19 @@ Fehlerberichte eingefügt werden.
 - Native Regressionen prüfen live zwei GPU-Aufträge bei einer
   unveränderten Mesh-Version, Roll, FOV, Seitenverhältnis und No-GPU.
 - [`RTX_10_BLOCKS_2026_10_31_P8.md`](RTX_10_BLOCKS_2026_10_31_P8.md).
+
+
+## 31.10.2026 – neunte RTX-Runde: OpenGL-Deferred-Depth-Bridge
+
+- Versionierte 8×8-Depth-Diagnosestruktur und portable
+  Validierung der tatsächlichen OpenGL-Tiefe.
+- Firestorm-Host kann nur im expliziten Entwicklermodus
+  (`OGL_RTX_DEPTH_PROBE=1`) 64 Depth-Floats der
+  Bildschirmmitte erfassen und an das RTX-Modul weiterreichen.
+- Render-/Packzustand bleibt wiederhergestellt; 60-Sekunden-
+  Limit verhindert permanente synchrone Readback-Stalls.
+- Framewechsel invalidiert alte Proben. Fallback für
+  fehlendes GPU-Modul sowie für ungültige Daten besteht.
+- Vollständiger Linux-Viewer-Build; 36 Python- und 19
+  native Tests bestanden. OpenSim-Live-Tiefentest steht aus.
+- [`RTX_10_BLOCKS_2026_10_31_P9.md`](RTX_10_BLOCKS_2026_10_31_P9.md).

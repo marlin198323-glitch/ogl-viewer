@@ -78,7 +78,9 @@ Multi-GPU-Kopplung.
 - [x] GPU-8×8-Ray-Hit-Maske validiert bis zur Firestorm-Debug-Hostschnittstelle übertragen
 - [x] Synthetische Kameraszene: primäre GPU-Strahlen + sekundäre Sonnenschatten geprüft
 - [x] Exakte Firestorm-Kamerabasis, Roll, FOV und Aspect in GPU-Shader übernehmen
-- [ ] Tatsächlichen OpenGL-Tiefen-/Normalenbuffer und vollständige OpenSim-Geometrie anbinden
+- [x] Tatsächliche Firestorm-Deferred-Depth-Textur für 8×8-Zentrum als Opt-in-Probe anbinden
+- [ ] Vulkan erhält passende vollständige Tiefen-/Normalenbuffer statt CPU-Diagnoseproben
+- [ ] Vollständige dynamische OpenSim-Geometrie inklusive Terrain und Avatare erfassen
 - [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer

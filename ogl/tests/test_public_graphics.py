@@ -204,6 +204,23 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("ogl::valid_camera_frame(*camera)", gpu)
         self.assertIn("ogl_camera_frame_validation", (ROOT / "ogl/modules/CMakeLists.txt").read_text())
 
+    def test_open_gl_depth_bridge_only_opt_in_and_state_safe(self):
+        source = (ROOT / "indra/newview/oglrtxhost.cpp").read_text()
+        pipeline = (ROOT / "indra/newview/pipeline.cpp").read_text()
+        rtx = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        contract = (ROOT / "ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        self.assertIn('std::getenv("OGL_RTX_DEPTH_PROBE")', source)
+        self.assertIn("now - previous < std::chrono::seconds(60)", source)
+        self.assertIn("glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING", source)
+        self.assertIn("glBindFramebuffer(GL_READ_FRAMEBUFFER, old_read)", source)
+        self.assertIn("glBindBuffer(GL_PIXEL_PACK_BUFFER, old_pack_buffer)", source)
+        self.assertIn("glReadPixels(sample.x, sample.y, 8, 8,", source)
+        self.assertIn("ogl_rtx_submit_depth_debug", rtx)
+        self.assertIn("ogl_rtx_copy_depth_debug", rtx)
+        self.assertIn("OGL_RTX_DEPTH_DEBUG_VERSION 1u", contract)
+        self.assertIn("mRT->deferredScreen.getDepth()", pipeline)
+        self.assertNotIn("glReadPixels(", pipeline)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

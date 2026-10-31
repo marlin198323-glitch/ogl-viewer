@@ -1,9 +1,12 @@
 #include "llviewerprecompiledheaders.h"
 #include "oglrtxhost.h"
+#include "llglheaders.h"
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
 
 #if LL_LINUX || LL_WINDOWS
 #include <cstring>
+#include <cstdlib>
+#include <chrono>
 #include <string>
 #if LL_WINDOWS
 #  define WIN32_LEAN_AND_MEAN
@@ -48,6 +51,8 @@ using ogl_rtx_submit_geometry_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
 using ogl_rtx_copy_shadow_debug_fn = int (*)(ogl_rtx_shadow_debug*);
 ogl_rtx_copy_shadow_debug_fn rtx_copy_shadow_debug = nullptr;
+using ogl_rtx_submit_depth_fn = int (*)(const ogl_rtx_depth_debug*);
+ogl_rtx_submit_depth_fn rtx_submit_depth = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
 
 void host_log(int severity, const char *message) {
@@ -97,6 +102,8 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
     rtx_copy_shadow_debug = reinterpret_cast<ogl_rtx_copy_shadow_debug_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_copy_shadow_debug"));
+    rtx_submit_depth = reinterpret_cast<ogl_rtx_submit_depth_fn>(
+        ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_depth_debug"));
 
     const ogl_host_api api{sizeof(ogl_host_api), OGL_MODULE_ABI_VERSION, host_log};
     if (start(&api) != 0) {
@@ -131,6 +138,7 @@ void ogl_shutdown_rtx_module() {
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
     rtx_copy_shadow_debug = nullptr;
+    rtx_submit_depth = nullptr;
 #endif
 }
 
@@ -218,5 +226,85 @@ bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
     (void)capacity;
     (void)geometry_revision;
     return false;
+#endif
+}
+
+
+// Opt-in OpenGL readback of 64 contiguous pixels near the center of the
+// current deferred depth target, NOT a reduction over the whole screen.
+// The production viewer does not call glReadPixels unless the developer
+// explicitly requests this diagnostic mode.
+void ogl_rtx_probe_deferred_depth(unsigned texture,
+    unsigned width, unsigned height)
+{
+#if LL_LINUX || LL_WINDOWS
+    static const bool enabled = [] {
+        const char* env = std::getenv("OGL_RTX_DEPTH_PROBE");
+        return env && std::strcmp(env, "1") == 0;
+    }();
+    if (!enabled || !rtx_hardware_ready || !rtx_submit_depth || !texture ||
+        width < 8 || height < 8 || width > 32768 || height > 32768)
+        return;
+    using Clock = std::chrono::steady_clock;
+    static Clock::time_point previous{};
+    const auto now = Clock::now();
+    if (previous != Clock::time_point{} &&
+        now - previous < std::chrono::seconds(60))
+        return;
+    previous = now; // even a failed read must not thrash OpenGL
+
+    // Save all affected READ and pixel-pack state; do not modify the
+    // DRAW framebuffer or the deferred shader's color/depth buffers.
+    GLint old_read = 0, old_pack_buffer = 0;
+    GLint old_pack_alignment = 4, old_row_length = 0;
+    GLint old_skip_pixels = 0, old_skip_rows = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &old_read);
+    glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &old_pack_buffer);
+    glGetIntegerv(GL_PACK_ALIGNMENT, &old_pack_alignment);
+    glGetIntegerv(GL_PACK_ROW_LENGTH, &old_row_length);
+    glGetIntegerv(GL_PACK_SKIP_PIXELS, &old_skip_pixels);
+    glGetIntegerv(GL_PACK_SKIP_ROWS, &old_skip_rows);
+
+    GLuint read_fbo = 0;
+    glGenFramebuffers(1, &read_fbo);
+    if (read_fbo) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo);
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                               GL_TEXTURE_2D, texture, 0);
+        glReadBuffer(GL_NONE);
+        if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
+            ogl_rtx_depth_debug sample{};
+            sample.struct_size = sizeof(sample);
+            sample.version = OGL_RTX_DEPTH_DEBUG_VERSION;
+            sample.viewport_width = width;
+            sample.viewport_height = height;
+            sample.x = (width - 8) / 2;
+            sample.y = (height - 8) / 2;
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+            glPixelStorei(GL_PACK_ALIGNMENT, 4);
+            glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+            glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+            glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+            // Synchronous small developer readback only. A production
+            // renderer must use an async PBO or GPU-side interoperability.
+            glReadPixels(sample.x, sample.y, 8, 8,
+                         GL_DEPTH_COMPONENT, GL_FLOAT, sample.normalized_depth);
+            if (rtx_submit_depth(&sample) == 1)
+                LL_INFOS("OGLRTX") << "Deferred depth center tile captured "
+                    << width << "x" << height << " (8x8 sample only); "
+                    << "no visible RT output." << LL_ENDL;
+        }
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, old_read);
+        glDeleteFramebuffers(1, &read_fbo);
+    }
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, old_pack_buffer);
+    glPixelStorei(GL_PACK_ALIGNMENT, old_pack_alignment);
+    glPixelStorei(GL_PACK_ROW_LENGTH, old_row_length);
+    glPixelStorei(GL_PACK_SKIP_PIXELS, old_skip_pixels);
+    glPixelStorei(GL_PACK_SKIP_ROWS, old_skip_rows);
+#else
+    (void)texture;
+    (void)width;
+    (void)height;
 #endif
 }

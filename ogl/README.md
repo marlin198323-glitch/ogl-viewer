@@ -121,3 +121,12 @@ OpenSim-Mesh-Snapshot erneut berechnen, ohne alte Masken zu zeigen.
 Dies bleibt ein ausdrücklich aktivierter Diagnosemodus.
 **Keine sichtbaren Raytracing-Schatten im Weltbild.**
 [GPU- und Kameratestbericht](RTX_10_BLOCKS_2026_10_31_P8.md).
+
+
+Die **neunte RTX-10er-Runde** bindet erstmals einen kleinen echten
+OpenGL-Deferred-Depth-Ausschnitt an die versionierte RTX-Modul-
+Diagnoseschnittstelle an. Die 8×8-Probe aus dem Bildzentrum ist
+nur mit `OGL_RTX_DEPTH_PROBE=1` aktiv und wird noch **nicht**
+an Vulkan als Schatten-Datenquelle übergeben. Kein sichtbares
+Raytracing im Weltbild.
+[Technischer Bericht und lokaler Test](RTX_10_BLOCKS_2026_10_31_P9.md).

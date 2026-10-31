@@ -325,3 +325,31 @@ Schatten und kein produktiver RTX-Schalter. `rendering_active=0`.
 Deferred-Pipeline, vollständige OpenSim-Szene, bildrichtige
 OpenGL/Vulkan-Überblendung, Qualität und Laufzeitmessungen.
 `rendering_active=0` bleibt wahr.
+
+
+## 31.10.2026 – neunte RTX-10er-Runde: echte Deferred-Tiefenprobe
+
+- Firestorm stellt den OpenGL-Tiefenpuffer in
+  `mRT->deferredScreen.getDepth()` bereit. Dessen Quelle wurde im
+  originalen FBO-/Deferred-Renderpfad verifiziert.
+- Neue `ogl_rtx_depth_debug`-C-ABI (v1) überträgt maximal
+  64 normierte Tiefenwerte aus einem **zusammenhängenden
+  8×8-Bildzentrums-Ausschnitt** samt Renderzielgröße und Koordinaten.
+- Optionaler Frame-Readback per separatem READ-FBO, vollständige
+  Wiederherstellung von OpenGL-Read-FBO und Pixel-Pack-Zustand.
+- **Ausgeschaltet, außer bei Entwickler-Opt-in**
+  `OGL_RTX_DEPTH_PROBE=1`; höchstens einmal pro Minute.
+  `glReadPixels` ist noch synchron: nicht für Echtzeit freigeben.
+- RTX-Modul validiert Werte und verwirft vorige Depth-Proben
+  bei jedem neuen Kamera-Frame. Reduzierte Renderauflösungen
+  werden anhand des Kameraseitenverhältnisses unterstützt.
+- Portable C++-Validierung und Modul-ABI-Test erweitert.
+  Diagnosebericht erkennt einen echten Deferred-Depth-Readback.
+- 36 Python-/19 native Tests und kompletter Linux-Viewer gebaut.
+- [`RTX_10_BLOCKS_2026_10_31_P9.md`](RTX_10_BLOCKS_2026_10_31_P9.md).
+
+**Echte eingeloggte OpenSim-Szene noch nicht abgenommen.** Die
+Tiefenwerte werden noch nicht als Input in Vulkan benutzt. Das
+8×8-Zentrum ist nicht mit dem 8×8-Vollbild-Ray-Query-Raster
+deckungsgleich. Kein OpenGL/Vulkan-Compositing und keine
+sichtbaren RTX-Weltschatten: `rendering_active=0`.

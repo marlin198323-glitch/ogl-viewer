@@ -29,9 +29,13 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_geometry_revision"));
     const auto copy_geometry = reinterpret_cast<uint32_t(*)(ogl_rtx_triangle*,uint32_t)>(
         dlsym(library, "ogl_rtx_copy_geometry"));
+    const auto submit_depth = reinterpret_cast<int(*)(const ogl_rtx_depth_debug*)>(
+        dlsym(library, "ogl_rtx_submit_depth_debug"));
+    const auto copy_depth = reinterpret_cast<int(*)(ogl_rtx_depth_debug*)>(
+        dlsym(library, "ogl_rtx_copy_depth_debug"));
     assert(start && stop && status && submit && count &&
            submit_geometry && triangle_count &&
-           geometry_revision && copy_geometry);
+           geometry_revision && copy_geometry && submit_depth && copy_depth);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, log_cb};
     assert(start(&host) == 0);
     assert(count() == 0);
@@ -57,6 +61,32 @@ int main(int argc, char** argv) {
         assert(submit(&valid) == 1);
         assert(submit(&valid) == 1);
         assert(count() == 2);
+        ogl_rtx_depth_debug depth{};
+        depth.struct_size = sizeof(depth);
+        depth.version = OGL_RTX_DEPTH_DEBUG_VERSION;
+        depth.viewport_width = 1720; // half-resolution deferred target
+        depth.viewport_height = 720;
+        depth.x = 850;
+        depth.y = 350;
+        for (float& pixel : depth.normalized_depth) pixel = 0.75f;
+        ogl_rtx_depth_debug output{};
+        output.struct_size = sizeof(output);
+        output.version = OGL_RTX_DEPTH_DEBUG_VERSION;
+        assert(copy_depth(&output) == 0); // no depth yet
+        assert(submit_depth(&depth) == 1);
+        assert(copy_depth(&output) == 1);
+        assert(output.normalized_depth[63] == 0.75f);
+        depth.normalized_depth[0] = std::numeric_limits<float>::quiet_NaN();
+        assert(submit_depth(&depth) == 0);
+        depth.normalized_depth[0] = 0.75f;
+        depth.viewport_width = 1600; // incompatible aspect
+        assert(submit_depth(&depth) == 0);
+        depth.viewport_width = 1720;
+        depth.version = 999;
+        assert(submit_depth(&depth) == 0);
+        depth.version = OGL_RTX_DEPTH_DEBUG_VERSION;
+        assert(submit(&valid) == 1); // new frame discards older tile
+        assert(copy_depth(&output) == 0);
     } else {
         assert(submit(&valid) == 0);
         assert(count() == 0);
