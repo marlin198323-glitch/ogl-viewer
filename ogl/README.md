@@ -34,6 +34,20 @@ Use OpenSim configuration `ReleaseOS` rather than Second Life only
 must be implemented and tested separately. Preserve upstream license
 notices, third-party notices, and appropriate source-code obligations.
 
+## Cross-platform rule and future plugins
+
+Every new OGL Firestorm capability must work on Linux, Windows and
+macOS, with OS-specific adapters and safe fallbacks where necessary.
+The development Linux Mint machine must not become a runtime assumption.
+The full policy and architecture are documented in
+[PLUGIN_SYSTEM_CROSS_PLATFORM_ARCHITECTURE.md](PLUGIN_SYSTEM_CROSS_PLATFORM_ARCHITECTURE.md).
+
+A cross-OS C-ABI handshake is available, and the portable .ogltheme
+checker validates metadata in archives without installing them.
+**There is no installable third-party plugin manager or live theme
+switching in the viewer yet.** Full Windows/macOS builds and signing
+must be verified before claiming cross-platform release readiness.
+
 ## Dedicated Stadt NexVerse grid
 
 This OGL fork is pinned to Stadt NexVerse. The grid profile has one source

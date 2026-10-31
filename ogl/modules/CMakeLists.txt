@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.18)
 project(ogl_module_prototype VERSION 0.1.0 LANGUAGES CXX)
 
-if(NOT UNIX AND NOT WIN32)
-    message(FATAL_ERROR "The OGL native module prototype supports Linux/Windows only")
+# ABI handshake remains available on Linux, Windows, and macOS.
+if(NOT WIN32 AND NOT UNIX)
+    message(FATAL_ERROR "OGL core modules require Windows, Linux or macOS")
 endif()
 
 add_library(ogl_hello_module SHARED examples/hello/hello_module.cpp)
@@ -10,10 +11,11 @@ target_include_directories(ogl_hello_module PRIVATE include)
 target_compile_features(ogl_hello_module PRIVATE cxx_std_17)
 set_target_properties(ogl_hello_module PROPERTIES PREFIX "" OUTPUT_NAME "ogl_hello")
 
-if(UNIX)
-    add_executable(ogl_module_probe tools/module_probe.cpp)
-    target_include_directories(ogl_module_probe PRIVATE include)
-    target_compile_features(ogl_module_probe PRIVATE cxx_std_17)
+# All OSes must load the same trusted C-ABI test module.
+add_executable(ogl_module_probe tools/module_probe.cpp)
+target_include_directories(ogl_module_probe PRIVATE include)
+target_compile_features(ogl_module_probe PRIVATE cxx_std_17)
+if(CMAKE_DL_LIBS)
     target_link_libraries(ogl_module_probe PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
@@ -277,10 +279,9 @@ else()
 endif()
 
 enable_testing()
-if(UNIX)
-    add_test(NAME ogl_module_handshake
-             COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>)
-endif()
+add_test(NAME ogl_module_handshake
+         COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>)
+set_tests_properties(ogl_module_handshake PROPERTIES TIMEOUT 15)
 
 # Async queue contract is GPU- and vendor-independent: latest-wins,
 # no render-thread blocking, no callbacks after module unload.

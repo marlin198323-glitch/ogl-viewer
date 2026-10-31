@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "de.nexverse.theme.classic-firestorm",
+  "name": "Classic Firestorm",
+  "version": "1.0.0",
+  "type": "theme",
+  "platforms": ["linux", "windows", "macos"],
+  "colors": {
+    "window.background": "#292929FF",
+    "window.text": "#FFFFFFFF",
+    "chat.background": "#292929FF",
+    "chat.text": "#FFFFFFFF"
+  }
+}

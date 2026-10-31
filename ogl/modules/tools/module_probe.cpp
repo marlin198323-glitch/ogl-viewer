@@ -1,8 +1,41 @@
 #include "ogl/ogl_module_api.h"
 
-#include <dlfcn.h>
 #include <iostream>
 #include <string>
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#else
+#  include <dlfcn.h>
+#endif
+
+// Build-time verification only. Never loads arbitrary installed plugins.
+namespace {
+#if defined(_WIN32)
+using ModuleHandle=HMODULE;
+ModuleHandle open_module(const char* utf8_path) {
+    const int n=MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                   utf8_path, -1, nullptr, 0);
+    if(n<=0) return nullptr;
+    std::wstring path(static_cast<size_t>(n), L'\0');
+    if(!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8_path,
+                            -1, &path[0], n)) return nullptr;
+    return LoadLibraryExW(path.c_str(),nullptr,
+           LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+}
+void* symbol(ModuleHandle m,const char* name) {
+    return reinterpret_cast<void*>(GetProcAddress(m,name));
+}
+void close_module(ModuleHandle m) { FreeLibrary(m); }
+#else
+using ModuleHandle=void*;
+ModuleHandle open_module(const char* path) {
+    return dlopen(path, RTLD_NOW | RTLD_LOCAL);
+}
+void* symbol(ModuleHandle m,const char* name) { return dlsym(m,name); }
+void close_module(ModuleHandle m) { dlclose(m); }
+#endif
+} // namespace
 
 namespace {
 void log_message(int severity, const char *message) {
@@ -17,20 +50,20 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    void *handle = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
-    if (!handle) {
-        std::cerr << "dlopen: " << dlerror() << '\n';
+    ModuleHandle handle=open_module(argv[1]);
+    if(!handle) {
+        std::cerr << "Cannot open trusted test module\n";
         return 3;
     }
-    auto get_info = reinterpret_cast<ogl_module_info_fn>(
-        dlsym(handle, "ogl_module_get_info"));
-    auto start = reinterpret_cast<ogl_module_start_fn>(
-        dlsym(handle, "ogl_module_start"));
-    auto stop = reinterpret_cast<ogl_module_stop_fn>(
-        dlsym(handle, "ogl_module_stop"));
-    if (!get_info || !start || !stop) {
+    auto get_info=reinterpret_cast<ogl_module_info_fn>(
+        symbol(handle,"ogl_module_get_info"));
+    auto start=reinterpret_cast<ogl_module_start_fn>(
+        symbol(handle,"ogl_module_start"));
+    auto stop=reinterpret_cast<ogl_module_stop_fn>(
+        symbol(handle,"ogl_module_stop"));
+    if(!get_info || !start || !stop) {
         std::cerr << "Module missing required OGL exports\n";
-        dlclose(handle);
+        close_module(handle);
         return 4;
     }
 
@@ -41,7 +74,7 @@ int main(int argc, char **argv) {
         !info->id || !info->display_name || !info->version ||
         std::string(info->id).empty()) {
         std::cerr << "Incompatible module metadata/ABI\n";
-        dlclose(handle);
+        close_module(handle);
         return 5;
     }
 
@@ -58,6 +91,6 @@ int main(int argc, char **argv) {
     } else {
         std::cerr << "Module startup failed with " << code << '\n';
     }
-    dlclose(handle);
+    close_module(handle);
     return code == 0 ? 0 : 6;
 }
