@@ -130,6 +130,25 @@ def report():
                     print(f"RTX OpenGL/Vulkan depth agreement: "
                           f"{matched}/{surfaces} surface samples "
                           "(within 2% or 0.25 m)")
+                    comparison = re.findall(
+                        r"OGL RTX GPU probe: [^\n]*primary_hits=\d+ "
+                        r"depth_matches=\d+ primary_closer=(\d+) "
+                        r"primary_farther=(\d+)", text)
+                    if comparison:
+                        closer, farther = map(int, comparison[-1])
+                        print(f"RTX depth disagreement: {closer} Vulkan "
+                              f"surfaces closer than GL, {farther} farther")
+                        if primary_hits != matched + closer + farther:
+                            print("RTX warning: depth relation counts disagree.")
+                        elif primary_hits > 0 and matched == 0:
+                            if farther > closer:
+                                print("RTX diagnostic: GPU scene mostly behind "
+                                      "visible GL surfaces; missing near objects "
+                                      "or camera/depth projection mismatch.")
+                            elif closer > farther:
+                                print("RTX diagnostic: GPU scene mostly in front "
+                                      "of visible GL surfaces; check transforms, "
+                                      "occlusion and stale object snapshots.")
                     if surfaces > 0 and primary_hits == 0:
                         print("RTX diagnostic: no primary ray hits; check "
                               "incomplete mesh capture and coordinate transforms.")

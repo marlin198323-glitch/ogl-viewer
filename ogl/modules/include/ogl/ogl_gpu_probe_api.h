@@ -3,7 +3,7 @@
 
 #include "ogl_rtx_api.h"
 
-#define OGL_GPU_PROBE_VERSION 6u
+#define OGL_GPU_PROBE_VERSION 7u
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,6 +33,8 @@ typedef struct ogl_gpu_probe_result {
     uint8_t depth_match_mask[64];     /* 1 = agrees with GL depth */
     uint32_t blas_refits;             /* Vulkan in-place BLAS UPDATE operations */
     uint32_t tlas_refits;             /* instance-transform TLAS UPDATE operations */
+    uint32_t primary_closer;          /* Vulkan hit in front of OpenGL depth */
+    uint32_t primary_farther;         /* Vulkan hit behind OpenGL depth */
 } ogl_gpu_probe_result;
 
 // Return 0 for successful Vulkan compute (including an empty mask),

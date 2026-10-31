@@ -599,3 +599,31 @@ Prim/Avatar/Terrain; Skinned-Avatar-Geometrie; komplette
 Regionsabdeckung und asynchrone GPU-Updates in Echtzeit.
 Das bestehende 8×8-GPU-Probe-System bleibt gedrosselt,
 `rendering_active=0` bleibt korrekt.
+
+
+## 31.10.2026 – Vulkan-Primärtreffer vor/hinter OpenGL-Depth messen
+
+- NexVerse-Live-Test: 47 sichtbare Depth-Pixel, 37 Vulkan-
+  Primärtreffer, **0 passende Tiefenwerte** und 0 Sonnenschatten.
+  Die OpenGL-Depth-Formel stimmt grundsätzlich mit Firestorms
+  Deferred-Shader überein; Ursache noch offen.
+- Der GPU-Depth-Guided-Shader klassifiziert den ersten Vulkan-
+  Mesh-Treffer nun getrennt als **näher als GL**, **passend**
+  oder **weiter entfernt**. Der fehlende Treffer bleibt
+  unabhängig davon ein vierter Zustand.
+- Versionierte GPU-Diagnose-ABI v7, vier 64-U32-Blöcke und
+  konsistente Ergebniszählung pro eingefrorenem Worker-Job.
+- Referenz-GPU-Tests beweisen alle drei Fälle: 64/64 passende
+  Ebenen, 64/64 GPU-*weiter entfernte* Treffer bei fehlender
+  vorderer Fläche und 16/64 GPU-*nähere* Treffer bei einem
+  zusätzlichen Hindernis.
+- Lokaler Bericht enthält jetzt `RTX depth disagreement`,
+  `primary_closer` und `primary_farther`. Noch keine
+  neuen Werte im alten Nutzerlog; erneuter Test erforderlich.
+- 47 Python-/28 native Tests und vollständiger Linux-Viewer
+  sowie Shader-SPIR-V/Fallback erfolgreich kompiliert.
+- [`RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md`](RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md).
+
+**Weiter offen:** Ursache anhand eines neuen echten OpenSim-Logs
+belegen und anschließend zielgenau beheben. Die GPU-Scene-
+Erfassung bleibt unvollständig; noch keine Weltschatten.

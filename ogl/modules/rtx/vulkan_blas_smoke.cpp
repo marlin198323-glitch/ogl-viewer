@@ -998,7 +998,7 @@ static int execute_gpu_scene(const char* shader_path,
     // Depth-guided shader writes sun visibility, primary BLAS intersection
     // and comparison of primary hit distance against OpenGL depth.
     // The original fixture/camera shaders still write only 64 uint values.
-    const uint32_t output_sections = depth_64 ? 3u : 1u;
+    const uint32_t output_sections = depth_64 ? 4u : 1u;
     const uint32_t result_bytes =
         result_count * output_sections * sizeof(uint32_t);
     if (!allocate_buffer(c, c.query_results, result_bytes,
@@ -1097,7 +1097,7 @@ static int execute_gpu_scene(const char* shader_path,
     if (vkMapMemory(c.device, c.query_results.memory, 0, result_bytes, 0,
                     &mapped) != VK_SUCCESS)
         return 1;
-    std::array<uint32_t, result_count * 3u> results{};
+    std::array<uint32_t, result_count * 4u> results{};
     std::memcpy(results.data(), mapped, result_bytes);
     vkUnmapMemory(c.device, c.query_results.memory);
     uint32_t hits = 0;
@@ -1116,20 +1116,31 @@ static int execute_gpu_scene(const char* shader_path,
     std::printf("PASS: GPU 8x8 ray-query probe; occluded=%u visible=%u\n",
                 hits, result_count - hits);
     if (result && depth_64) {
-        unsigned primary_hits=0, matches=0;
+        unsigned primary_hits=0, matches=0, closer=0, farther=0;
         for (uint32_t i=0; i<result_count; ++i) {
             const uint32_t hit = results[result_count+i];
             const uint32_t same = results[2u*result_count+i];
-            if (hit>1 || same>1 || same>hit) return 1;
+            const uint32_t relation=results[3u*result_count+i];
+            if (hit>1 || same>1 || same>hit || relation>3 ||
+                (hit==0 && relation!=0) ||
+                (hit==1 && relation==0) ||
+                (same==1 && relation!=1) ||
+                (relation==1 && same!=1))
+                return 1;
             primary_hits+=hit;
             matches+=same;
+            closer+=relation==2;
+            farther+=relation==3;
             result->primary_mask[i]=static_cast<uint8_t>(hit);
             result->depth_match_mask[i]=static_cast<uint8_t>(same);
         }
+        if (primary_hits!=matches+closer+farther) return 1;
         result->primary_hits=primary_hits;
         result->primary_depth_matches=matches;
-        std::printf("PASS: primary scene coverage=%u depth_agreement=%u of 64\n",
-                    primary_hits,matches);
+        result->primary_closer=closer;
+        result->primary_farther=farther;
+        std::printf("PASS: primary hit=%u matched=%u closer=%u farther=%u of 64\n",
+                    primary_hits,matches,closer,farther);
     }
     if (result) {
         result->occluded = hits;

@@ -70,14 +70,29 @@ int main(int argc, char** argv) {
     const auto no_blocker=run();
     assert(no_blocker.occluded==0);
     assert(no_blocker.primary_hits==64 && no_blocker.primary_depth_matches==64);
+    assert(no_blocker.primary_closer==0 && no_blocker.primary_farther==0);
+    // GPU scene contains the far floor, but the simulated OpenGL buffer
+    // has a closer surface that GPU does NOT know about.
     const auto cached=run();
     assert(cached.cache_hits==1 && cached.blas_builds==1);
+    const float nearer=(frame.far_clip_m/(frame.far_clip_m-frame.near_clip_m)) *
+        (1.f-frame.near_clip_m/1.5f);
+    depth.fill(nearer);
+    const auto missing_front_geometry=run();
+    assert(missing_front_geometry.primary_hits==64);
+    assert(missing_front_geometry.primary_farther==64);
+    assert(missing_front_geometry.primary_closer==0 &&
+           missing_front_geometry.primary_depth_matches==0);
+    depth.fill(depth_of_plane);
     quad(scene,-0.4f,-0.4f,0.4f,0.4f,0.5f);
     const auto shadow=run();
     std::printf("DEPTH GUIDED SHADOW: %u/64 hits\n",shadow.occluded);
     assert(shadow.occluded>0 && shadow.occluded<64);
     assert(shadow.primary_hits==64);
     assert(shadow.primary_depth_matches<shadow.primary_hits);
+    assert(shadow.primary_closer>0 && shadow.primary_farther==0);
+    assert(shadow.primary_hits==shadow.primary_depth_matches+
+           shadow.primary_closer+shadow.primary_farther);
     assert(shadow.blas_builds==2);
     // Sparse sky/transparent areas: a test pixel with depth=1 may never
     // claim shadow, while opaque neighbouring samples still run ray queries.

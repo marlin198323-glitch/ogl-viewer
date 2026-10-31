@@ -199,3 +199,12 @@ Firestorm-Scanner. Die produktive GPU-TLAS ist jedoch noch
 nicht mehrinstanzig; es fehlen vollständige Regionsdaten,
 animierte Avatare und GPU-Realtime-Synchronisation.
 [Technische Details](RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md).
+
+
+**OpenGL/Vulkan-Depth-Abgleich:** Der aktuelle NexVerse-
+Live-Test meldete zahlreiche GPU-Primärtreffer, aber keine
+einzige passende OpenGL-Tiefe. Die neue Diagnose trennt,
+ob die GPU eine Oberfläche vor oder hinter der GL-Tiefe
+trifft. Hardware-GPU-Tests für beide Fälle sind vorhanden;
+ein weiterer Live-Test entscheidet über die nächste
+Korrektur. [Technische Auswertung](RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md).

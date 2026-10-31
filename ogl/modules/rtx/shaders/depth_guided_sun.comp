@@ -9,6 +9,7 @@ layout(set=0,binding=1,std430) buffer Results {
     uint occlusion[64];
     uint primaryHit[64];
     uint depthMatch[64];
+    uint primaryDepthRelation[64]; // 0 no hit, 1 match, 2 closer, 3 farther
 } outputBuffer;
 layout(set=0,binding=2,std430) readonly buffer DeferredDepth {
     float normalizedDepth[64];
@@ -31,6 +32,7 @@ void main() {
     outputBuffer.occlusion[index]=0u;
     outputBuffer.primaryHit[index]=0u;
     outputBuffer.depthMatch[index]=0u;
+    outputBuffer.primaryDepthRelation[index]=0u;
     // OpenGL background: depth 1. Nothing visible to shadow.
     if (d >= 0.999999 || d < 0.0 || d > 1.0 || isnan(d) || isinf(d))
         return;
@@ -65,8 +67,14 @@ void main() {
         const float primaryDistance =
             rayQueryGetIntersectionTEXT(primary,true);
         const float tolerance=max(0.25,depthRayDistance*0.02);
-        if (abs(primaryDistance-depthRayDistance) <= tolerance)
+        if (abs(primaryDistance-depthRayDistance) <= tolerance) {
             outputBuffer.depthMatch[index]=1u;
+            outputBuffer.primaryDepthRelation[index]=1u;
+        } else if (primaryDistance < depthRayDistance) {
+            outputBuffer.primaryDepthRelation[index]=2u;
+        } else {
+            outputBuffer.primaryDepthRelation[index]=3u;
+        }
     }
     const vec3 sunDir=normalize(params.ray_direction.xyz);
     rayQueryEXT shadow;

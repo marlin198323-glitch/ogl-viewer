@@ -281,7 +281,9 @@ void poll_probe_on_viewer_thread() {
                     " background_samples=" + std::to_string(outcome.background_pixels) +
                     " primary_hits=" + std::to_string(outcome.primary_hits) +
                     " depth_matches=" +
-                    std::to_string(outcome.primary_depth_matches) : "") +
+                    std::to_string(outcome.primary_depth_matches) +
+                    " primary_closer=" + std::to_string(outcome.primary_closer) +
+                    " primary_farther=" + std::to_string(outcome.primary_farther) : "") +
                 " worker_wall_ms=" + std::to_string(outcome.wall_ms) +
                 "; ASYNC DIAGNOSTIC ONLY no shadow compositing").c_str());
     } else if (logger) {
@@ -451,6 +453,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 result.occluded = native.occluded;
                 result.primary_hits = native.primary_hits;
                 result.primary_depth_matches = native.primary_depth_matches;
+                result.primary_closer = native.primary_closer;
+                result.primary_farther = native.primary_farther;
                 result.surface_pixels = job.surface_pixels;
                 result.background_pixels = job.background_pixels;
                 if (job.has_depth_grid) {

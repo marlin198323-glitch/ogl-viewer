@@ -138,7 +138,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         api = (ROOT / "ogl/modules/include/ogl/ogl_gpu_probe_api.h").read_text()
         test = (ROOT / "ogl/modules/rtx/ogl_gpu_persistent_test.cpp").read_text()
         log = (ROOT / "ogl/scripts/ogl-test-report.py").read_text()
-        self.assertIn("#define OGL_GPU_PROBE_VERSION 6u", api)
+        self.assertIn("#define OGL_GPU_PROBE_VERSION 7u", api)
         for key in ("vulkan_device_creations", "blas_builds", "cache_hits"):
             self.assertIn(key, api)
         self.assertIn("thread_local std::unique_ptr<VulkanContext>", source)
@@ -340,9 +340,12 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("uint primaryHit[64]",shader)
         self.assertIn("uint depthMatch[64]",shader)
         self.assertIn("rayQueryGetIntersectionTEXT(primary,true)",shader)
-        self.assertIn("const uint32_t output_sections = depth_64 ? 3u : 1u",gpu)
+        self.assertIn("const uint32_t output_sections = depth_64 ? 4u : 1u",gpu)
         self.assertIn("primary_hits=",module)
         self.assertIn("depth_matches=",module)
+        self.assertIn("primary_closer=",module)
+        self.assertIn("primary_farther=",module)
+        self.assertIn("primaryDepthRelation[64]",shader)
 
     def test_vulkan_as_inplace_refit_and_tlas_instance_transform(self):
         gpu=(ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()

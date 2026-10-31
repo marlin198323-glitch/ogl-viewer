@@ -56,6 +56,8 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX OpenGL/Vulkan depth agreement:",source)
         self.assertIn("primary_hits=",source)
         self.assertIn("depth_matches=",source)
+        self.assertIn("RTX depth disagreement:",source)
+        self.assertIn("primary_farther=",source)
 
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(

@@ -355,3 +355,18 @@ Fehlerberichte eingefügt werden.
 - Nur eine aggregierte Live-GPU-BLAS/TLAS-Instanz; volle
   dynamische Regions-TLAS ist noch nicht integriert.
 - [`RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md`](RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md).
+
+
+## 31.10.2026 – Tiefenabweichung im realen Vulkan/OpenGL-Live-Test
+
+- 37/47 Vulkan-Primärtreffer, aber 0/47 Depth-Übereinstimmung
+  im lokalen NexVerse-Probelauf. Kein GPU-Absturz.
+- Diagnostik unterscheidet neuerdings ersten Vulkan-Treffer
+  *vor* und *hinter* der OpenGL-Oberfläche, unveränderlich
+  pro GPU-Frame in Worker und Bericht.
+- Vulkan-Compute-SPIR-V neu gebaut und validiert;
+  Referenz-GPU-Tests für passende/nähere/weiter entfernte
+  Oberflächen, portable 47 Python-/28 Native-Tests
+  sowie kompletter Linux-Viewer-Build grün.
+- Die Ursache in der echten Region ist noch nicht entschieden:
+  [`RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md`](RTX_LIVE_DEPTH_MISMATCH_2026_10_31.md).
