@@ -40,8 +40,8 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('STATE_LOGIN_AUTH_INIT', security)
         self.assertIn('Rejected login: HTTPS or explicit fixed-grid HTTP consent required', security)
         self.assertIn('consented_pinned_http', security)
-        self.assertIn('gHTTPLoginApprovedThisSession', security)
-        self.assertIn('isExactPinnedHTTPLogin(', security)
+        self.assertIn('gHTTPLoginApprovedThisSession', self.values)
+        self.assertIn('isExactPinnedHTTPLogin(', self.values)
         self.assertIn('transition_back_to_login_panel("")', security)
         self.assertIn('gSavedSettings.setBOOL("AutoLogin", false)', security)
         self.assertIn('parsed.scheme() != "https"', security)
@@ -50,8 +50,12 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('OGLInsecureGridLogin', security)
         self.assertIn('OGLHTTPLoginWarning', self.panel)
         self.assertIn('gHTTPLoginApprovedThisSession = true', self.panel)
-        self.assertIn('getSelectedOption(notification, response) == 0', self.panel)
-        self.assertIn('gHTTPLoginApprovedThisSession &&', security)
+        self.assertIn('option == 0 || option == 1', self.panel)
+        self.assertIn('if (option == 1)', self.panel)
+        self.assertIn('gHTTPLoginApprovedThisSession = true', self.panel)
+        self.assertIn('isApprovedPinnedHTTPLogin(', security)
+        self.assertIn('OGLRememberPinnedHTTPLoginURI', security)
+        self.assertIn('OGLRememberPinnedHTTPLoginURI', self.panel)
 
     def test_http_warning_has_explicit_translated_accept_cancel_buttons(self):
         import xml.etree.ElementTree as ET
@@ -61,11 +65,37 @@ class StadtNexVerseGridTests(unittest.TestCase):
             matches = [e for e in xml.iter('notification')
                        if e.get('name') == 'OGLHTTPLoginWarning']
             self.assertEqual(len(matches), 1)
-            buttons = matches[0].find('usetemplate')
-            self.assertEqual(buttons.get('name'), 'okcancelbuttons')
-            self.assertTrue(buttons.get('yestext'))
-            self.assertTrue(buttons.get('notext'))
+            form = matches[0].find('form')
+            self.assertIsNotNone(form)
+            buttons = list(form.findall('button'))
+            self.assertEqual([int(b.get('index')) for b in buttons], [0, 1, 2])
+            self.assertEqual([b.get('name') for b in buttons],
+                             ['OGLHTTPConnectOnce', 'OGLHTTPRemember', 'OGLHTTPCancel'])
+            self.assertTrue(all(b.get('text') for b in buttons))
             self.assertIn('HTTP', matches[0].text or '')
+
+    def test_remembered_consent_is_opt_in_scoped_and_reversible(self):
+        import xml.etree.ElementTree as ET
+        src = ROOT / 'indra/newview/app_settings/settings.xml'
+        root = ET.parse(src).getroot()
+        control = root.find('map')
+        entries = {}
+        children = list(control)
+        for i in range(0, len(children)-1, 2):
+            if children[i].tag == 'key':
+                entries[children[i].text] = children[i+1]
+        stored = entries['OGLRememberPinnedHTTPLoginURI']
+        settings = list(stored)
+        fields = {settings[i].text: settings[i+1]
+                  for i in range(0,len(settings)-1,2)}
+        self.assertEqual(fields['Persist'].text, '1')
+        self.assertEqual(fields['Type'].text, 'String')
+        self.assertEqual(fields['Value'].text, None)
+        self.assertIn('rememberedURI == kLoginURI', self.values)
+        self.assertIn('isExactPinnedHTTPLogin(selectedGrid, loginURIs)', self.values)
+        self.assertNotIn('gSavedSettings.setString("OGLRememberPinnedHTTPLoginURI",',
+                         self.startup)
+
 
 
 if __name__ == "__main__":

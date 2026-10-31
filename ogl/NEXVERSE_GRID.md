@@ -23,16 +23,25 @@ Die vorhandenen Services auf dem Server wurden nicht verändert.
 
 - Einzige HTTP-Ausnahme: der **exakte** hinterlegte Grid-Schlüssel und
   die **einzige** URI `http://hg.stadt-nexverse.de:80/`.
-- Bei einem manuellen Login zeigt OGL eine deutsche oder englische
-  Sicherheitswarnung mit „Über HTTP anmelden“ und „Abbrechen“.
-- Nur nach aktiver Bestätigung ist die Anmeldung über HTTP freigegeben.
-  Die Zustimmung gilt ausschließlich für diesen laufenden Viewer-Prozess;
-  ein Neustart setzt sie zurück.
+- Beim ersten manuellen Login zeigt OGL einen deutschen oder englischen
+  Hinweis zur unverschlüsselten Übertragung mit drei Möglichkeiten:
+  „Einmal anmelden“, „Für dieses Grid merken“ und „Abbrechen“.
+- Nur „Für dieses Grid merken“ speichert die ausdrückliche Zustimmung
+  als exakte, öffentliche URI im normalen Viewer-Einstellungsprofil.
+  Der Hinweis wird bei folgenden Starts für diese unveränderte URI
+  nicht erneut angezeigt. „Einmal anmelden“ erlaubt nur den laufenden Prozess.
+- Die Speicherung lässt sich jederzeit über die Debug-Einstellung
+  OGLRememberPinnedHTTPLoginURI auf einen leeren Wert zurücksetzen.
+  Wenn sich die Login-Adresse ändert, gilt die Zustimmung nicht mehr.
+  Das Abschalten der wiederholten Frage verschlüsselt keine Verbindung.
 - Das Authentifizierungsverfahren überprüft unmittelbar vor
   `LLLoginInstance::connect()` erneut die Zieladresse und Zustimmung.
-  Automatische HTTP-Logins ohne Bestätigung bleiben blockiert.
+  Ohne zuvor ausdrücklich gespeicherte Zustimmung bleiben automatische
+  HTTP-Logins blockiert.
 - Unbekannte oder zusätzliche HTTP-Adressen werden nicht erlaubt.
   Andere Grids bleiben in diesem OGL-Fork nicht auswählbar.
+- Auch beim eigentlichen Verbindungsaufbau wird dieselbe feste URI
+  erneut geprüft; andere HTTP-Grids bleiben gesperrt.
 - Die bisherigen Funktionen zum Speichern von Benutzername/Passwort
   sind unverändert; HTTP schützt die Übertragung jedoch **nicht**.
   Zugangsdaten oder wiederverwendbare Authentifizierungswerte können

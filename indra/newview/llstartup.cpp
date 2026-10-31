@@ -29,7 +29,7 @@
 #include "llappviewer.h"
 #include "llstartup.h"
 #include "indra_constants.h" // OGL: product-specific single-grid login policy
-#include "oglnexversegrid.h" // OGL: per-session HTTP consent
+#include "oglnexversegrid.h" // OGL: exact-grid HTTP consent
 
 #if LL_VELOPACK && LL_WINDOWS
 #include "llvelopack.h"
@@ -1781,7 +1781,8 @@ bool idle_startup()
         // OGL: check the transport policy again at the real authentication
         // boundary, covering auto-login and other paths outside the login UI.
         // Insecure HTTP is permitted only for the exact pinned NexVerse URI,
-        // after an explicit confirmation during this process lifetime.
+        // after this-process consent OR opt-in remembered consent for that
+        // unchanged URI. Other HTTP servers remain blocked.
         if (APP_NAME == "OGL")
         {
             std::vector<std::string> uris;
@@ -1797,9 +1798,9 @@ bool idle_startup()
                 }
             }
             const bool consented_pinned_http =
-                OGLNexVerseGrid::gHTTPLoginApprovedThisSession &&
-                OGLNexVerseGrid::isExactPinnedHTTPLogin(
-                    LLGridManager::getInstance()->getGrid(), uris);
+                OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+                    LLGridManager::getInstance()->getGrid(), uris,
+                    gSavedSettings.getString("OGLRememberPinnedHTTPLoginURI"));
             if (!all_https && !consented_pinned_http)
             {
                 LL_WARNS("OGLGrid") << "Rejected login: HTTPS or explicit fixed-grid HTTP consent required."

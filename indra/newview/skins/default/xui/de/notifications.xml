@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <notifications>
 <notification name="OGLHTTPLoginWarning" icon="alertmodal.tga" type="alertmodal">
-Stadt NexVerse verwendet HTTP ohne Verschlüsselung. Deine Anmeldedaten können während der Übertragung mitgelesen oder verändert werden.
+Stadt NexVerse verwendet zurzeit HTTP ohne Verschlüsselung. Anmeldedaten können während der Übertragung mitgelesen oder verändert werden.
 
-Möchtest du dich trotzdem über HTTP bei Stadt NexVerse anmelden? Die Bestätigung gilt nur bis zum Schließen des OGL Viewers.
-    <usetemplate name="okcancelbuttons" yestext="Über HTTP anmelden" notext="Abbrechen"/>
+Du kannst dieses Grid einmalig zulassen oder deine Zustimmung für genau diese Login-Adresse speichern. Die Speicherung kann über OGLRememberPinnedHTTPLoginURI in den Debug-Einstellungen rückgängig gemacht werden.
+    <form>
+      <button default="true" index="0" name="OGLHTTPConnectOnce" text="Einmal anmelden"/>
+      <button index="1" name="OGLHTTPRemember" text="Für dieses Grid merken"/>
+      <button index="2" name="OGLHTTPCancel" text="Abbrechen"/>
+    </form>
   </notification>
 
 	<global name="skipnexttime">

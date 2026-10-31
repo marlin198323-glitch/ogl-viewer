@@ -1040,9 +1040,10 @@ void FSPanelLogin::onClickConnect(void *)
             return;
         }
 
-        // OGL: allow only the explicitly approved, fixed Stadt NexVerse HTTP
-        // endpoint. All other insecure grid URIs remain blocked. This is not
-        // a persistent preference and never enables unattended HTTP login.
+        // OGL: only allow the fixed Stadt NexVerse HTTP endpoint. A user
+        // may explicitly remember approval of this exact URI, instead of
+        // acknowledging the same transport warning at every viewer start.
+        // HTTPS remains preferred and unknown HTTP destinations are blocked.
         if (APP_NAME == "OGL")
         {
             std::vector<std::string> login_uris;
@@ -1068,15 +1069,27 @@ void FSPanelLogin::onClickConnect(void *)
                     LL_WARNS("OGL") << "Rejected unexpected insecure grid endpoint." << LL_ENDL;
                     return;
                 }
-                if (!OGLNexVerseGrid::gHTTPLoginApprovedThisSession)
+                const std::string remembered_uri =
+                    gSavedSettings.getString("OGLRememberPinnedHTTPLoginURI");
+                if (!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+                        LLGridManager::getInstance()->getGrid(),
+                        login_uris, remembered_uri))
                 {
                     LLNotificationsUtil::add("OGLHTTPLoginWarning", LLSD(), LLSD(),
                         [](const LLSD& notification, const LLSD& response)
                         {
-                            if (LLNotificationsUtil::getSelectedOption(notification, response) == 0)
+                            const S32 option = LLNotificationsUtil::getSelectedOption(
+                                notification, response);
+                            if (option == 0 || option == 1)
                             {
+                                // Only the dedicated "Remember" button writes
+                                // a persistent preference. "Once" never does.
+                                if (option == 1)
+                                    gSavedSettings.setString(
+                                        "OGLRememberPinnedHTTPLoginURI",
+                                        OGLNexVerseGrid::kLoginURI);
                                 OGLNexVerseGrid::gHTTPLoginApprovedThisSession = true;
-                                LL_WARNS("OGL") << "User approved insecure HTTP for pinned Stadt NexVerse this session."
+                                LL_WARNS("OGL") << "User approved HTTP login for pinned Stadt NexVerse."
                                                 << LL_ENDL;
                                 FSPanelLogin::onClickConnect(nullptr);
                             }

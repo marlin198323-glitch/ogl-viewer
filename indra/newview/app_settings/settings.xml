@@ -27811,6 +27811,17 @@ Change of this parameter will affect the layout of buttons in notification toast
       </array>
     </map>
     <!-- </FS:TP> -->
+    <key>OGLRememberPinnedHTTPLoginURI</key>
+    <map>
+      <key>Comment</key>
+      <string>Explicit user approval of one exact unencrypted Stadt NexVerse grid login URI. Empty means ask again. No passwords are stored.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>String</string>
+      <key>Value</key>
+      <string></string>
+    </map>
     <key>FSStreamtitleHistoryLength</key>
     <map>
         <key>Comment</key>

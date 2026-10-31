@@ -16,7 +16,19 @@ int main() {
     assert(!isExactPinnedHTTPLogin(kKey, {"http://hg.stadt-nexverse.de/"}));
     assert(!isExactPinnedHTTPLogin(kKey, {"https://hg.stadt-nexverse.de/"}));
     assert(!OGLNexVerseGrid::gHTTPLoginApprovedThisSession);
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+        kKey,{kLoginURI},"http://example.invalid/"));
+    assert(OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},kLoginURI));
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+        "other-grid.example",{kLoginURI},kLoginURI));
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+        kKey,{"http://evil.example/"},kLoginURI));
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+        kKey,{kLoginURI,"http://evil.example/"},kLoginURI));
     OGLNexVerseGrid::gHTTPLoginApprovedThisSession = true;
-    assert(OGLNexVerseGrid::gHTTPLoginApprovedThisSession);
+    assert(OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
+        kKey,{"http://evil.example/"},""));
     return 0;
 }

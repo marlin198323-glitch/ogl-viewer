@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <notifications>
-<notification icon="alertmodal.tga" name="OGLHTTPLoginWarning" type="alertmodal">
-Stadt NexVerse uses an HTTP login without encryption. Your login credentials can be intercepted or modified in transit.
+<notification name="OGLHTTPLoginWarning" icon="alertmodal.tga" type="alertmodal">
+Stadt NexVerse currently uses unencrypted HTTP. Login credentials can be intercepted or modified in transit.
 
-Do you want to connect to Stadt NexVerse over HTTP anyway? This approval applies only until you close the OGL Viewer.
-    <usetemplate name="okcancelbuttons" yestext="Connect over HTTP" notext="Cancel"/>
+You can allow this login once or remember approval only for this exact grid login URI. Clear OGLRememberPinnedHTTPLoginURI in Debug Settings to revoke approval.
+    <form>
+      <button default="true" index="0" name="OGLHTTPConnectOnce" text="Connect once"/>
+      <button index="1" name="OGLHTTPRemember" text="Remember for this grid"/>
+      <button index="2" name="OGLHTTPCancel" text="Cancel"/>
+    </form>
   </notification>
 
     <global name="skipnexttime">

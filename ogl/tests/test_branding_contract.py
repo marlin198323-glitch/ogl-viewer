@@ -41,7 +41,7 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn("OGLInsecureGridLogin", source)
         self.assertIn("OGLHTTPLoginWarning", source)
         self.assertIn("OGLNexVerseGrid::isExactPinnedHTTPLogin", source)
-        self.assertIn("User approved insecure HTTP for pinned Stadt NexVerse", source)
+        self.assertIn("User approved HTTP login for pinned Stadt NexVerse", source)
 
     def test_nexverse_login_bar_readable_and_graphics_status_truthful(self):
         from struct import unpack
