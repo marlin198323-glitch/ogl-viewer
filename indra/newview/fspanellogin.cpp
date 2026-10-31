@@ -32,6 +32,7 @@
 #include "lllayoutstack.h"
 
 #include "indra_constants.h"        // for key and mask constants
+#include "oglnexversegrid.h" // Central fixed Stadt NexVerse profile
 #include "llfloaterreg.h"
 #include "llfontgl.h"
 #include "llmd5.h"
@@ -239,6 +240,8 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
 #ifdef SINGLEGRID
     server_choice_combo->setEnabled(false);
 #endif
+    // OGL exclusively targets Stadt NexVerse; show it but prevent edits.
+    if (APP_NAME == "OGL") server_choice_combo->setEnabled(false);
 
     std::string current_grid = LLGridManager::getInstance()->getGrid();
     updateServer();
@@ -257,7 +260,7 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
 #ifdef OPENSIM
     LLTextBox* grid_builder_text = getChild<LLTextBox>("grid_builder_text");
     grid_builder_text->setClickedCallback(onClickGridBuilder, NULL);
-    grid_builder_text->setVisible(true);
+    grid_builder_text->setVisible(APP_NAME != "OGL");
 #endif
 
     LLSLURL start_slurl(LLStartUp::getStartSLURL());
@@ -481,7 +484,7 @@ void FSPanelLogin::showLoginWidgets()
 
         // *TODO: Append all the usual login parameters, like first_login=Y etc.
         std::string splash_screen_url = APP_NAME == "OGL"
-            ? "https://stadt-nexverse.de/service/welcome"
+            ? OGLNexVerseGrid::kWelcomeURI
             : LLGridManager::getInstance()->getLoginPage();
         web_browser->navigateTo( splash_screen_url, HTTP_CONTENT_TEXT_HTML );
         LLUICtrl* username_combo = sInstance->getChild<LLUICtrl>("username_combo");
@@ -883,7 +886,7 @@ void FSPanelLogin::loadLoginPage()
     // OGL: maintain the NexVerse welcome background while changing grids.
     // This URL is display-only; authentication still uses the chosen grid.
     LLURI login_page = LLURI(APP_NAME == "OGL"
-        ? "https://stadt-nexverse.de/service/welcome"
+        ? OGLNexVerseGrid::kWelcomeURI
         : LLGridManager::getInstance()->getLoginPage());
     LLSD params(login_page.queryMap());
 

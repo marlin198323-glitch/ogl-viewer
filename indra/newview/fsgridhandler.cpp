@@ -33,6 +33,8 @@
 #include "llnotifications.h"
 #include "llnotificationsutil.h"
 #include "llviewernetwork.h"
+#include "indra_constants.h" // OGL: product-specific grid defaults
+#include "oglnexversegrid.h" // Central fixed Stadt NexVerse profile
 #include "llviewercontrol.h"
 #include "llsdserialize.h"
 #include "llsecapi.h"
@@ -189,12 +191,25 @@ void LLGridManager::initGrids()
 
     initSystemGrids();
 #ifndef SINGLEGRID
-    initGridList(grid_file, FINISH);
-    initGridList(grid_remote_file, FINISH);
-    initGridList(grid_user_file, FINISH);
+    // OGL is a dedicated Stadt NexVerse viewer: ignore unrelated upstream,
+    // remote and personal grids, without deleting users' saved files.
+    if (APP_NAME != "OGL")
+    {
+        initGridList(grid_file, FINISH);
+        initGridList(grid_remote_file, FINISH);
+        initGridList(grid_user_file, FINISH);
+    }
 #endif
 
-    if (!mCommandLineDone)
+    if (APP_NAME == "OGL")
+    {
+        // Always select the bundled grid, even after a previous installation
+        // selected something else. Never use unknown command-line grid values.
+        setGridChoice(OGLNexVerseGrid::kKey);
+        mStartupGrid.clear();
+        LL_INFOS("OGLGrid") << "Using fixed Stadt NexVerse OpenSim grid" << LL_ENDL;
+    }
+    else if (!mCommandLineDone)
     {
         initCmdLineGrids();
     }
@@ -208,6 +223,29 @@ void LLGridManager::initGrids()
 
 void LLGridManager::initSystemGrids()
 {
+    if (APP_NAME == "OGL")
+    {
+        // Values verified against the official OpenSim /get_grid_info XML.
+        // The grid currently advertises HTTP; the OGL HTTPS login guard
+        // blocks credential submission until the server supports secure TLS.
+        const std::string grid_key = OGLNexVerseGrid::kKey;
+        addSystemGrid(OGLNexVerseGrid::kName, grid_key, OGLNexVerseGrid::kNick,
+                      OGLNexVerseGrid::kLoginURI, "",
+                      OGLNexVerseGrid::kWelcomeURI);
+        mGridList[grid_key][GRID_SLURL_BASE] = OGLNexVerseGrid::kSLURLBase;
+        mGridList[grid_key][GRID_APP_SLURL_BASE] =
+            OGLNexVerseGrid::kAppSLURLBase;
+        // These are verified HTTPS public site landing pages, not fabricated
+        // individual registration or password reset endpoints.
+        mGridList[grid_key][GRID_REGISTER_NEW_ACCOUNT] = OGLNexVerseGrid::kWebsite;
+        mGridList[grid_key][GRID_FORGOT_PASSWORD] = OGLNexVerseGrid::kWebsite;
+        mGridList[grid_key][GRID_HELP] = OGLNexVerseGrid::kWebsite;
+        mGridList[grid_key][GRID_ABOUT] = OGLNexVerseGrid::kWebsite;
+        mGridList[grid_key][GRID_LOGIN_IDENTIFIER_TYPES] = LLSD::emptyArray();
+        mGridList[grid_key][GRID_LOGIN_IDENTIFIER_TYPES].append(CRED_IDENTIFIER_TYPE_AGENT);
+        mGridList[grid_key][GRID_LOGIN_IDENTIFIER_TYPES].append(CRED_IDENTIFIER_TYPE_ACCOUNT);
+        return;
+    }
     addSystemGrid(LLTrans::getString("LoadingData"), "", "", "", "", DEFAULT_LOGIN_PAGE);
 }
 
@@ -509,6 +547,15 @@ void LLGridManager::addGrid(const std::string& loginuri)
 /// if they're not populated yet.
 void LLGridManager::addGrid(GridEntry* grid_entry, AddState state)
 {
+    // Defense in depth: a dedicated OGL build never registers other grids.
+    if (APP_NAME == "OGL" && grid_entry &&
+        grid_entry->grid.has(GRID_VALUE) &&
+        grid_entry->grid[GRID_VALUE].asString() != OGLNexVerseGrid::kKey)
+    {
+        LL_WARNS("OGLGrid") << "Rejected unrelated grid registration" << LL_ENDL;
+        delete grid_entry;
+        return;
+    }
     if (!grid_entry)
     {
         LL_WARNS() << "addGrid called with NULL grid_entry. Please send a bug report." << LL_ENDL;
@@ -969,6 +1016,12 @@ std::string LLGridManager::getGridLabel(const std::string& grid)
 
 void LLGridManager::setGridChoice(const std::string& grid)
 {
+    if (APP_NAME == "OGL" &&
+        grid != OGLNexVerseGrid::kKey && grid != OGLNexVerseGrid::kName)
+    {
+        LL_WARNS("OGLGrid") << "Rejected grid switch outside Stadt NexVerse" << LL_ENDL;
+        return;
+    }
     if (grid.empty() || LLLoginInstance::getInstance()->authSuccess())
     {
         return;

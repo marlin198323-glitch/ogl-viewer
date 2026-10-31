@@ -62,3 +62,19 @@ Launch log:
 
 The initial authenticated viewer must never be represented as
 production-ready until these gates pass.
+
+## Stadt NexVerse fixed-grid integration (2026-10-31)
+
+- Stadt NexVerse is selected automatically and is the only selectable
+  grid. Login UI selection and grid registration outside NexVerse are
+  blocked in the OGL fork; no unrelated user file is deleted.
+- Central, explicit grid profile: `indra/newview/oglnexversegrid.h`.
+- Startup verified: `OGLGrid: Using fixed Stadt NexVerse OpenSim grid`.
+- Verified public endpoints: `http://hg.stadt-nexverse.de:80/` (advertised
+  HTTP login URI) and `https://stadt-nexverse.de/service/welcome`.
+- HTTPS :443 on the grid hostname was unreachable during this test.
+  **No live authentication was attempted**; OGL rejects insecure
+  interactive and automatic login pathways.
+- Contract checks: 9/9 passed; module checks: 3/3 passed.
+- Full C++ incremental rebuild and runtime staging passed.
+- See [`NEXVERSE_GRID.md`](NEXVERSE_GRID.md) for the complete profile.

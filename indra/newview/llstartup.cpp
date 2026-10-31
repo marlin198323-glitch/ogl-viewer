@@ -28,6 +28,7 @@
 
 #include "llappviewer.h"
 #include "llstartup.h"
+#include "indra_constants.h" // OGL: secure single-grid login policy
 
 #if LL_VELOPACK && LL_WINDOWS
 #include "llvelopack.h"
@@ -1775,6 +1776,34 @@ bool idle_startup()
         login->setLastExecEvent(last_exec_event);
 // </AW: crash report grid correctness>
         login->setLastAgentSessionId(gLastAgentSessionId);
+
+        // OGL: enforce HTTPS at the last credential transfer boundary too.
+        // This also covers autologin and command-line paths, not only the
+        // ordinary login panel click. Never allow an HTTP fallback URI.
+        if (APP_NAME == "OGL")
+        {
+            std::vector<std::string> uris;
+            LLGridManager::getInstance()->getLoginURIs(uris);
+            bool all_https = !uris.empty();
+            for (const auto& uri : uris)
+            {
+                const LLURI parsed(uri);
+                if (parsed.scheme() != "https" || parsed.authority().empty())
+                {
+                    all_https = false;
+                    break;
+                }
+            }
+            if (!all_https)
+            {
+                LL_WARNS("OGLGrid") << "Blocked all login methods: secure HTTPS endpoint is required."
+                                    << LL_ENDL;
+                transition_back_to_login_panel("");
+                LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                    "MESSAGE", LLTrans::getString("OGLInsecureGridLogin")));
+                return false;
+            }
+        }
 
         // This call to LLLoginInstance::connect() starts the
         // authentication process.

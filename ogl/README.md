@@ -33,3 +33,15 @@ Use OpenSim configuration `ReleaseOS` rather than Second Life only
 `ReleaseFS_open`. OGL-specific names, settings paths, and integrations
 must be implemented and tested separately. Preserve upstream license
 notices, third-party notices, and appropriate source-code obligations.
+
+## Dedicated Stadt NexVerse grid
+
+This OGL fork is pinned to Stadt NexVerse. The grid profile has one source
+of truth: `indra/newview/oglnexversegrid.h`. The login UI cannot select
+other grids; upstream and remote grid lists are not loaded. See
+[`NEXVERSE_GRID.md`](NEXVERSE_GRID.md) for verified endpoints and TLS
+limitations.
+
+The publicly advertised grid login uses HTTP today, so OGL refuses
+credential submission (including automatic login) until an authenticated
+HTTPS grid endpoint is deployed and verified.

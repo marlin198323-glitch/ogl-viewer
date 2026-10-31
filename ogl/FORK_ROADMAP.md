@@ -29,3 +29,14 @@
 - Do not store login passwords or secrets in source code; use proven credential storage.
 - A passing module ABI smoke test is not evidence of a functional Firestorm-based OGL viewer.
 - Only release after a real grid login, world rendering and user acceptance test.
+
+## 2026-10-31 addendum: grid/profile
+
+- Fixed Stadt NexVerse profile: DONE (central header, pinned startup,
+  other grids excluded, selected grid logging confirmed on Linux Mint).
+- End-to-end credential-safety guard: DONE (interactive and last
+  authentication boundary; no password sent to HTTP).
+- Authentication and in-world visual acceptance: BLOCKED until public
+  GridInfo advertises a functioning HTTPS login service.
+- RTX capability module: DONE for hardware discovery, but ray-traced
+  shadows/reflections/GI remain NOT IMPLEMENTED.

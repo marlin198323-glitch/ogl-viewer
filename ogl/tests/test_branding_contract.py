@@ -35,7 +35,7 @@ class OGLBrandingContract(unittest.TestCase):
 
     def test_nexverse_background_and_https_auth_guard(self):
         source = self.source("indra/newview/fspanellogin.cpp")
-        self.assertIn("https://stadt-nexverse.de/service/welcome", source)
+        self.assertIn("OGLNexVerseGrid::kWelcomeURI", source)
         self.assertIn('parsed.scheme() != "https"', source)
         self.assertIn("getLoginURIs(login_uris)", source)
         self.assertIn("OGLInsecureGridLogin", source)
