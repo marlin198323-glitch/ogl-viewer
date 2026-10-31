@@ -12,7 +12,15 @@ int main() {
     VkInstanceCreateInfo ic{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     ic.pApplicationInfo = &app;
     VkInstance instance = VK_NULL_HANDLE;
-    if (vkCreateInstance(&ic, nullptr, &instance) != VK_SUCCESS) return 1;
+    const VkResult instance_result = vkCreateInstance(&ic, nullptr, &instance);
+    if (instance_result == VK_ERROR_INCOMPATIBLE_DRIVER) {
+        std::puts("SKIP: no Vulkan driver/ICD is available on this machine");
+        return 77; // normal CI/headless OpenGL-only machine
+    }
+    if (instance_result != VK_SUCCESS) {
+        std::printf("FAIL: Vulkan instance creation error=%d\n", instance_result);
+        return 1;
+    }
 
     uint32_t device_count = 0;
     int exit_code = 77; // Skip on machines without Vulkan RTX.

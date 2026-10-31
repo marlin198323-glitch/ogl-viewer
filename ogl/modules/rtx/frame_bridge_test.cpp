@@ -57,7 +57,9 @@ int main(int argc, char** argv) {
     valid_triangle.position[3] = 1.0f;
     valid_triangle.position[7] = 1.0f;
     assert(submit_geometry(nullptr, 1) == 0);
-    assert(submit_geometry(&valid_triangle, 0) == 1);
+    // On machines without RT hardware the module may reject even a clear
+    // request, and must never crash or claim rendering is supported.
+    assert(submit_geometry(&valid_triangle, 0) == (status()->hardware_ready ? 1 : 0));
     std::vector<ogl_rtx_triangle> oversized(OGL_RTX_MAX_SCENE_TRIANGLES + 1);
     assert(submit_geometry(oversized.data(), oversized.size()) == 0);
     ogl_rtx_triangle nan_triangle = valid_triangle;
