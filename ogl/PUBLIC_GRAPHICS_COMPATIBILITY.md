@@ -66,7 +66,9 @@ Multi-GPU-Kopplung.
 - [ ] Windows-CI-Modulbuild / kompletter Windows-Viewer-Start getestet
 - [ ] AMD/Intel-RT-Hardware geprüft
 - [ ] Multi-GPU-Identitätsabgleich (OpenGL ↔ Vulkan)
-- [ ] Eine echte, begrenzte BLAS/TLAS-Berechnung samt Ray-Query-Schattenbild
+- [x] Isolierter Vulkan-GPU-BLAS- und TLAS-Build mit Testdreieck und Instanz
+- [ ] Echte OpenSim-Geometrie an den GPU-Builder anbinden, inkrementell aktualisieren
+- [ ] Ray-Query-Schattenbild berechnen und in das OpenGL-Weltbild einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer
 - [ ] Finales Lizenz-/Third-Party-Notices- und Release-Audit

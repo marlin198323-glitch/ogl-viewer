@@ -47,6 +47,15 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
         target_link_libraries(ogl_vulkan_rt_device_probe PRIVATE "${OGL_VULKAN_RUNTIME}")
         add_test(NAME ogl_vulkan_rt_device COMMAND ogl_vulkan_rt_device_probe)
         set_tests_properties(ogl_vulkan_rt_device PROPERTIES SKIP_RETURN_CODE 77)
+
+        # Real Vulkan GPU BLAS+TLAS build, with one triangle and one instance.
+        # A GPU/driver is optional in CI, so lack of RT is an explicit SKIP.
+        add_executable(ogl_vulkan_blas_smoke rtx/vulkan_blas_smoke.cpp)
+        target_compile_features(ogl_vulkan_blas_smoke PRIVATE cxx_std_17)
+        target_include_directories(ogl_vulkan_blas_smoke PRIVATE "${OGL_VULKAN_HEADER_DIR}")
+        target_link_libraries(ogl_vulkan_blas_smoke PRIVATE "${OGL_VULKAN_RUNTIME}")
+        add_test(NAME ogl_vulkan_blas_tlas_gpu COMMAND ogl_vulkan_blas_smoke)
+        set_tests_properties(ogl_vulkan_blas_tlas_gpu PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
     endif()
 
     if(UNIX)

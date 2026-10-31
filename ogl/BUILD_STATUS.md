@@ -104,3 +104,14 @@ Fehlerberichte eingefügt werden.
 4. Danach reale Region, Avatar/Attachments, Texturen/Meshes,
    Himmel/Sonne, Kamera, Bewegung und Teleport vergleichen.
 5. Raytracing-Effekte und echtes Cache-Profiling separat implementieren.
+
+## 31.10.2026 – Vulkan-BLAS/TLAS-GPU-Smoke-Test
+
+- Eigenständiger CUDA-unabhängiger Vulkan-GPU-Test erzeugt eine BLAS für ein
+  Dreieck und eine TLAS mit einer Instanz, die auf die BLAS zeigt.
+- Beide Aufbauten werden auf der RTX 4070 SUPER wirklich durch Vulkan-
+  Kommandos abgearbeitet (Queue-Submit/Wait + gültige Device-Adressen).
+- Feature-/Treiber-unabhängiger CI-Fallback: bei fehlendem RT-Support
+  wird der Test übersprungen statt den OpenGL-Build zu blockieren.
+- Keine Raytracing-Effekte im Viewer: Real-World-Geometrieanbindung,
+  GPU-Ray-Query-Shader und Schatten-Compositing stehen noch aus.

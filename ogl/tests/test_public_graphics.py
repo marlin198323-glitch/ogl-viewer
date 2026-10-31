@@ -57,6 +57,21 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../ogl/modules"', cmake)
         self.assertIn('add_dependencies(${VIEWER_BINARY_NAME} ogl_rtx_stage)', cmake)
 
+    def test_real_vulkan_blas_tlas_gpu_smoke_is_cross_vendor_and_optional(self):
+        src = (ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        cmake = (ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        self.assertIn('VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR', src)
+        self.assertIn('VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR', src)
+        self.assertIn('build_blas(command, 1, &build_info, ranges)', src)
+        self.assertIn('build_blas(command, 1, &top_build, ranges)', src)
+        self.assertIn('instance.accelerationStructureReference = blas_address', src)
+        self.assertIn('vkQueueWaitIdle(c.queue)', src)
+        self.assertIn('vkResetCommandPool(c.device, c.pool, 0)', src)
+        self.assertIn('return 77', src)
+        self.assertNotIn('vendorID !=', src)
+        self.assertIn('SKIP_RETURN_CODE 77 TIMEOUT 30', cmake)
+        self.assertIn('ogl_vulkan_blas_tlas_gpu', cmake)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

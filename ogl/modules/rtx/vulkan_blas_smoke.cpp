@@ -1,0 +1,449 @@
+// OGL public Vulkan BLAS acceptance: build a real one-triangle GPU
+// acceleration structure. No image rendering, no OpenSim data, no server.
+// No hardware: CTest SKIP (77). GPU/API failure after selection: FAIL (1).
+// Shader/TLAS/OpenGL compositing are separate milestones.
+#include <vulkan/vulkan.h>
+#include <array>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <set>
+#include <string>
+#include <vector>
+
+struct Buffer {
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VkDeviceSize size = 0;
+};
+
+struct VulkanContext {
+    VkInstance instance = VK_NULL_HANDLE;
+    VkPhysicalDevice physical = VK_NULL_HANDLE;
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue queue = VK_NULL_HANDLE;
+    uint32_t queue_family = ~0u;
+    VkCommandPool pool = VK_NULL_HANDLE;
+    VkAccelerationStructureKHR blas = VK_NULL_HANDLE;
+    VkAccelerationStructureKHR tlas = VK_NULL_HANDLE;
+    PFN_vkDestroyAccelerationStructureKHR destroy_blas = nullptr;
+    Buffer vertices, scratch, storage;
+    Buffer instance_buffer, tlas_scratch, tlas_storage;
+    ~VulkanContext() {
+        if (device) {
+            vkDeviceWaitIdle(device);
+            if (tlas && destroy_blas) destroy_blas(device, tlas, nullptr);
+            if (blas && destroy_blas) destroy_blas(device, blas, nullptr);
+            for (const Buffer* b : {&vertices, &scratch, &storage,
+                                    &instance_buffer, &tlas_scratch, &tlas_storage}) {
+                if (b->buffer) vkDestroyBuffer(device, b->buffer, nullptr);
+                if (b->memory) vkFreeMemory(device, b->memory, nullptr);
+            }
+            if (pool) vkDestroyCommandPool(device, pool, nullptr);
+            vkDestroyDevice(device, nullptr);
+        }
+        if (instance) vkDestroyInstance(instance, nullptr);
+    }
+};
+
+bool allocate_buffer(VulkanContext& c, Buffer& b, VkDeviceSize size,
+                     VkBufferUsageFlags usage, VkMemoryPropertyFlags requested,
+                     bool device_address) {
+    b.size = size;
+    VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    info.size = size;
+    info.usage = usage;
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(c.device, &info, nullptr, &b.buffer) != VK_SUCCESS)
+        return false;
+    VkMemoryRequirements requirements{};
+    vkGetBufferMemoryRequirements(c.device, b.buffer, &requirements);
+    VkPhysicalDeviceMemoryProperties memory{};
+    vkGetPhysicalDeviceMemoryProperties(c.physical, &memory);
+    uint32_t index = ~0u;
+    for (uint32_t i = 0; i < memory.memoryTypeCount; ++i) {
+        if ((requirements.memoryTypeBits & (1u << i)) &&
+            (memory.memoryTypes[i].propertyFlags & requested) == requested) {
+            index = i;
+            break;
+        }
+    }
+    if (index == ~0u) return false;
+
+    VkMemoryAllocateFlagsInfo flags{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
+    flags.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+    VkMemoryAllocateInfo alloc{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    alloc.allocationSize = requirements.size;
+    alloc.memoryTypeIndex = index;
+    if (device_address) alloc.pNext = &flags;
+    if (vkAllocateMemory(c.device, &alloc, nullptr, &b.memory) != VK_SUCCESS)
+        return false;
+    return vkBindBufferMemory(c.device, b.buffer, b.memory, 0) == VK_SUCCESS;
+}
+
+VkDeviceAddress buffer_address(VulkanContext& c, const Buffer& b) {
+    VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    info.buffer = b.buffer;
+    return vkGetBufferDeviceAddress(c.device, &info);
+}
+
+bool has_extension(VkPhysicalDevice gpu, const std::set<std::string>& required) {
+    uint32_t count = 0;
+    if (vkEnumerateDeviceExtensionProperties(gpu, nullptr, &count, nullptr) != VK_SUCCESS)
+        return false;
+    std::vector<VkExtensionProperties> extensions(count);
+    if (vkEnumerateDeviceExtensionProperties(gpu, nullptr, &count, extensions.data()) != VK_SUCCESS)
+        return false;
+    std::set<std::string> available;
+    for (const auto& e : extensions) available.insert(e.extensionName);
+    for (const auto& name : required)
+        if (!available.count(name)) return false;
+    return true;
+}
+
+int main() {
+    VulkanContext c;
+    VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    app.pApplicationName = "OGL universal Vulkan BLAS acceptance";
+    app.apiVersion = VK_API_VERSION_1_2;
+    VkInstanceCreateInfo instance_info{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    instance_info.pApplicationInfo = &app;
+    VkResult rc = vkCreateInstance(&instance_info, nullptr, &c.instance);
+    if (rc == VK_ERROR_INCOMPATIBLE_DRIVER) {
+        std::puts("SKIP: no Vulkan driver; OpenGL fallback unaffected");
+        return 77;
+    }
+    if (rc != VK_SUCCESS) {
+        std::printf("FAIL: vkCreateInstance=%d\n", rc);
+        return 1;
+    }
+
+    uint32_t gpu_count = 0;
+    if (vkEnumeratePhysicalDevices(c.instance, &gpu_count, nullptr) != VK_SUCCESS ||
+        !gpu_count) {
+        std::puts("SKIP: no Vulkan GPU");
+        return 77;
+    }
+    std::vector<VkPhysicalDevice> gpus(gpu_count);
+    if (vkEnumeratePhysicalDevices(c.instance, &gpu_count, gpus.data()) != VK_SUCCESS)
+        return 1;
+
+    const std::set<std::string> required{
+        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+        VK_KHR_RAY_QUERY_EXTENSION_NAME,
+        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+    };
+    VkPhysicalDeviceProperties chosen{};
+    for (int preference = 0; preference < 2 && !c.physical; ++preference) {
+        for (const auto gpu : gpus) {
+            VkPhysicalDeviceProperties p{};
+            vkGetPhysicalDeviceProperties(gpu, &p);
+            if ((p.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) !=
+                (preference == 0)) continue;
+            if (VK_API_VERSION_MAJOR(p.apiVersion) < 1 ||
+                (VK_API_VERSION_MAJOR(p.apiVersion) == 1 &&
+                 VK_API_VERSION_MINOR(p.apiVersion) < 2)) continue;
+            if (!has_extension(gpu, required)) continue;
+
+            VkPhysicalDeviceRayQueryFeaturesKHR ray{
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
+            VkPhysicalDeviceAccelerationStructureFeaturesKHR accel{
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
+            VkPhysicalDeviceBufferDeviceAddressFeatures address{
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES};
+            VkPhysicalDeviceFeatures2 features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+            features.pNext = &address;
+            address.pNext = &accel;
+            accel.pNext = &ray;
+            vkGetPhysicalDeviceFeatures2(gpu, &features);
+            if (!ray.rayQuery || !accel.accelerationStructure ||
+                !address.bufferDeviceAddress) continue;
+
+            uint32_t family_count = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(gpu, &family_count, nullptr);
+            std::vector<VkQueueFamilyProperties> families(family_count);
+            vkGetPhysicalDeviceQueueFamilyProperties(gpu, &family_count, families.data());
+            for (uint32_t family = 0; family < family_count; ++family) {
+                if (families[family].queueCount &&
+                    (families[family].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+                    c.physical = gpu;
+                    c.queue_family = family;
+                    chosen = p;
+                    break;
+                }
+            }
+            if (c.physical) break;
+        }
+    }
+    if (!c.physical) {
+        std::puts("SKIP: no Vulkan GPU supports required ray-query/AS features");
+        return 77;
+    }
+
+    VkPhysicalDeviceRayQueryFeaturesKHR use_ray{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
+    use_ray.rayQuery = VK_TRUE;
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR use_accel{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
+    use_accel.accelerationStructure = VK_TRUE;
+    use_accel.pNext = &use_ray;
+    VkPhysicalDeviceBufferDeviceAddressFeatures use_address{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES};
+    use_address.bufferDeviceAddress = VK_TRUE;
+    use_address.pNext = &use_accel;
+    VkPhysicalDeviceFeatures2 enabled{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+    enabled.pNext = &use_address;
+    float priority = 1.f;
+    VkDeviceQueueCreateInfo queue_info{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+    queue_info.queueFamilyIndex = c.queue_family;
+    queue_info.queueCount = 1;
+    queue_info.pQueuePriorities = &priority;
+    std::array<const char*, 3> exts{
+        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+        VK_KHR_RAY_QUERY_EXTENSION_NAME,
+        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME
+    };
+    VkDeviceCreateInfo device_info{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    device_info.pNext = &enabled;
+    device_info.queueCreateInfoCount = 1;
+    device_info.pQueueCreateInfos = &queue_info;
+    device_info.enabledExtensionCount = static_cast<uint32_t>(exts.size());
+    device_info.ppEnabledExtensionNames = exts.data();
+    if (vkCreateDevice(c.physical, &device_info, nullptr, &c.device) != VK_SUCCESS) {
+        std::puts("FAIL: selected RT GPU could not create a Vulkan RT device");
+        return 1;
+    }
+    vkGetDeviceQueue(c.device, c.queue_family, 0, &c.queue);
+
+    auto get_build_sizes = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
+        vkGetDeviceProcAddr(c.device, "vkGetAccelerationStructureBuildSizesKHR"));
+    auto create_blas = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
+        vkGetDeviceProcAddr(c.device, "vkCreateAccelerationStructureKHR"));
+    auto build_blas = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
+        vkGetDeviceProcAddr(c.device, "vkCmdBuildAccelerationStructuresKHR"));
+    auto get_blas_address = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
+        vkGetDeviceProcAddr(c.device, "vkGetAccelerationStructureDeviceAddressKHR"));
+    c.destroy_blas = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
+        vkGetDeviceProcAddr(c.device, "vkDestroyAccelerationStructureKHR"));
+    if (!get_build_sizes || !create_blas || !build_blas || !get_blas_address ||
+        !c.destroy_blas) {
+        std::puts("FAIL: Vulkan acceleration structure entrypoints unavailable");
+        return 1;
+    }
+
+    // A single triangle. This exact 9-float layout matches the OGL scene ABI.
+    constexpr std::array<float, 9> triangle{0.f, 0.f, 0.f,
+                                           1.f, 0.f, 0.f,
+                                           0.f, 1.f, 0.f};
+    if (!allocate_buffer(c, c.vertices, sizeof(triangle),
+                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                         true)) {
+        std::puts("FAIL: vertex GPU buffer allocation");
+        return 1;
+    }
+    void* mapped = nullptr;
+    if (vkMapMemory(c.device, c.vertices.memory, 0, sizeof(triangle), 0, &mapped) != VK_SUCCESS)
+        return 1;
+    std::memcpy(mapped, triangle.data(), sizeof(triangle));
+    vkUnmapMemory(c.device, c.vertices.memory);
+
+    VkAccelerationStructureGeometryTrianglesDataKHR vertices{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR};
+    vertices.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+    vertices.vertexData.deviceAddress = buffer_address(c, c.vertices);
+    vertices.vertexStride = 3 * sizeof(float);
+    vertices.maxVertex = 2;
+    vertices.indexType = VK_INDEX_TYPE_NONE_KHR;
+    if (!vertices.vertexData.deviceAddress) return 1;
+
+    VkAccelerationStructureGeometryKHR geometry{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
+    geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+    geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    geometry.geometry.triangles = vertices;
+    VkAccelerationStructureBuildGeometryInfoKHR build_info{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+    build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    build_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    build_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    build_info.geometryCount = 1;
+    build_info.pGeometries = &geometry;
+    constexpr uint32_t count = 1;
+    VkAccelerationStructureBuildSizesInfoKHR sizes{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    get_build_sizes(c.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                    &build_info, &count, &sizes);
+    if (!sizes.accelerationStructureSize || !sizes.buildScratchSize) {
+        std::puts("FAIL: invalid BLAS size response");
+        return 1;
+    }
+    if (!allocate_buffer(c, c.storage, sizes.accelerationStructureSize,
+                         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false)) {
+        std::puts("FAIL: BLAS storage buffer allocation");
+        return 1;
+    }
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR accel_properties{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+    VkPhysicalDeviceProperties2 props2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    props2.pNext = &accel_properties;
+    vkGetPhysicalDeviceProperties2(c.physical, &props2);
+    const VkDeviceSize alignment = accel_properties.minAccelerationStructureScratchOffsetAlignment;
+    if (!alignment || (alignment & (alignment - 1))) return 1;
+    if (!allocate_buffer(c, c.scratch, sizes.buildScratchSize + alignment,
+                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true)) {
+        std::puts("FAIL: BLAS scratch buffer allocation");
+        return 1;
+    }
+    const VkDeviceAddress base = buffer_address(c, c.scratch);
+    if (!base) return 1;
+    build_info.scratchData.deviceAddress = (base + alignment - 1) & ~(alignment - 1);
+
+    VkAccelerationStructureCreateInfoKHR blas_info{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+    blas_info.buffer = c.storage.buffer;
+    blas_info.size = sizes.accelerationStructureSize;
+    blas_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    if (create_blas(c.device, &blas_info, nullptr, &c.blas) != VK_SUCCESS)
+        return 1;
+    build_info.dstAccelerationStructure = c.blas;
+
+    VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    pool_info.queueFamilyIndex = c.queue_family;
+    if (vkCreateCommandPool(c.device, &pool_info, nullptr, &c.pool) != VK_SUCCESS)
+        return 1;
+    VkCommandBufferAllocateInfo cmd_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    cmd_info.commandPool = c.pool;
+    cmd_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    cmd_info.commandBufferCount = 1;
+    VkCommandBuffer command = VK_NULL_HANDLE;
+    if (vkAllocateCommandBuffers(c.device, &cmd_info, &command) != VK_SUCCESS)
+        return 1;
+    VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS) return 1;
+    VkAccelerationStructureBuildRangeInfoKHR range{};
+    range.primitiveCount = 1;
+    const VkAccelerationStructureBuildRangeInfoKHR* ranges[] = {&range};
+    build_blas(command, 1, &build_info, ranges);
+    if (vkEndCommandBuffer(command) != VK_SUCCESS) return 1;
+
+    VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &command;
+    if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
+        vkQueueWaitIdle(c.queue) != VK_SUCCESS) {
+        std::puts("FAIL: GPU BLAS command submission");
+        return 1;
+    }
+    VkAccelerationStructureDeviceAddressInfoKHR address_info{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
+    address_info.accelerationStructure = c.blas;
+    const VkDeviceAddress blas_address = get_blas_address(c.device, &address_info);
+    if (!blas_address) {
+        std::puts("FAIL: completed BLAS has no GPU device address");
+        return 1;
+    }
+    std::printf("PASS: GPU BLAS built from 1 triangle on %s, AS bytes=%llu scratch bytes=%llu\n",
+        chosen.deviceName,
+        static_cast<unsigned long long>(sizes.accelerationStructureSize),
+        static_cast<unsigned long long>(sizes.buildScratchSize));
+
+    // Build one TLAS instance referencing the completed BLAS. No shaders
+    // are dispatched in this smoke test, so the viewer remains OpenGL.
+    VkAccelerationStructureInstanceKHR instance{};
+    instance.transform.matrix[0][0] = 1.f;
+    instance.transform.matrix[1][1] = 1.f;
+    instance.transform.matrix[2][2] = 1.f;
+    instance.mask = 0xFF;
+    instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+    instance.accelerationStructureReference = blas_address;
+    if (!allocate_buffer(c, c.instance_buffer, sizeof(instance),
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            true)) {
+        std::puts("FAIL: TLAS instance buffer allocation");
+        return 1;
+    }
+    mapped = nullptr;
+    if (vkMapMemory(c.device, c.instance_buffer.memory, 0,
+                    sizeof(instance), 0, &mapped) != VK_SUCCESS)
+        return 1;
+    std::memcpy(mapped, &instance, sizeof(instance));
+    vkUnmapMemory(c.device, c.instance_buffer.memory);
+    VkAccelerationStructureGeometryInstancesDataKHR instance_data{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR};
+    instance_data.arrayOfPointers = VK_FALSE;
+    instance_data.data.deviceAddress = buffer_address(c, c.instance_buffer);
+    if (!instance_data.data.deviceAddress) return 1;
+    VkAccelerationStructureGeometryKHR top_geometry{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
+    top_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+    top_geometry.geometry.instances = instance_data;
+    VkAccelerationStructureBuildGeometryInfoKHR top_build{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+    top_build.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    top_build.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    top_build.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    top_build.geometryCount = 1;
+    top_build.pGeometries = &top_geometry;
+    VkAccelerationStructureBuildSizesInfoKHR top_sizes{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    get_build_sizes(c.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                    &top_build, &count, &top_sizes);
+    if (!top_sizes.accelerationStructureSize || !top_sizes.buildScratchSize) {
+        std::puts("FAIL: invalid TLAS size response");
+        return 1;
+    }
+    if (!allocate_buffer(c, c.tlas_storage, top_sizes.accelerationStructureSize,
+                         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false))
+        return 1;
+    if (!allocate_buffer(c, c.tlas_scratch, top_sizes.buildScratchSize + alignment,
+                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true))
+        return 1;
+    const VkDeviceAddress scratch_addr = buffer_address(c, c.tlas_scratch);
+    if (!scratch_addr) return 1;
+    top_build.scratchData.deviceAddress =
+        (scratch_addr + alignment - 1) & ~(alignment - 1);
+    VkAccelerationStructureCreateInfoKHR top_info{
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+    top_info.buffer = c.tlas_storage.buffer;
+    top_info.size = top_sizes.accelerationStructureSize;
+    top_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    if (create_blas(c.device, &top_info, nullptr, &c.tlas) != VK_SUCCESS)
+        return 1;
+    top_build.dstAccelerationStructure = c.tlas;
+
+    // QueueWaitIdle above guarantees BLAS completion before TLAS build.
+    // Reset the pool and safely reuse its command buffer.
+    if (vkResetCommandPool(c.device, c.pool, 0) != VK_SUCCESS)
+        return 1;
+    if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS)
+        return 1;
+    build_blas(command, 1, &top_build, ranges);
+    if (vkEndCommandBuffer(command) != VK_SUCCESS)
+        return 1;
+    if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
+        vkQueueWaitIdle(c.queue) != VK_SUCCESS) {
+        std::puts("FAIL: TLAS GPU command submission");
+        return 1;
+    }
+    address_info.accelerationStructure = c.tlas;
+    if (!get_blas_address(c.device, &address_info)) {
+        std::puts("FAIL: completed TLAS has no GPU address");
+        return 1;
+    }
+    std::printf("PASS: GPU TLAS built with 1 BLAS instance, AS bytes=%llu scratch bytes=%llu\n",
+        static_cast<unsigned long long>(top_sizes.accelerationStructureSize),
+        static_cast<unsigned long long>(top_sizes.buildScratchSize));
+    std::puts("No ray-query shader, shadow output, or OpenGL compositing yet.");
+    return 0;
+}

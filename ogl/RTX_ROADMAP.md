@@ -91,3 +91,27 @@ NVIDIA toolkit or user passwords are stored in Git.
 Upstream Khronos references:
 - https://docs.vulkan.org/guide/latest/extensions/ray_tracing.html
 - https://docs.vulkan.org/samples/latest/samples/extensions/ray_tracing_basic/README.html
+
+## 31.10.2026 – erster echter Vulkan-BLAS-/TLAS-Aufbau
+
+Ein neuer, **hardwareunabhängig implementierter** GPU-Test befindet sich in
+`ogl/modules/rtx/vulkan_blas_smoke.cpp`. Er erstellt ein logisches Vulkan-RT-
+Gerät auf einer nach Vulkan-Features ausgewählten GPU, kopiert ein Dreieck
+in einen Device-Address-Puffer und führt auf der GPU folgendes aus:
+
+- BLAS-Build über `vkGetAccelerationStructureBuildSizesKHR`,
+  `vkCreateAccelerationStructureKHR` und `vkCmdBuildAccelerationStructuresKHR`.
+- Synchronisierter TLAS-Build aus einer Instanz, die auf die GPU-Adresse
+  der zuvor gebauten BLAS zeigt.
+- GPU-Adressen und abgeschlossene Queue-Befehle werden verifiziert.
+- Vulkan-/RT-freie Rechner bekommen ein CTest **SKIP**; OpenGL bleibt nutzbar.
+
+**Lokal bestanden:** GeForce RTX 4070 SUPER: BLAS 2.560 Byte, BLAS-Scratch
+1.920 Byte, TLAS 2.048 Byte, TLAS-Scratch 2.176 Byte (treiberspezifische
+Zahlen; keine verbindlichen Speichervorgaben für andere GPUs).
+
+**Nicht erledigt:** Reale OpenSim-Szenendreiecke sind noch nicht mit diesem
+GPU-Builder verbunden. Es werden noch keine Strahlen berechnet und keine
+Schattentextur gerendert oder in das OpenGL-Bild eingefügt.
+Der Viewer benutzt weiterhin OpenGL. Ein isolierter GPU-Test ist keine
+Raytracing-Freigabe für Endnutzer.
