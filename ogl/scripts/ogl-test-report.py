@@ -350,12 +350,37 @@ def report():
                   f"depth-validated shadows, {primary}/{surface} "
                   f"primary hits, {rays} GPU ray samples, "
                   f"{tris} scene triangles (geometry revision {revision})")
+            cpu_scene=latest_scene_event(text)
+            if cpu_scene and cpu_scene[0]=="sample" and int(revision)<cpu_scene[2]:
+                print(f"RTX dense GPU freshness: completed revision {revision} "
+                      f"older than latest scene revision {cpu_scene[2]}; "
+                      "no stale world pixels are permitted")
+            elif cpu_scene and cpu_scene[0]=="cleared":
+                print("RTX dense GPU freshness: scene cleared after GPU "
+                      "probe; previous results are invalid")
+            elif cpu_scene and int(revision)==cpu_scene[2]:
+                print("RTX dense GPU freshness: geometry revisions match; "
+                      "live camera and depth must also match")
+        dense_worker_ms=re.findall(
+            r"OGL RTX dense GPU probe: [^\n]*worker_wall_ms=(\d+)",text)
+        if dense_worker_ms:
+            print(f"RTX dense GPU worker duration: {dense_worker_ms[-1]} ms "
+                  "(CPU/Vulkan elapsed wall time; not GPU timer)")
+        dense_scheduler=re.findall(
+            r"OGL RTX dense scheduler: attempts=(\d+) successes=(\d+) "
+            r"busy_depth_skips=(\d+) replacements=(\d+)",text)
+        if dense_scheduler:
+            attempts,successes,skips,replaced=dense_scheduler[-1]
+            print(f"RTX dense scheduler: {successes}/{attempts} completed "
+                  f"successfully; {skips} depth captures skipped while busy, "
+                  f"{replaced} job replacements")
         if dense_composites:
             shadows,matched=dense_composites[-1]
             print(f"RTX experimental in-world sunlight compositor: "
                   f"executed with {shadows} shadow samples from "
                   f"{matched} verified surfaces; live GL-depth gating. "
-                  "Appearance/FPS require a real viewer screenshot.")
+                  "Historical blend only; actual pixel coverage and FPS "
+                  "require a real viewer screenshot.")
         elif dense_results:
             print("RTX experimental in-world sunlight compositor: "
                   "no completed world-lighting blend recorded; "
@@ -500,6 +525,9 @@ def report():
             else:
                 print("RTX GPU failure classification: older log does not "
                       "include a reason code; restart the updated viewer")
+        elif dense_results:
+            print("RTX GPU diagnostic: dense 64x36 Vulkan probe completed; "
+                  "legacy 8x8 diagnostic intentionally inactive")
         elif developer:
             worker, camera, guided = developer[-1]
             print(f"RTX GPU diagnostic: configured, but no completed probe "
@@ -521,6 +549,10 @@ def report():
                 print("Depth-to-Vulkan GPU processing: queued, no successful result logged.")
             else:
                 print("Depth-to-Vulkan GPU processing: not confirmed by this log.")
+        elif dense_captures:
+            w,h,gw,gh=dense_captures[-1]
+            print(f"OpenGL deferred depth readback: {gw}x{gh} real viewport "
+                  f"depth samples from {w}x{h} (experimental mode)")
         else:
             print("OpenGL deferred depth readback: not observed "
                   "(requires logged-in world and OGL_RTX_DEPTH_PROBE=1)")
@@ -541,7 +573,14 @@ def report():
         if rtx_lines:
             ready, active = rtx_lines[-1]
             print("RTX Vulkan hardware:", "supported" if ready == "1" else "not supported")
-            print("Ray-traced world rendering:", "active" if active == "1" else "not implemented")
+            if active=="1":
+                print("Ray-traced world rendering: active")
+            elif dense_composites:
+                print("Ray-traced world rendering: experimental 64x36 Vulkan "
+                      "sunlight blend observed in log; full raytracing/path "
+                      "tracing is NOT implemented (production rendering_active=0)")
+            else:
+                print("Ray-traced world rendering: not implemented")
         else:
             print("RTX module status: not reported")
     else:

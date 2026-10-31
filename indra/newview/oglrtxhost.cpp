@@ -336,14 +336,31 @@ void main() {
     // Sparse source meshes, rigged avatars and moving world geometry must
     // not be darkened unless current depth still matches capture depth.
     if (live>=0.999999 || abs(live-ray.b)>0.00001) discard;
-    // Limited first-gen direct-sun attenuation, not GI or path tracing.
-    outColor=vec4(0.0,0.0,0.0,0.36);
+    // Soft per-tile transition mitigates hard 54x39-pixel blocks at
+    // ultrawide resolutions. This NEVER invents an unvalidated ray hit:
+    // we soften solely WITHIN a shadowed, live-depth-matched tile.
+    vec2 cell=fract((vec2(pos)+vec2(0.5))*
+                    vec2(64.0,36.0)/vec2(uViewport));
+    float distanceToTileEdge=min(min(cell.x,1.0-cell.x),
+                                 min(cell.y,1.0-cell.y));
+    float feather=smoothstep(0.0,0.18,distanceToTileEdge);
+    // First-gen direct sunlight attenuation, not GI or path tracing.
+    outColor=vec4(0.0,0.0,0.0,0.36*feather);
 }
 )GLSL";
     static GLuint program=0,vao=0,tile_texture=0;
     static bool compile_failed=false;
     static uint64_t last_upload=0;
     if (compile_failed) return false;
+    // Firestorm can rebuild its OpenGL context after graphics preferences
+    // change. Never keep using a stale shader/VAO/texture handle from the
+    // previous GL context; the renderer must reinitialize safely.
+    if (program && (!glIsProgram(program) ||
+                    !glIsVertexArray(vao) ||
+                    !glIsTexture(tile_texture))) {
+        program=0;vao=0;tile_texture=0;
+        last_upload=0;
+    }
     if (!program) {
         const auto compile=[](GLenum type,const char* source)->GLuint {
             GLuint shader=glCreateShader(type);

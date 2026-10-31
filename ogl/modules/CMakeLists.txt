@@ -199,6 +199,14 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     $<TARGET_FILE:ogl_rtx_module> --test-dense-guided)
             set_tests_properties(ogl_live_dense_gpu_world_bridge
                 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
+            add_test(NAME ogl_live_dense_gpu_moving_world
+                COMMAND ${CMAKE_COMMAND} -E env
+                    OGL_RTX_SCENE_PROBE=1 OGL_RTX_CAMERA_PROBE=1
+                    OGL_RTX_DENSE_PREVIEW=1
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module> --test-dense-drift)
+            set_tests_properties(ogl_live_dense_gpu_moving_world
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
             file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
             add_test(NAME ogl_live_gpu_probe_missing_library
                 COMMAND ${CMAKE_COMMAND} -E env OGL_RTX_SCENE_PROBE=1

@@ -18,7 +18,10 @@ int main(int argc, char** argv) {
     const bool missing = argc == 3 && std::strcmp(argv[2], "--no-gpu-library") == 0;
     const bool refresh = argc == 3 && std::strcmp(argv[2], "--test-camera-refresh") == 0;
     const bool guided = argc == 3 && std::strcmp(argv[2], "--test-depth-guided") == 0;
-    const bool dense = argc == 3 && std::strcmp(argv[2], "--test-dense-guided") == 0;
+    const bool dense_drift=argc==3 &&
+        std::strcmp(argv[2],"--test-dense-drift")==0;
+    const bool dense = dense_drift ||
+        (argc==3 && std::strcmp(argv[2], "--test-dense-guided")==0);
     if (argc != 2 && !missing && !refresh && !guided && !dense) return 1;
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!library) {
@@ -117,6 +120,36 @@ int main(int argc, char** argv) {
             assert(submit_dense(&input)==0);
             input.width=OGL_RTX_DENSE_WIDTH;
             assert(submit_dense(&input)==1);
+            if (dense_drift) {
+                // Simulate a slow Vulkan device while OpenSim updates its
+                // camera and rotating visible mesh every few milliseconds.
+                // Those changes must NOT invalidate in-flight diagnostic
+                // jobs, but may NEVER authorize old pixels for compositing.
+                for (unsigned i=0;i<55 && successes()<1;++i) {
+                    state.camera_position[0]+=0.0001f;
+                    assert(frame(&state)==1);
+                    tris[0].position[0]+=0.0001f;
+                    assert(submit(tris.data(),tris.size())==1);
+                    assert(copy_dense(&tile)==0);
+                    assert(submit_dense(&input)==1);
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(5));
+                }
+                for (unsigned i=0;i<500 && successes()<1;++i) {
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10));
+                    assert(frame(&state)==1);
+                }
+                assert(attempts()>=1 && successes()>=1);
+                for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
+                assert(copy_dense(&tile)==0); // changed scene/pose
+                assert(submit(nullptr,0)==1); // true region change
+                assert(copy_dense(&tile)==0);
+                stop();dlclose(library);
+                std::puts("PASS: dense ray-query job survives camera/mesh "
+                          "churn, stale world shadows remain prohibited");
+                return 0;
+            }
             for (unsigned i=0;i<500 && successes()<1;++i) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 assert(frame(&state)==1);

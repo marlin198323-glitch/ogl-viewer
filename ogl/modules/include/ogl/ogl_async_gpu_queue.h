@@ -5,7 +5,9 @@
 // Never invokes Firestorm logging or OpenGL on the worker thread.
 // Does NOT make Vulkan builds persistent, nor render RT pixels in the viewer.
 #include "ogl_rtx_api.h"
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
@@ -157,8 +159,13 @@ private:
             ++m_stats.attempts;
             lock.unlock();
             Result outcome{};
+            const auto started=std::chrono::steady_clock::now();
             try { outcome = m_work(job); }
             catch (...) { outcome.return_code = 1; }
+            outcome.wall_ms=static_cast<uint32_t>(std::min<int64_t>(
+                0xffffffffLL,
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now()-started).count()));
             lock.lock();
             m_busy = false;
             // Never publish stale results after region changes.

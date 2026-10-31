@@ -101,6 +101,7 @@ bool dense_depth_valid = false;
 ogl_rtx_dense_depth last_dense_depth{};
 ogl_rtx_dense_shadow last_dense_shadow{};
 bool dense_shadow_valid = false;
+uint64_t dense_busy_depth_skips=0;
 bool probe_opt_in = false;
 bool probe_camera_enabled = false;
 std::unique_ptr<ogl::AsyncGpuQueue> probe_worker;
@@ -304,6 +305,7 @@ void poll_probe_on_viewer_thread() {
                 " matched="+std::to_string(outcome.primary_depth_matches)+
                 " shadowed="+std::to_string(outcome.occluded)+
                 " revision="+std::to_string(outcome.geometry_revision)+
+                " worker_wall_ms="+std::to_string(outcome.wall_ms)+
                 "; GPU tile NOT yet composited").c_str());
         return;
     }
@@ -407,6 +409,8 @@ void schedule_probe_on_viewer_thread() {
         const auto now = Clock::now();
         if (probe_last_time == Clock::time_point{} ||
             now - probe_last_time >= probe_interval) {
+            if (probe_dense_enabled && probe_worker->stats().busy)
+                return; // no dense job replacement; finish old worker
             ogl::AsyncGpuQueue::Job job{};
             job.revision = ++probe_job_sequence;
             job.geometry_revision = geometry_revision;
@@ -484,6 +488,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     last_dense_shadow={};
     dense_depth_valid=false;
     dense_shadow_valid=false;
+    dense_busy_depth_skips=0;
     probe_worker.reset(); // join before unloading Vulkan function pointers
     gpu_probe_cleanup();
     probe_opt_in = false;
@@ -755,7 +760,12 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
         if (!probe_depth_enabled) {
             shadow_debug_valid = false;
             last_shadow_debug = {};
-            if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+            // Dense mode is costly: finish an in-flight immutable GPU
+            // snapshot for diagnostics, but never reuse its shadow pixels
+            // against a changed camera (dense_shadow_valid was cleared).
+            // New jobs will be admitted after the worker becomes idle.
+            if (probe_worker && !probe_dense_enabled)
+                probe_worker->invalidate(++probe_job_sequence);
         }
     }
     // A depth tile belongs to exactly one submitted frame. No reuse after
@@ -823,7 +833,11 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     if (!probe_depth_enabled) {
         last_shadow_debug = {};
         shadow_debug_valid = false;
-        if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+        // Never cancel an in-flight dense ray query merely because another
+        // rotating 8192-triangle snapshot was published. It may complete,
+        // but the strict current-revision check forbids stale shading.
+        if (probe_worker && !probe_dense_enabled)
+            probe_worker->invalidate(++probe_job_sequence);
     }
     // The depth-guided developer preview is bound to a frozen camera+depth
     // frame. Geometry scans may change before Vulkan finishes; do not
@@ -1014,12 +1028,31 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_dense_depth(
         return 0;
     for (float d:input->normalized_depth)
         if (!std::isfinite(d) || d<0.f || d>1.f) return 0;
+    // Receive a finished result BEFORE checking queue occupancy. Dense
+    // Vulkan calls may take several seconds on heavily loaded regions;
+    // invalidating them every two seconds caused repeated GPU starvation.
+    poll_probe_on_viewer_thread();
+    if (probe_worker->stats().busy) {
+        ++dense_busy_depth_skips;
+        if (logger && dense_busy_depth_skips%8u==0u) {
+            const auto stats=probe_worker->stats();
+            logger(1,(std::string("OGL RTX dense scheduler: attempts=")+
+                std::to_string(stats.attempts)+
+                " successes="+std::to_string(stats.successes)+
+                " busy_depth_skips="+std::to_string(dense_busy_depth_skips)+
+                " replacements="+std::to_string(stats.replacements)+
+                "; no forced cancellation").c_str());
+        }
+        // Keep newest live camera/depth separate from the frozen GPU job.
+        // A completed result remains diagnostic-only unless its capture
+        // pose, depth and geometry still match the actual framebuffer.
+        return 1;
+    }
     last_dense_depth=*input;
     dense_depth_valid=true;
     last_dense_shadow={};
     dense_shadow_valid=false;
     probe_view_dirty=true;
-    probe_worker->invalidate(++probe_job_sequence);
     schedule_probe_on_viewer_thread();
     poll_probe_on_viewer_thread();
     return 1;

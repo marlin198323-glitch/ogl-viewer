@@ -128,6 +128,24 @@ class RTXSceneLogTests(unittest.TestCase):
                          "dense world sunlight composed:"):
             self.assertIn(expected,source)
 
+    def test_dense_report_recognizes_completed_without_legacy_8x8(self):
+        source=script.read_text()
+        self.assertIn("elif dense_results:",source)
+        self.assertIn("legacy 8x8 diagnostic intentionally inactive",source)
+        self.assertIn("RTX dense GPU freshness:",source)
+        self.assertIn("older than latest scene revision",source)
+        self.assertIn("RTX experimental in-world sunlight compositor:",source)
+        self.assertIn("OpenGL deferred depth readback:",source)
+        self.assertIn("full raytracing/path ",source)
+        self.assertIn("tracing is NOT implemented",source)
+
+    def test_dense_worker_telemetry(self):
+        source=script.read_text()
+        self.assertIn("RTX dense GPU worker duration:",source)
+        self.assertIn("RTX dense scheduler:",source)
+        self.assertIn("busy_depth_skips=",source)
+        self.assertIn("worker_wall_ms=",source)
+
     def test_gpu_failure_reason_logging(self):
         source=script.read_text()
         self.assertIn("RTX GPU failure classification:",source)
