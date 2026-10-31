@@ -102,3 +102,13 @@ an eine sichere Firestorm-Host-Schnittstelle. Pixelvalidierung,
 Szenenrevisionen und OpenGL-Fallback sind getestet. Es wird
 **noch kein Schattenbild in der 3D-Welt angezeigt**.
 [Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P6.md).
+
+
+Die **siebte RTX-10er-Runde** ergänzt perspektivische Kamera-Ray-Queries
+mit anschließendem sekundärem GPU-Schattenstrahl zur Sonne. Ein
+synthetischer Vulkan-Test mit Boden/Hindernis beweist den Unterschied
+zwischen unverschatteter und verschatteter Oberfläche. Dieser Shader
+ist als separater, standardmäßig deaktivierter Entwicklermodus
+integriert. Die reale OpenSim-Welt wird **noch nicht** mit sichtbaren
+Raytracing-Schatten dargestellt.
+[GPU-Test und technische Grenzen](RTX_10_BLOCKS_2026_10_31_P7.md).

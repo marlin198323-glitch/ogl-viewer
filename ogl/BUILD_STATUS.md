@@ -202,3 +202,18 @@ Fehlerberichte eingefügt werden.
 - Vollständiger Linux-Viewer C++-Build, beide RTX-SOs und Shader
   im Paket bestätigt; normales OpenGL-Rendering bleibt aktiv.
 - [`RTX_10_BLOCKS_2026_10_31_P6.md`](RTX_10_BLOCKS_2026_10_31_P6.md).
+
+
+## 31.10.2026 – siebte RTX-10er-Runde: Kamera + Sonnenschatten
+
+- Zweistufige GPU-Ray-Query-Pipeline (Kamera-Oberfläche und
+  anschließend Oberfläche-Sonnenstrahl) in separatem Shader.
+- Hardwaretest: ohne Blocker 0/64, mit geometrischem Blocker
+  2/64 verschattete Testbildpunkte; GPU-Szenencache überprüft.
+- Entwickler-Modus in OGL-RTX-Modul und asynchrone Queue integriert.
+  Die normale Vulkan-Testprobe bleibt unverändert verfügbar.
+- SPIR-V als zweite RTX-Ressource paketiert. Vollständiger Linux-
+  Viewer C++-Build mit beiden Shadern und beiden RTX-Bibliotheken grün.
+- Kameraausrichtung nur angenähert, tatsächliche OpenSim-Region noch
+  nicht mit GPU-Schatten und Renderbild abgenommen.
+- [`RTX_10_BLOCKS_2026_10_31_P7.md`](RTX_10_BLOCKS_2026_10_31_P7.md).

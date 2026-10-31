@@ -75,16 +75,23 @@ void gpu_close(GpuProbeLibrary lib) { dlclose(lib); }
 #endif
 using ProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
                         const float*, const char*, ogl_gpu_probe_result*);
+using CameraProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
+                        const ogl_rtx_frame_state*, const char*,
+                        ogl_gpu_probe_result*);
 GpuProbeLibrary probe_library = nullptr;
 ProbeRun probe_run = nullptr;
+CameraProbeRun probe_camera_run = nullptr;
 bool probe_opt_in = false;
+bool probe_camera_enabled = false;
 std::unique_ptr<ogl::AsyncGpuQueue> probe_worker;
 uint64_t probe_last_revision = 0;
 std::chrono::steady_clock::time_point probe_last_time{};
 const char* const trusted_shader = "./app_settings/ogl/rtx/ray_query_shadow.comp.spv";
+const char* const trusted_camera_shader = "./app_settings/ogl/rtx/camera_sun_shadow.comp.spv";
 
 void gpu_probe_cleanup() {
     probe_run = nullptr;
+    probe_camera_run = nullptr;
     if (probe_library) gpu_close(probe_library);
     probe_library = nullptr;
 }
@@ -262,19 +269,26 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     probe_worker.reset(); // join before unloading Vulkan function pointers
     gpu_probe_cleanup();
     probe_opt_in = false;
+    probe_camera_enabled = false;
     probe_last_revision = 0;
     probe_last_time = {};
     const char* env = std::getenv("OGL_RTX_SCENE_PROBE");
     probe_opt_in = env && std::strcmp(env, "1") == 0;
+    const char* camera_env = std::getenv("OGL_RTX_CAMERA_PROBE");
+    probe_camera_enabled = probe_opt_in && camera_env &&
+                           std::strcmp(camera_env, "1") == 0;
     detect();
     // Opt-in is only for developers until we have a non-blocking renderer.
     // No developer/system-specific GPU, user data, or filesystem path.
     if (probe_opt_in && status.hardware_ready && status.ray_query) {
         probe_library = load_gpu_probe();
-        if (probe_library)
+        if (probe_library) {
             probe_run = reinterpret_cast<ProbeRun>(
                 gpu_symbol(probe_library, "ogl_gpu_probe_run"));
-        if (!probe_run) {
+            probe_camera_run = reinterpret_cast<CameraProbeRun>(
+                gpu_symbol(probe_library, "ogl_gpu_probe_camera_run"));
+        }
+        if (!probe_run || (probe_camera_enabled && !probe_camera_run)) {
             if (logger) logger(1, "OGL RTX opt-in GPU probe unavailable; OpenGL unaffected");
         } else {
             // Worker calls Vulkan. Immutable data; no viewer callbacks.
@@ -284,9 +298,26 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 ogl_gpu_probe_result native{};
                 native.struct_size = sizeof(native);
                 native.version = OGL_GPU_PROBE_VERSION;
-                const int rc = probe_run(job.triangles.data(),
-                    static_cast<uint32_t>(job.triangles.size()),
-                    job.sun.data(), trusted_shader, &native);
+                int rc = 1;
+                if (probe_camera_enabled && probe_camera_run) {
+                    ogl_rtx_frame_state frame{};
+                    frame.struct_size = sizeof(frame);
+                    frame.frame_version = OGL_RTX_FRAME_VERSION;
+                    frame.width = job.viewport_width;
+                    frame.height = job.viewport_height;
+                    for (unsigned axis=0; axis<3; ++axis) {
+                        frame.camera_position[axis] = job.camera_position[axis];
+                        frame.camera_forward[axis] = job.camera_forward[axis];
+                        frame.sun_direction[axis] = job.sun[axis];
+                    }
+                    rc = probe_camera_run(job.triangles.data(),
+                        static_cast<uint32_t>(job.triangles.size()),
+                        &frame, trusted_camera_shader, &native);
+                } else {
+                    rc = probe_run(job.triangles.data(),
+                        static_cast<uint32_t>(job.triangles.size()),
+                        job.sun.data(), trusted_shader, &native);
+                }
                 ogl::AsyncGpuQueue::Result result{};
                 result.return_code = (rc == 0 && native.success) ? 0 : 1;
                 result.triangle_count = native.triangle_count;
@@ -324,6 +355,7 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     probe_worker.reset(); // join before unloading GPU helper DLL/SO
     gpu_probe_cleanup();
     probe_opt_in = false;
+    probe_camera_enabled = false;
     captured_geometry.clear();
     last_shadow_debug = {};
     shadow_debug_valid = false;
@@ -336,13 +368,18 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
     if (!frame || frame->struct_size < sizeof(ogl_rtx_frame_state) ||
         frame->frame_version != OGL_RTX_FRAME_VERSION || !status.hardware_ready ||
         frame->width == 0 || frame->height == 0) return 0;
-    // A previous probe mask must not be represented as current when
-    // environment lighting changes (even while geometry is unchanged).
-    bool sun_changed = false;
-    for (unsigned i = 0; i < 3; ++i)
-        if (latest_frame.sun_direction[i] != frame->sun_direction[i])
-            sun_changed = true;
-    if (sun_changed) {
+    // This diagnostic mask is tied to camera and sunlight. Even a
+    // completed GPU query becomes obsolete after any of these changes.
+    bool view_changed = received_frames > 0 &&
+        (latest_frame.width != frame->width ||
+         latest_frame.height != frame->height);
+    if (received_frames > 0)
+        for (unsigned i=0; i<3; ++i)
+            if (latest_frame.sun_direction[i] != frame->sun_direction[i] ||
+                latest_frame.camera_position[i] != frame->camera_position[i] ||
+                latest_frame.camera_forward[i] != frame->camera_forward[i])
+                view_changed = true;
+    if (view_changed) {
         shadow_debug_valid = false;
         last_shadow_debug = {};
         if (probe_worker) probe_worker->invalidate(geometry_revision);
@@ -403,8 +440,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
             ogl::AsyncGpuQueue::Job job{};
             job.revision = geometry_revision;
             job.triangles = captured_geometry;
-            for (unsigned axis = 0; axis < 3; ++axis)
+            for (unsigned axis = 0; axis < 3; ++axis) {
                 job.sun[axis] = latest_frame.sun_direction[axis];
+                job.camera_position[axis] = latest_frame.camera_position[axis];
+                job.camera_forward[axis] = latest_frame.camera_forward[axis];
+            }
+            job.viewport_width = latest_frame.width;
+            job.viewport_height = latest_frame.height;
             if (probe_worker->enqueue(std::move(job))) {
                 probe_last_time = now;
                 probe_last_revision = geometry_revision;

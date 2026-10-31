@@ -56,6 +56,8 @@ int main(int argc, char** argv) {
     state.width = 800;
     state.height = 600;
     state.sun_direction[2] = 1.f;
+    state.camera_position[2] = 2.f;
+    state.camera_forward[2] = -1.f;
     std::vector<ogl_rtx_triangle> tris(64);
     for (unsigned i = 0; i < tris.size(); ++i) {
         const float off = i == 0 ? 0.f : 10.f + i * 2.f;
@@ -96,6 +98,11 @@ int main(int argc, char** argv) {
             too_small.struct_size = sizeof(too_small) - 1;
             too_small.version = OGL_RTX_SHADOW_DEBUG_VERSION;
             assert(copy_debug(&too_small) == 0);
+            // Camera motion invalidates the old GPU shadow mask, even if
+            // the old worker reply had already completed.
+            state.camera_position[0] += 0.4f;
+            assert(frame(&state) == 1);
+            assert(copy_debug(&debug) == 0);
             // A change to EEP sun direction invalidates an old GPU sample;
             // future renderer must enqueue new lighting work separately.
             state.sun_direction[0] = 0.5f;

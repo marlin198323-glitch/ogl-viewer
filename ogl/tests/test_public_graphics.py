@@ -164,6 +164,27 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 1u", api)
         self.assertIn("uint8_t pixels[OGL_RTX_SHADOW_DEBUG_PIXELS]", api)
 
+    def test_camera_rayquery_path_is_perspective_and_optional(self):
+        shader = (ROOT / "ogl/modules/rtx/shaders/camera_sun_shadow.comp").read_text()
+        source = (ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        manifest = (ROOT / "indra/newview/viewer_manifest.py").read_text()
+        cmake = (ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        self.assertIn("rayQueryInitializeEXT(primary", shader)
+        self.assertIn("rayQueryInitializeEXT(sunRay", shader)
+        self.assertIn("rayQueryGetIntersectionTEXT(primary", shader)
+        self.assertIn("ogl_gpu_probe_camera_run", source)
+        self.assertIn("cached_camera == requested_camera", source)
+        self.assertIn("OGL_RTX_CAMERA_PROBE", module)
+        self.assertIn("view_changed", module)
+        self.assertIn("camera_sun_shadow.comp.spv", manifest)
+        self.assertIn("ogl_gpu_perspective_sun_shadow", cmake)
+        self.assertIn("ogl_live_opt_in_camera_sun_shadow", cmake)
+        import struct
+        spirv = (ROOT / "indra/newview/app_settings/ogl/rtx/camera_sun_shadow.comp.spv").read_bytes()
+        self.assertGreater(len(spirv), 400)
+        self.assertEqual(struct.unpack("<I", spirv[:4])[0], 0x07230203)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

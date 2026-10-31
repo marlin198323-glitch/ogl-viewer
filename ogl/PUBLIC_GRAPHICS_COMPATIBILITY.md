@@ -76,7 +76,9 @@ Multi-GPU-Kopplung.
 - [ ] Inkrementelle BLAS-/TLAS-Mesh-Updates und produktiver Echtzeit-Renderer
 - [x] Isolierter 8x8-Vulkan-Compute-Test: 64 Ray Queries, 36 Treffer, 28 Misses
 - [x] GPU-8×8-Ray-Hit-Maske validiert bis zur Firestorm-Debug-Hostschnittstelle übertragen
-- [ ] Bildrichtige Ray-Query-Schattenmaske für reale OpenSim-Welt rendern und in OpenGL einfügen
+- [x] Synthetische Kameraszene: primäre GPU-Strahlen + sekundäre Sonnenschatten geprüft
+- [ ] Exakte Firestorm-Kamera-/Tiefen-/Normalenbasis für OpenSim-Schatten übernehmen
+- [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer
 - [ ] Finales Lizenz-/Third-Party-Notices- und Release-Audit

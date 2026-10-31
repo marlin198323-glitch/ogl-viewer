@@ -64,6 +64,17 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
 
         # Development-only runtime layout. Never touch a user's settings.
         if(UNIX)
+            add_executable(ogl_camera_shadow_test
+                rtx/ogl_camera_shadow_test.cpp)
+            target_include_directories(ogl_camera_shadow_test PRIVATE include)
+            target_compile_features(ogl_camera_shadow_test PRIVATE cxx_std_17)
+            target_link_libraries(ogl_camera_shadow_test PRIVATE ${CMAKE_DL_LIBS})
+            add_test(NAME ogl_gpu_perspective_sun_shadow
+                COMMAND ogl_camera_shadow_test
+                    $<TARGET_FILE:ogl_gpu_probe>
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/camera_sun_shadow.comp.spv")
+            set_tests_properties(ogl_gpu_perspective_sun_shadow
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
             add_executable(ogl_gpu_persistent_test
                 rtx/ogl_gpu_persistent_test.cpp)
             target_include_directories(ogl_gpu_persistent_test PRIVATE include)
@@ -85,6 +96,9 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
                     "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/camera_sun_shadow.comp.spv"
+                    "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/camera_sun_shadow.comp.spv"
                 VERBATIM)
             add_executable(ogl_live_gpu_probe_test
                 rtx/ogl_live_gpu_probe_test.cpp)
@@ -96,6 +110,13 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     $<TARGET_FILE:ogl_live_gpu_probe_test>
                     $<TARGET_FILE:ogl_rtx_module>)
             set_tests_properties(ogl_live_opt_in_gpu_probe PROPERTIES TIMEOUT 30)
+            add_test(NAME ogl_live_opt_in_camera_sun_shadow
+                COMMAND ${CMAKE_COMMAND} -E env
+                    OGL_RTX_SCENE_PROBE=1 OGL_RTX_CAMERA_PROBE=1
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module>)
+            set_tests_properties(ogl_live_opt_in_camera_sun_shadow
+                PROPERTIES TIMEOUT 30)
             file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
             add_test(NAME ogl_live_gpu_probe_missing_library
                 COMMAND ${CMAKE_COMMAND} -E env OGL_RTX_SCENE_PROBE=1

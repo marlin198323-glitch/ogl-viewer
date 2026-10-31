@@ -99,6 +99,7 @@ class ViewerManifest(LLManifest,FSViewerManifest):
         with self.prefix(src="app_settings/ogl", dst="app_settings/ogl"):
             self.path("NexVerse%20Cinematic.xml")
             self.path("rtx/ray_query_shadow.comp.spv")
+            self.path("rtx/camera_sun_shadow.comp.spv")
 
         if self.is_packaging_viewer():
             with self.prefix(src_dst="app_settings"):

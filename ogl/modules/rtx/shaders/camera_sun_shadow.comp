@@ -1,0 +1,50 @@
+#version 460
+#extension GL_EXT_ray_query : require
+
+// Experimental 8x8 camera-space hard-sun-shadow ray query.
+// First ray finds visible surface; second ray checks the sun.
+// Not a full-resolution OpenGL compositing shader.
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(set = 0, binding = 0) uniform accelerationStructureEXT scene;
+layout(set = 0, binding = 1, std430) buffer Results {
+    uint occlusion[64];
+} outputBuffer;
+
+layout(push_constant) uniform SceneRayParams {
+    vec4 origin_max_distance;
+    vec4 sample_step;
+    vec4 ray_direction;     // normalized direction towards sun
+    vec4 camera_origin;
+    vec4 camera_forward;    // normalized forward
+    vec4 camera_right;      // aspect * tan(horizontal angular half span)
+    vec4 camera_up;         // tan(vertical FOV/2)
+} params;
+
+void main() {
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    const uint index = pixel.y * 8u + pixel.x;
+    const vec2 centered = (vec2(pixel) + vec2(0.5)) * (2.0 / 8.0) - vec2(1.0);
+    const vec3 eyeRay = normalize(params.camera_forward.xyz +
+        centered.x * params.camera_right.xyz +
+        centered.y * params.camera_up.xyz);
+
+    rayQueryEXT primary;
+    rayQueryInitializeEXT(primary, scene,
+        gl_RayFlagsOpaqueEXT, 0xffu, params.camera_origin.xyz,
+        0.01, eyeRay, 500.0);
+    while (rayQueryProceedEXT(primary)) {}
+    uint hit = 0u;
+    if (rayQueryGetIntersectionTypeEXT(primary, true) ==
+            gl_RayQueryCommittedIntersectionTriangleEXT) {
+        const float distance = rayQueryGetIntersectionTEXT(primary, true);
+        const vec3 surface = params.camera_origin.xyz + distance * eyeRay;
+        const vec3 sunDir = normalize(params.ray_direction.xyz);
+        rayQueryEXT sunRay;
+        rayQueryInitializeEXT(sunRay, scene, gl_RayFlagsOpaqueEXT, 0xffu,
+            surface + sunDir * 0.01, 0.01, sunDir, 500.0);
+        while (rayQueryProceedEXT(sunRay)) {}
+        hit = rayQueryGetIntersectionTypeEXT(sunRay, true) ==
+              gl_RayQueryCommittedIntersectionTriangleEXT ? 1u : 0u;
+    }
+    outputBuffer.occlusion[index] = hit;
+}

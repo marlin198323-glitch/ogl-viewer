@@ -21,6 +21,10 @@ public:
         uint64_t revision = 0;
         std::vector<ogl_rtx_triangle> triangles;
         std::array<float, 3> sun{{0.f, 0.f, 1.f}};
+        std::array<float, 3> camera_position{{0.f, 0.f, 0.f}};
+        std::array<float, 3> camera_forward{{0.f, 0.f, 0.f}};
+        uint32_t viewport_width = 0;
+        uint32_t viewport_height = 0;
     };
     struct Result {
         uint64_t revision = 0;

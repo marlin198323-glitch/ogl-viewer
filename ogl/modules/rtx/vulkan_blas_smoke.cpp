@@ -226,11 +226,26 @@ static int execute_gpu_scene(const char* shader_path,
                              const ogl_rtx_triangle* scene,
                              uint32_t wanted_triangles,
                              const float* sun,
+                             const ogl_rtx_frame_state* camera,
                              ogl_gpu_probe_result* result) {
     if (!shader_path || !scene || wanted_triangles < 1 ||
         wanted_triangles > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
     for (uint32_t i = 0; i < wanted_triangles; ++i)
         if (!ogl::is_valid_triangle(scene[i])) return 1;
+    if (camera) {
+        if (camera->struct_size != sizeof(ogl_rtx_frame_state) ||
+            camera->frame_version != OGL_RTX_FRAME_VERSION ||
+            !camera->width || !camera->height) return 1;
+        for (float f : camera->camera_position)
+            if (!std::isfinite(f) || std::fabs(f) > 1.e6f) return 1;
+        for (float f : camera->camera_forward)
+            if (!std::isfinite(f)) return 1;
+        const float fwd_sq =
+            camera->camera_forward[0] * camera->camera_forward[0] +
+            camera->camera_forward[1] * camera->camera_forward[1] +
+            camera->camera_forward[2] * camera->camera_forward[2];
+        if (!std::isfinite(fwd_sq) || fwd_sq < 1.e-6f) return 1;
+    }
 
     // Ray sampling covers the source scene footprint, and uses the frame's
     // sun direction only for the opt-in live diagnostics. This is a scene
@@ -239,8 +254,12 @@ static int execute_gpu_scene(const char* shader_path,
         float origin[4]{};
         float step[4]{};
         float direction[4]{};
+        float camera_origin[4]{};
+        float camera_forward[4]{};
+        float camera_right[4]{};
+        float camera_up[4]{};
     } push{};
-    static_assert(sizeof(ScenePush) == 48, "Vulkan push ABI mismatch");
+    static_assert(sizeof(ScenePush) == 112, "Vulkan push ABI mismatch");
     float minv[3]{scene[0].position[0],scene[0].position[1],scene[0].position[2]};
     float maxv[3]{minv[0],minv[1],minv[2]};
     for (uint32_t i = 0; i < wanted_triangles; ++i)
@@ -276,6 +295,37 @@ static int execute_gpu_scene(const char* shader_path,
     if (push.direction[0] == 0.f && push.direction[1] == 0.f &&
         push.direction[2] == 0.f)
         push.direction[2] = 1.f;
+    if (camera) {
+        for (unsigned i=0; i<3; ++i)
+            push.camera_origin[i] = camera->camera_position[i];
+        const float* f = camera->camera_forward;
+        const float fl = std::sqrt(f[0]*f[0]+f[1]*f[1]+f[2]*f[2]);
+        float front[3]{f[0]/fl, f[1]/fl, f[2]/fl};
+        for (unsigned i=0; i<3; ++i) push.camera_forward[i] = front[i];
+        // Roll-free approximation of viewer orientation. Full viewer camera
+        // up/right matrices are a later milestone for correct compositing.
+        const float up_ref[3]{0.f, std::fabs(front[2]) > 0.98f ? 1.f : 0.f,
+                              std::fabs(front[2]) > 0.98f ? 0.f : 1.f};
+        float right[3]{
+            front[1]*up_ref[2]-front[2]*up_ref[1],
+            front[2]*up_ref[0]-front[0]*up_ref[2],
+            front[0]*up_ref[1]-front[1]*up_ref[0]};
+        const float rl = std::sqrt(right[0]*right[0] + right[1]*right[1] +
+                                   right[2]*right[2]);
+        if (rl < 1.e-6f) return 1;
+        for (float& v : right) v /= rl;
+        const float up[3]{
+            right[1]*front[2]-right[2]*front[1],
+            right[2]*front[0]-right[0]*front[2],
+            right[0]*front[1]-right[1]*front[0]};
+        const float aspect = std::max(0.25f, std::min(4.f,
+            static_cast<float>(camera->width)/camera->height));
+        constexpr float tan_half_fov = 0.57735026919f; // diagnostic 60 deg
+        for (unsigned i=0; i<3; ++i) {
+            push.camera_right[i] = right[i]*tan_half_fov*aspect;
+            push.camera_up[i] = up[i]*tan_half_fov;
+        }
+    }
 #ifdef OGL_GPU_PROBE_LIBRARY
     // This state is owned by the single GPU worker thread and destroyed when
     // that thread exits, BEFORE the Vulkan SO/DLL is unloaded.
@@ -285,6 +335,7 @@ static int execute_gpu_scene(const char* shader_path,
     static thread_local uint32_t cache_hits = 0;
     static thread_local std::vector<ogl_rtx_triangle> cached_scene;
     static thread_local std::array<float, 3> cached_sun{{0.f, 0.f, 1.f}};
+    static thread_local std::array<float, 8> cached_camera{};
     static thread_local std::string cached_shader;
     static thread_local ogl_gpu_probe_result cached_output{};
     const std::array<float,3> requested_sun{{
@@ -292,9 +343,19 @@ static int execute_gpu_scene(const char* shader_path,
         sun ? sun[1] : 0.f,
         sun ? sun[2] : 1.f
     }};
+    std::array<float,8> requested_camera{};
+    if (camera) {
+        for (unsigned i=0; i<3; ++i) {
+            requested_camera[i] = camera->camera_position[i];
+            requested_camera[i+3] = camera->camera_forward[i];
+        }
+        requested_camera[6] = static_cast<float>(camera->width);
+        requested_camera[7] = static_cast<float>(camera->height);
+    }
     if (persistent && persistent->device &&
         cached_scene.size() == wanted_triangles &&
         !cached_scene.empty() && cached_sun == requested_sun &&
+        cached_camera == requested_camera &&
         cached_shader == shader_path &&
         std::memcmp(cached_scene.data(), scene,
             size_t(wanted_triangles) * sizeof(ogl_rtx_triangle)) == 0) {
@@ -858,6 +919,7 @@ static int execute_gpu_scene(const char* shader_path,
         cached_output = *result;
         cached_scene.assign(scene, scene + wanted_triangles);
         cached_sun = requested_sun;
+        cached_camera = requested_camera;
         cached_shader = shader_path;
 #endif
     } else if (hits != 36) {
@@ -881,7 +943,23 @@ extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_run(
     fresh.struct_size = sizeof(fresh);
     fresh.version = OGL_GPU_PROBE_VERSION;
     *result = fresh;
-    return execute_gpu_scene(shader_path, triangles, count, sun_direction_xyz, result);
+    return execute_gpu_scene(shader_path, triangles, count, sun_direction_xyz, nullptr, result);
+}
+// Camera-visible primary rays followed by secondary sunlight occlusion.
+extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_camera_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const ogl_rtx_frame_state* frame,
+    const char* shader_path, ogl_gpu_probe_result* result)
+{
+    if (!result || !frame ||
+        result->struct_size != sizeof(ogl_gpu_probe_result) ||
+        result->version != OGL_GPU_PROBE_VERSION) return 1;
+    ogl_gpu_probe_result fresh{};
+    fresh.struct_size = sizeof(fresh);
+    fresh.version = OGL_GPU_PROBE_VERSION;
+    *result = fresh;
+    return execute_gpu_scene(shader_path, triangles, count,
+                             frame->sun_direction, frame, result);
 }
 #else
 int main(int argc, char** argv) {
@@ -904,6 +982,6 @@ int main(int argc, char** argv) {
         triangles[0].position[3] = 1.f;
         triangles[0].position[7] = 1.f;
     }
-    return execute_gpu_scene(argv[1], triangles.data(), count, nullptr, nullptr);
+    return execute_gpu_scene(argv[1], triangles.data(), count, nullptr, nullptr, nullptr);
 }
 #endif

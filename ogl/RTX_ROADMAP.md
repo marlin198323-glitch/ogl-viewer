@@ -270,3 +270,31 @@ Produktiv-Renderer.
 einer kleinen Testszene, nicht aus dem perspektivisch korrekten
 Framebuffer. Kein Schatten-Compositing und kein Endnutzer-RTX-Schalter.
 `rendering_active=0` bleibt unverändert.
+
+
+## 31.10.2026 – siebte RTX-10er-Runde: kamerabasierte GPU-Sonnenschatten
+
+- Neuer Vulkan-Compute-Shader `camera_sun_shadow.comp` erzeugt aus
+  Kamera-Position, Vorwärtsvektor und Blickfeld eine 8×8-Matrix
+  perspektivischer Primärstrahlen.
+- Zu jeder getroffenen Oberfläche folgt ein zweiter GPU-Ray-Query-
+  Strahl in Sonnenrichtung. Erst dieser zeigt die geometrische
+  **Sonnenverschattung der sichtbaren Oberfläche**.
+- Separater GPU-Test auf der RTX 4070 SUPER: Testboden **0/64**
+  verschattete Bildpunkte, mit erhöhtem Hindernis **2/64**.
+  Kamerabewegungen verändern das Ergebnis, ohne BLAS/TLAS neu aufzubauen.
+- Neues optionales ABI `ogl_gpu_probe_camera_run`; Kamera- und
+  Viewportwerte sind Bestandteil des GPU-Cache-Schlüssels.
+- Neuer kombinierter Entwickler-Modus:
+  `OGL_RTX_SCENE_PROBE=1 OGL_RTX_CAMERA_PROBE=1`.
+  Bleibt standardmäßig vollständig aus, OpenGL ist unverändert.
+- Der Maskenstatus wird bei Kamerabewegung/Viewportänderung
+  invalidiert und das Ergebnis über die asynchrone Queue verarbeitet.
+- Beide SPIR-V-Shader werden für Linux und Windows paketiert;
+  GLSL und SPIR-V werden in Linux-CI geprüft.
+- Details: [`RTX_10_BLOCKS_2026_10_31_P7.md`](RTX_10_BLOCKS_2026_10_31_P7.md).
+
+**Noch keine Sichtfreigabe:** Die neue perspektivische Berechnung
+ist bisher ein 8×8-Test mit synthetischer Geometrie und vereinfachter
+Kameraausrichtung. Kein OpenGL-Compositing, keine Vollbild-Raytracing-
+Schatten und kein produktiver RTX-Schalter. `rendering_active=0`.

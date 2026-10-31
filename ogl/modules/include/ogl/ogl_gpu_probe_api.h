@@ -37,6 +37,13 @@ OGL_MODULE_EXPORT int ogl_gpu_probe_run(
     const float* sun_direction_xyz,
     const char* shader_path, ogl_gpu_probe_result* result);
 
+// Dedicated experimental perspective primary + sun-ray shader.
+// Needs a real camera sample. Still a low-resolution diagnostic only.
+OGL_MODULE_EXPORT int ogl_gpu_probe_camera_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const ogl_rtx_frame_state* frame,
+    const char* shader_path, ogl_gpu_probe_result* result);
+
 #ifdef __cplusplus
 }
 #endif
