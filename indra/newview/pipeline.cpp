@@ -32,6 +32,7 @@
 #include "../../ogl/modules/include/ogl/ogl_scene_validation.h" // prefilter mesh triangles
 #include "../../ogl/modules/include/ogl/ogl_terrain_patch.h" // optional low-poly terrain occluders
 #include "../../ogl/modules/include/ogl/ogl_scene_sampling.h" // conservative RT scene selection
+#include "../../ogl/modules/include/ogl/ogl_scene_ray_visibility.h" // exact camera-ray anchors
 #include <vector>
 
 // library includes
@@ -9587,6 +9588,81 @@ void LLPipeline::renderDeferredLighting()
                         [](const auto& a,const auto& b) {
                             return a.first < b.first;
                         });
+                // First reserve real camera-ray intersections, not merely
+                // sparse index samples. This small optional CPU prepass is
+                // capped independently; normal OpenGL never performs it.
+                unsigned exact_camera_anchors=0;
+                unsigned prepass_scanned_triangles=0;
+                if (ogl_triangle_budget>1024 && !candidates.empty()) {
+                    const LLVector3 right=-camera->getLeftAxis();
+                    const auto rays=ogl::camera_probe_rays(eye.mV,
+                        camera_forward.mV,right.mV,camera->getUpAxis().mV,
+                        camera->getView(),camera->getAspect());
+                    ogl::SceneRayHits closest{};
+                    constexpr unsigned max_prepass_triangles=32768u;
+                    constexpr unsigned max_prepass_objects=512u;
+                    constexpr unsigned max_per_prepass_object=512u;
+                    unsigned checked_objects=0;
+                    for (const auto& candidate : candidates) {
+                        if (prepass_scanned_triangles>=max_prepass_triangles ||
+                            checked_objects>=max_prepass_objects) break;
+                        LLVOVolume* obj=candidate.second;
+                        if (!obj || obj->isDead()) continue;
+                        LLVolume* vol=obj->getVolume();
+                        if (!vol) continue;
+                        const LLVector3 position=obj->getRenderPosition();
+                        const LLVector3 scale=obj->getScale();
+                        // Conservative sphere: prevent reading large mesh
+                        // index lists for objects outside all 64 rays.
+                        const float sphere_radius=std::max(2.f,
+                            2.5f*scale.length());
+                        bool ray_near_object=false;
+                        for (const auto& ray:rays) {
+                            if (ogl::ray_hits_sphere(ray,position.mV,
+                                                    sphere_radius)) {
+                                ray_near_object=true; break;
+                            }
+                        }
+                        if (!ray_near_object) continue;
+                        ++checked_objects;
+                        const LLQuaternion rotation=obj->getRenderRotation();
+                        unsigned checked_in_object=0;
+                        for (S32 f=0;f<llmin(vol->getNumVolumeFaces(),16) &&
+                             checked_in_object<max_per_prepass_object &&
+                             prepass_scanned_triangles<max_prepass_triangles;++f) {
+                            const LLVolumeFace& face=vol->getVolumeFace(f);
+                            if (!face.mPositions || !face.mIndices ||
+                                face.mNumVertices<=0 || face.mNumIndices<=0)
+                                continue;
+                            const uint32_t count=static_cast<uint32_t>(
+                                face.mNumIndices/3);
+                            for (uint32_t t=0;t<count &&
+                                 checked_in_object<max_per_prepass_object &&
+                                 prepass_scanned_triangles<max_prepass_triangles;++t) {
+                                ++checked_in_object;
+                                ++prepass_scanned_triangles;
+                                ogl_rtx_triangle tri{};
+                                bool valid=true;
+                                for (unsigned vertex=0;vertex<3;++vertex) {
+                                    const U16 idx=face.mIndices[t*3+vertex];
+                                    if (idx>=face.mNumVertices) {
+                                        valid=false;break;
+                                    }
+                                    LLVector3 point(
+                                        face.mPositions[idx].getF32ptr());
+                                    point=point.scaledVec(scale)*rotation+position;
+                                    for (unsigned axis=0;axis<3;++axis)
+                                        tri.position[vertex*3+axis]=point.mV[axis];
+                                }
+                                if (valid && ogl::is_valid_triangle(tri))
+                                    ogl::retain_nearest_camera_triangles(
+                                        rays,closest,tri);
+                            }
+                        }
+                    }
+                    exact_camera_anchors=ogl::append_camera_hit_triangles(
+                        closest,triangles,ogl_triangle_budget);
+                }
                 const size_t max_per_object =
                     ogl_triangle_budget > 1024 ? 128u : 512u;
                 for (const auto& candidate : candidates)
@@ -9686,6 +9762,8 @@ void LLPipeline::renderDeferredLighting()
                         << " terrain_triangles=" << terrain_triangles
                         << " cap=" << ogl_triangle_budget
                         << " candidate_limit=" << nearby_budget
+                        << " exact_ray_anchors=" << exact_camera_anchors
+                        << " prepass_triangles=" << prepass_scanned_triangles
                         << " unused_triangles="
                         << (ogl_triangle_budget-triangles.size()) << LL_ENDL;
                 if (!triangles.empty())

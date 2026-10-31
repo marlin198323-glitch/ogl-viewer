@@ -64,6 +64,25 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX geometry capacity:", source)
         self.assertIn("eligible candidate objects;", source)
 
+    def test_latest_probe_revision_freshness(self):
+        log = ("OGL RTX CPU scene snapshot: triangles=8192 revision=1\n"
+               "OGL RTX GPU probe: triangles=8192 rays=64 occluded=0 revision=1\n"
+               "OGL RTX CPU scene snapshot: triangles=8192 revision=30\n")
+        self.assertEqual(module.latest_gpu_probe_revision(log),1)
+        self.assertEqual(module.latest_scene_event(log),("sample",8192,30))
+        log += ("OGL RTX GPU probe: triangles=8192 rays=64 "
+                "occluded=0 revision=30\n")
+        self.assertEqual(module.latest_gpu_probe_revision(log),30)
+        self.assertIsNone(module.latest_gpu_probe_revision("no GPU jobs yet"))
+        source = script.read_text()
+        self.assertIn("RTX probe freshness:",source)
+
+    def test_camera_ray_anchor_report(self):
+        source = script.read_text()
+        self.assertIn("RTX exact camera-ray geometry:",source)
+        self.assertIn("exact_ray_anchors=",source)
+        self.assertIn("prepass_triangles=",source)
+
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(
             "username=private\n"

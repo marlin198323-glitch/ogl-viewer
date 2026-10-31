@@ -45,6 +45,17 @@ def latest_scene_event(log_text: str):
     return ("sample", int(match.group(1)), int(match.group(2)))
 
 
+GPU_RESULT_REVISION = re.compile(
+    r"OGL RTX GPU probe: triangles=\d+ rays=\d+ "
+    r"occluded=\d+ revision=(\d+)"
+)
+
+
+def latest_gpu_probe_revision(log_text: str):
+    records = list(GPU_RESULT_REVISION.finditer(log_text))
+    return int(records[-1].group(1)) if records else None
+
+
 def report():
     print("OGL Viewer – local Linux Mint test")
     print("Binary:", "present" if BINARY.is_file() else "missing")
@@ -79,6 +90,15 @@ def report():
             else:
                 print("RTX world geometry sample:", count, "triangles received")
             print("RTX geometry revision:", revision)
+            last_completed_revision = latest_gpu_probe_revision(text)
+            if last_completed_revision is not None:
+                if last_completed_revision != revision:
+                    print(f"RTX probe freshness: completed GPU revision "
+                          f"{last_completed_revision}, latest CPU scene revision "
+                          f"{revision} (not the same scene)")
+                else:
+                    print("RTX probe freshness: completed GPU result matches "
+                          "latest CPU scene revision")
         elif scene_batches:
             print("RTX world geometry sample:", scene_batches[-1], "triangles received")
         else:
@@ -96,6 +116,14 @@ def report():
             unused = int(budget) - int(mesh_tris) - int(terrain_tris)
             print(f"RTX geometry capacity: {unused}/{budget} triangle slots unused "
                   "(partial geometry still possible)")
+            anchor_events = re.findall(
+                r"OGL RTX scene selection: [^\n]*candidate_limit=(\d+) "
+                r"exact_ray_anchors=(\d+) prepass_triangles=(\d+)",text)
+            if anchor_events:
+                cap, anchors, inspected = anchor_events[-1]
+                print(f"RTX exact camera-ray geometry: {anchors}/64 anchor "
+                      f"triangles, {inspected} full-mesh triangles inspected; "
+                      f"candidate limit {cap} (last periodic scan)")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)
