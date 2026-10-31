@@ -313,6 +313,13 @@ target_include_directories(ogl_scene_ray_visibility_test PRIVATE include)
 target_compile_features(ogl_scene_ray_visibility_test PRIVATE cxx_std_17)
 add_test(NAME ogl_exact_camera_ray_geometry_selection COMMAND ogl_scene_ray_visibility_test)
 
+# Startup diagnostic geometry must not wait minutes for 180 frames
+# while the OpenSim scene is slowly loading at sub-1-FPS.
+add_executable(ogl_scene_scan_schedule_test ../tests/test_scene_scan_schedule.cpp)
+target_include_directories(ogl_scene_scan_schedule_test PRIVATE include)
+target_compile_features(ogl_scene_scan_schedule_test PRIVATE cxx_std_17)
+add_test(NAME ogl_scene_startup_scan_schedule COMMAND ogl_scene_scan_schedule_test)
+
 # GPU->world shadow input must reject stale camera, scene and depth,
 # independently of the future OpenGL compositor.
 add_executable(ogl_world_shadow_policy_test ../tests/test_world_shadow_policy.cpp)

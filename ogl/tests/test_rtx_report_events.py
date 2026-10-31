@@ -110,6 +110,15 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX Vulkan geometry coverage gap:",source)
         self.assertIn("RTX completed depth-match history",source)
 
+    def test_startup_low_fps_report(self):
+        source=script.read_text()
+        self.assertIn("RTX startup scan:",source)
+        self.assertIn("RTX scene startup:",source)
+        self.assertIn("frame-count-only ",source)
+        self.assertIn("scanning can be delayed",source)
+        self.assertIn("startup scene scan: cause=",source)
+        self.assertIn("FPS: ([0-9.]+)",source)
+
     def test_gpu_failure_reason_logging(self):
         source=script.read_text()
         self.assertIn("RTX GPU failure classification:",source)

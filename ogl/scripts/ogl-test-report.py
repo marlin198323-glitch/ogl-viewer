@@ -169,6 +169,26 @@ def report():
             reason = ("no triangle snapshot recorded yet" if world_started else
                       "last log never reached the 3D world")
             print("RTX world geometry sample: not observed (" + reason + ")")
+        # Startup scheduling is separate from whether an async Vulkan job
+        # has finished. A low-FPS OpenSim loading session may enter the
+        # 3D world minutes before it renders 180 frames.
+        startup_scans=re.findall(
+            r"OGL RTX startup scene scan: cause=(first_snapshot|object_growth) "
+            r"frames=(\d+) loaded_objects=(\d+) region_age_ms=(\d+)",text)
+        if startup_scans:
+            reason,frames,objects,age_ms=startup_scans[-1]
+            print(f"RTX startup scan: {reason}, triggered after {frames} "
+                  f"frames with {objects} loaded objects "
+                  f"({int(age_ms)//1000} s since region arrival)")
+        elif world_started and not last_scene:
+            fps_events=re.findall(r"display_stats : FPS: ([0-9.]+)",text)
+            low_fps=bool(fps_events) and float(fps_events[-1])<1.0
+            camera_link="OGL RTX camera/sun frame bridge connected" in text
+            if camera_link:
+                print("RTX scene startup: camera bridge active, first mesh "
+                      "scan not yet observed" +
+                      ("; last logged FPS below 1, frame-count-only "
+                       "scanning can be delayed" if low_fps else ""))
         # Accept older viewer logs without terrain LOD counters too.
         selected = re.findall(
             r"OGL RTX scene selection: candidates=(\d+) sampled_objects=(\d+) "

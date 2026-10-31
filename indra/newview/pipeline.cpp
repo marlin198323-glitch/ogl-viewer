@@ -32,6 +32,7 @@
 #include "../../ogl/modules/include/ogl/ogl_scene_validation.h" // prefilter mesh triangles
 #include "../../ogl/modules/include/ogl/ogl_terrain_patch.h" // optional low-poly terrain occluders
 #include "../../ogl/modules/include/ogl/ogl_scene_sampling.h" // conservative RT scene selection
+#include "../../ogl/modules/include/ogl/ogl_scene_scan_schedule.h" // low-FPS initial snapshot
 #include "../../ogl/modules/include/ogl/ogl_scene_ray_visibility.h" // exact camera-ray anchors
 #include "../../ogl/modules/include/ogl/ogl_scene_snapshot_policy.h" // bounded partial-scene guard
 #include <chrono>
@@ -9522,6 +9523,16 @@ void LLPipeline::renderDeferredLighting()
             // receives and validates world-space triangle data for now.
             // Keep expensive volume traversal off the every-frame path.
             static unsigned ogl_geometry_frame_counter = 0;
+            // Initial OpenSim loading can fall to 0.1 FPS. The original
+            // 180-frame-only scheduler produced its FIRST snapshot more
+            // than two minutes after the user entered the world. Keep
+            // normal OpenGL timing unchanged; allow the explicit Vulkan
+            // developer path to perform an early, rate-limited scan.
+            using OGLScanClock=std::chrono::steady_clock;
+            static OGLScanClock::time_point ogl_scan_region_since{};
+            static OGLScanClock::time_point ogl_last_scan_attempt{};
+            static unsigned ogl_last_scan_total_objects=0;
+            static bool ogl_has_scene_snapshot=false;
             // Last accepted *developer* sample. The normal OpenGL viewer
             // never uses this policy, and a region change resets it.
             static unsigned ogl_last_sample_triangles = 0;
@@ -9534,6 +9545,11 @@ void LLPipeline::renderDeferredLighting()
             static LLUUID ogl_sample_region_id;
             if (ogl_sample_region_id != current_region_id) {
                 ogl_sample_region_id = current_region_id;
+                ogl_scan_region_since=OGLScanClock::now();
+                ogl_last_scan_attempt={};
+                ogl_last_scan_total_objects=0;
+                ogl_has_scene_snapshot=false;
+                ogl_geometry_frame_counter=0;
                 ogl_last_sample_triangles = 0;
                 ogl_last_sample_objects = 0;
                 ogl_partial_scene_deferrals = 0;
@@ -9565,10 +9581,41 @@ void LLPipeline::renderDeferredLighting()
                     ++it;
                 }
             }
-            if (++ogl_geometry_frame_counter >= 180)
+            const auto ogl_scan_started=OGLScanClock::now();
+            ++ogl_geometry_frame_counter;
+            const bool ogl_developer_scan=ogl_triangle_budget>1024u;
+            const auto ogl_elapsed_ms=[&](OGLScanClock::time_point since) {
+                if (since==OGLScanClock::time_point{}) return int64_t(60000);
+                return std::chrono::duration_cast<std::chrono::milliseconds>(
+                    ogl_scan_started-since).count();
+            };
+            const bool ogl_scan_initial_or_growth=
+                ogl_developer_scan &&
+                ogl::scene_scan_due(
+                    ogl_geometry_frame_counter,true,
+                    ogl_rtx_region!=nullptr,
+                    static_cast<uint32_t>(gObjectList.getNumObjects()),
+                    ogl_last_scan_total_objects,ogl_has_scene_snapshot,
+                    ogl_elapsed_ms(ogl_scan_region_since),
+                    ogl_elapsed_ms(ogl_last_scan_attempt)) &&
+                ogl_geometry_frame_counter<180u;
+            if (ogl_geometry_frame_counter>=180u ||
+                ogl_scan_initial_or_growth)
             {
-                const auto ogl_scan_started =
-                    std::chrono::steady_clock::now();
+                if (ogl_scan_initial_or_growth)
+                    LL_INFOS("OGLRTX")
+                        << "OGL RTX startup scene scan: cause="
+                        << (ogl_has_scene_snapshot ? "object_growth" :
+                            "first_snapshot")
+                        << " frames=" << ogl_geometry_frame_counter
+                        << " loaded_objects=" << gObjectList.getNumObjects()
+                        << " region_age_ms="
+                        << ogl_elapsed_ms(ogl_scan_region_since)
+                        << " (developer-only, no frame-count wait)"
+                        << LL_ENDL;
+                ogl_last_scan_attempt=ogl_scan_started;
+                ogl_last_scan_total_objects=
+                    static_cast<unsigned>(gObjectList.getNumObjects());
                 ogl_geometry_frame_counter = 0;
                 std::vector<ogl_rtx_triangle> triangles;
                 triangles.reserve(ogl_triangle_budget);
@@ -10098,10 +10145,12 @@ void LLPipeline::renderDeferredLighting()
                             std::chrono::steady_clock::now()-
                             ogl_scan_started).count()
                         << LL_ENDL;
-                if (publish_geometry)
+                if (publish_geometry) {
                     ogl_rtx_submit_world_triangles(
                         triangles.front().position,
                         static_cast<unsigned>(triangles.size()));
+                    ogl_has_scene_snapshot=true;
+                }
                 // Empty rotating subsets are normal in busy OpenSim regions.
                 // Keep the last safe snapshot until real region change.
             }
