@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
             assert(successes()==1 && attempts()==1);
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_dense(&tile)==1);
-            assert(tile.width==64 && tile.height==36);
+            assert(tile.width==OGL_RTX_DENSE_WIDTH && tile.height==OGL_RTX_DENSE_HEIGHT);
             assert(tile.surface_pixels==0 && tile.matched_pixels==0);
             assert(tile.shadow_pixels==0 && tile.sample_sequence>0);
             for(unsigned i=0;i<OGL_RTX_DENSE_PIXELS;++i)
@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
             assert(copy_dense(&tile)==0);
             stop();
             dlclose(library);
-            std::puts("PASS: dense Vulkan 64x36 async module, stale-frame "
+            std::puts("PASS: dense Vulkan 128x72 async module, stale-frame "
                       "and region rejection");
             return 0;
         }

@@ -22,9 +22,9 @@
     },
     {
       "source": "ogl/modules/rtx/shaders/dense_depth_guided_sun.comp",
-      "source_sha256": "00edc8b4ca436dcb9a1cae66a4f02db9712dd56dca7a128d104e875f405f2155",
+      "source_sha256": "c235acff9e70d41f53c63956a49808b1247059edd96ceb67cc6db2a053875d47",
       "compiled": "indra/newview/app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv",
-      "compiled_sha256": "376ebe73b0d05b9491b63523087472f0e13066bfdff7d01fbe3df9f35e0a2156"
+      "compiled_sha256": "a241f2388f394ea2cc49d68a4a8e4d16add99582d9497bdb86c282e05f4a17cf"
     }
   ]
 }

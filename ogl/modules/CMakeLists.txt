@@ -156,7 +156,7 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv"
                 VERBATIM)
             add_dependencies(ogl_depth_sun_shadow_test ogl_rtx_stage_shaders)
-            add_dependencies(ogl_dense_sun_shadow_test ogl_rtx_stage_shaders)
+            add_dependencies(ogl_dense_sun_shadow_test ogl_rtx_stage_shaders ogl_gpu_probe)
             add_executable(ogl_live_gpu_probe_test
                 rtx/ogl_live_gpu_probe_test.cpp)
             target_include_directories(ogl_live_gpu_probe_test PRIVATE include)

@@ -229,7 +229,7 @@ def report():
                     print("RTX dropped-anchor snapshot protection: "
                           f"{anchor_deferrals[-1]} consecutive ray-coverage "
                           "deferrals (maximum 2)")
-                if int(total) <= 32768 and int(scanned) == int(total):
+                if int(total) <= 65536 and int(scanned) == int(total):
                     print("RTX scene traversal: entire loaded object list "
                           "examined in this developer scan")
                 elif int(scanned) < int(total):
@@ -526,7 +526,7 @@ def report():
                 print("RTX GPU failure classification: older log does not "
                       "include a reason code; restart the updated viewer")
         elif dense_results:
-            print("RTX GPU diagnostic: dense 64x36 Vulkan probe completed; "
+            print("RTX GPU diagnostic: dense 128x72 Vulkan probe completed; "
                   "legacy 8x8 diagnostic intentionally inactive")
         elif developer:
             worker, camera, guided = developer[-1]
@@ -576,7 +576,7 @@ def report():
             if active=="1":
                 print("Ray-traced world rendering: active")
             elif dense_composites:
-                print("Ray-traced world rendering: experimental 64x36 Vulkan "
+                print("Ray-traced world rendering: experimental 128x72 Vulkan "
                       "sunlight blend observed in log; full raytracing/path "
                       "tracing is NOT implemented (production rendering_active=0)")
             else:

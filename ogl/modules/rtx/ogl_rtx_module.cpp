@@ -293,7 +293,7 @@ void poll_probe_on_viewer_thread() {
                 last_dense_shadow=ready;
                 dense_shadow_valid=true;
                 if (logger) logger(1,"OGL RTX dense source synchronized; "
-                                  "64x36 GPU depth matches, no compositing");
+                                  "128x72 GPU depth matches, no compositing");
             }
         }
         if (logger)
@@ -452,7 +452,7 @@ void schedule_probe_on_viewer_thread() {
                 probe_last_revision = geometry_revision;
                 probe_view_dirty = false;
                 if (logger && probe_dense_enabled)
-                    logger(1,"OGL RTX dense GPU snapshot queued: 64x36 "
+                    logger(1,"OGL RTX dense GPU snapshot queued: 128x72 "
                               "depth-aligned samples; no world compositing");
                 if (logger && probe_depth_enabled)
                     logger(1, "OGL RTX depth-guided GPU snapshot queued; "

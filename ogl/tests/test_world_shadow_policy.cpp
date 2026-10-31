@@ -75,7 +75,7 @@ int main() {
     dense.geometry_revision=11;
     dense.sample_sequence=1;
     dense.capture_frame=frame;
-    dense.width=64;dense.height=36;
+    dense.width=OGL_RTX_DENSE_WIDTH;dense.height=OGL_RTX_DENSE_HEIGHT;
     for(float& v:dense.capture_depth) v=1.f;
     dense.capture_depth[123]=0.76f;
     dense.valid_mask[123]=1;
@@ -86,7 +86,7 @@ int main() {
     assert(ogl::valid_dense_shadow(dense,11,frame));
     assert(ogl::dense_shadow_pixel_current(dense,123,0.76f));
     assert(!ogl::dense_shadow_pixel_current(dense,123,0.77f));
-    assert(!ogl::dense_shadow_pixel_current(dense,2304,0.76f));
+    assert(!ogl::dense_shadow_pixel_current(dense,OGL_RTX_DENSE_PIXELS,0.76f));
     assert(!ogl::valid_dense_shadow(dense,12,frame));
     dense.shadow_mask[124]=1;
     assert(!ogl::valid_dense_shadow(dense,11,frame));

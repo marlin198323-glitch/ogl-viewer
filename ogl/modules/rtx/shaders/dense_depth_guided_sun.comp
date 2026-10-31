@@ -1,18 +1,18 @@
 #version 460
 #extension GL_EXT_ray_query : require
-// Developer-only dense real-depth-guided sun rays for 64x36 samples.
+// Developer-only dense real-depth-guided sun rays for 128x72 samples.
 // NOT a visible shadow renderer: sample depth alone cannot model missing mesh,
 // skinned avatars, translucency or every material.
 layout(local_size_x=8, local_size_y=8, local_size_z=1) in;
 layout(set=0,binding=0) uniform accelerationStructureEXT scene;
 layout(set=0,binding=1,std430) buffer Results {
-    uint occlusion[2304];
-    uint primaryHit[2304];
-    uint depthMatch[2304];
-    uint primaryDepthRelation[2304]; // 0 no hit, 1 match, 2 closer, 3 farther
+    uint occlusion[9216];
+    uint primaryHit[9216];
+    uint depthMatch[9216];
+    uint primaryDepthRelation[9216]; // 0 no hit, 1 match, 2 closer, 3 farther
 } outputBuffer;
 layout(set=0,binding=2,std430) readonly buffer DeferredDepth {
-    float normalizedDepth[2304];
+    float normalizedDepth[9216];
 } inputDepth;
 layout(push_constant) uniform RayParams {
     vec4 origin_max_distance;
@@ -27,9 +27,9 @@ layout(push_constant) uniform RayParams {
 
 void main() {
     const uvec2 pixel=gl_GlobalInvocationID.xy;
-    // Hardware dispatch covers 64x40; reject the four spare Y rows.
-    if (pixel.x>=64u || pixel.y>=36u) return;
-    const uint index=pixel.y*64u+pixel.x;
+    // Hardware dispatch covers 128x72; reject no spare Y rows.
+    if (pixel.x>=128u || pixel.y>=72u) return;
+    const uint index=pixel.y*128u+pixel.x;
     const float d=inputDepth.normalizedDepth[index];
     outputBuffer.occlusion[index]=0u;
     outputBuffer.primaryHit[index]=0u;
@@ -40,7 +40,7 @@ void main() {
         return;
 
     const vec2 xy=(vec2(pixel)+vec2(0.5))*
-        (vec2(2.0/64.0,2.0/36.0))-vec2(1.0);
+        (vec2(2.0/128.0,2.0/72.0))-vec2(1.0);
     const vec3 forward=normalize(params.camera_forward.xyz);
     const vec3 eyeRay=normalize(forward +
         xy.x*params.camera_right.xyz + xy.y*params.camera_up.xyz);

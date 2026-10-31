@@ -46,9 +46,9 @@ OGL_MODULE_EXPORT int ogl_gpu_probe_run(
     const char* shader_path, ogl_gpu_probe_result* result);
 
 // First bounded developer dense ray-queried frame, independent of 8x8.
-#define OGL_GPU_DENSE_VERSION 1u
-#define OGL_GPU_DENSE_WIDTH 64u
-#define OGL_GPU_DENSE_HEIGHT 36u
+#define OGL_GPU_DENSE_VERSION 2u
+#define OGL_GPU_DENSE_WIDTH 128u
+#define OGL_GPU_DENSE_HEIGHT 72u
 #define OGL_GPU_DENSE_PIXELS (OGL_GPU_DENSE_WIDTH*OGL_GPU_DENSE_HEIGHT)
 typedef struct ogl_gpu_dense_result {
     uint32_t struct_size;

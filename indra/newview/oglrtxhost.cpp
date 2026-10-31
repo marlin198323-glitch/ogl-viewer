@@ -264,7 +264,7 @@ void ogl_rtx_forget_local_object(const std::uint8_t* uuid)
 #endif
 }
 
-// Opt-in 64x36 Vulkan-guided sun shadow on the ACTUAL OpenGL deferred
+// Opt-in 128x72 Vulkan-guided sun shadow on the ACTUAL OpenGL deferred
 // sunlight target. No fullscreen 8x8 UI effect: each fragment reads current
 // GL depth, its own Vulkan source tile, and rejects stale geometry.
 bool ogl_rtx_compose_dense_sun_shadow(unsigned depth_texture,
@@ -282,7 +282,7 @@ bool ogl_rtx_compose_dense_sun_shadow(unsigned depth_texture,
     if (!opt_in || !rtx_hardware_ready || !rtx_copy_dense ||
         !depth_texture || !glIsTexture(depth_texture) ||
         !eye || !forward || !right || !up || !sun ||
-        width<64u || height<36u)
+        width<OGL_RTX_DENSE_WIDTH || height<OGL_RTX_DENSE_HEIGHT)
         return false;
     ogl_rtx_frame_state current{};
     current.struct_size=sizeof(current);
@@ -328,8 +328,8 @@ void main() {
     ivec2 pos=ivec2(gl_FragCoord.xy);
     if (any(lessThan(pos,ivec2(0))) ||
         any(greaterThanEqual(pos,uViewport))) discard;
-    ivec2 t=clamp(pos*ivec2(64,36)/uViewport,
-                  ivec2(0),ivec2(63,35));
+    ivec2 t=clamp(pos*ivec2(128,72)/uViewport,
+                  ivec2(0),ivec2(127,71));
     vec4 ray=texelFetch(uVulkanTile,t,0);
     if (ray.r<0.5 || ray.g<0.5) discard;
     float live=texelFetch(uLiveDepth,pos,0).r;
@@ -340,7 +340,7 @@ void main() {
     // ultrawide resolutions. This NEVER invents an unvalidated ray hit:
     // we soften solely WITHIN a shadowed, live-depth-matched tile.
     vec2 cell=fract((vec2(pos)+vec2(0.5))*
-                    vec2(64.0,36.0)/vec2(uViewport));
+                    vec2(128.0,72.0)/vec2(uViewport));
     float distanceToTileEdge=min(min(cell.x,1.0-cell.x),
                                  min(cell.y,1.0-cell.y));
     float feather=smoothstep(0.0,0.18,distanceToTileEdge);
@@ -398,7 +398,7 @@ void main() {
             compile_failed=true;
             return false;
         }
-        LL_INFOS("OGLRTX") << "Experimental 64x36 Vulkan-to-OpenGL "
+        LL_INFOS("OGLRTX") << "Experimental 128x72 Vulkan-to-OpenGL "
                              "depth-gated sunlight compositor initialized"
                           << LL_ENDL;
     }
@@ -483,7 +483,7 @@ void main() {
         LL_INFOS("OGLRTX") << "OGL RTX dense world sunlight composed: "
                            << source.shadow_pixels << " GPU shadow tile(s) / "
                            << source.matched_pixels
-                           << " depth-matched, at 64x36 sample resolution; "
+                           << " depth-matched, at 128x72 sample resolution; "
                            << "current OpenGL depth gates every output pixel"
                            << LL_ENDL;
     }

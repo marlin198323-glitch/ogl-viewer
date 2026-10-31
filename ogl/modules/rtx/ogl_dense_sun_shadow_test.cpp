@@ -1,4 +1,4 @@
-// Real Vulkan 64x36 ray-query regression, entirely independent of 8x8.
+// Real Vulkan 128x72 ray-query regression, entirely independent of 8x8.
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -54,8 +54,8 @@ int main(int argc,char** argv) {
                            depth.data(),argv[2],&out);
         if (rc==77) return out;
         assert(rc==0 && out.success==1);
-        assert(out.width==64u && out.height==36u);
-        assert(out.ray_count==2304u);
+        assert(out.width==OGL_GPU_DENSE_WIDTH && out.height==OGL_GPU_DENSE_HEIGHT);
+        assert(out.ray_count==OGL_GPU_DENSE_PIXELS);
         assert(out.primary_hits>=out.depth_matches);
         assert(out.occluded<=out.depth_matches);
         unsigned shadows=0u,matches=0u;
@@ -75,12 +75,12 @@ int main(int argc,char** argv) {
         return 77;
     }
     assert(empty.occluded==0);
-    assert(empty.depth_matches>2000u);
+    assert(empty.depth_matches>8000u);
     quad(scene,-0.45f,-0.45f,0.45f,0.45f,0.5f);
     auto blocked=run();
     assert(blocked.occluded>0u);
     assert(blocked.occluded<blocked.depth_matches);
-    std::printf("PASS: dense 64x36 Vulkan shadow pixels %u/%u, "
+    std::printf("PASS: dense 128x72 Vulkan shadow pixels %u/%u, "
                 "full GL depth matches %u\n",blocked.occluded,
                 blocked.ray_count,blocked.depth_matches);
     depth.fill(1.f);

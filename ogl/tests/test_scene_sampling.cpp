@@ -13,9 +13,11 @@
 int main() {
     assert(ogl::developer_object_scan_limit(28654u)==28654u);
     assert(ogl::developer_object_scan_start(28654u,16384u)==0u);
-    assert(ogl::developer_object_scan_limit(50000u)==32768u);
-    assert(ogl::developer_object_scan_start(50000u,32768u)==32768u);
-    assert(ogl::developer_object_scan_start(50000u,50005u)==5u);
+    assert(ogl::developer_object_scan_limit(50000u)==50000u);
+    assert(ogl::developer_object_scan_start(50000u,32768u)==0u);
+    assert(ogl::developer_object_scan_start(50000u,50005u)==0u);
+    assert(ogl::developer_object_scan_limit(100000u)==65536u);
+    assert(ogl::developer_object_scan_start(100000u,100005u)==5u);
     assert(ogl::developer_object_scan_limit(0u)==0u);
     assert(ogl::developer_object_scan_start(0u,500u)==0u);
     assert(ogl::camera_ray_object_quota(0u,false)==0u);

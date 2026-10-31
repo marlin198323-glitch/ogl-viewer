@@ -14,11 +14,11 @@ namespace ogl {
 // camera-visible geometry every other scan. At larger object counts,
 // retain the same deterministic bounded rotating traversal.
 inline uint32_t developer_object_scan_limit(uint32_t total) {
-    return std::min(total,32768u);
+    return std::min(total,65536u);
 }
 inline uint32_t developer_object_scan_start(uint32_t total,
                                             uint32_t cursor) {
-    return total<=32768u || !total ? 0u : cursor%total;
+    return total<=65536u || !total ? 0u : cursor%total;
 }
 
 // Spend more CPU triangle tests on objects occupying multiple camera rays,

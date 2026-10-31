@@ -148,9 +148,9 @@ OGL_MODULE_EXPORT int ogl_rtx_copy_world_shadow_sample(
  * tile; it is NOT an automatically upscaled world-space shading texture.
  * The capture_frame is immutable and must be checked before application.
  */
-#define OGL_RTX_DENSE_VERSION 1u
-#define OGL_RTX_DENSE_WIDTH 64u
-#define OGL_RTX_DENSE_HEIGHT 36u
+#define OGL_RTX_DENSE_VERSION 2u
+#define OGL_RTX_DENSE_WIDTH 128u
+#define OGL_RTX_DENSE_HEIGHT 72u
 #define OGL_RTX_DENSE_PIXELS (OGL_RTX_DENSE_WIDTH*OGL_RTX_DENSE_HEIGHT)
 typedef struct ogl_rtx_dense_depth {
     uint32_t struct_size;
