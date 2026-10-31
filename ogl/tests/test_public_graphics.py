@@ -103,6 +103,26 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OGL RTX CPU scene snapshot: triangles=", module)
         self.assertIn("OGL RTX CPU scene cleared revision=", module)
 
+    def test_opt_in_gpu_scene_probe_is_packaged_but_disabled_by_default(self):
+        gpu = (ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        cmake = (ROOT / "indra/newview/CMakeLists.txt").read_text()
+        manifest = (ROOT / "indra/newview/viewer_manifest.py").read_text()
+        shader = (ROOT / "ogl/modules/rtx/shaders/ray_query_shadow.comp").read_text()
+        self.assertIn("ogl_gpu_probe_run(", gpu)
+        self.assertIn("vkCmdPushConstants(", gpu)
+        self.assertIn("OGL_RTX_SCENE_PROBE", module)
+        self.assertIn('std::strcmp(env, "1") == 0', module)
+        self.assertIn("std::chrono::seconds(60)", module)
+        self.assertIn("probe_disabled = true", module)
+        self.assertIn("gpu_probe_cleanup();", module)
+        self.assertIn("rendering_active=0", module)
+        self.assertIn("add_dependencies(${VIEWER_BINARY_NAME} ogl_gpu_probe_stage)", cmake)
+        self.assertIn("ogl_gpu_probe.dll", manifest)
+        self.assertIn("ogl_gpu_probe.so", manifest)
+        self.assertIn("layout(push_constant)", shader)
+        self.assertIn("params.ray_direction.xyz", shader)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

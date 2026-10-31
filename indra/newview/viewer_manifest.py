@@ -638,6 +638,8 @@ class Windows_x86_64_Manifest(ViewerManifest):
             # Missing RT build support does not prevent an OpenGL-only installer.
             self.path_optional(src='%s/ogl_rtx.dll' % self.args['configuration'],
                                dst='ogl_rtx.dll')
+            self.path_optional(src='%s/ogl_gpu_probe.dll' % self.args['configuration'],
+                               dst='ogl_gpu_probe.dll')
 
             # <FS:Ansariel> Undo Github-Build stuff - I don't think we need this
             # GITHUB_OUTPUT = os.getenv('GITHUB_OUTPUT')
@@ -2468,6 +2470,9 @@ class Linux_x86_64_Manifest(LinuxManifest):
             self.path_optional(src=os.path.join(self.args['build'], 'packaged',
                                                 'lib', 'ogl_rtx.so'),
                                dst='lib/ogl_rtx.so')
+            self.path_optional(src=os.path.join(self.args['build'], 'packaged',
+                                                'lib', 'ogl_gpu_probe.so'),
+                               dst='lib/ogl_gpu_probe.so')
 
         pkgdir = os.path.join(self.args['build'], os.pardir, 'packages')
         relpkgdir = os.path.join(pkgdir, "lib", "release")

@@ -2327,6 +2327,24 @@ if(WIN32 OR (UNIX AND NOT APPLE))
             DEPENDS ogl_rtx_module VERBATIM)
         add_dependencies(${VIEWER_BINARY_NAME} ogl_rtx_stage)
     endif()
+    # Optional developer-only GPU diagnostics are separately linked and
+    # loaded; the public OpenGL viewer never depends on libvulkan at startup.
+    if(TARGET ogl_gpu_probe)
+        if(WIN32)
+            set(OGL_GPU_PROBE_OUTPUT_DIR "$<TARGET_FILE_DIR:${VIEWER_BINARY_NAME}>")
+            set(OGL_GPU_PROBE_OUTPUT "${OGL_GPU_PROBE_OUTPUT_DIR}/ogl_gpu_probe.dll")
+        else()
+            set(OGL_GPU_PROBE_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/packaged/lib")
+            set(OGL_GPU_PROBE_OUTPUT "${OGL_GPU_PROBE_OUTPUT_DIR}/ogl_gpu_probe.so")
+        endif()
+        add_custom_target(ogl_gpu_probe_stage
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${OGL_GPU_PROBE_OUTPUT_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:ogl_gpu_probe>" "${OGL_GPU_PROBE_OUTPUT}"
+            DEPENDS ogl_gpu_probe VERBATIM)
+        add_dependencies(${VIEWER_BINARY_NAME} ogl_gpu_probe_stage)
+    endif()
 endif()
 
 

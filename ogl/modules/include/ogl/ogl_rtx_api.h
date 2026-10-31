@@ -61,6 +61,11 @@ typedef struct ogl_rtx_triangle {
 OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(const ogl_rtx_triangle *triangles,
                                                uint32_t count);
 OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void);
+/* Diagnostic only, counted only with OGL_RTX_SCENE_PROBE=1.
+ * NEVER means shadows are visible in the viewer.
+ */
+OGL_MODULE_EXPORT uint64_t ogl_rtx_gpu_probe_attempts(void);
+OGL_MODULE_EXPORT uint64_t ogl_rtx_gpu_probe_successes(void);
 /* Monotonic revision. Increments only for a changed, accepted snapshot. */
 OGL_MODULE_EXPORT uint64_t ogl_rtx_geometry_revision(void);
 /* Copy last snapshot into caller-owned storage (all-or-nothing).

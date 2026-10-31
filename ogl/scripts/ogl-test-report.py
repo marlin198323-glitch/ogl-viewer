@@ -83,6 +83,18 @@ def report():
             reason = ("no triangle snapshot recorded yet" if world_started else
                       "last log never reached the 3D world")
             print("RTX world geometry sample: not observed (" + reason + ")")
+        probes = re.findall(
+            r"OGL RTX GPU probe: triangles=(\d+) rays=(\d+) "
+            r"occluded=(\d+) revision=(\d+)", text)
+        if probes:
+            count, rays, hits, revision = probes[-1]
+            print(f"RTX GPU diagnostic: {count} scene triangles; "
+                  f"{hits}/{rays} ray hits; revision {revision}")
+            print("RTX GPU diagnostic is NOT visual raytracing in the world.")
+        elif "OGL RTX GPU scene probe failed;" in text:
+            print("RTX GPU diagnostic: failed; OpenGL fallback active")
+        else:
+            print("RTX GPU diagnostic: not run (developer opt-in only)")
         if rtx_lines:
             ready, active = rtx_lines[-1]
             print("RTX Vulkan hardware:", "supported" if ready == "1" else "not supported")

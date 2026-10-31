@@ -171,3 +171,26 @@ GPU-BLAS aus der *aktuell verbundenen* OpenSim-Region auf; diese
 Schnittstelle ist bislang nur isoliert mit Testdaten abgenommen.
 Es gibt noch keine Raytracing-Schatten im sichtbaren OGL-Viewer,
 kein GPU/GL-Compositing und keinen Endnutzer-RTX-Schalter.
+
+
+## 31.10.2026 – dritte RTX-10er-Runde: optionaler Live-GPU-Probe-Pfad
+
+- Die bisherige Vulkan-BLAS/TLAS-/Ray-Query-Pipeline wurde in die optionale
+  Bibliothek `ogl_gpu_probe.so` / `ogl_gpu_probe.dll` mit eigener
+  C-ABI ausgelagert und in Linux-/Windows-Paketpfade integriert.
+- Das RTX-Modul kann bei explizitem Entwickler-Opt-in
+  (`OGL_RTX_SCENE_PROBE=1`) *seinen eigenen* Scene-Snapshot übergeben:
+  BLAS/TLAS-Build, 64 GPU-Ray-Queries und rein numerische Diagnose.
+- Push Constants nutzen Scene-XY-Grenzen und die Viewer-Sonnenrichtung;
+  die alte deterministische Shader-Regression mit 36/28 Treffern bleibt.
+- Ein isolierter End-to-End-Modultest mit 64 Dreiecken lieferte 15/64
+  GPU-Treffer. Weitere Tests prüfen fehlendes GPU-Backend und fehlende
+  Vulkan-Treiber ohne Beeinträchtigung von OpenGL.
+- Die synchronen Probe-Aufrufe sind bewusst **aus** für Endnutzer.
+  Rate-Limit: 60 Sekunden; GPU-Fehler deaktivieren die Probe bis Neustart.
+- [`RTX_10_BLOCKS_2026_10_31_P3.md`](RTX_10_BLOCKS_2026_10_31_P3.md).
+
+**Noch nicht erreicht:** Live-Login-Szene mit tatsächlichen NexVerse-Dreiecken
+auf dem GPU-Renderer abgenommen, dauerhafte BLAS/TLAS-Weltverwaltung,
+sichtbare Raytracing-Schatten und OpenGL/Vulkan-Komposition.
+`rendering_active=0` darf noch nicht geändert werden.

@@ -1,5 +1,6 @@
 #include "ogl/ogl_rtx_api.h"
 #include "ogl/ogl_scene_validation.h"
+#include "ogl/ogl_gpu_probe_api.h"
 #include <vulkan/vulkan.h>
 #if defined(_WIN32)
 #  define WIN32_LEAN_AND_MEAN
@@ -12,6 +13,8 @@
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <set>
 #include <string>
 #include <vector>
@@ -40,6 +43,52 @@ const ogl_module_info info{
     sizeof(ogl_module_info), OGL_MODULE_ABI_VERSION,
     "de.nexverse.ogl.rtx", "OGL Vulkan RT Capability", "0.2.0"
 };
+// Explicit diagnostics only. Never used as an in-world renderer.
+#if defined(_WIN32)
+using GpuProbeLibrary = HMODULE;
+GpuProbeLibrary load_gpu_probe() {
+    wchar_t path[MAX_PATH]{};
+    const DWORD n = GetModuleFileNameW(nullptr, path, MAX_PATH);
+    if (n == 0 || n >= MAX_PATH) return nullptr;
+    std::wstring directory(path, n);
+    const auto slash = directory.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) return nullptr;
+    directory.resize(slash + 1);
+    return LoadLibraryExW((directory + L"ogl_gpu_probe.dll").c_str(), nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+}
+void* gpu_symbol(GpuProbeLibrary lib, const char* name) {
+    return reinterpret_cast<void*>(GetProcAddress(lib, name));
+}
+void gpu_close(GpuProbeLibrary lib) { FreeLibrary(lib); }
+#else
+using GpuProbeLibrary = void*;
+GpuProbeLibrary load_gpu_probe() {
+    return dlopen("./lib/ogl_gpu_probe.so", RTLD_NOW | RTLD_LOCAL);
+}
+void* gpu_symbol(GpuProbeLibrary lib, const char* name) {
+    return dlsym(lib, name);
+}
+void gpu_close(GpuProbeLibrary lib) { dlclose(lib); }
+#endif
+using ProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
+                        const float*, const char*, ogl_gpu_probe_result*);
+GpuProbeLibrary probe_library = nullptr;
+ProbeRun probe_run = nullptr;
+bool probe_opt_in = false;
+bool probe_disabled = false;
+uint64_t probe_last_revision = 0;
+uint64_t probe_successes = 0;
+uint64_t probe_attempts = 0;
+std::chrono::steady_clock::time_point probe_last_time{};
+const char* const trusted_shader = "./app_settings/ogl/rtx/ray_query_shadow.comp.spv";
+
+void gpu_probe_cleanup() {
+    probe_run = nullptr;
+    if (probe_library) gpu_close(probe_library);
+    probe_library = nullptr;
+}
+
 ogl_log_fn logger = nullptr;
 ogl_rtx_frame_state latest_frame{};
 uint64_t received_frames = 0;
@@ -173,7 +222,28 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     received_frames = 0;
     captured_geometry.clear();
     geometry_revision = 0;
+    gpu_probe_cleanup();
+    probe_opt_in = false;
+    probe_disabled = false;
+    probe_last_revision = 0;
+    probe_attempts = 0;
+    probe_successes = 0;
+    probe_last_time = {};
+    const char* env = std::getenv("OGL_RTX_SCENE_PROBE");
+    probe_opt_in = env && std::strcmp(env, "1") == 0;
     detect();
+    // Opt-in is only for developers until we have a non-blocking renderer.
+    // No developer/system-specific GPU, user data, or filesystem path.
+    if (probe_opt_in && status.hardware_ready && status.ray_query) {
+        probe_library = load_gpu_probe();
+        if (probe_library)
+            probe_run = reinterpret_cast<ProbeRun>(
+                gpu_symbol(probe_library, "ogl_gpu_probe_run"));
+        if (!probe_run) {
+            probe_disabled = true;
+            if (logger) logger(1, "OGL RTX opt-in GPU probe unavailable; OpenGL unaffected");
+        }
+    }
     std::string gpu = status.gpu_name[0] ? status.gpu_name : "none";
     logger(1, (std::string("OGL RTX capability: gpu=") + gpu +
         " acceleration=" + std::to_string(status.acceleration_structure) +
@@ -183,7 +253,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
         " rendering_active=0; " + status.message).c_str());
     return 0; // No RTX hardware is normal: keep the OpenGL renderer.
 }
-extern "C" OGL_MODULE_EXPORT void ogl_module_stop() { logger = nullptr; }
+extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
+    gpu_probe_cleanup();
+    probe_opt_in = false;
+    probe_disabled = false;
+    captured_geometry.clear();
+    logger = nullptr;
+}
 extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
     return &status;
 }
@@ -193,7 +269,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
         frame->width == 0 || frame->height == 0) return 0;
     latest_frame = *frame;
     ++received_frames;
-    // Shader dispatch remains disabled: no TLAS/BLAS or scene geometry yet.
+    // Vulkan diagnostics may run only with explicit developer opt-in,
+    // after a valid scene snapshot. No user-visible RT pixels are produced.
     if (received_frames == 1 && logger)
         logger(1, "OGL RTX camera/sun frame bridge connected; no raytraced pixels yet.");
     return 1;
@@ -225,6 +302,41 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     const bool first_batch = captured_geometry.empty();
     captured_geometry.assign(triangles, triangles + count);
     ++geometry_revision;
+    if (probe_opt_in && !probe_disabled && probe_run && received_frames > 0 &&
+        geometry_revision != probe_last_revision) {
+        using Clock = std::chrono::steady_clock;
+        const auto now = Clock::now();
+        // This *synchronous* diagnostic is deliberately rate-limited.
+        // It MUST NOT run by default, and it never writes RT pixels.
+        if (probe_last_time == Clock::time_point{} ||
+            now - probe_last_time >= std::chrono::seconds(60)) {
+            probe_last_time = now;
+            probe_last_revision = geometry_revision;
+            ++probe_attempts;
+            ogl_gpu_probe_result result{};
+            result.struct_size = sizeof(result);
+            result.version = OGL_GPU_PROBE_VERSION;
+            const int rc = probe_run(captured_geometry.data(),
+                static_cast<uint32_t>(captured_geometry.size()),
+                latest_frame.sun_direction, trusted_shader, &result);
+            if (rc == 0 && result.success &&
+                result.triangle_count == captured_geometry.size() &&
+                result.ray_count == 64) {
+                ++probe_successes;
+                if (logger)
+                    logger(1, (std::string("OGL RTX GPU probe: triangles=") +
+                       std::to_string(result.triangle_count) + " rays=" +
+                       std::to_string(result.ray_count) + " occluded=" +
+                       std::to_string(result.occluded) + " revision=" +
+                       std::to_string(geometry_revision) +
+                       "; DIAGNOSTIC ONLY no shadow compositing").c_str());
+            } else {
+                probe_disabled = true; // Avoid repeated GPU hang/failure.
+                if (logger)
+                    logger(1, "OGL RTX GPU scene probe failed; disabled until next start; OpenGL active");
+            }
+        }
+    }
     // Log numbers only, never login data or private scene object names.
     // Keep updates sparse to avoid I/O overhead in populated OpenSim regions.
     if (logger && (first_batch || geometry_revision % 30 == 0))
@@ -247,4 +359,12 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_copy_geometry(
     if (!dest || count == 0 || capacity < count) return 0;
     std::memcpy(dest, captured_geometry.data(), size_t(count) * sizeof(*dest));
     return count;
+}
+
+
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_gpu_probe_attempts(void) {
+    return probe_attempts;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_gpu_probe_successes(void) {
+    return probe_successes;
 }

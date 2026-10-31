@@ -72,3 +72,11 @@ Die **zweite RTX-10er-Runde** prüft bereits die komplette isolierte
 Datenkette `OGL-Geometrie-ABI → GPU-BLAS/TLAS → Ray-Query-Maske` mit
 64 und 1.024 Beispiel-Dreiecken. Die Live-Render-Integration fehlt
 weiterhin. [Abnahmebericht](RTX_10_BLOCKS_2026_10_31_P2.md).
+
+
+Die **dritte RTX-10er-Runde** ergänzt eine getrennt ladbare Vulkan-GPU-
+Probe, die nur im expliziten Entwicklungsmodus nach dem Empfang einer
+CPU-Szenenprobe eine echte GPU-Ray-Query-Diagnose berechnet.
+Der öffentliche Viewer aktiviert sie nicht automatisch. Die
+3D-Welt erhält **noch keine sichtbaren RTX-Schatten**.
+[Technischer Abnahmebericht](RTX_10_BLOCKS_2026_10_31_P3.md).

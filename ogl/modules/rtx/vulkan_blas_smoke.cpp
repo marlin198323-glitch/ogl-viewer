@@ -4,7 +4,11 @@
 // Real ray-query compute shader tested; OpenGL compositing still pending.
 #include <vulkan/vulkan.h>
 #include "ogl/ogl_rtx_api.h"
+#include "ogl/ogl_gpu_probe_api.h"
+#include "ogl/ogl_scene_validation.h"
 #include <array>
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
@@ -21,25 +25,26 @@
 #include <string>
 #include <vector>
 
-// The same portable C ABI used by the live OpenSim viewer.
+// Test-only module fixture. Production GPU library receives actual data.
+#ifndef OGL_GPU_PROBE_LIBRARY
 using GeometrySubmit = int (*)(const ogl_rtx_triangle*, uint32_t);
 using GeometryCopy = uint32_t (*)(ogl_rtx_triangle*, uint32_t);
 using GeometryRevision = uint64_t (*)();
 
 void diagnostic_log(int, const char*) {}
 
-static bool load_scene_from_module(const char* path, uint32_t count,
-                                   std::vector<ogl_rtx_triangle>& scene) {
+static int load_scene_from_module(const char* path, uint32_t count,
+                                  std::vector<ogl_rtx_triangle>& scene) {
 #if defined(_WIN32)
     HMODULE module = LoadLibraryExA(path, nullptr,
         LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-    if (!module) return false;
+    if (!module) return 1;
     auto symbol = [&](const char* name) -> void* {
         return reinterpret_cast<void*>(GetProcAddress(module, name));
     };
 #else
     void* module = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-    if (!module) return false;
+    if (!module) return 1;
     auto symbol = [&](const char* name) -> void* { return dlsym(module, name); };
 #endif
     auto start = reinterpret_cast<ogl_module_start_fn>(symbol("ogl_module_start"));
@@ -47,10 +52,17 @@ static bool load_scene_from_module(const char* path, uint32_t count,
     auto submit = reinterpret_cast<GeometrySubmit>(symbol("ogl_rtx_submit_geometry"));
     auto copy = reinterpret_cast<GeometryCopy>(symbol("ogl_rtx_copy_geometry"));
     auto revision = reinterpret_cast<GeometryRevision>(symbol("ogl_rtx_geometry_revision"));
-    bool ok = false;
-    if (start && stop && submit && copy && revision) {
+    auto status = reinterpret_cast<const ogl_rtx_status*(*)()>(
+        symbol("ogl_rtx_get_status"));
+    int code = 1;
+    if (start && stop && submit && copy && revision && status) {
         ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, diagnostic_log};
         if (start(&host) == 0) {
+            // A Vulkan-free machine is a legitimate OpenGL client. Preserve
+            // CTest SKIP rather than treating it as a broken GPU renderer.
+            if (!status()->hardware_ready || !status()->ray_query) {
+                code = 77;
+            } else {
             std::vector<ogl_rtx_triangle> input(count);
             for (uint32_t i = 0; i < count; ++i) {
                 // Mimic the viewer C ABI: one unit triangle followed by
@@ -65,10 +77,12 @@ static bool load_scene_from_module(const char* path, uint32_t count,
                 input[i].position[7] = y + 1.f;
             }
             scene.resize(count);
-            ok = submit(input.data(), count) == 1 &&
+            code = (submit(input.data(), count) == 1 &&
                  revision() == 1 &&
                  copy(scene.data(), count) == count &&
-                 std::memcmp(scene.data(), input.data(), count * sizeof(ogl_rtx_triangle)) == 0;
+                 std::memcmp(scene.data(), input.data(), count * sizeof(ogl_rtx_triangle)) == 0)
+                 ? 0 : 1;
+            }
             stop();
         }
     }
@@ -77,8 +91,9 @@ static bool load_scene_from_module(const char* path, uint32_t count,
 #else
     dlclose(module);
 #endif
-    return ok;
+    return code;
 }
+#endif // !OGL_GPU_PROBE_LIBRARY
 
 struct Buffer {
     VkBuffer buffer = VK_NULL_HANDLE;
@@ -181,21 +196,60 @@ bool has_extension(VkPhysicalDevice gpu, const std::set<std::string>& required) 
     return true;
 }
 
-int main(int argc, char** argv) {
-    if (argc != 2 && !(argc == 5 && std::strcmp(argv[2], "--module") == 0)) {
-        std::puts("FAIL: use <shader.spv> [--module <ogl_rtx.so/dll> <triangle_count>]");
-        return 1;
-    }
-    uint32_t wanted_triangles = 1;
-    if (argc == 5) {
-        char* end = nullptr;
-        const unsigned long n = std::strtoul(argv[4], &end, 10);
-        if (!end || *end || n < 1 || n > OGL_RTX_MAX_SCENE_TRIANGLES) {
-            std::puts("FAIL: triangle_count must be 1-1024");
-            return 1;
+static int execute_gpu_scene(const char* shader_path,
+                             const ogl_rtx_triangle* scene,
+                             uint32_t wanted_triangles,
+                             const float* sun,
+                             ogl_gpu_probe_result* result) {
+    if (!shader_path || !scene || wanted_triangles < 1 ||
+        wanted_triangles > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
+    for (uint32_t i = 0; i < wanted_triangles; ++i)
+        if (!ogl::is_valid_triangle(scene[i])) return 1;
+
+    // Ray sampling covers the source scene footprint, and uses the frame's
+    // sun direction only for the opt-in live diagnostics. This is a scene
+    // probe, NOT a perspective-correct shadow map for the user-facing image.
+    struct ScenePush {
+        float origin[4]{};
+        float step[4]{};
+        float direction[4]{};
+    } push{};
+    static_assert(sizeof(ScenePush) == 48, "Vulkan push ABI mismatch");
+    float minv[3]{scene[0].position[0],scene[0].position[1],scene[0].position[2]};
+    float maxv[3]{minv[0],minv[1],minv[2]};
+    for (uint32_t i = 0; i < wanted_triangles; ++i)
+        for (unsigned v = 0; v < 9; ++v) {
+            minv[v % 3] = std::min(minv[v % 3],scene[i].position[v]);
+            maxv[v % 3] = std::max(maxv[v % 3],scene[i].position[v]);
         }
-        wanted_triangles = static_cast<uint32_t>(n);
+    if (result) {
+        // Cover the full snapshot's XY bounding box, with a lower sample
+        // plane that casts rays upward toward the OpenSim sun.
+        push.origin[0] = minv[0];
+        push.origin[1] = minv[1];
+        push.origin[2] = minv[2] - 2.f;
+        push.step[0] = std::max(0.1f, (maxv[0]-minv[0])/8.f);
+        push.step[1] = std::max(0.1f, (maxv[1]-minv[1])/8.f);
+        const float dx=maxv[0]-minv[0], dy=maxv[1]-minv[1], dz=maxv[2]-minv[2];
+        push.origin[3] = std::max(5.f, 2.5f * std::sqrt(dx*dx+dy*dy+dz*dz)+20.f);
+        if (sun && std::isfinite(sun[0]) && std::isfinite(sun[1]) &&
+            std::isfinite(sun[2])) {
+            const float magnitude = std::sqrt(sun[0]*sun[0]+sun[1]*sun[1]+sun[2]*sun[2]);
+            if (std::isfinite(magnitude) && magnitude > 1.e-5f)
+                for (unsigned i=0; i<3; ++i) push.direction[i] = sun[i]/magnitude;
+        }
+    } else {
+        // Stable deterministic fixture for the 36-hit/28-miss regression.
+        push.origin[0] = 0.f;
+        push.origin[1] = 0.f;
+        push.origin[2] = -2.f;
+        push.origin[3] = 5.f;
+        push.step[0] = 1.f/8.f;
+        push.step[1] = 1.f/8.f;
     }
+    if (push.direction[0] == 0.f && push.direction[1] == 0.f &&
+        push.direction[2] == 0.f)
+        push.direction[2] = 1.f;
     VulkanContext c;
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "OGL universal Vulkan BLAS acceptance";
@@ -325,19 +379,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Build from the same validated OGL geometry ABI used by the live viewer.
-    // In standalone mode keep the deterministic unit triangle fixture.
-    // In module mode prove C ABI snapshot -> Vulkan GPU BLAS -> TLAS -> rays.
-    std::vector<ogl_rtx_triangle> triangles(wanted_triangles);
-    if (argc == 5) {
-        if (!load_scene_from_module(argv[3], wanted_triangles, triangles)) {
-            std::puts("FAIL: OGL module scene snapshot transfer");
-            return 1;
-        }
-    } else {
-        triangles[0].position[3] = 1.f;
-        triangles[0].position[7] = 1.f;
-    }
+    // Caller supplies the actual validated module scene snapshot.
+    // GPU probe and deterministic tests share this exact same path.
+    std::vector<ogl_rtx_triangle> triangles(scene, scene + wanted_triangles);
     static_assert(sizeof(ogl_rtx_triangle) == 9 * sizeof(float),
                   "Triangle ABI must be packed xyz floats");
     const VkDeviceSize vertex_bytes = triangles.size() * sizeof(ogl_rtx_triangle);
@@ -559,7 +603,7 @@ int main(int argc, char** argv) {
         static_cast<unsigned long long>(top_sizes.buildScratchSize));
     // A real Vulkan ray query: one ray hits the triangle, one deliberately
     // misses. Results are returned through a host-visible storage buffer.
-    std::ifstream input(argv[1], std::ios::binary | std::ios::ate);
+    std::ifstream input(shader_path, std::ios::binary | std::ios::ate);
     if (!input) { std::puts("FAIL: ray-query SPIR-V missing"); return 1; }
     const auto shader_bytes = input.tellg();
     if (shader_bytes <= 0 || shader_bytes > 65536 || shader_bytes % 4 != 0)
@@ -650,6 +694,12 @@ int main(int argc, char** argv) {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pipeline_layout_info.setLayoutCount = 1;
     pipeline_layout_info.pSetLayouts = &c.descriptor_layout;
+    VkPushConstantRange push_range{};
+    push_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    push_range.offset = 0;
+    push_range.size = sizeof(push);
+    pipeline_layout_info.pushConstantRangeCount = 1;
+    pipeline_layout_info.pPushConstantRanges = &push_range;
     if (vkCreatePipelineLayout(c.device, &pipeline_layout_info, nullptr,
                                &c.pipeline_layout) != VK_SUCCESS)
         return 1;
@@ -672,6 +722,8 @@ int main(int argc, char** argv) {
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, c.ray_pipeline);
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_COMPUTE,
                             c.pipeline_layout, 0, 1, &descriptor, 0, nullptr);
+    vkCmdPushConstants(command, c.pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT,
+                       0, sizeof(push), &push);
     vkCmdDispatch(command, 1, 1, 1);
     if (vkEndCommandBuffer(command) != VK_SUCCESS)
         return 1;
@@ -690,7 +742,7 @@ int main(int argc, char** argv) {
         for (unsigned x = 0; x < 8; ++x) {
             const uint32_t actual = results[y * 8 + x];
             const uint32_t expected = (x + y <= 7) ? 1u : 0u;
-            if (actual != expected) {
+            if (actual > 1 || (!result && actual != expected)) {
                 std::printf("FAIL: GPU shadow mask (%u,%u) expected=%u actual=%u\n",
                             x, y, expected, actual);
                 return 1;
@@ -698,9 +750,58 @@ int main(int argc, char** argv) {
             hits += actual;
         }
     }
-    std::printf("PASS: GPU 8x8 ray-query shadow mask; occluded=%u visible=%u\n",
+    std::printf("PASS: GPU 8x8 ray-query probe; occluded=%u visible=%u\n",
                 hits, result_count - hits);
-    if (hits != 36) return 1;
-    std::puts("Viewer OpenGL unchanged; shadow mask not yet composited into world.");
+    if (result) {
+        result->occluded = hits;
+        result->unoccluded = result_count - hits;
+        result->ray_count = result_count;
+        result->triangle_count = wanted_triangles;
+        result->success = 1;
+    } else if (hits != 36) {
+        std::puts("FAIL: deterministic synthetic scene mask mismatch");
+        return 1;
+    }
+    std::puts("Viewer OpenGL unchanged; GPU results NOT composited into world.");
     return 0;
 }
+
+#ifdef OGL_GPU_PROBE_LIBRARY
+extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const float* sun_direction_xyz,
+    const char* shader_path, ogl_gpu_probe_result* result)
+{
+    if (!result || result->struct_size != sizeof(ogl_gpu_probe_result) ||
+        result->version != OGL_GPU_PROBE_VERSION)
+        return 1;
+    ogl_gpu_probe_result fresh{};
+    fresh.struct_size = sizeof(fresh);
+    fresh.version = OGL_GPU_PROBE_VERSION;
+    *result = fresh;
+    return execute_gpu_scene(shader_path, triangles, count, sun_direction_xyz, result);
+}
+#else
+int main(int argc, char** argv) {
+    if (argc != 2 && !(argc == 5 && std::strcmp(argv[2], "--module") == 0)) {
+        std::puts("FAIL: use <shader.spv> [--module <ogl_rtx.so/dll> <triangle_count>]");
+        return 1;
+    }
+    uint32_t count = 1;
+    if (argc == 5) {
+        char* end = nullptr;
+        const unsigned long n = std::strtoul(argv[4], &end, 10);
+        if (!end || *end || n < 1 || n > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
+        count = static_cast<uint32_t>(n);
+    }
+    std::vector<ogl_rtx_triangle> triangles(count);
+    if (argc == 5) {
+        const int load_result = load_scene_from_module(argv[3], count, triangles);
+        if (load_result != 0) return load_result;
+    } else {
+        triangles[0].position[3] = 1.f;
+        triangles[0].position[7] = 1.f;
+    }
+    return execute_gpu_scene(argv[1], triangles.data(), count, nullptr, nullptr);
+}
+#endif

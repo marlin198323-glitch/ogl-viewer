@@ -1,0 +1,38 @@
+#ifndef OGL_GPU_PROBE_API_H
+#define OGL_GPU_PROBE_API_H
+
+#include "ogl_rtx_api.h"
+
+#define OGL_GPU_PROBE_VERSION 1u
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Experimental diagnostics, never a production shadow renderer.
+// The full scene is checked, uploaded, and ray queried synchronously.
+// The caller may invoke it only when explicitly opted in for testing.
+// A real renderer must be persistent and asynchronous.
+typedef struct ogl_gpu_probe_result {
+    uint32_t struct_size;
+    uint32_t version;
+    uint32_t success;
+    uint32_t triangle_count;
+    uint32_t ray_count;
+    uint32_t occluded;
+    uint32_t unoccluded;
+} ogl_gpu_probe_result;
+
+// Return 0 for successful Vulkan compute (including an empty mask),
+// 77 for unavailable Vulkan ray-query GPU, 1 for a failure.
+// Requires valid bounded scene, trusted bundled SPIR-V and output struct.
+OGL_MODULE_EXPORT int ogl_gpu_probe_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const float* sun_direction_xyz,
+    const char* shader_path, ogl_gpu_probe_result* result);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

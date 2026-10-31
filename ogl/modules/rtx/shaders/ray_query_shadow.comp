@@ -9,16 +9,27 @@ layout(set = 0, binding = 0) uniform accelerationStructureEXT scene;
 layout(set = 0, binding = 1, std430) buffer Results {
     uint occlusion[64];
 } outputBuffer;
+// The live diagnostic covers the actual OpenSim scene AABB, not a fixed
+// unit square. The deterministic test uses matching fixed push constants.
+// Never claim this 8x8 probe is the final world shadow mask.
+layout(push_constant) uniform SceneRayParams {
+    vec4 origin_max_distance; // xy sample min, z sample plane, w ray length
+    vec4 sample_step;         // xy spacing per pixel
+    vec4 ray_direction;       // normalized direction toward sun
+} params;
 
 void main() {
     const uvec2 pixel = gl_GlobalInvocationID.xy;
     const uint index = pixel.y * 8u + pixel.x;
-    const vec3 origin = vec3((float(pixel.x) + 0.3) / 8.0,
-                             (float(pixel.y) + 0.3) / 8.0, 2.0);
+    const vec3 origin = vec3(
+        params.origin_max_distance.x + (float(pixel.x) + 0.3) * params.sample_step.x,
+        params.origin_max_distance.y + (float(pixel.y) + 0.3) * params.sample_step.y,
+        params.origin_max_distance.z);
     rayQueryEXT query;
     rayQueryInitializeEXT(query, scene,
         gl_RayFlagsOpaqueEXT, 0xffu,
-        origin, 0.001, vec3(0.0, 0.0, -1.0), 5.0);
+        origin, 0.001, params.ray_direction.xyz,
+        params.origin_max_distance.w);
     while (rayQueryProceedEXT(query)) {}
     outputBuffer.occlusion[index] = rayQueryGetIntersectionTypeEXT(
         query, true) == gl_RayQueryCommittedIntersectionTriangleEXT ? 1u : 0u;

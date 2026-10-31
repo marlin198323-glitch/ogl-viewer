@@ -48,6 +48,51 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
         add_test(NAME ogl_vulkan_rt_device COMMAND ogl_vulkan_rt_device_probe)
         set_tests_properties(ogl_vulkan_rt_device PROPERTIES SKIP_RETURN_CODE 77)
 
+        # Strictly opt-in GPU scene probe. Shared library loading is
+        # separated from the always-available OpenGL capability module.
+        add_library(ogl_gpu_probe SHARED rtx/vulkan_blas_smoke.cpp)
+        target_compile_definitions(ogl_gpu_probe PRIVATE OGL_GPU_PROBE_LIBRARY=1)
+        target_compile_features(ogl_gpu_probe PRIVATE cxx_std_17)
+        target_include_directories(ogl_gpu_probe PRIVATE
+            include "${OGL_VULKAN_HEADER_DIR}")
+        target_link_libraries(ogl_gpu_probe PRIVATE
+            "${OGL_VULKAN_RUNTIME}" ${CMAKE_DL_LIBS})
+        set_target_properties(ogl_gpu_probe PROPERTIES
+            PREFIX "" OUTPUT_NAME "ogl_gpu_probe")
+
+        # Development-only runtime layout. Never touch a user's settings.
+        if(UNIX)
+            add_custom_command(TARGET ogl_gpu_probe POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${CMAKE_CURRENT_BINARY_DIR}/lib"
+                    "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:ogl_gpu_probe>"
+                    "${CMAKE_CURRENT_BINARY_DIR}/lib/ogl_gpu_probe.so"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                    "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
+                VERBATIM)
+            add_executable(ogl_live_gpu_probe_test
+                rtx/ogl_live_gpu_probe_test.cpp)
+            target_include_directories(ogl_live_gpu_probe_test PRIVATE include)
+            target_compile_features(ogl_live_gpu_probe_test PRIVATE cxx_std_17)
+            target_link_libraries(ogl_live_gpu_probe_test PRIVATE ${CMAKE_DL_LIBS})
+            add_test(NAME ogl_live_opt_in_gpu_probe
+                COMMAND ${CMAKE_COMMAND} -E env OGL_RTX_SCENE_PROBE=1
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module>)
+            set_tests_properties(ogl_live_opt_in_gpu_probe PROPERTIES TIMEOUT 30)
+            file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
+            add_test(NAME ogl_live_gpu_probe_missing_library
+                COMMAND ${CMAKE_COMMAND} -E env OGL_RTX_SCENE_PROBE=1
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module> --no-gpu-library)
+            set_tests_properties(ogl_live_gpu_probe_missing_library
+                PROPERTIES TIMEOUT 30
+                WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
+        endif()
+
         # Real Vulkan GPU BLAS+TLAS build, with one triangle and one instance.
         # A GPU/driver is optional in CI, so lack of RT is an explicit SKIP.
         add_executable(ogl_vulkan_blas_smoke rtx/vulkan_blas_smoke.cpp)
