@@ -28,6 +28,22 @@ class PortablePluginFoundationTests(unittest.TestCase):
                 info.filename=name
                 info.compress_type=zipfile.ZIP_DEFLATED
                 z.writestr(info,value)
+        # Python/Windows also normalizes ZipInfo.filename at ZIP write
+        # time. To test the actual security boundary, patch the raw ZIP
+        # filenames in the local AND central directory records. A slash
+        # and backslash are both one ASCII byte, so lengths stay valid.
+        bad_names=[name for name,_ in entries if "\\" in name]
+        if bad_names:
+            blob=p.read_bytes()
+            for dangerous in bad_names:
+                normalized=dangerous.replace("\\","/").encode("ascii")
+                raw_name=dangerous.encode("ascii")
+                assert len(normalized)==len(raw_name)
+                if blob.count(raw_name)>=2:
+                    continue  # POSIX already writes raw backslashes.
+                assert blob.count(normalized)>=2, (dangerous,blob.count(normalized))
+                blob=blob.replace(normalized,raw_name)
+            p.write_bytes(blob)
         with zipfile.ZipFile(p) as z:
             assert z.namelist()==[name for name,_ in entries], (z.namelist(),entries)
         return p
