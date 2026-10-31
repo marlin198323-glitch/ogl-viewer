@@ -50,6 +50,18 @@ typedef struct ogl_rtx_frame_state {
 OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state *frame);
 OGL_MODULE_EXPORT uint64_t ogl_rtx_received_frames(void);
 
+/* World geometry exchange: bounded batch of real triangulated OpenSim
+ * volume faces in agent coordinates. No GPU ray tracing is implied.
+ * Caller owns the memory; callee copies it synchronously.
+ */
+#define OGL_RTX_MAX_SCENE_TRIANGLES 1024u
+typedef struct ogl_rtx_triangle {
+    float position[9]; /* three xyz vertices, in agent-space meters */
+} ogl_rtx_triangle;
+OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(const ogl_rtx_triangle *triangles,
+                                               uint32_t count);
+OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void);
+
 /* Read-only status; valid until module is unloaded. Never store credentials. */
 OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status(void);
 

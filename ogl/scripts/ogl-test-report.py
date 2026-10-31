@@ -48,6 +48,11 @@ def report():
             r"OGLRTX[^\n]*GPU [^\n]*hardware_ready=(\d+) rendering_active=(\d+)",
             text
         )
+        scene_batches = re.findall(r"OGL RTX captured real OpenSim triangles=(\d+)", text)
+        if scene_batches:
+            print("RTX world geometry sample:", scene_batches[-1], "triangles received")
+        else:
+            print("RTX world geometry sample: not observed (requires in-world session)")
         if rtx_lines:
             ready, active = rtx_lines[-1]
             print("RTX Vulkan hardware:", "supported" if ready == "1" else "not supported")

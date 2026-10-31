@@ -77,6 +77,12 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('getSunDirection()', pipeline)
         self.assertIn('camera->getOrigin().mV', pipeline)
         self.assertIn('ogl_rtx_submit_frame', module)
+        self.assertIn('ogl_rtx_submit_geometry', module)
+        self.assertIn('OGL RTX captured real OpenSim triangles=', module)
+        self.assertIn('rendering_active=0', module)
+        self.assertIn('OGL_RTX_MAX_SCENE_TRIANGLES', pipeline)
+        self.assertIn('gObjectList.getObject(', pipeline)
+        self.assertIn('getVolumeFace(', pipeline)
         self.assertIn('rendering_active=0', module)
 
     def test_launcher_keeps_test_profile_isolated(self):

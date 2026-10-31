@@ -2,6 +2,8 @@
 #include <vulkan/vulkan.h>
 #include <dlfcn.h>
 #include <cstdio>
+#include <cmath>
+#include <algorithm>
 #include <set>
 #include <string>
 #include <vector>
@@ -15,6 +17,7 @@ const ogl_module_info info{
 ogl_log_fn logger = nullptr;
 ogl_rtx_frame_state latest_frame{};
 uint64_t received_frames = 0;
+std::vector<ogl_rtx_triangle> captured_geometry;
 void report(std::string message) {
     std::snprintf(status.message, sizeof(status.message), "%s", message.c_str());
 }
@@ -128,6 +131,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     logger = host->log_message;
     latest_frame = {};
     received_frames = 0;
+    captured_geometry.clear();
     detect();
     std::string gpu = status.gpu_name[0] ? status.gpu_name : "none";
     logger(1, (std::string("OGL RTX capability: gpu=") + gpu +
@@ -155,4 +159,27 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
 }
 extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_received_frames(void) {
     return received_frames;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
+    const ogl_rtx_triangle *triangles, uint32_t count)
+{
+    if (!status.hardware_ready || count > OGL_RTX_MAX_SCENE_TRIANGLES ||
+        (count && !triangles)) return 0;
+    if (!count) {
+        captured_geometry.clear();
+        return 1; // Clear stale objects after teleport/region change.
+    }
+    for (uint32_t i = 0; i < count; ++i)
+        for (float coordinate : triangles[i].position)
+            if (!std::isfinite(coordinate)) return 0;
+    const bool first_batch = captured_geometry.empty();
+    captured_geometry.assign(triangles, triangles + count);
+    if (first_batch && logger)
+        logger(1, (std::string("OGL RTX captured real OpenSim triangles=") +
+                   std::to_string(count) +
+                   "; Vulkan BLAS/TLAS and ray tracing not enabled yet.").c_str());
+    return 1;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void) {
+    return static_cast<uint32_t>(captured_geometry.size());
 }

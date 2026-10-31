@@ -27,6 +27,17 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
     target_link_libraries(ogl_rtx_module PRIVATE ${CMAKE_DL_LIBS})
     set_target_properties(ogl_rtx_module PROPERTIES PREFIX "" OUTPUT_NAME "ogl_rtx")
 
+    # Vulkan RT logical-device test; skips gracefully on non-RTX PCs.
+    find_library(OGL_VULKAN_RUNTIME NAMES vulkan vulkan.so.1 libvulkan.so.1)
+    if(OGL_VULKAN_RUNTIME)
+        add_executable(ogl_vulkan_rt_device_probe rtx/vulkan_device_probe.cpp)
+        target_compile_features(ogl_vulkan_rt_device_probe PRIVATE cxx_std_17)
+        target_include_directories(ogl_vulkan_rt_device_probe PRIVATE "${OGL_VULKAN_HEADER_DIR}")
+        target_link_libraries(ogl_vulkan_rt_device_probe PRIVATE "${OGL_VULKAN_RUNTIME}")
+        add_test(NAME ogl_vulkan_rt_device COMMAND ogl_vulkan_rt_device_probe)
+        set_tests_properties(ogl_vulkan_rt_device PROPERTIES SKIP_RETURN_CODE 77)
+    endif()
+
     # GPU hardware/frame-state ABI test. Does not assert actual rays rendered.
     add_executable(ogl_rtx_frame_bridge_test rtx/frame_bridge_test.cpp)
     target_include_directories(ogl_rtx_frame_bridge_test PRIVATE include)

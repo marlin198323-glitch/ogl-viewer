@@ -13,6 +13,8 @@ bool rtx_hardware_ready = false;
 bool rtx_rendering_enabled = false;
 using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_rtx_submit_frame_fn rtx_submit_frame = nullptr;
+using ogl_rtx_submit_geometry_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
+ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
 
 void host_log(int severity, const char *message) {
@@ -58,6 +60,8 @@ void ogl_init_rtx_module() {
 
     rtx_submit_frame = reinterpret_cast<ogl_rtx_submit_frame_fn>(
         dlsym(rtx_module_handle, "ogl_rtx_submit_frame"));
+    rtx_submit_geometry = reinterpret_cast<ogl_rtx_submit_geometry_fn>(
+        dlsym(rtx_module_handle, "ogl_rtx_submit_geometry"));
 
     const ogl_host_api api{sizeof(ogl_host_api), OGL_MODULE_ABI_VERSION, host_log};
     if (start(&api) != 0) {
@@ -90,6 +94,7 @@ void ogl_shutdown_rtx_module() {
     rtx_hardware_ready = false;
     rtx_rendering_enabled = false;
     rtx_submit_frame = nullptr;
+    rtx_submit_geometry = nullptr;
 #endif
 }
 
@@ -126,5 +131,15 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
         frame.sun_direction[i] = sun_direction[i];
     }
     rtx_submit_frame(&frame);
+#endif
+}
+
+void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
+#if LL_LINUX
+    if (!rtx_submit_geometry || !rtx_hardware_ready ||
+        count > OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangle_xyz)) return;
+    // Geometry data layout is 9 tightly packed floats per triangle.
+    static_assert(sizeof(ogl_rtx_triangle) == 9 * sizeof(float), "RTX ABI padding mismatch");
+    rtx_submit_geometry(reinterpret_cast<const ogl_rtx_triangle*>(triangle_xyz), count);
 #endif
 }

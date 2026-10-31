@@ -21,8 +21,22 @@
 - Native RTX module API test submits synthetic camera/sun frames and checks
   acceptance/validation. **Actual world frame transfer has yet to be
   confirmed after an authenticated OpenSim login**.
-- Geometry transfer, Vulkan BLAS/TLAS, shader ray queries, shadow textures,
-  denoising and OpenGL/Vulkan compositing have **not** been implemented.
+- Real OpenSim world-volume geometry exchange now implemented: sample
+  loaded world-space triangles from nearby static prim/mesh volume faces,
+  bounded to 1,024 triangles and 96 objects every 180 render frames.
+  Rigged attachments/avatars are excluded; the sample resets when empty.
+  The OGL native module validates finite coordinates and holds the last
+  non-empty sample in **CPU memory only**. No on-disk geometry caching.
+- Vulkan logical device test now **passes on RTX 4070 SUPER** with
+  VK_KHR_ray_query, VK_KHR_acceleration_structure and buffer device address
+  enabled. This proves actual logical GPU device creation rather than
+  only enumerating extensions.
+- **Still missing:** GPU transfer of sampled scene triangles, BLAS/TLAS
+  building, ray-query shader dispatch, shadow mask, denoising, and
+  OpenGL/Vulkan compositing. There are **no raytraced image pixels yet**.
+- The new in-world triangle capture requires a fresh viewer login to
+  confirm it reports a nonzero triangle count in OGL.log; offline tests
+  and C++ compilation do not replace this live acceptance.
 - No OpenSim server configuration change is required for viewer-local RTX;
   the viewer reuses geometry/material/lighting already supplied by OpenSim.
   Advanced effects still depend on asset and material fidelity.
@@ -34,10 +48,10 @@
 2. Camera/sun/viewport data bridge v1: IMPLEMENTED and native-tested;
    actual in-world delivery still pending login acceptance. Vulkan
    device/queue, synchronization and surface transfer: NOT STARTED.
-3. Connect Firestorm's resident world geometry: terrain, prims, mesh,
-   skinned/rigged avatar meshes, attachments and dynamic objects.
-   Maintain BLAS/TLAS acceleration structures and changes per frame.
-   NOT STARTED.
+3. Transfer bounded static, non-rigged OpenSim volume triangles to CPU
+   module: IMPLEMENTED, native-tested; live in-world triangle count pending.
+   Full terrain, animated/rigged avatars, attachments and GPU BLAS/TLAS:
+   NOT STARTED. Next: persistent Vulkan device and GPU vertex buffers.
 4. Render **one** measurable effect first: ray-traced sun/moon contact
    shadows. Implement denoising, temporal accumulation, fallback,
    performance budget and memory limits. NOT STARTED.

@@ -62,5 +62,18 @@ manuell zu prüfen. Das neue Login-Layout ist eine Entwicklungsfassung.
 6. Compare textures, mesh, avatar wearables, sky/sun, animations,
    camera, movement, cache reuse and teleport with upstream Firestorm.
 
+## RTX Geometrie-Livetest
+
+1. OGL Viewer starten und in Stadt NexVerse einloggen (HTTP-Warnung
+   nach eigener Entscheidung akzeptieren; HTTP ist unverschlüsselt).
+2. Mindestens einige Sekunden in einer Region mit Bauten bleiben, damit
+   der gedrosselte Geometrie-Snapshot erfolgen kann.
+3. Danach `python3 ogl/scripts/ogl-test-report.py` ausführen. Bei Erfolg
+   wird `RTX world geometry sample: N triangles received` ausgegeben.
+   Wenn stattdessen `not observed` erscheint, Logdaten prüfen.
+4. **Noch kein sichtbares Raytracing:** Eine positive Dreiecksanzahl
+   bestätigt nur den CPU-Szenenexport. Weiter erforderlich: GPU BLAS/TLAS,
+   Ray-Query-Shader und Einblendung in die OpenGL-Szene.
+
 This remains a pre-release OGL development viewer. The standalone
 module ABI prototype is not yet installed into the viewer process.

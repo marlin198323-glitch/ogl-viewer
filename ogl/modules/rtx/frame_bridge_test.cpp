@@ -1,6 +1,8 @@
 #include "ogl/ogl_rtx_api.h"
 #include <cassert>
 #include <cstdio>
+#include <limits>
+#include <vector>
 #include <dlfcn.h>
 
 void log_cb(int, const char*) {}
@@ -19,7 +21,12 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_submit_frame"));
     const auto count = reinterpret_cast<uint64_t(*)()>(
         dlsym(library, "ogl_rtx_received_frames"));
-    assert(start && stop && status && submit && count);
+    const auto submit_geometry = reinterpret_cast<int(*)(const ogl_rtx_triangle*, uint32_t)>(
+        dlsym(library, "ogl_rtx_submit_geometry"));
+    const auto triangle_count = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library, "ogl_rtx_received_triangles"));
+    assert(start && stop && status && submit && count &&
+           submit_geometry && triangle_count);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, log_cb};
     assert(start(&host) == 0);
     assert(count() == 0);
@@ -44,6 +51,28 @@ int main(int argc, char** argv) {
     } else {
         assert(submit(&valid) == 0);
         assert(count() == 0);
+    }
+    assert(triangle_count() == 0);
+    ogl_rtx_triangle valid_triangle{};
+    valid_triangle.position[3] = 1.0f;
+    valid_triangle.position[7] = 1.0f;
+    assert(submit_geometry(nullptr, 1) == 0);
+    assert(submit_geometry(&valid_triangle, 0) == 1);
+    std::vector<ogl_rtx_triangle> oversized(OGL_RTX_MAX_SCENE_TRIANGLES + 1);
+    assert(submit_geometry(oversized.data(), oversized.size()) == 0);
+    ogl_rtx_triangle nan_triangle = valid_triangle;
+    nan_triangle.position[0] = std::numeric_limits<float>::quiet_NaN();
+    assert(submit_geometry(&nan_triangle, 1) == 0);
+    if (status()->hardware_ready) {
+        assert(submit_geometry(&valid_triangle, 1) == 1);
+        assert(triangle_count() == 1);
+        assert(submit_geometry(&nan_triangle, 1) == 0);
+        assert(triangle_count() == 1); // invalid updates cannot destroy last valid geometry
+        assert(submit_geometry(nullptr, 0) == 1);
+        assert(triangle_count() == 0); // teleport/region change invalidates stale geometry
+    } else {
+        assert(submit_geometry(&valid_triangle, 1) == 0);
+        assert(triangle_count() == 0);
     }
     assert(status()->rendering_active == 0);
     stop();

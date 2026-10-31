@@ -44,6 +44,24 @@ Stand: 31.10.2026 | Branch `ogl-develop` | Firestorm 7.2.5 / OpenSim
 - 16/16 Python/UI-Vertragstests, 5/5 native Modul- und API-Tests bestanden;
   OGL C++-Build und lokale Ressourcenbereitstellung ebenfalls erfolgreich.
 
+## 31.10.2026 – RTX-Geometry-Brücke und echte Vulkan-Geräteinitialisierung
+
+- Nutzer-Screenshot und OGL.log bestätigen erfolgreiches Betreten von Stadt
+  NexVerse (STATE_STARTED), sichtbare Gebäude, Avatar, Himmel und Texturen.
+  Die bisherigen sichtbaren Schatten sind **OpenGL, nicht RTX**.
+- OGL entnimmt nun statische OpenSim Volume-Face-Dreiecke aus der geladenen
+  Szene und reicht höchstens 1.024 Dreiecke alle 180 Frames per versioniertem
+  RTX-Modul-ABI weiter. Rigged-Avatare/Attachments sind noch ausgeschlossen.
+  Bei leeren oder wechselnden Szenen wird die alte Geometrie verworfen.
+- Der Vulkan-Ray-Query-Gerätetest besteht auf der RTX 4070 SUPER:
+  VkDevice erstellt, benötigte RT-Features angefordert, sauber freigegeben.
+- Die Viewer-CPU-Geometriebrücke und native Modulvalidierung sind gebaut;
+  die tatsächliche Dreiecksanzahl aus einem frischen In-World-Lauf steht
+  noch aus. Diagnose: `python3 ogl/scripts/ogl-test-report.py`.
+- Keine GPU-BLAS/TLAS, Ray-Query-Ausführung, RT-Schatten oder Reflexionen.
+  `rendering_active=0` bleibt korrekt. Es sind keine Serveränderungen nötig.
+- 16 Python-Vertragstests, 6 native/Vulkan-/Fallback-Tests bestanden.
+
 ## Einschränkungen
 
 - HTTP **verschlüsselt den Logintransport nicht**. Anmeldedaten oder

@@ -27,7 +27,9 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "pipeline.h"
-#include "oglrtxhost.h" // OGL: optional camera/sun data bridge to RTX module
+#include "oglrtxhost.h" // OGL: optional Vulkan RTX scene bridge
+#include "../../ogl/modules/include/ogl/ogl_rtx_api.h" // bounded geometry format
+#include <vector>
 
 // library includes
 #include "llimagepng.h"
@@ -9438,6 +9440,84 @@ void LLPipeline::renderDeferredLighting()
             const LLVector3 sun = LLEnvironment::instance().getSunDirection();
             ogl_rtx_submit_camera_sun(viewport.getWidth(), viewport.getHeight(),
                 camera->getOrigin().mV, camera->getAtAxis().mV, sun.mV);
+
+            // Capture a strictly limited subset of actual local volume/mesh
+            // triangles from the loaded OpenSim scene every 180 frames.
+            // This is NOT raytraced image output: the Vulkan module only
+            // receives and validates world-space triangle data for now.
+            // Keep expensive volume traversal off the every-frame path.
+            static unsigned ogl_geometry_frame_counter = 0;
+            if (++ogl_geometry_frame_counter >= 180)
+            {
+                ogl_geometry_frame_counter = 0;
+                std::vector<ogl_rtx_triangle> triangles;
+                triangles.reserve(OGL_RTX_MAX_SCENE_TRIANGLES);
+                unsigned nearby_objects = 0;
+                const LLVector3 eye = camera->getOrigin();
+                const S32 total_objects = gObjectList.getNumObjects();
+                const S32 max_objects = llmin(total_objects, 4096);
+                static S32 scan_cursor = 0;
+                const S32 start = total_objects ? scan_cursor % total_objects : 0;
+                for (S32 i = 0; i < max_objects && nearby_objects < 96 &&
+                        triangles.size() < OGL_RTX_MAX_SCENE_TRIANGLES; ++i)
+                {
+                    LLViewerObject* object =
+                        gObjectList.getObject((start + i) % total_objects);
+                    if (!object || object->isDead() || object->isAttachment() ||
+                        object->isRiggedMesh() || object->getPCode() != LL_PCODE_VOLUME)
+                        continue;
+                    LLVOVolume* volume_object = static_cast<LLVOVolume*>(object);
+                    LLVolume* volume = volume_object->getVolume();
+                    if (!volume || volume->getNumVolumeFaces() <= 0)
+                        continue;
+                    const LLVector3 position = volume_object->getRenderPosition();
+                    if ((position - eye).lengthSquared() > 90.f * 90.f)
+                        continue;
+                    const LLVector3 scale = volume_object->getScale();
+                    const LLQuaternion rotation = volume_object->getRenderRotation();
+                    ++nearby_objects;
+                    const S32 face_count = llmin(volume->getNumVolumeFaces(), 16);
+                    for (S32 f = 0; f < face_count &&
+                            triangles.size() < OGL_RTX_MAX_SCENE_TRIANGLES; ++f)
+                    {
+                        const LLVolumeFace& face = volume->getVolumeFace(f);
+                        if (!face.mPositions || !face.mIndices ||
+                            face.mNumIndices <= 0 || face.mNumVertices <= 0)
+                            continue;
+                        const S32 face_triangles = llmin(face.mNumIndices / 3, 16);
+                        for (S32 t = 0; t < face_triangles &&
+                                triangles.size() < OGL_RTX_MAX_SCENE_TRIANGLES; ++t)
+                        {
+                            ogl_rtx_triangle triangle{};
+                            bool valid = true;
+                            for (S32 v = 0; v < 3; ++v)
+                            {
+                                const U16 index = face.mIndices[t * 3 + v];
+                                if (index >= face.mNumVertices)
+                                {
+                                    valid = false;
+                                    break;
+                                }
+                                LLVector3 vertex(face.mPositions[index].getF32ptr());
+                                vertex = vertex.scaledVec(scale) * rotation + position;
+                                for (S32 axis = 0; axis < 3; ++axis)
+                                    triangle.position[v * 3 + axis] = vertex.mV[axis];
+                            }
+                            if (valid) triangles.emplace_back(triangle);
+                        }
+                    }
+                }
+                // Rotate traversal over large scenes; never lock on only
+                // the first 4,096 objects when region objects exceed budget.
+                if (total_objects > 0)
+                    scan_cursor = (start + max_objects) % total_objects;
+                if (!triangles.empty())
+                    ogl_rtx_submit_world_triangles(
+                        triangles.front().position,
+                        static_cast<unsigned>(triangles.size()));
+                else
+                    ogl_rtx_submit_world_triangles(nullptr, 0);
+            }
         }
 
         if (gPipeline.hasRenderType(LLPipeline::RENDER_TYPE_HUD))
