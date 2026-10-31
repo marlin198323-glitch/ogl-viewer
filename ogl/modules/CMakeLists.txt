@@ -19,6 +19,81 @@ if(CMAKE_DL_LIBS)
     target_link_libraries(ogl_module_probe PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
+# Portable CPU dispatch foundation. An optimized kernel must be selected at
+# runtime, never inferred from "AMD"/"Intel" or from the developer's CPU.
+add_executable(ogl_cpu_probe tools/cpu_probe.cpp)
+target_include_directories(ogl_cpu_probe PRIVATE include)
+target_compile_features(ogl_cpu_probe PRIVATE cxx_std_17)
+add_executable(ogl_cpu_features_test ../tests/test_cpu_features.cpp)
+target_include_directories(ogl_cpu_features_test PRIVATE include)
+target_compile_features(ogl_cpu_features_test PRIVATE cxx_std_17)
+# These foundation binaries MUST remain runnable on baseline CPUs. Never
+# silently compile them with -march=native or global AVX2 optimization.
+if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang") AND
+   CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86)$")
+    target_compile_options(ogl_cpu_probe PRIVATE -march=x86-64)
+    target_compile_options(ogl_cpu_features_test PRIVATE -march=x86-64)
+endif()
+add_test(NAME ogl_cpu_dispatch_safety COMMAND ogl_cpu_features_test)
+add_test(NAME ogl_cpu_capability_report COMMAND ogl_cpu_probe)
+
+# Portable CPU buffer primitive for future cache / image / mesh adapters.
+# Keep dispatch code baseline. AVX2 is compiled in a SEPARATE translation
+# unit, selected only after checking OSXSAVE/XGETBV at runtime.
+add_library(ogl_cpu_buffer STATIC cpu/buffer_dispatch.cpp)
+target_include_directories(ogl_cpu_buffer PUBLIC include)
+target_compile_features(ogl_cpu_buffer PRIVATE cxx_std_17)
+if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang") AND
+   CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86)$")
+    target_compile_options(ogl_cpu_buffer PRIVATE -march=x86-64)
+endif()
+# Apple's universal binaries may contain x86_64 and arm64 in the SAME
+# compilation: do not compile a single-arch AVX2/NEON source into both slices.
+# Universal build uses portable baseline until per-slice libraries are staged.
+set(OGL_CPU_SINGLE_ARCH TRUE)
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+    list(LENGTH CMAKE_OSX_ARCHITECTURES OGL_MAC_ARCH_COUNT)
+    if(OGL_MAC_ARCH_COUNT GREATER 1)
+        set(OGL_CPU_SINGLE_ARCH FALSE)
+    endif()
+endif()
+if(OGL_CPU_SINGLE_ARCH AND
+   CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86)$")
+    include(CheckCXXCompilerFlag)
+    if(MSVC)
+        check_cxx_compiler_flag("/arch:AVX2" OGL_HAVE_AVX2_FLAG)
+        if(OGL_HAVE_AVX2_FLAG)
+            set_source_files_properties(cpu/buffer_avx2.cpp
+                PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+        endif()
+    else()
+        check_cxx_compiler_flag("-mavx2" OGL_HAVE_AVX2_FLAG)
+        if(OGL_HAVE_AVX2_FLAG)
+            set_source_files_properties(cpu/buffer_avx2.cpp
+                PROPERTIES COMPILE_OPTIONS "-mavx2")
+        endif()
+    endif()
+    if(OGL_HAVE_AVX2_FLAG)
+        target_sources(ogl_cpu_buffer PRIVATE cpu/buffer_avx2.cpp)
+        target_compile_definitions(ogl_cpu_buffer PRIVATE OGL_WITH_AVX2=1)
+    endif()
+elseif(OGL_CPU_SINGLE_ARCH AND
+       CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+    # Clang/GCC and MSVC ARM64 toolchains can expose different NEON
+    # header sets. Missing arm_neon.h must yield a working scalar kernel,
+    # not a failed Windows ARM64/Apple Silicon viewer build.
+    include(CheckIncludeFileCXX)
+    check_include_file_cxx("arm_neon.h" OGL_HAVE_ARM_NEON_HEADER)
+    if(OGL_HAVE_ARM_NEON_HEADER)
+        target_sources(ogl_cpu_buffer PRIVATE cpu/buffer_neon.cpp)
+        target_compile_definitions(ogl_cpu_buffer PRIVATE OGL_WITH_NEON=1)
+    endif()
+endif()
+add_executable(ogl_cpu_buffer_test ../tests/test_cpu_buffer.cpp)
+target_link_libraries(ogl_cpu_buffer_test PRIVATE ogl_cpu_buffer)
+target_compile_features(ogl_cpu_buffer_test PRIVATE cxx_std_17)
+add_test(NAME ogl_cpu_buffer_dispatch_correctness COMMAND ogl_cpu_buffer_test)
+
 # Keep the Vulkan RT SDK optional: unsupported systems retain OpenGL.
 set(OGL_VULKAN_HEADER_DIR "" CACHE PATH "Optional Vulkan SDK include directory")
 if(NOT OGL_VULKAN_HEADER_DIR OR

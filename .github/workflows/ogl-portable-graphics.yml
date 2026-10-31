@@ -42,8 +42,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # x64 Linux/Windows and Intel/Apple Silicon macOS.
-        os: [ubuntu-24.04, windows-2022, macos-15, macos-15-intel]
+        # x86-64 AMD/Intel, ARM64 Linux/Windows, Intel and Apple Silicon macOS.
+        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2022, windows-11-arm, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

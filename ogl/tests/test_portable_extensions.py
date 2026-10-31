@@ -107,9 +107,27 @@ class PortablePluginFoundationTests(unittest.TestCase):
         self.assertIn("ogl_module_handshake",cmake)
         self.assertNotIn('if(UNIX)\n    add_test(NAME ogl_module_handshake',cmake)
 
+    def test_cpu_dispatch_requires_instruction_and_os_support(self):
+        header=(ROOT/"ogl/modules/include/ogl/ogl_cpu_features.h").read_text()
+        dispatch=(ROOT/"ogl/modules/cpu/buffer_dispatch.cpp").read_text()
+        cmake=(ROOT/"ogl/modules/CMakeLists.txt").read_text()
+        self.assertIn("CP_UTF8", (ROOT/"ogl/modules/tools/module_probe.cpp").read_text())
+        self.assertIn("XGETBV",header)
+        self.assertIn("osxsave",header)
+        self.assertIn("features.avx2",header)
+        self.assertIn("features.neon=true",header)
+        self.assertIn("CpuPath::scalar",header)
+        self.assertIn("OGL_WITH_AVX2",dispatch)
+        self.assertIn("OGL_WITH_NEON",dispatch)
+        self.assertIn("OGL_CPU_SINGLE_ARCH",cmake)
+        self.assertIn("OGL_HAVE_ARM_NEON_HEADER",cmake)
+        self.assertIn("ogl_cpu_buffer_dispatch_correctness",cmake)
+
     def test_mac_ci_arm64_intel_windows_linux(self):
         workflow=(ROOT/".github/workflows/ogl-portable-graphics.yml").read_text()
-        for runner in ("ubuntu-24.04","windows-2022","macos-15","macos-15-intel"):
+        for runner in ("ubuntu-24.04","ubuntu-24.04-arm",
+                       "windows-2022","windows-11-arm",
+                       "macos-15","macos-15-intel"):
             self.assertIn(runner,workflow)
         self.assertIn("ctest --test-dir build/ogl-graphics",workflow)
         self.assertIn("Configure macOS (Intel and Apple Silicon)",workflow)

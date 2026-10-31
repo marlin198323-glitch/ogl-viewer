@@ -48,6 +48,18 @@ checker validates metadata in archives without installing them.
 switching in the viewer yet.** Full Windows/macOS builds and signing
 must be verified before claiming cross-platform release readiness.
 
+## CPU/ARM64 and installable themes foundation
+
+The second plugin-system phase implements **runtime CPU capabilities**
+and a tested, portable changed-buffer primitive with scalar, SSE2,
+separately compiled AVX2 and ARM64 NEON backends. Optional AVX2
+requires both CPU features and operating-system XMM/YMM state support.
+Six OS/architecture CI module test targets are configured. A portable
+theme command-line tool can validate, install, list, select, reset and
+remove declarative packages in a per-user directory, without touching
+viewer files. **The selection is not yet used by the Firestorm UI.**
+Details: [CPU and extension phase 2](CPU_AND_EXTENSION_SYSTEM_PHASE2.md).
+
 ## Dedicated Stadt NexVerse grid
 
 This OGL fork is pinned to Stadt NexVerse. The grid profile has one source
