@@ -57,6 +57,10 @@ public:
         std::array<float,64> capture_depth{};
         std::array<uint8_t,64> depth_match_mask{};
         bool has_depth_grid = false;
+        bool world_mask_eligible = false; // render-source policy, NOT GPU health
+        uint32_t world_mismatch_pixels = 0;
+        int gpu_return_code = 1; // raw Vulkan run status, for diagnostics
+        uint32_t gpu_reported_success = 0;
         uint32_t gpu_device_creations = 0;
         uint32_t blas_builds = 0;
         uint32_t blas_refits = 0;

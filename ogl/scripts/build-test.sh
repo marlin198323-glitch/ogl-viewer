@@ -12,6 +12,9 @@ if [ ! -x "$VENV/bin/autobuild" ]; then
 fi
 
 bash ogl/scripts/doctor.sh
+# A GLSL-only edit must never ship an older precompiled compute shader.
+# The stale depth-guided SPIR-V masked GPU depth mismatches in the live world.
+python3 ogl/scripts/ogl-check-shaders.py
 export PATH="$VENV/bin:$PATH"
 export AUTOBUILD_VARIABLES_FILE="$BASE/fs-build-variables/variables"
 

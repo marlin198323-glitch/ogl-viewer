@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "description": "Trusted Vulkan compute shader source and staged SPIR-V digests; update together after recompilation/validation",
+  "pairs": [
+    {
+      "source": "ogl/modules/rtx/shaders/ray_query_shadow.comp",
+      "source_sha256": "db45567c3bb57c77adadf70dd73a35aa89463c14fe4c87ac4af0002d4760cfcb",
+      "compiled": "indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv",
+      "compiled_sha256": "171861a6c3b1ef59821f3c3e94879a8fb74ce56175a27f194e8e5899188515c8"
+    },
+    {
+      "source": "ogl/modules/rtx/shaders/camera_sun_shadow.comp",
+      "source_sha256": "f04b1ebf8d2ba84f2bebb08151f2415c4a3ba7c2f2658c898700b9f13c097a3b",
+      "compiled": "indra/newview/app_settings/ogl/rtx/camera_sun_shadow.comp.spv",
+      "compiled_sha256": "e8c6afafe9670a2e04de4f2761d105697399b5a00b5ef914d7aad9fc38e327d7"
+    },
+    {
+      "source": "ogl/modules/rtx/shaders/depth_guided_sun.comp",
+      "source_sha256": "f71421c3b3778eccead802cbbbdab6cccb296cde281fc3e99c4d32ab86e40959",
+      "compiled": "indra/newview/app_settings/ogl/rtx/depth_guided_sun.comp.spv",
+      "compiled_sha256": "492f8b45bd0858e58877d326f5da471294f277d9fdafc9392261ba27e73dfbc4"
+    }
+  ]
+}

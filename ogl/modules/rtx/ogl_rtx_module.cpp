@@ -272,6 +272,7 @@ void poll_probe_on_viewer_thread() {
         world_shadow_valid = false;
         last_world_shadow = {};
         if (probe_depth_enabled && outcome.has_depth_grid &&
+            outcome.world_mask_eligible &&
             outcome.geometry_revision == geometry_revision &&
             ogl::same_rt_frame(outcome.capture_frame,latest_frame)) {
             ogl_rtx_world_shadow_sample ready{};
@@ -300,6 +301,11 @@ void poll_probe_on_viewer_thread() {
                     " GPU pixels still NOT composited");
             }
         }
+        if (logger && probe_depth_enabled && !outcome.world_mask_eligible)
+            logger(1,(std::string("OGL RTX world-shadow mask rejected: ") +
+                std::to_string(outcome.world_mismatch_pixels) +
+                " pixel(s) disagree with depth match; diagnostic GPU "
+                "result preserved, no world-shadow source").c_str());
         if (logger)
             logger(1, (std::string("OGL RTX GPU probe: triangles=") +
                 std::to_string(outcome.triangle_count) + " rays=" +
@@ -322,7 +328,15 @@ void poll_probe_on_viewer_thread() {
                 " worker_wall_ms=" + std::to_string(outcome.wall_ms) +
                 "; ASYNC DIAGNOSTIC ONLY no shadow compositing").c_str());
     } else if (logger) {
-        logger(1, "OGL RTX async GPU probe failed; disabled until next start; OpenGL active");
+        logger(1,(std::string("OGL RTX async GPU probe failed; ")
+            + "gpu_rc=" + std::to_string(outcome.gpu_return_code)
+            + " gpu_success=" + std::to_string(outcome.gpu_reported_success)
+            + " outcome_rc=" + std::to_string(outcome.return_code)
+            + " gpu_rays=" + std::to_string(outcome.ray_count)
+            + " gpu_triangles=" + std::to_string(outcome.triangle_count)
+            + " mismatch_pixels=" +
+              std::to_string(outcome.world_mismatch_pixels)
+            + "; disabled until next start; OpenGL active").c_str());
     }
 }
 // One scheduler for new camera frames and new mesh snapshots. Throttle
@@ -485,6 +499,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 }
                 ogl::AsyncGpuQueue::Result result{};
                 result.return_code = (rc == 0 && native.success) ? 0 : 1;
+                result.gpu_return_code=rc;
+                result.gpu_reported_success=native.success;
                 result.triangle_count = native.triangle_count;
                 result.ray_count = native.ray_count;
                 result.occluded = native.occluded;
@@ -501,10 +517,17 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                     std::copy(std::begin(native.depth_match_mask),
                               std::end(native.depth_match_mask),
                               result.depth_match_mask.begin());
+                    result.world_mask_eligible=
+                        ogl::world_shadow_mask_matches_depth(
+                            native.shadow_mask,native.depth_match_mask);
                     for (unsigned i=0;i<64;++i)
                         if (native.shadow_mask[i] &&
                             native.depth_match_mask[i]!=1u)
-                            result.return_code=1; // no unverified shadows
+                            ++result.world_mismatch_pixels;
+                    // World-pixel validation is fail-closed, but independent
+                    // from native Vulkan diagnostic health. The optional
+                    // world source will be rejected without falsely
+                    // declaring the Vulkan worker broken.
                 }
                 if (job.has_depth_grid) {
                     for (unsigned i=0; i<64; ++i) {

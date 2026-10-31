@@ -8,6 +8,21 @@
 // Independent CPU pre-composition guards for a future real GPU->OpenGL
 // shadow pass. No OpenGL/Vulkan; rejects any unbound/mismatched snapshot.
 namespace ogl {
+// A native Vulkan ray query can be a valid *diagnostic* even when its
+// output cannot be trusted as a world-shadow sample. Keep those decisions
+// independent: never disable the GPU worker solely because a new rendering
+// policy rejects some optional world-image pixels.
+inline bool world_shadow_mask_matches_depth(
+    const uint8_t* shadows, const uint8_t* depth_matches,
+    uint32_t count=64u) {
+    if (!shadows || !depth_matches || count!=64u) return false;
+    for (uint32_t i=0;i<count;++i)
+        if (shadows[i]>1u || depth_matches[i]>1u ||
+            (shadows[i] && !depth_matches[i]))
+            return false;
+    return true;
+}
+
 inline bool same_rt_frame(const ogl_rtx_frame_state& capture,
                           const ogl_rtx_frame_state& current) {
     if (capture.struct_size!=sizeof(ogl_rtx_frame_state) ||

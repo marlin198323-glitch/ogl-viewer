@@ -119,6 +119,41 @@ int main(int argc, char** argv) {
     const auto restored=run();
     assert(restored.occluded==shadow.occluded && restored.blas_builds==2);
     assert(restored.cache_hits==1);
+    // OpenSim-sized 8192-triangle scene with a partially visible depth
+    // grid. Run the real Vulkan compute shader, not the module's CPU mock.
+    // This reproduces the scale/background mix of the reported failing
+    // viewer probe and catches cache/BLAS regressions under load.
+    while (scene.size()<OGL_RTX_MAX_SCENE_TRIANGLES) {
+        const float x=800.f+float(scene.size()%128u)*2.f;
+        const float y=800.f+float(scene.size()/128u)*2.f;
+        ogl_rtx_triangle triangle{};
+        triangle.position[0]=x;
+        triangle.position[1]=y;
+        triangle.position[3]=x+1.f;
+        triangle.position[4]=y;
+        triangle.position[6]=x;
+        triangle.position[7]=y+1.f;
+        scene.push_back(triangle);
+    }
+    for (unsigned i=0;i<64;++i)
+        depth[i]=i<44u ? depth_of_plane : 1.f;
+    const auto populated=run();
+    assert(populated.triangle_count==OGL_RTX_MAX_SCENE_TRIANGLES);
+    assert(populated.primary_hits<=44u);
+    assert(populated.primary_depth_matches<=populated.primary_hits);
+    assert(populated.occluded<=populated.primary_depth_matches);
+    unsigned gpu_matched_shadows=0;
+    for (unsigned i=0;i<64;++i) {
+        assert(populated.depth_match_mask[i]<=1u);
+        assert(populated.shadow_mask[i]<=populated.depth_match_mask[i]);
+        gpu_matched_shadows+=populated.shadow_mask[i];
+    }
+    assert(gpu_matched_shadows==populated.occluded);
+    const auto repeated=run();
+    assert(repeated.cache_hits>=1u);
+    assert(repeated.occluded==populated.occluded);
+    std::printf("PASS: 8192 world mesh triangles and 44 surface depth samples "
+                "produce %u verified GPU shadow hits\n",populated.occluded);
     auto bad=depth;
     bad[17]=NAN;
     ogl_gpu_probe_result output{};

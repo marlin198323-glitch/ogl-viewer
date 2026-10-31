@@ -32,6 +32,17 @@ int main() {
     sample.matched_surface_pixels=1;
     sample.occluded_pixels=1;
     assert(ogl::valid_world_shadow_sample(sample,11,frame));
+    assert(ogl::world_shadow_mask_matches_depth(
+        sample.occlusion_mask,sample.valid_mask));
+    assert(!ogl::world_shadow_mask_matches_depth(nullptr,sample.valid_mask));
+    assert(!ogl::world_shadow_mask_matches_depth(
+        sample.occlusion_mask,sample.valid_mask,63));
+    sample.occlusion_mask[9]=1;
+    assert(!ogl::world_shadow_mask_matches_depth(
+        sample.occlusion_mask,sample.valid_mask));
+    sample.occlusion_mask[9]=0;
+    assert(ogl::world_shadow_mask_matches_depth(
+        sample.occlusion_mask,sample.valid_mask));
     assert(ogl::world_shadow_pixel_eligible(sample,3,0.84f));
     assert(!ogl::world_shadow_pixel_eligible(sample,3,0.85f));
     assert(!ogl::world_shadow_pixel_eligible(sample,4,1.f));

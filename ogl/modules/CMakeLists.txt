@@ -124,6 +124,13 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "$<TARGET_FILE:ogl_gpu_probe>"
                     "${CMAKE_CURRENT_BINARY_DIR}/lib/ogl_gpu_probe.so"
+                VERBATIM)
+            # Stale SPIR-V was the root cause of missing depth-match guards.
+            # Source shaders must stage even when the compiled GPU C++ code
+            # has not changed (i.e. on incremental CMake builds).
+            add_custom_target(ogl_rtx_stage_shaders ALL
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx"
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
                     "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/ray_query_shadow.comp.spv"
@@ -134,6 +141,7 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/depth_guided_sun.comp.spv"
                     "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/depth_guided_sun.comp.spv"
                 VERBATIM)
+            add_dependencies(ogl_depth_sun_shadow_test ogl_rtx_stage_shaders)
             add_executable(ogl_live_gpu_probe_test
                 rtx/ogl_live_gpu_probe_test.cpp)
             target_include_directories(ogl_live_gpu_probe_test PRIVATE include)

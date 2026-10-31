@@ -110,6 +110,12 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX Vulkan geometry coverage gap:",source)
         self.assertIn("RTX completed depth-match history",source)
 
+    def test_gpu_failure_reason_logging(self):
+        source=script.read_text()
+        self.assertIn("RTX GPU failure classification:",source)
+        self.assertIn("world-mask mismatches",source)
+        self.assertIn("gpu_rc=",source)
+
     def test_world_shadow_bridge_is_explicitly_not_rendering(self):
         source=script.read_text()
         self.assertIn("RTX world-shadow bridge:",source)

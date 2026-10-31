@@ -432,6 +432,22 @@ def report():
         elif ("OGL RTX GPU scene probe failed;" in text or
               "OGL RTX async GPU probe failed;" in text):
             print("RTX GPU diagnostic: failed; OpenGL fallback active")
+            # Expose numeric classifications only: no scene URLs, object
+            # identities, driver stack traces or account data.
+            failures = re.findall(
+                r"OGL RTX async GPU probe failed; "
+                r"gpu_rc=(-?\d+) gpu_success=(\d+) "
+                r"outcome_rc=(-?\d+) gpu_rays=(\d+) "
+                r"gpu_triangles=(\d+) mismatch_pixels=(\d+)",text)
+            if failures:
+                rc,success,outcome,rays,tris,mismatch=failures[-1]
+                print("RTX GPU failure classification: "
+                      f"driver/probe rc {rc}, native success {success}, "
+                      f"worker rc {outcome}, {rays} rays, "
+                      f"{tris} triangles, {mismatch} world-mask mismatches")
+            else:
+                print("RTX GPU failure classification: older log does not "
+                      "include a reason code; restart the updated viewer")
         elif developer:
             worker, camera, guided = developer[-1]
             print(f"RTX GPU diagnostic: configured, but no completed probe "
