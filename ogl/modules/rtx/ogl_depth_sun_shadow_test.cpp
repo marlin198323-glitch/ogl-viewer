@@ -83,6 +83,9 @@ int main(int argc, char** argv) {
     assert(missing_front_geometry.primary_farther==64);
     assert(missing_front_geometry.primary_closer==0 &&
            missing_front_geometry.primary_depth_matches==0);
+    // The incomplete scene must never claim a verified shadow for GL
+    // geometry absent from Vulkan's primary depth.
+    assert(missing_front_geometry.occluded==0);
     depth.fill(depth_of_plane);
     quad(scene,-0.4f,-0.4f,0.4f,0.4f,0.5f);
     const auto shadow=run();

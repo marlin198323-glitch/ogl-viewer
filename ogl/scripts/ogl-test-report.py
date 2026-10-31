@@ -91,8 +91,11 @@ def report():
         if selected:
             candidates, sampled_objects, mesh_tris, terrain_tris, budget = selected[-1]
             print(f"RTX scene selection: {sampled_objects}/{candidates} "
-                  f"near candidate objects; {mesh_tris} mesh triangles, "
+                  f"eligible candidate objects; {mesh_tris} mesh triangles, "
                   f"{terrain_tris} terrain triangles; budget {budget}")
+            unused = int(budget) - int(mesh_tris) - int(terrain_tris)
+            print(f"RTX geometry capacity: {unused}/{budget} triangle slots unused "
+                  "(partial geometry still possible)")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)

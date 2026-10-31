@@ -35,6 +35,16 @@ int main() {
         std::numeric_limits<float>::quiet_NaN(),1.f,1.f)));
     assert(std::isinf(ogl::scene_priority(10.f,2.f,1.f)));
     assert(std::isinf(ogl::scene_priority(10.f,1.f,-1.f)));
+    // A real 223 m GL surface must be eligible, unlike the old 90 m
+    // radius, but distant objects behind the viewer are excluded.
+    assert(ogl::scene_candidate_in_range(223.f,0.95f,2.f));
+    assert(ogl::scene_candidate_in_range(75.f,-1.f,2.f));
+    assert(!ogl::scene_candidate_in_range(223.f,-0.5f,2.f));
+    assert(!ogl::scene_candidate_in_range(300.f,1.f,2.f));
+    assert(ogl::scene_candidate_in_range(93.f,-0.5f,8.f));
+    assert(!ogl::scene_candidate_in_range(
+        std::numeric_limits<float>::infinity(),1.f,1.f));
+    assert(!ogl::scene_candidate_in_range(10.f,1.f,-1.f));
     // 8192 triangles after reserving a bounded terrain sample can feed
     // many independent foreground objects rather than 16 huge meshes.
     uint32_t used=800u;

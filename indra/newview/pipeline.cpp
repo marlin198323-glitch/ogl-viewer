@@ -9543,14 +9543,14 @@ void LLPipeline::renderDeferredLighting()
                 static S32 scan_cursor = 0;
                 const S32 start = total_objects ? scan_cursor % total_objects : 0;
                 const unsigned nearby_budget =
-                    ogl_triangle_budget > 1024 ? 256u : 96u;
+                    ogl_triangle_budget > 1024 ? 1024u : 96u;
                 const S32 face_triangle_budget =
                     ogl_triangle_budget > 1024 ? 32 : 16;
                 // Candidate discovery is separate from triangle allocation.
                 // Previously a few early mesh objects could consume all
                 // 8192 slots, leaving visible foreground objects absent.
                 std::vector<std::pair<float, LLVOVolume*>> candidates;
-                candidates.reserve(llmin(max_objects, 512));
+                candidates.reserve(llmin(max_objects, 1024));
                 const LLVector3 camera_forward = camera->getAtAxis();
                 for (S32 i = 0; i < max_objects; ++i)
                 {
@@ -9567,13 +9567,17 @@ void LLPipeline::renderDeferredLighting()
                         continue;
                     const LLVector3 delta = volume_object->getRenderPosition()-eye;
                     const float distance_sq = delta.lengthSquared();
-                    if (distance_sq > 90.f*90.f) continue;
+                    // Keep the normal public OpenGL mode's old small scan.
+                    if (ogl_triangle_budget <= 1024 &&
+                        distance_sq > 90.f*90.f) continue;
                     float priority = static_cast<float>(i);
                     if (ogl_triangle_budget > 1024) {
                         const float distance=std::sqrt(distance_sq);
                         const float cosine=distance>1.e-4f ?
                             (delta*camera_forward)/distance : 1.f;
                         const float extent=volume_object->getScale().length();
+                        if (!ogl::scene_candidate_in_range(
+                                distance,cosine,extent)) continue;
                         priority=ogl::scene_priority(distance,cosine,extent);
                     }
                     candidates.emplace_back(priority, volume_object);
@@ -9680,7 +9684,10 @@ void LLPipeline::renderDeferredLighting()
                         << sampled_objects << " mesh_triangles="
                         << (triangles.size()-terrain_triangles)
                         << " terrain_triangles=" << terrain_triangles
-                        << " cap=" << ogl_triangle_budget << LL_ENDL;
+                        << " cap=" << ogl_triangle_budget
+                        << " candidate_limit=" << nearby_budget
+                        << " unused_triangles="
+                        << (ogl_triangle_budget-triangles.size()) << LL_ENDL;
                 if (!triangles.empty())
                     ogl_rtx_submit_world_triangles(
                         triangles.front().position,

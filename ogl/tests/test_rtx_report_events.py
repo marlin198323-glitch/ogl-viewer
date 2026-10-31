@@ -59,6 +59,11 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX depth disagreement:",source)
         self.assertIn("primary_farther=",source)
 
+    def test_scene_capacity_exposed(self):
+        source = script.read_text()
+        self.assertIn("RTX geometry capacity:", source)
+        self.assertIn("eligible candidate objects;", source)
+
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(
             "username=private\n"

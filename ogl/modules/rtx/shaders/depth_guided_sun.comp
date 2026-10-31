@@ -76,6 +76,9 @@ void main() {
             outputBuffer.primaryDepthRelation[index]=3u;
         }
     }
+    // A shadow of an unrepresented GL surface cannot be validated.
+    // Never label a miss or mismatched primary depth as a real shadow.
+    if (outputBuffer.depthMatch[index] == 0u) return;
     const vec3 sunDir=normalize(params.ray_direction.xyz);
     rayQueryEXT shadow;
     rayQueryInitializeEXT(shadow,scene,gl_RayFlagsOpaqueEXT,0xffu,

@@ -22,6 +22,22 @@ inline uint32_t spread_triangle_index(uint32_t triangle_count,
         std::min<uint64_t>(triangle_count-1,numerator/(2*sample_count)));
 }
 
+// Allow a farther cone in front of the camera to reach background geometry
+// visible in OpenSim depth. Still bound near offscreen/sun occluders; the
+// budget-limited RT probe is NOT an exhaustive scene collector.
+inline bool scene_candidate_in_range(float distance_m, float forward_cos,
+                                     float object_extent_m) {
+    if (!std::isfinite(distance_m) || !std::isfinite(forward_cos) ||
+        !std::isfinite(object_extent_m) || distance_m < 0.f ||
+        object_extent_m < 0.f || forward_cos < -1.01f ||
+        forward_cos > 1.01f) return false;
+    const float radius = 0.5f*std::min(object_extent_m, 40.f);
+    if (distance_m <= 90.f+radius) return true;
+    // Wide cone also covers ultrawide viewport edges; camera-space
+    // projection and per-triangle visibility are not asserted here.
+    return forward_cos >= 0.15f && distance_m <= 256.f+radius;
+}
+
 // Lower score = collect first. Favour closer objects in front of camera,
 // while retaining some behind-camera occluders for incoming sunlight.
 // Bounding extent is approximate; never used for a GPU hit or world shading.
