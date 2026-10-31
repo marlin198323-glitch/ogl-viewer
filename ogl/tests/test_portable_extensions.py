@@ -45,7 +45,11 @@ class PortablePluginFoundationTests(unittest.TestCase):
                 blob=blob.replace(normalized,raw_name)
             p.write_bytes(blob)
         with zipfile.ZipFile(p) as z:
-            assert z.namelist()==[name for name,_ in entries], (z.namelist(),entries)
+            # The normalized .filename/namelist is NOT safe on Windows.
+            # .orig_filename preserves the exact ZIP central directory
+            # names that the security validator must inspect.
+            actual=[info.orig_filename for info in z.infolist()]
+            assert actual==[name for name,_ in entries], (actual,entries)
         return p
 
     def test_example_theme_supports_all_three_os(self):

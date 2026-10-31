@@ -77,7 +77,13 @@ def validate_theme(path: Path)->dict:
             total=0
             names=set()
             for info in infos:
-                name=info.filename
+                # Python zipfile silently converts raw backslashes to '/' on
+                # Windows when ZipInfo is constructed while READING a ZIP.
+                # Validate the original ZIP name, not only the normalized
+                # .filename; otherwise a hostile archive can bypass checks.
+                name=info.orig_filename
+                if name!=info.filename:
+                    raise UnsafeTheme("Platform-dependent ZIP path normalization forbidden")
                 # Never interpret Windows backslashes as paths, or allow
                 # ZIP absolute/traversal, drive, encoded or hidden paths.
                 part=PurePosixPath(name)
