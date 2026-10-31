@@ -342,6 +342,9 @@ def report():
         gl_coverage=re.findall(
             r"OGL RTX GL shadow pixel coverage: samples=(\d+) "
             r"source=(\d+) scene=(\d+)",text)
+        direct_overlay=re.findall(
+            r"OGL RTX shadow diagnostic color overlay: source=(\d+) "
+            r"scene=(\d+) shadow_tile_pixels=(\d+)",text)
         if dense_captures:
             w,h,gw,gh=dense_captures[-1]
             print(f"RTX experimental dense GL depth capture: "
@@ -390,6 +393,15 @@ def report():
             print(f"RTX dense scheduler: {successes}/{attempts} completed "
                   f"successfully; {skips} depth captures skipped while busy, "
                   f"{replaced} job replacements")
+        if direct_overlay:
+            seq,scene,shadows=direct_overlay[-1]
+            print(f"RTX diagnostic RED overlay: submitted to actual 3D "
+                  f"color target (GPU sample {seq}, scene {scene}, "
+                  f"{shadows} shadow tile pixels); still needs screenshot "
+                  "to confirm visible display after postprocessing")
+        elif dense_composites:
+            print("RTX diagnostic RED overlay: not observed in this log "
+                  "(start with run-rtx-shadow-visual-test.sh to compare)")
         if dense_composites:
             shadows,matched=dense_composites[-1]
             print(f"RTX experimental in-world sunlight compositor: "

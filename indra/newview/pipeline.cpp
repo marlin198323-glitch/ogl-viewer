@@ -10644,6 +10644,32 @@ void LLPipeline::renderDeferredLighting()
         popRenderTypeMask();
     }
 
+    // Explicit developer visual proof only. Firestorm's sunlight
+    // lightMap has R=shadow, G=SSAO, B/A=spotlight factors. It cannot
+    // display an actual red tint, so paint the validated RTX receivers
+    // directly into the finished 3D color target instead. This occurs
+    // after atmospheric and local-light composition and alpha objects,
+    // before the target is flushed to the final postprocessing path.
+    // No debug overlay and no rendering change for normal viewers.
+    if (!gCubeSnapshot && ogl_rtx_hardware_supported() &&
+        screen_target->getWidth()==mRT->deferredScreen.getWidth() &&
+        screen_target->getHeight()==mRT->deferredScreen.getHeight()) {
+        const char* visual=std::getenv("OGL_RTX_SHADOW_VISUALIZE");
+        if (visual && visual[0]=='1' && visual[1]=='\0') {
+            LLViewerCamera* rt_cam=LLViewerCamera::getInstance();
+            const LLVector3 rt_sun=LLEnvironment::instance().getSunDirection();
+            const LLVector3 rt_right=-rt_cam->getLeftAxis();
+            ogl_rtx_compose_dense_sun_shadow(
+                mRT->deferredScreen.getDepth(),
+                screen_target->getWidth(),screen_target->getHeight(),
+                rt_cam->getOrigin().mV,rt_cam->getAtAxis().mV,
+                rt_right.mV,rt_cam->getUpAxis().mV,
+                rt_cam->getView(),rt_cam->getAspect(),
+                rt_cam->getNear(),rt_cam->getFar(),rt_sun.mV,
+                true /* diagnostic overlay into final 3D color */);
+        }
+    }
+
     screen_target->flush();
 
     if (!gCubeSnapshot)

@@ -35,7 +35,8 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
 bool ogl_rtx_compose_dense_sun_shadow(unsigned current_depth_texture,
     unsigned width,unsigned height,const float* eye,const float* forward,
     const float* right,const float* up,float fov,float aspect,
-    float near_clip,float far_clip,const float* sun);
+    float near_clip,float far_clip,const float* sun,
+    bool diagnostic_overlay=false);
 
 // World renderer input handshake: verifies the Vulkan tile's exact
 // source camera/geometry and returns aggregate validated pixels. It does NOT

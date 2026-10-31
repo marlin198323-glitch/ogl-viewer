@@ -23,6 +23,25 @@ class ShadowVisibilityTests(unittest.TestCase):
         self.assertIn("if (abs(now-reference)>tolerance) discard;",HOST)
         self.assertIn("if (live>=0.999999 || ray.b>=0.999999) discard;",HOST)
 
+    def test_correct_lightmap_channels_and_actual_red_overlay(self):
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        sun=(ROOT/"indra/newview/app_settings/shaders/class2/deferred/sunLightF.glsl").read_text()
+        soften=(ROOT/"indra/newview/app_settings/shaders/class3/deferred/softenLightF.glsl").read_text()
+        self.assertIn("col.r = sampleDirectionalShadow",sun)
+        self.assertIn("col.g = 1.0f",sun)
+        self.assertIn("texture(lightMap, vary_fragcoord.xy).rg",soften)
+        self.assertIn("glGetBooleanv(GL_COLOR_WRITEMASK,old_color_mask)",HOST)
+        self.assertIn("glColorMask(GL_TRUE,",HOST)
+        self.assertIn("diagnostic_overlay ? GL_TRUE : GL_FALSE",HOST)
+        self.assertIn("glColorMask(old_color_mask[0],old_color_mask[1]",HOST)
+        self.assertIn("if (!diagnostic_overlay &&",HOST)
+        self.assertIn("OGL RTX shadow diagnostic color overlay:",HOST)
+        self.assertIn("renderGeomPostDeferred(*LLViewerCamera::getInstance())",pipeline)
+        self.assertIn("true /* diagnostic overlay into final 3D color */",pipeline)
+        self.assertIn("OGL_RTX_SHADOW_VISUALIZE",pipeline)
+        self.assertIn("RTX diagnostic RED overlay:",REPORT)
+        self.assertIn("shadow diagnostic color overlay:",REPORT)
+
     def test_gl_query_counts_fragments_after_discard(self):
         self.assertIn("glBeginQuery(GL_SAMPLES_PASSED",HOST)
         self.assertIn("glEndQuery(GL_SAMPLES_PASSED)",HOST)

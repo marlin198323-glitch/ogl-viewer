@@ -270,9 +270,15 @@ void ogl_rtx_forget_local_object(const std::uint8_t* uuid)
 bool ogl_rtx_compose_dense_sun_shadow(unsigned depth_texture,
     unsigned width,unsigned height,const float* eye,const float* forward,
     const float* right,const float* up,float fov,float aspect,
-    float near_clip,float far_clip,const float* sun)
+    float near_clip,float far_clip,const float* sun,
+    bool diagnostic_overlay)
 {
 #if LL_LINUX || LL_WINDOWS
+    static const bool debug_opt_in=[] {
+        const char* value=std::getenv("OGL_RTX_SHADOW_VISUALIZE");
+        return value && std::strcmp(value,"1")==0;
+    }();
+    if (diagnostic_overlay && !debug_opt_in) return false;
     static const bool opt_in=[]() {
         const char* v=std::getenv("OGL_RTX_WORLD_COMPOSITE");
         const char* d=std::getenv("OGL_RTX_DENSE_PREVIEW");
@@ -390,8 +396,14 @@ void main() {
     // First-gen direct sunlight attenuation, not GI or path tracing.
     // Distinct debug tint demonstrates which valid pixels actually
     // received ray-query shadows, without inventing shadow receivers.
+    // R is sun visibility in Firestorm's lightMap. The atmospheric
+    // deferred soften shader samples lightMap.r for sunlight and
+    // lightMap.g for SSAO. A red color in the LIGHTMAP is NOT a
+    // red screen overlay; in fact writing all channels damages SSAO.
+    // Normal pass: attenuate R only. Debug overlay: run a second,
+    // independently opt-in pass on the final 3D color target.
     outColor=(uDiagnosticTint!=0) ?
-        vec4(1.0,0.0,0.28,0.82*feather) :
+        vec4(1.0,0.0,0.18,0.9*feather) :
         vec4(0.0,0.0,0.0,0.48*feather);
 }
 )GLSL";
@@ -459,6 +471,8 @@ void main() {
     GLboolean old_depth=glIsEnabled(GL_DEPTH_TEST);
     GLboolean old_cull=glIsEnabled(GL_CULL_FACE);
     GLboolean old_scissor=glIsEnabled(GL_SCISSOR_TEST);
+    GLboolean old_color_mask[4]{};
+    glGetBooleanv(GL_COLOR_WRITEMASK,old_color_mask);
     glGetIntegerv(GL_CURRENT_PROGRAM,&old_program);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&old_vao);
     glGetIntegerv(GL_ACTIVE_TEXTURE,&old_active);
@@ -498,12 +512,8 @@ void main() {
     glUniform2i(glGetUniformLocation(program,"uViewport"),width,height);
     glUniform2f(glGetUniformLocation(program,"uNearFar"),
                 near_clip,far_clip);
-    static const bool diagnostic_tint=[] {
-        const char* value=std::getenv("OGL_RTX_SHADOW_VISUALIZE");
-        return value && std::strcmp(value,"1")==0;
-    }();
     glUniform1i(glGetUniformLocation(program,"uDiagnosticTint"),
-                diagnostic_tint ? 1 : 0);
+                diagnostic_overlay ? 1 : 0);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glDisable(GL_SCISSOR_TEST);
@@ -512,6 +522,15 @@ void main() {
                         GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
     glBlendEquationSeparate(GL_FUNC_ADD,GL_FUNC_ADD);
     glViewport(0,0,width,height);
+    // The deferred light map is RGBA but channel R alone carries
+    // directional-sun visibility, G=ambient occlusion, B/A=spotlights.
+    // Writing all channels was corrupting other Firestorm lighting.
+    // A separate debug overlay deliberately writes RGBA on the final
+    // scene color target rather than trying to paint a red lightmap.
+    glColorMask(GL_TRUE,
+                diagnostic_overlay ? GL_TRUE : GL_FALSE,
+                diagnostic_overlay ? GL_TRUE : GL_FALSE,
+                diagnostic_overlay ? GL_TRUE : GL_FALSE);
     glBindVertexArray(vao);
     // GL_SAMPLES_PASSED counts fragments surviving discard. This detects
     // an ineffective compositor even when thousands of Vulkan rays hit.
@@ -520,7 +539,7 @@ void main() {
     glGetQueryiv(GL_SAMPLES_PASSED,GL_CURRENT_QUERY,&other_query);
     if (!rt_coverage_query && !other_query)
         glGenQueries(1,&rt_coverage_query);
-    const bool record_coverage=rt_coverage_query &&
+    const bool record_coverage=!diagnostic_overlay && rt_coverage_query &&
         !rt_coverage_pending && !other_query &&
         (rt_last_measured_sequence!=source.sample_sequence ||
          rt_last_measured_scene!=source.geometry_revision);
@@ -539,6 +558,8 @@ void main() {
     // must observe exactly their original global GL state.
     glBindVertexArray(old_vao);
     glUseProgram(old_program);
+    glColorMask(old_color_mask[0],old_color_mask[1],
+                old_color_mask[2],old_color_mask[3]);
     glViewport(old_viewport[0],old_viewport[1],
                old_viewport[2],old_viewport[3]);
     glBlendFuncSeparate(old_blend_src_rgb,old_blend_dst_rgb,
@@ -554,8 +575,24 @@ void main() {
     glBindTexture(GL_TEXTURE_2D,old_tex0);
     glActiveTexture(old_active);
     static uint64_t last_logged=0,last_logged_scene=0;
-    if (last_logged!=source.sample_sequence ||
-        last_logged_scene!=source.geometry_revision) {
+    static uint64_t debug_last_logged=0,debug_last_scene=0;
+    if (diagnostic_overlay &&
+        (debug_last_logged!=source.sample_sequence ||
+         debug_last_scene!=source.geometry_revision)) {
+        debug_last_logged=source.sample_sequence;
+        debug_last_scene=source.geometry_revision;
+        LL_INFOS("OGLRTX")
+            << "OGL RTX shadow diagnostic color overlay: source="
+            << source.sample_sequence << " scene="
+            << source.geometry_revision << " shadow_tile_pixels="
+            << source.shadow_pixels
+            << " (drawn to 3D screen target, NOT the sunlight map; "
+               "depth-gated; image visibility not yet independently verified)"
+            << LL_ENDL;
+    }
+    if (!diagnostic_overlay &&
+        (last_logged!=source.sample_sequence ||
+         last_logged_scene!=source.geometry_revision)) {
         last_logged=source.sample_sequence;
         last_logged_scene=source.geometry_revision;
         LL_INFOS("OGLRTX") << "OGL RTX dense world sunlight composed: "
@@ -571,6 +608,7 @@ void main() {
     (void)depth_texture;(void)width;(void)height;(void)eye;(void)forward;
     (void)right;(void)up;(void)fov;(void)aspect;
     (void)near_clip;(void)far_clip;(void)sun;
+    (void)diagnostic_overlay;
     return false;
 #endif
 }
