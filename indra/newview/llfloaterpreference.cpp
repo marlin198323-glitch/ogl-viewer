@@ -5201,6 +5201,293 @@ void LLPanelPreferenceCrashReports::cancel(const std::vector<std::string> settin
 }
 // [/SL:KB]
 
+// OGL /goal Theme Manager – safe declarative, user-scoped color themes.
+// No scripts, DLLs or unverified archive extraction are performed in Viewer.
+// Installed .ogltheme archives are validated/extracted by manage_themes.py.
+#include "lluicolortable.h"
+#include <boost/json.hpp>
+#include <fstream>
+#include <cstdlib>
+#include <map>
+#include <set>
+#include <cmath>
+#include <system_error>
+
+namespace ogl_pref_themes {
+namespace fs = std::filesystem;
+namespace bj = boost::json;
+
+// These are real Firestorm color-table names, not arbitrary color overrides.
+static const std::map<std::string, std::string> TOKEN_COLORS = {
+    {"window.background", "FloaterDefaultBackgroundColor"},
+    {"window.text", "TextDefaultColor"},
+    {"window.border", "FloaterFocusBorderColor"},
+    {"accent", "EmphasisColor"},
+    {"accent.text", "ButtonLabelSelectedColor"},
+    {"chat.background", "ChatHistoryBgColor"},
+    {"chat.text", "ChatHistoryTextColor"},
+    {"chat.header", "ChatHeaderOpaqueBackground"},
+    {"chat.timestamp", "ChatHistoryMessageFromLog"},
+    {"button.background", "ButtonColor"},
+    {"button.text", "ButtonLabelColor"},
+    {"button.border", "ButtonBorderColor"}
+};
+
+static fs::path root() {
+    const char* home = std::getenv(
+#if LL_WINDOWS
+        "APPDATA"
+#else
+        "HOME"
+#endif
+    );
+#if LL_WINDOWS
+    if (!home || !*home) {
+        home=std::getenv("USERPROFILE");
+        return (!home || !*home) ? fs::path{} :
+            fs::path(home) / "AppData" / "Roaming" / "OGL Viewer";
+    }
+    return fs::path(home) / "OGL Viewer";
+#elif LL_DARWIN
+    if (!home || !*home) return {};
+    return fs::path(home) / "Library" / "Application Support" / "OGL Viewer";
+#else
+    if (!home || !*home) return {};
+    const char* xdg = std::getenv("XDG_DATA_HOME");
+    return ((xdg && *xdg && fs::path(xdg).is_absolute())
+                ? fs::path(xdg) : fs::path(home) / ".local" / "share")
+                / "ogl-viewer";
+#endif
+}
+static bool safe_id(const std::string& name) {
+    if (name.empty() || name.size()>96 || name.front()<'a' || name.front()>'z')
+        return false;
+    bool previous_sep=false;
+    for (const char c:name) {
+        const bool sep=c=='.' || c=='-';
+        const bool valid=(c>='a' && c<='z') || (c>='0' && c<='9');
+        if (!valid && !sep) return false;
+        if (sep && previous_sep) return false;
+        previous_sep=sep;
+    }
+    return !previous_sep;
+}
+static bj::value read_json(const fs::path& file) {
+    if (fs::is_symlink(file) || !fs::is_regular_file(file) ||
+        fs::file_size(file)>16384)
+        throw std::runtime_error("Unsafe or oversized theme metadata");
+    std::ifstream in(file, std::ios::binary);
+    if (!in) throw std::runtime_error("Cannot open theme metadata");
+    std::string data((std::istreambuf_iterator<char>(in)),
+                      std::istreambuf_iterator<char>());
+    return bj::parse(data);
+}
+static void write_json(const fs::path& path, const bj::value& data) {
+    // Fail closed: never follow symlinked state files or replace a
+    // directory. No writes outside the user's declarative theme root.
+    if (fs::is_symlink(path)) throw std::runtime_error("Unsafe state file");
+    std::ofstream out(path, std::ios::binary|std::ios::trunc);
+    if (!out) throw std::runtime_error("Theme state could not be written");
+    out << bj::serialize(data) << "\n";
+    out.flush();
+    if (!out) throw std::runtime_error("Theme state write failed");
+}
+static void check_root(const fs::path& path, bool create) {
+    if (path.empty()) throw std::runtime_error("No user data path");
+    if (fs::is_symlink(path)) throw std::runtime_error("Symlinked theme root");
+    if (create) fs::create_directories(path);
+    if (!fs::is_directory(path)) throw std::runtime_error("Invalid theme root");
+}
+static fs::path installed_folder(const std::string& id) {
+    if (!safe_id(id)) throw std::runtime_error("Invalid theme ID");
+    const auto base=root();
+    check_root(base,false);
+    const auto themes=base / "themes";
+    if (fs::is_symlink(themes) || !fs::is_directory(themes))
+        throw std::runtime_error("No safe installed theme directory");
+    const auto folder=themes / id;
+    if (fs::is_symlink(folder) || !fs::is_directory(folder))
+        throw std::runtime_error("Invalid installed theme directory");
+    return folder;
+}
+static bool valid_hex(const std::string& text) {
+    if ((text.size()!=7 && text.size()!=9) || text[0]!='#') return false;
+    for (std::size_t i=1;i<text.size();++i) {
+        const char c=text[i];
+        if (!((c>='0' && c<='9') || (c>='a' && c<='f') ||
+              (c>='A' && c<='F'))) return false;
+    }
+    return true;
+}
+static LLColor4 color(const std::string& value) {
+    if (!valid_hex(value)) throw std::runtime_error("Invalid theme color");
+    const auto component=[&](std::size_t at) {
+        return static_cast<F32>(std::stoul(value.substr(at,2),nullptr,16))/255.f;
+    };
+    return LLColor4(component(1),component(3),component(5),
+                    value.size()==9 ? component(7):1.f);
+}
+static bj::object manifest(const std::string& id) {
+    const auto value=read_json(installed_folder(id)/"theme.json");
+    if (!value.is_object()) throw std::runtime_error("Invalid theme manifest");
+    const auto& doc=value.as_object();
+    if (doc.size()!=7 || !doc.contains("id") || !doc.at("id").is_string() ||
+        doc.at("id").as_string()!=id || !doc.contains("type") ||
+        doc.at("type")!="theme" || !doc.contains("schema_version") ||
+        doc.at("schema_version")!=1 || !doc.contains("version") ||
+        !doc.at("version").is_string() || !doc.contains("name") ||
+        !doc.at("name").is_string() || !doc.contains("platforms") ||
+        !doc.at("platforms").is_array() || !doc.contains("colors") ||
+        !doc.at("colors").is_object())
+        throw std::runtime_error("Unsupported installed theme");
+    if (doc.at("name").as_string().empty() ||
+        doc.at("name").as_string().size()>70 ||
+        doc.at("version").as_string().size()>32)
+        throw std::runtime_error("Oversized theme metadata");
+    for (const char c:doc.at("name").as_string()) {
+        if (static_cast<unsigned char>(c)<32 ||
+            static_cast<unsigned char>(c)==127)
+            throw std::runtime_error("Control character in theme name");
+    }
+    std::set<std::string> platforms;
+    for(const auto& p:doc.at("platforms").as_array()) {
+        if (!p.is_string()) throw std::runtime_error("Invalid platforms");
+        platforms.insert(std::string(p.as_string()));
+    }
+    if (platforms!=std::set<std::string>{"linux","windows","macos"} ||
+        doc.at("platforms").as_array().size()!=3)
+        throw std::runtime_error("Nonportable theme");
+    const auto& colors=doc.at("colors").as_object();
+    if (colors.empty() || colors.size()>TOKEN_COLORS.size())
+        throw std::runtime_error("Invalid color tokens");
+    for (const auto& token:colors) {
+        if (!token.value().is_string() ||
+            TOKEN_COLORS.count(std::string(token.key()))==0 ||
+            !valid_hex(std::string(token.value().as_string())))
+            throw std::runtime_error("Forbidden theme override");
+    }
+    return doc;
+}
+static std::string active() {
+    const auto dir=root();
+    if (dir.empty() || !fs::exists(dir/"active-theme.json")) return "";
+    check_root(dir,false);
+    const auto value=read_json(dir/"active-theme.json");
+    if (!value.is_object() || value.as_object().size()!=1 ||
+        !value.as_object().contains("id"))
+        throw std::runtime_error("Corrupt active theme state");
+    const auto& id=value.as_object().at("id");
+    if (id.is_null()) return "";
+    if (!id.is_string() || !safe_id(std::string(id.as_string())))
+        throw std::runtime_error("Unsafe active theme ID");
+    return std::string(id.as_string());
+}
+static bj::object checked_backup();
+static void snapshot_original() {
+    const auto dir=root();
+    check_root(dir,true);
+    if (fs::exists(dir/"original-palette.json")) {
+        checked_backup();
+        return; // Never overwrite original user colors on theme changes.
+    }
+    bj::object backup;
+    LLUIColorTable& table=LLUIColorTable::instance();
+    for(const auto& kv:TOKEN_COLORS) {
+        const auto& name=kv.second;
+        if (!table.colorExists(name)) continue;
+        const auto& users=table.getUserColors();
+        const bool custom=users.find(name)!=users.end();
+        const auto rgba=table.getColor(name).get();
+        backup[name]=bj::object{
+            {"custom",custom},
+            {"rgba",bj::array{rgba.mV[0],rgba.mV[1],rgba.mV[2],rgba.mV[3]}}};
+    }
+    write_json(dir/"original-palette.json",backup);
+}
+static bj::object checked_backup() {
+    const auto path=root()/"original-palette.json";
+    if (!fs::exists(path)) return {};
+    const auto value=read_json(path);
+    if (!value.is_object() || value.as_object().size()>TOKEN_COLORS.size())
+        throw std::runtime_error("Bad original palette");
+    const auto& backup=value.as_object();
+    std::set<std::string> allowed;
+    for(const auto& token:TOKEN_COLORS) allowed.insert(token.second);
+    for(const auto& item:backup) {
+        const std::string key(item.key());
+        if (!allowed.count(key) || !item.value().is_object())
+            throw std::runtime_error("Forbidden original palette color");
+        const auto& record=item.value().as_object();
+        if(record.size()!=2 || !record.contains("rgba") ||
+           !record.contains("custom") || !record.at("custom").is_bool() ||
+           !record.at("rgba").is_array() ||
+           record.at("rgba").as_array().size()!=4)
+            throw std::runtime_error("Malformed original palette entry");
+        for(const auto& v:record.at("rgba").as_array()) {
+            if (!v.is_number()) throw std::runtime_error("Bad RGBA");
+            const double component=v.to_number<double>();
+            if (!std::isfinite(component) || component<0. || component>1.)
+                throw std::runtime_error("Out-of-range original RGBA");
+        }
+    }
+    return backup;
+}
+static LLColor4 backed_up_color(const std::string& name) {
+    const auto fallback=LLUIColorTable::instance().getColor(name).get();
+    try {
+        const auto backup=checked_backup();
+        const auto iter=backup.find(name);
+        if (iter==backup.end()) return fallback;
+        const auto& v=iter->value().as_object().at("rgba").as_array();
+        return LLColor4(static_cast<F32>(v[0].to_number<double>()),
+                        static_cast<F32>(v[1].to_number<double>()),
+                        static_cast<F32>(v[2].to_number<double>()),
+                        static_cast<F32>(v[3].to_number<double>()));
+    } catch(const std::exception&) {
+        return fallback; // Invalid backup cannot crash preference rendering.
+    }
+}
+static void restore_original() {
+    const auto backup=checked_backup(); // Preflight entire file before writes
+    LLUIColorTable& table=LLUIColorTable::instance();
+    for (const auto& record:backup) {
+        const std::string key(record.key());
+        if (!table.colorExists(key)) continue;
+        const auto& entry=record.value().as_object();
+        if (entry.at("custom").as_bool()) {
+            const auto& v=entry.at("rgba").as_array();
+            table.setColor(key,LLColor4(
+                static_cast<F32>(v[0].to_number<double>()),
+                static_cast<F32>(v[1].to_number<double>()),
+                static_cast<F32>(v[2].to_number<double>()),
+                static_cast<F32>(v[3].to_number<double>())));
+        } else table.resetToDefault(key);
+    }
+    table.saveUserSettings();
+}
+static void activate(const std::string& id) {
+    const auto doc=manifest(id); // complete validation before any mutation
+    const auto dir=root();
+    snapshot_original();
+    for (const auto& item:doc.at("colors").as_object()) {
+        const auto name=TOKEN_COLORS.at(std::string(item.key()));
+        if (LLUIColorTable::instance().colorExists(name))
+            LLUIColorTable::instance().setColor(name,color(std::string(item.value().as_string())));
+    }
+    LLUIColorTable::instance().saveUserSettings();
+    write_json(dir/"active-theme.json",bj::object{{"id",id}});
+}
+static void reset() {
+    const auto dir=root();
+    check_root(dir,true);
+    restore_original();
+    write_json(dir/"active-theme.json",bj::object{{"id",nullptr}});
+    const auto backup=dir/"original-palette.json";
+    if (fs::is_symlink(backup)) throw std::runtime_error("Symlinked palette");
+    if (fs::exists(backup)) fs::remove(backup);
+}
+} // namespace ogl_pref_themes
+
 // [SL:KB] - Patch: Viewer-Skins | Checked: 2010-10-21 (Catznip-2.2)
 static LLPanelInjector<LLPanelPreferenceSkins> t_pref_skins("panel_preference_skins");
 
@@ -5410,6 +5697,160 @@ void LLPanelPreferenceSkins::refreshSkinThemeList()
     }
 }
 // [/SL:KB]
+
+static LLPanelInjector<LLPanelPreferenceOglThemes>
+    t_pref_ogl_themes("panel_preference_ogl_themes");
+
+bool LLPanelPreferenceOglThemes::postBuild()
+{
+    // Separate OGL Designs tab: original Firestorm Skins remains untouched.
+    mOglThemeCombo=getChild<LLComboBox>("ogl_theme_combo");
+    mOglBackgroundPreview=getChild<LLButton>("ogl_theme_color_bg");
+    mOglTextPreview=getChild<LLButton>("ogl_theme_color_text");
+    mOglChatPreview=getChild<LLButton>("ogl_theme_color_chat");
+    if (mOglThemeCombo) {
+        mOglThemeCombo->setCommitCallback(
+            boost::bind(&LLPanelPreferenceOglThemes::onOglThemeChanged,this));
+    }
+    getChild<LLButton>("ogl_theme_activate")->setCommitCallback(
+        boost::bind(&LLPanelPreferenceOglThemes::onOglThemeActivate,this));
+    getChild<LLButton>("ogl_theme_reset")->setCommitCallback(
+        boost::bind(&LLPanelPreferenceOglThemes::onOglThemeReset,this));
+    getChild<LLButton>("ogl_theme_folder")->setCommitCallback(
+        boost::bind(&LLPanelPreferenceOglThemes::onOglThemeFolder,this));
+    refreshOglThemes();
+
+    return LLPanelPreference::postBuild();
+}
+
+// OGL /goal Theme Manager, phase 1: viewer-integrated installed theme UI.
+void LLPanelPreferenceOglThemes::oglThemeStatus(const std::string& message)
+{
+    if (auto* text=getChild<LLTextBox>("ogl_theme_status",true))
+        text->setText(message);
+}
+
+void LLPanelPreferenceOglThemes::refreshOglThemes()
+{
+    if (!mOglThemeCombo) return;
+    mOglThemeCombo->clearRows();
+    mOglThemeCombo->add("Original Firestorm (default)","");
+    try {
+        const auto root=ogl_pref_themes::root();
+        const auto themes=root/"themes";
+        if (!root.empty() && std::filesystem::exists(themes)) {
+            ogl_pref_themes::check_root(root,false);
+            if (std::filesystem::is_symlink(themes))
+                throw std::runtime_error("Symlinked theme directory");
+            for (const auto& entry:std::filesystem::directory_iterator(themes)) {
+                if (!entry.is_directory() || entry.is_symlink()) continue;
+                const auto id=entry.path().filename().string();
+                if (!ogl_pref_themes::safe_id(id)) continue;
+                try {
+                    const auto doc=ogl_pref_themes::manifest(id);
+                    mOglThemeCombo->add(std::string(doc.at("name").as_string()),id);
+                } catch (const std::exception&) {
+                    // Invalid installation never reaches preview or activation.
+                }
+            }
+        }
+        mOglSelected=ogl_pref_themes::active();
+        if (!mOglSelected.empty()) {
+            // A removed/invalid active package must not force stale UI state.
+            if (!mOglThemeCombo->setSelectedByValue(mOglSelected,true))
+                mOglSelected.clear();
+        }
+        if (mOglSelected.empty())
+            mOglThemeCombo->setSelectedByValue("",true);
+        oglThemeStatus(getString("ogl_status_loaded"));
+    } catch (const std::exception&) {
+        mOglSelected.clear();
+        mOglThemeCombo->setSelectedByValue("",true);
+        oglThemeStatus(getString("ogl_status_invalid"));
+    }
+    previewOglTheme();
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeChanged()
+{
+    mOglSelected=mOglThemeCombo ?
+        mOglThemeCombo->getSelectedValue().asString() : "";
+    previewOglTheme(); // Does NOT mutate any Viewer colors or settings.
+}
+
+void LLPanelPreferenceOglThemes::previewOglTheme()
+{
+    // An active theme may have already changed live UIColorTable values.
+    // The "Original Firestorm" swatches must come from the saved baseline.
+    LLColor4 bg=ogl_pref_themes::backed_up_color("FloaterDefaultBackgroundColor");
+    LLColor4 fg=ogl_pref_themes::backed_up_color("TextDefaultColor");
+    LLColor4 chat=ogl_pref_themes::backed_up_color("ChatHistoryBgColor");
+    if (!mOglSelected.empty()) {
+        try {
+            const auto doc=ogl_pref_themes::manifest(mOglSelected);
+            const auto& tokens=doc.at("colors").as_object();
+            const auto tint=[&](const char* name,LLColor4& dest) {
+                const auto it=tokens.find(name);
+                if (it!=tokens.end()) dest=ogl_pref_themes::color(std::string(it->value().as_string()));
+            };
+            tint("window.background",bg);
+            tint("window.text",fg);
+            tint("chat.background",chat);
+            oglThemeStatus(getString("ogl_status_preview"));
+        } catch (const std::exception&) {
+            oglThemeStatus(getString("ogl_status_invalid_preview"));
+            mOglSelected.clear();
+            mOglThemeCombo->setSelectedByValue("",true);
+        }
+    }
+    if(mOglBackgroundPreview) mOglBackgroundPreview->setImageColor(LLUIColor(bg));
+    if(mOglTextPreview) mOglTextPreview->setImageColor(LLUIColor(fg));
+    if(mOglChatPreview) mOglChatPreview->setImageColor(LLUIColor(chat));
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeActivate()
+{
+    if(mOglSelected.empty()) {
+        onOglThemeReset();
+        return;
+    }
+    try {
+        ogl_pref_themes::activate(mOglSelected);
+        oglThemeStatus(getString("ogl_status_activated"));
+    } catch(const std::exception&) {
+        oglThemeStatus(getString("ogl_status_activate_error"));
+    }
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeReset()
+{
+    try {
+        ogl_pref_themes::reset();
+        mOglSelected.clear();
+        if (mOglThemeCombo) mOglThemeCombo->setSelectedByValue("",true);
+        previewOglTheme();
+        oglThemeStatus(getString("ogl_status_reset"));
+    } catch(const std::exception&) {
+        oglThemeStatus(getString("ogl_status_reset_error"));
+    }
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeFolder()
+{
+    try {
+        const auto root=ogl_pref_themes::root();
+        ogl_pref_themes::check_root(root,true);
+        const auto themes=root/"themes";
+        if (std::filesystem::is_symlink(themes))
+            throw std::runtime_error("Symlinked themes directory");
+        std::filesystem::create_directories(themes);
+        gViewerWindow->getWindow()->openFile(themes.string());
+        oglThemeStatus(getString("ogl_status_folder"));
+        refreshOglThemes();
+    } catch(const std::exception&) {
+        oglThemeStatus(getString("ogl_status_folder_error"));
+    }
+}
 
 // <FS:PP> FIRE-1689: Skins preview image
 void LLPanelPreferenceSkins::refreshPreviewImage()

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<panel border="true" follows="all" height="480" layout="topleft"
+ left="1" top="1" width="540" label="OGL Designs" name="ogl_themes_panel">
+    <text name="ogl_heading" left="22" top="18" width="480" height="22"
+     follows="left|top" layout="topleft" font="SansSerifLarge">
+        OGL Designs
+    </text>
+    <text name="ogl_description" left="22" top="51" width="475" height="34"
+     follows="left|top" layout="topleft" font="SansSerifSmall">
+        Optional color themes for chat and viewer windows.
+        Original Firestorm is the default and remains available.
+    </text>
+    <text name="ogl_theme_choose" left="22" top="111" width="445" height="20"
+     follows="left|top" layout="topleft" font="SansSerifSmallBold">
+        Installed designs
+    </text>
+    <combo_box name="ogl_theme_combo" left="22" top="138" width="275" height="24"
+     follows="left|top" layout="topleft" />
+    <button name="ogl_theme_folder" left="308" top="138" width="181" height="24"
+     follows="left|top" layout="topleft" label="Open theme folder" />
+    <view_border name="ogl_theme_divider" bevel_style="in" follows="left|top"
+     layout="topleft" left="22" top="182" width="467" height="1" />
+    <text name="ogl_theme_preview_label" left="22" top="196" width="453" height="21"
+     follows="left|top" layout="topleft" font="SansSerifSmallBold">
+        Color preview (does not change the viewer)
+    </text>
+    <button name="ogl_theme_color_bg" left="22" top="229" height="55" width="143"
+     enabled="false" follows="left|top" layout="topleft"
+     image_unselected="Blank" image_selected="Blank" label="Window" />
+    <button name="ogl_theme_color_text" left="176" top="229" height="55" width="143"
+     enabled="false" follows="left|top" layout="topleft"
+     image_unselected="Blank" image_selected="Blank" label="Text" />
+    <button name="ogl_theme_color_chat" left="330" top="229" height="55" width="143"
+     enabled="false" follows="left|top" layout="topleft"
+     image_unselected="Blank" image_selected="Blank" label="Chat" />
+    <text name="ogl_theme_readonly_notice" left="22" top="303" width="460" height="36"
+     follows="left|top" layout="topleft" font="SansSerifSmall">
+        Only verified color themes are supported.
+        Preview is read-only; changes are saved on activation.
+    </text>
+    <button name="ogl_theme_activate" left="22" top="366" width="178" height="27"
+     follows="left|top" layout="topleft" label="Activate design" />
+    <button name="ogl_theme_reset" left="211" top="366" width="190" height="27"
+     follows="left|top" layout="topleft" label="Restore original" />
+    <text name="ogl_theme_status" left="22" top="415" width="471" height="43"
+     follows="left|top" layout="topleft" font="SansSerifSmall">
+        Built-in Firestorm is the default.
+    </text>
+    <string name="ogl_status_loaded">Themes loaded. Firestorm remains the default.</string>
+    <string name="ogl_status_invalid">Theme metadata invalid. Original design available.</string>
+    <string name="ogl_status_preview">Preview only. Activate to save colors. Restart recommended.</string>
+    <string name="ogl_status_invalid_preview">Invalid or removed theme. No changes applied.</string>
+    <string name="ogl_status_activated">Theme activated. Restart Viewer for consistent UI colors.</string>
+    <string name="ogl_status_activate_error">Theme activation refused. Check package/permissions.</string>
+    <string name="ogl_status_reset">Original Firestorm palette restored. Restart recommended.</string>
+    <string name="ogl_status_reset_error">Could not restore original palette; check user files.</string>
+    <string name="ogl_status_folder">Install verified packages with the OGL theme manager.</string>
+    <string name="ogl_status_folder_error">Could not open portable theme directory.</string>
+</panel>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<panel name="ogl_themes_panel" label="OGL Designs">
+    <text name="ogl_heading">OGL-Designs</text>
+    <text name="ogl_description">
+        Optionale Farbdesigns für Chat und Viewer-Fenster.
+        Das originale Firestorm-Design bleibt der Standard.
+    </text>
+    <text name="ogl_theme_choose">Installierte Designs</text>
+    <button name="ogl_theme_folder" label="Designordner öffnen" />
+    <text name="ogl_theme_preview_label">Farbvorschau (ändert den Viewer nicht)</text>
+    <button name="ogl_theme_color_bg" label="Fenster" />
+    <button name="ogl_theme_color_text" label="Text" />
+    <button name="ogl_theme_color_chat" label="Chat" />
+    <text name="ogl_theme_readonly_notice">
+        Nur geprüfte Farbdesigns werden unterstützt.
+        Die Vorschau ist unverbindlich; aktiviert wird per Schaltfläche.
+    </text>
+    <button name="ogl_theme_activate" label="Design aktivieren" />
+    <button name="ogl_theme_reset" label="Original wiederherstellen" />
+    <text name="ogl_theme_status">
+        Das originale Firestorm-Design ist der Standard.
+    </text>
+    <string name="ogl_status_loaded">Designs geladen. Firestorm bleibt Standard.</string>
+    <string name="ogl_status_invalid">Ungültige Designdaten. Original verfügbar.</string>
+    <string name="ogl_status_preview">Nur Vorschau. Zum Speichern aktivieren. Neustart empfohlen.</string>
+    <string name="ogl_status_invalid_preview">Ungültiges oder entferntes Design. Nichts geändert.</string>
+    <string name="ogl_status_activated">Design aktiviert. Neustart empfohlen.</string>
+    <string name="ogl_status_activate_error">Aktivierung abgelehnt. Datei und Berechtigungen prüfen.</string>
+    <string name="ogl_status_reset">Original-Farben wiederhergestellt. Neustart empfohlen.</string>
+    <string name="ogl_status_reset_error">Originalfarben konnten nicht wiederhergestellt werden.</string>
+    <string name="ogl_status_folder">Geprüfte Pakete über den OGL-Theme-Manager installieren.</string>
+    <string name="ogl_status_folder_error">Designordner konnte nicht geöffnet werden.</string>
+</panel>

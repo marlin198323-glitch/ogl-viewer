@@ -20,6 +20,7 @@
 		<panel label="Erweitert" name="advanced1"/>
 		<panel label="Benutzerinterface" name="ui"/>
 		<panel label="Oberflächendesign" name="skins"/>
+		<panel label="OGL-Designs" name="ogl_themes"/>
 		<panel label="Absturzmeldungen" name="crashreports"/>
 		<panel label="Firestorm" name="firestorm"/>
 		<panel label="OpenSim" name="opensim"/>

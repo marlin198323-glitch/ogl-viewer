@@ -191,6 +191,13 @@
          help_topic="preferences_skins_tab"
          name="skins" />
         <panel
+         class="panel_preference_ogl_themes"
+         filename="panel_preferences_ogl_themes.xml"
+         label="OGL Designs"
+         layout="topleft"
+         help_topic="preferences_skins_tab"
+         name="ogl_themes" />
+        <panel
          class="panel_preference_crashreports"
          filename="panel_preferences_crashreports.xml"
          label="Crash Reports"

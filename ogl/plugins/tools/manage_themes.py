@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """OGL portable theme installer (user-data only, no native code).
 
-This management tool does NOT yet activate theme rendering in Firestorm.
-The validated active-theme metadata is reserved for future viewer use.
+This tool installs and selects declarative packages; the user must press
+Activate in the Viewer Preferences > OGL Designs tab to apply their colors.
+No Python interpreter or code plugin is executed inside Firestorm.
 """
 from __future__ import annotations
 import argparse
@@ -163,7 +164,7 @@ def remove(root:Path,identifier:str)->None:
     shutil.rmtree(path)
 
 def main(argv:list[str])->int:
-    parser=argparse.ArgumentParser(description="Manage portable OGL themes (viewer activation not yet wired)")
+    parser=argparse.ArgumentParser(description="Manage portable OGL color themes; activate colors in Viewer preferences")
     parser.add_argument("--data-dir",type=Path,default=default_data_dir())
     sub=parser.add_subparsers(dest="command",required=True)
     ins=sub.add_parser("install");ins.add_argument("package",type=Path)
@@ -187,7 +188,7 @@ def main(argv:list[str])->int:
     except (UnsafeTheme, OSError) as exc:
         print("Theme operation refused:",exc,file=sys.stderr)
         return 1
-    print("Note: theme selection is stored but NOT YET APPLIED in viewer UI.")
+    print("Note: CLI changes package metadata only. Open Viewer Preferences > OGL Designs and click Activate design (or Restore original) to change rendered colors.")
     return 0
 
 if __name__=="__main__":

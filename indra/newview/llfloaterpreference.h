@@ -538,6 +538,28 @@ protected:
 };
 // [/SL:KB]
 
+// OGL /goal Phase 1: independent, optional color-themes tab.
+// Do not alter original Firestorm skin/theme layout or color defaults.
+class LLPanelPreferenceOglThemes : public LLPanelPreference
+{
+public:
+    LLPanelPreferenceOglThemes() = default;
+    bool postBuild() override;
+    void onOglThemeChanged();
+    void onOglThemeActivate();
+    void onOglThemeReset();
+    void onOglThemeFolder();
+    void refreshOglThemes();
+    void previewOglTheme();
+    void oglThemeStatus(const std::string& message);
+private:
+    LLComboBox* mOglThemeCombo = nullptr;
+    LLButton*   mOglBackgroundPreview = nullptr;
+    LLButton*   mOglTextPreview = nullptr;
+    LLButton*   mOglChatPreview = nullptr;
+    std::string mOglSelected;
+};
+
 // [SL:KB] - Patch: Viewer-CrashReporting | Checked: 2010-10-21 (Catznip-2.6.0a) | Added: Catznip-2.2.0c
 class LLPanelPreferenceCrashReports : public LLPanelPreference
 {

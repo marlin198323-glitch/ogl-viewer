@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "de.nexverse.theme.ocean-blue",
+  "name": "OGL Ocean Blue",
+  "version": "1.0.0",
+  "type": "theme",
+  "platforms": ["linux", "windows", "macos"],
+  "colors": {
+    "window.background": "#14263DFF",
+    "window.text": "#EAF3FFFF",
+    "window.border": "#447AB5FF",
+    "accent": "#398EF7FF",
+    "accent.text": "#FFFFFFFF",
+    "chat.background": "#0E1E33FF",
+    "chat.text": "#E2F0FFFF",
+    "chat.header": "#1F466FFF",
+    "chat.timestamp": "#9BBBE3FF",
+    "button.background": "#285684FF",
+    "button.text": "#F5F9FFFF",
+    "button.border": "#5A9CE2FF"
+  }
+}
