@@ -34,17 +34,30 @@ int main(int argc, char** argv) {
         if (code != 0) std::exit(code);
         assert(r.success == 1 && r.ray_count == 64);
         assert(r.triangle_count == 1 && r.occluded <= 64);
+        assert(r.mask_width == 8 && r.mask_height == 8);
+        uint32_t mask_sum = 0;
+        for (auto pixel : r.shadow_mask) {
+            assert(pixel <= 1u);
+            mask_sum += pixel;
+        }
+        assert(mask_sum == r.occluded);
         return r;
     };
     const auto first = invoke(sun_a);
     assert(first.vulkan_device_creations == 1);
     assert(first.blas_builds == 1);
     assert(first.cache_hits == 0);
+    // A single triangle must produce the exact 8x8 triangular ray mask.
+    assert(first.occluded == 36);
+    for (unsigned y = 0; y < 8; ++y)
+        for (unsigned x = 0; x < 8; ++x)
+            assert(first.shadow_mask[y * 8 + x] == (x + y <= 7 ? 1 : 0));
     const auto same = invoke(sun_a);
     assert(same.vulkan_device_creations == 1);
     assert(same.blas_builds == 1);
     assert(same.cache_hits == 1);
     assert(same.occluded == first.occluded);
+    assert(std::memcmp(same.shadow_mask, first.shadow_mask, 64) == 0);
 
     // Lighting changes invalidate the cached rays, not the GPU device.
     const auto new_light = invoke(sun_b);
@@ -84,6 +97,13 @@ int main(int argc, char** argv) {
         r.version = OGL_GPU_PROBE_VERSION;
         assert(run(many.data(), uint32_t(many.size()), sun_a, argv[2], &r) == 0);
         assert(r.success && r.triangle_count == many.size());
+        assert(r.mask_width == 8 && r.mask_height == 8);
+        uint32_t mask_sum = 0;
+        for (auto pixel : r.shadow_mask) {
+            assert(pixel <= 1);
+            mask_sum += pixel;
+        }
+        assert(mask_sum == r.occluded);
         return r;
     };
     const auto large = run_many();

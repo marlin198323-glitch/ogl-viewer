@@ -46,6 +46,8 @@ using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_rtx_submit_frame_fn rtx_submit_frame = nullptr;
 using ogl_rtx_submit_geometry_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
+using ogl_rtx_copy_shadow_debug_fn = int (*)(ogl_rtx_shadow_debug*);
+ogl_rtx_copy_shadow_debug_fn rtx_copy_shadow_debug = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
 
 void host_log(int severity, const char *message) {
@@ -93,6 +95,8 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_frame"));
     rtx_submit_geometry = reinterpret_cast<ogl_rtx_submit_geometry_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
+    rtx_copy_shadow_debug = reinterpret_cast<ogl_rtx_copy_shadow_debug_fn>(
+        ogl_resolve_module(rtx_module_handle, "ogl_rtx_copy_shadow_debug"));
 
     const ogl_host_api api{sizeof(ogl_host_api), OGL_MODULE_ABI_VERSION, host_log};
     if (start(&api) != 0) {
@@ -126,6 +130,7 @@ void ogl_shutdown_rtx_module() {
     rtx_rendering_enabled = false;
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
+    rtx_copy_shadow_debug = nullptr;
 #endif
 }
 
@@ -172,5 +177,39 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
     // Geometry data layout is 9 tightly packed floats per triangle.
     static_assert(sizeof(ogl_rtx_triangle) == 9 * sizeof(float), "RTX ABI padding mismatch");
     rtx_submit_geometry(reinterpret_cast<const ogl_rtx_triangle*>(triangle_xyz), count);
+#endif
+}
+
+
+// Firestorm's future diagnostic compositor can request a _current_ sample.
+// The GPU module remains a black box; no OpenGL/Vulkan calls here.
+bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
+    std::size_t capacity, std::uint64_t* geometry_revision)
+{
+#if LL_LINUX || LL_WINDOWS
+    if (!rtx_module_handle || !rtx_hardware_ready ||
+        !rtx_copy_shadow_debug || !pixels ||
+        capacity < OGL_RTX_SHADOW_DEBUG_PIXELS)
+        return false;
+    ogl_rtx_shadow_debug debug{};
+    debug.struct_size = sizeof(debug);
+    debug.version = OGL_RTX_SHADOW_DEBUG_VERSION;
+    if (rtx_copy_shadow_debug(&debug) != 1 ||
+        debug.width != 8 || debug.height != 8)
+        return false;
+    unsigned hit_count = 0;
+    for (const auto pixel : debug.pixels) {
+        if (pixel > 1) return false;
+        hit_count += pixel;
+    }
+    if (hit_count != debug.occluded) return false;
+    std::memcpy(pixels, debug.pixels, OGL_RTX_SHADOW_DEBUG_PIXELS);
+    if (geometry_revision) *geometry_revision = debug.geometry_revision;
+    return true;
+#else
+    (void)pixels;
+    (void)capacity;
+    (void)geometry_revision;
+    return false;
 #endif
 }

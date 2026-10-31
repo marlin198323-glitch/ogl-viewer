@@ -94,3 +94,11 @@ Sonnenlichtwechsel die GPU-BLAS/TLAS im optionalen Diagnose-Worker
 bestehen. Identische Inputs nutzen gecachte Ray-Query-Daten. Der
 Endnutzer-Viewer ist weiterhin **OpenGL ohne sichtbare RTX-Schatten**.
 [Technischer GPU-Wiederverwendungsnachweis](RTX_10_BLOCKS_2026_10_31_P5.md).
+
+
+Die **sechste RTX-10er-Runde** überträgt alle 64 echten GPU-Ray-Query-
+Pixelwerte der 8×8-Debug-Maske über die asynchrone Modulverbindung
+an eine sichere Firestorm-Host-Schnittstelle. Pixelvalidierung,
+Szenenrevisionen und OpenGL-Fallback sind getestet. Es wird
+**noch kein Schattenbild in der 3D-Welt angezeigt**.
+[Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P6.md).

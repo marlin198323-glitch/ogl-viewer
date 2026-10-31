@@ -846,6 +846,10 @@ static int execute_gpu_scene(const char* shader_path,
         result->unoccluded = result_count - hits;
         result->ray_count = result_count;
         result->triangle_count = wanted_triangles;
+        result->mask_width = 8;
+        result->mask_height = 8;
+        for (size_t i = 0; i < results.size(); ++i)
+            result->shadow_mask[i] = static_cast<uint8_t>(results[i]);
         result->success = 1;
 #ifdef OGL_GPU_PROBE_LIBRARY
         result->vulkan_device_creations = device_creations;

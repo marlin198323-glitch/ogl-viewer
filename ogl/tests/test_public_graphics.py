@@ -135,7 +135,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         api = (ROOT / "ogl/modules/include/ogl/ogl_gpu_probe_api.h").read_text()
         test = (ROOT / "ogl/modules/rtx/ogl_gpu_persistent_test.cpp").read_text()
         log = (ROOT / "ogl/scripts/ogl-test-report.py").read_text()
-        self.assertIn("#define OGL_GPU_PROBE_VERSION 2u", api)
+        self.assertIn("#define OGL_GPU_PROBE_VERSION 3u", api)
         for key in ("vulkan_device_creations", "blas_builds", "cache_hits"):
             self.assertIn(key, api)
         self.assertIn("thread_local std::unique_ptr<VulkanContext>", source)
@@ -149,6 +149,20 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("cached_large.cache_hits == 2", test)
         self.assertIn("RTX GPU reuse:", log)
         self.assertNotIn("0x10DE", source)
+
+    def test_firestorm_host_can_read_verified_debug_mask_without_compositing(self):
+        host = (ROOT / "indra/newview/oglrtxhost.cpp").read_text()
+        header = (ROOT / "indra/newview/oglrtxhost.h").read_text()
+        module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api = (ROOT / "ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        self.assertIn("ogl_rtx_copy_debug_shadow_mask", header)
+        self.assertIn("ogl_rtx_copy_debug_shadow_mask", host)
+        self.assertIn('ogl_resolve_module(rtx_module_handle, "ogl_rtx_copy_shadow_debug")', host)
+        self.assertIn("capacity < OGL_RTX_SHADOW_DEBUG_PIXELS", host)
+        self.assertIn("if (hit_count != debug.occluded) return false;", host)
+        self.assertIn("ogl_rtx_copy_shadow_debug(", module)
+        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 1u", api)
+        self.assertIn("uint8_t pixels[OGL_RTX_SHADOW_DEBUG_PIXELS]", api)
 
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

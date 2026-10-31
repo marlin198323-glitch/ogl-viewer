@@ -75,7 +75,8 @@ Multi-GPU-Kopplung.
 - [x] Identische Szene/Sonne/Shader: Ray-Query-Ergebnis ohne GPU-Neuaufbau wiederverwendet
 - [ ] Inkrementelle BLAS-/TLAS-Mesh-Updates und produktiver Echtzeit-Renderer
 - [x] Isolierter 8x8-Vulkan-Compute-Test: 64 Ray Queries, 36 Treffer, 28 Misses
-- [ ] Ray-Query-Schattenbild aus realer Weltgeometrie berechnen und in OpenGL einfügen
+- [x] GPU-8×8-Ray-Hit-Maske validiert bis zur Firestorm-Debug-Hostschnittstelle übertragen
+- [ ] Bildrichtige Ray-Query-Schattenmaske für reale OpenSim-Welt rendern und in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer
 - [ ] Finales Lizenz-/Third-Party-Notices- und Release-Audit

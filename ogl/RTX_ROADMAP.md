@@ -242,3 +242,31 @@ Compositing, inkrementelle Mesh-Updates innerhalb einer BLAS,
 Multi-GPU-Auswahl sowie vollständige Windows-Viewer-/AMD-/Intel-Abnahme.
 `rendering_active=0` bleibt korrekt. Die GPU-Diagnose ist kein
 Produktiv-Renderer.
+
+
+## 31.10.2026 – sechste 10er-Runde: vollständige Ray-Query-Debug-Maske
+
+- Die Vulkan-Compute-Abnahme gibt jetzt nicht mehr nur die Zahl der
+  Strahlentreffer zurück, sondern ein vollständiges **8×8-Raster aus
+  64 tatsächlich auf der GPU berechneten Pixelwerten**.
+- Diagnose-ABI **v3**: `mask_width`, `mask_height` und
+  `shadow_mask[64]`; derselbe Maskeninhalt wird bei identischen
+  Szenen-/Sonnen-/Shaderdaten aus dem bisherigen GPU-Cache übernommen.
+- Der asynchrone GPU-Worker validiert jedes Pixel sowie die
+  Übereinstimmung von Pixelmaske und Trefferzahl. Fehlerhafte
+  Ergebnisse deaktivieren den Diagnosepfad (OpenGL-Fallback).
+- `ogl_rtx_copy_shadow_debug` ist eine eigene, versionierte
+  read-only C-API im RTX-Modul. Die Firestorm-Hostseite stellt
+  `ogl_rtx_copy_debug_shadow_mask` zur zukünftigen Diagnoseanzeige bereit.
+- Die Debug-Maske wird bei Mesh-Änderung, Teleport oder Sonnenwechsel
+  verworfen; auf eine alte GPU-Antwort wird niemals zurückgegriffen.
+- GPU-Regressionen prüfen das exakte Dreiecks-Maskenmuster mit
+  36 Treffern sowie den Bytevergleich bei Cache-Treffern.
+- Kompletter Linux-Viewer-Build mit beiden Vulkan-SOs und der
+  SPIR-V-Ressource erfolgreich.
+- [`RTX_10_BLOCKS_2026_10_31_P6.md`](RTX_10_BLOCKS_2026_10_31_P6.md).
+
+**Weiterhin kein sichtbares Raytracing:** Das Raster stammt von
+einer kleinen Testszene, nicht aus dem perspektivisch korrekten
+Framebuffer. Kein Schatten-Compositing und kein Endnutzer-RTX-Schalter.
+`rendering_active=0` bleibt unverändert.

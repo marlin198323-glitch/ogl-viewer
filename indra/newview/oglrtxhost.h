@@ -1,6 +1,9 @@
 #ifndef OGL_RTX_HOST_H
 #define OGL_RTX_HOST_H
 
+#include <cstddef>
+#include <cstdint>
+
 /* Optional Linux Vulkan/RTX module lifecycle; safe no-op on other platforms. */
 void ogl_init_rtx_module();
 void ogl_shutdown_rtx_module();
@@ -13,5 +16,11 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
     const float* sun_direction);
+
+// Developer-only 8x8 GPU ray-hit mask. Returns false without changing the
+// caller's output if no matching, current scene sample exists. NOT pixels
+// for the world's OpenGL framebuffer, and not enabled for public users.
+bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
+    std::size_t capacity, std::uint64_t* geometry_revision);
 
 #endif

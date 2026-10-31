@@ -36,10 +36,19 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_gpu_probe_attempts"));
     auto successes = reinterpret_cast<uint64_t(*)()>(
         dlsym(library, "ogl_rtx_gpu_probe_successes"));
-    assert(start && stop && status && frame && submit && attempts && successes);
+    auto copy_debug = reinterpret_cast<int(*)(ogl_rtx_shadow_debug*)>(
+        dlsym(library, "ogl_rtx_copy_shadow_debug"));
+    assert(start && stop && status && frame && submit && attempts && successes && copy_debug);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, test_log};
     assert(start(&host) == 0);
     assert(attempts() == 0 && successes() == 0);
+    ogl_rtx_shadow_debug debug{};
+    debug.struct_size = sizeof(debug);
+    debug.version = OGL_RTX_SHADOW_DEBUG_VERSION;
+    assert(copy_debug(&debug) == 0); // no stale output before GPU runs
+    debug.version = 999;
+    assert(copy_debug(&debug) == 0); // reject incompatible ABI
+    debug.version = OGL_RTX_SHADOW_DEBUG_VERSION;
 
     ogl_rtx_frame_state state{};
     state.struct_size = sizeof(state);
@@ -70,14 +79,42 @@ int main(int argc, char** argv) {
         }
         assert(attempts() == (missing ? 0u : 1u));
         assert(successes() == (missing ? 0u : 1u));
+        if (!missing) {
+            // Worker completion and main-thread publication are separate.
+            for (unsigned i = 0; i < 30; ++i) assert(frame(&state) == 1);
+            assert(copy_debug(&debug) == 1);
+            assert(debug.width == 8 && debug.height == 8);
+            assert(debug.geometry_revision == 1);
+            uint32_t hits = 0;
+            for (const auto pixel : debug.pixels) {
+                assert(pixel <= 1);
+                hits += pixel;
+            }
+            assert(hits == debug.occluded);
+            assert(copy_debug(nullptr) == 0);
+            ogl_rtx_shadow_debug too_small{};
+            too_small.struct_size = sizeof(too_small) - 1;
+            too_small.version = OGL_RTX_SHADOW_DEBUG_VERSION;
+            assert(copy_debug(&too_small) == 0);
+            // A change to EEP sun direction invalidates an old GPU sample;
+            // future renderer must enqueue new lighting work separately.
+            state.sun_direction[0] = 0.5f;
+            assert(frame(&state) == 1);
+            assert(copy_debug(&debug) == 0);
+        } else {
+            assert(copy_debug(&debug) == 0);
+        }
         // Same geometry: no new GPU invocation.
         assert(submit(tris.data(), tris.size()) == 1);
         assert(attempts() == (missing ? 0u : 1u));
         // Changed geometry: rate limiting prevents immediate second call.
         tris[0].position[0] = 0.15f;
         assert(submit(tris.data(), tris.size()) == 1);
+        assert(copy_debug(&debug) == 0); // old mask invalid after mesh change
         assert(attempts() == (missing ? 0u : 1u));
         assert(successes() == (missing ? 0u : 1u));
+        assert(submit(nullptr, 0) == 1); // teleport drops all saved mask state
+        assert(copy_debug(&debug) == 0);
     } else {
         assert(attempts() == 0);
         assert(successes() == 0);

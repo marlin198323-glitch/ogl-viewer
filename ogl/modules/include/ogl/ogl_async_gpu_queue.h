@@ -27,6 +27,7 @@ public:
         uint32_t triangle_count = 0;
         uint32_t ray_count = 0;
         uint32_t occluded = 0;
+        std::array<uint8_t, 64> shadow_mask{};
         uint32_t gpu_device_creations = 0;
         uint32_t blas_builds = 0;
         uint32_t cache_hits = 0;
@@ -121,9 +122,16 @@ private:
             // Never publish stale results after region changes.
             if (!m_stop && job.revision > m_min_valid_revision &&
                 job.revision >= m_latest_revision) {
+                uint32_t mask_hits = 0;
+                bool mask_valid = true;
+                for (uint8_t pixel : outcome.shadow_mask) {
+                    if (pixel > 1u) mask_valid = false;
+                    mask_hits += pixel;
+                }
                 if (outcome.return_code != 0 || outcome.ray_count != 64 ||
                     outcome.triangle_count != job.triangles.size() ||
-                    outcome.occluded > outcome.ray_count) {
+                    outcome.occluded > outcome.ray_count || !mask_valid ||
+                    mask_hits != outcome.occluded) {
                     m_stats.disabled = true; // fail closed until next start
                     m_pending = {};
                 } else {

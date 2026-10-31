@@ -30,6 +30,7 @@ Queue::Result completed(const Queue::Job& job, int code = 0) {
     r.triangle_count = static_cast<uint32_t>(job.triangles.size());
     r.ray_count = 64;
     r.occluded = 15;
+    for (unsigned i = 0; i < 15; ++i) r.shadow_mask[i] = 1;
     r.return_code = code;
     return r;
 }
@@ -112,6 +113,31 @@ int main() {
         CHECK(!queue.enqueue(make_job(2)));
         Queue::Result result{};
         CHECK(queue.try_take(result) && result.return_code == 1);
+    }
+    {
+        // A corrupt pixel value may never reach a viewer compositing path.
+        Queue queue([](const Queue::Job& job) {
+            auto result = completed(job);
+            result.shadow_mask[0] = 255;
+            return result;
+        });
+        CHECK(queue.enqueue(make_job(1)));
+        CHECK(wait_for([&]{return queue.stats().disabled;}));
+        CHECK(queue.stats().successes == 0);
+        Queue::Result result{};
+        CHECK(queue.try_take(result));
+        CHECK(!queue.enqueue(make_job(2)));
+    }
+    {
+        // Even valid 0/1 pixels with mismatched hit totals are rejected.
+        Queue queue([](const Queue::Job& job) {
+            auto result = completed(job);
+            result.shadow_mask[1] = 0;
+            return result;
+        });
+        CHECK(queue.enqueue(make_job(1)));
+        CHECK(wait_for([&]{return queue.stats().disabled;}));
+        CHECK(queue.stats().successes == 0);
     }
     {
         // Explicit stop releases the worker and rejects future submissions.

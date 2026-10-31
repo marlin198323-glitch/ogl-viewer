@@ -97,6 +97,8 @@ def report():
                 device_inits, blas_builds, cache_hits = counters[-1]
                 print(f"RTX GPU reuse: {device_inits} device init(s), "
                       f"{blas_builds} BLAS build(s), {cache_hits} cache hit(s)")
+            print("RTX GPU shadow probe: 8x8 validated debug mask"
+                  " (not a rendered shadow map)")
             print("RTX GPU diagnostic is NOT visual raytracing in the world.")
         elif ("OGL RTX GPU scene probe failed;" in text or
               "OGL RTX async GPU probe failed;" in text):

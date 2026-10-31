@@ -94,6 +94,8 @@ ogl_rtx_frame_state latest_frame{};
 uint64_t received_frames = 0;
 std::vector<ogl_rtx_triangle> captured_geometry;
 uint64_t geometry_revision = 0;
+ogl_rtx_shadow_debug last_shadow_debug{};
+bool shadow_debug_valid = false;
 void report(std::string message) {
     std::snprintf(status.message, sizeof(status.message), "%s", message.c_str());
 }
@@ -213,7 +215,20 @@ void poll_probe_on_viewer_thread() {
     if (!probe_worker) return;
     ogl::AsyncGpuQueue::Result outcome{};
     if (!probe_worker->try_take(outcome)) return;
+    if (outcome.revision != geometry_revision || captured_geometry.empty())
+        return; // stale after region/mesh change
     if (outcome.return_code == 0) {
+        ogl_rtx_shadow_debug fresh{};
+        fresh.struct_size = sizeof(fresh);
+        fresh.version = OGL_RTX_SHADOW_DEBUG_VERSION;
+        fresh.geometry_revision = geometry_revision;
+        fresh.width = 8;
+        fresh.height = 8;
+        fresh.occluded = outcome.occluded;
+        std::copy(outcome.shadow_mask.begin(), outcome.shadow_mask.end(),
+                  std::begin(fresh.pixels));
+        last_shadow_debug = fresh; // publisher is the viewer main thread only
+        shadow_debug_valid = true;
         if (logger)
             logger(1, (std::string("OGL RTX GPU probe: triangles=") +
                 std::to_string(outcome.triangle_count) + " rays=" +
@@ -242,6 +257,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     received_frames = 0;
     captured_geometry.clear();
     geometry_revision = 0;
+    last_shadow_debug = {};
+    shadow_debug_valid = false;
     probe_worker.reset(); // join before unloading Vulkan function pointers
     gpu_probe_cleanup();
     probe_opt_in = false;
@@ -275,6 +292,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 result.triangle_count = native.triangle_count;
                 result.ray_count = native.ray_count;
                 result.occluded = native.occluded;
+                if (native.mask_width != 8 || native.mask_height != 8) {
+                    result.return_code = 1;
+                } else {
+                    std::copy(std::begin(native.shadow_mask),
+                              std::end(native.shadow_mask),
+                              result.shadow_mask.begin());
+                }
                 result.gpu_device_creations = native.vulkan_device_creations;
                 result.blas_builds = native.blas_builds;
                 result.cache_hits = native.cache_hits;
@@ -301,6 +325,8 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     gpu_probe_cleanup();
     probe_opt_in = false;
     captured_geometry.clear();
+    last_shadow_debug = {};
+    shadow_debug_valid = false;
     logger = nullptr;
 }
 extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
@@ -310,6 +336,17 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
     if (!frame || frame->struct_size < sizeof(ogl_rtx_frame_state) ||
         frame->frame_version != OGL_RTX_FRAME_VERSION || !status.hardware_ready ||
         frame->width == 0 || frame->height == 0) return 0;
+    // A previous probe mask must not be represented as current when
+    // environment lighting changes (even while geometry is unchanged).
+    bool sun_changed = false;
+    for (unsigned i = 0; i < 3; ++i)
+        if (latest_frame.sun_direction[i] != frame->sun_direction[i])
+            sun_changed = true;
+    if (sun_changed) {
+        shadow_debug_valid = false;
+        last_shadow_debug = {};
+        if (probe_worker) probe_worker->invalidate(geometry_revision);
+    }
     latest_frame = *frame;
     ++received_frames;
     if (probe_worker && received_frames % 30 == 0)
@@ -332,6 +369,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
         if (!captured_geometry.empty()) {
             captured_geometry.clear();
             ++geometry_revision; // Teleport/region change invalidates old AS.
+            last_shadow_debug = {};
+            shadow_debug_valid = false;
             if (probe_worker) probe_worker->invalidate(geometry_revision);
             if (logger)
                 logger(1, (std::string("OGL RTX CPU scene cleared revision=") +
@@ -348,6 +387,12 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     const bool first_batch = captured_geometry.empty();
     captured_geometry.assign(triangles, triangles + count);
     ++geometry_revision;
+    last_shadow_debug = {};
+    shadow_debug_valid = false;
+    // Mark the earlier scene obsolete whether or not the throttle allows a
+    // new GPU job. Keep this revision admissible for a fresh enqueue.
+    if (probe_worker && geometry_revision > 0)
+        probe_worker->invalidate(geometry_revision - 1);
     // Never perform Vulkan calls on this render-thread callback.
     if (probe_worker && received_frames > 0 &&
         geometry_revision != probe_last_revision) {
@@ -391,6 +436,17 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_copy_geometry(
     return count;
 }
 
+
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_shadow_debug(
+    ogl_rtx_shadow_debug *output)
+{
+    if (!output || output->struct_size != sizeof(ogl_rtx_shadow_debug) ||
+        output->version != OGL_RTX_SHADOW_DEBUG_VERSION ||
+        !shadow_debug_valid || last_shadow_debug.geometry_revision != geometry_revision)
+        return 0;
+    *output = last_shadow_debug;
+    return 1;
+}
 
 extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_gpu_probe_attempts(void) {
     return probe_worker ? probe_worker->stats().attempts : 0;

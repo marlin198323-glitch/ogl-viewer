@@ -188,3 +188,17 @@ Fehlerberichte eingefügt werden.
 - Neuer GPU-Lifecycle-Test bis 1.024 Dreiecke; kompletter Linux-Build
   inklusive beider RTX-SOs erfolgreich. OpenGL-Fallback unverändert.
 - [`RTX_10_BLOCKS_2026_10_31_P5.md`](RTX_10_BLOCKS_2026_10_31_P5.md).
+
+
+## 31.10.2026 – sechste RTX-10er-Runde: GPU-Maske bis Firestorm Host
+
+- Versionierte GPU-Probe-ABI v3 mit 64 Pixelwerten (8×8, nur Debug).
+- GPU-Pixelmaske wird durch die asynchrone Queue und das RTX-Modul
+  bis zur Firestorm-Host-Abfrage validiert transportiert.
+- Szene/Teleport/Sonne: vorhandene Maske invalidieren; keine
+  stale Schattenproben oder fehlgeschlagene GPU-Weitergabe.
+- Abnahmen: synthetische Dreiecksmaske, Cache-Bytevergleich,
+  korruptes GPU-Pixel, falsche Trefferzahl, ungültige ABI-Version.
+- Vollständiger Linux-Viewer C++-Build, beide RTX-SOs und Shader
+  im Paket bestätigt; normales OpenGL-Rendering bleibt aktiv.
+- [`RTX_10_BLOCKS_2026_10_31_P6.md`](RTX_10_BLOCKS_2026_10_31_P6.md).
