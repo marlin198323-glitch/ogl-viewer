@@ -1021,8 +1021,9 @@ void FSPanelLogin::onClickConnect(void *)
             return;
         }
 
-        // OGL security gate: never send credentials to an unencrypted grid.
-        // The grid may publish multiple fallback URIs; require HTTPS for all.
+        // OGL: allow only the explicitly approved, fixed Stadt NexVerse HTTP
+        // endpoint. All other insecure grid URIs remain blocked. This is not
+        // a persistent preference and never enables unattended HTTP login.
         if (APP_NAME == "OGL")
         {
             std::vector<std::string> login_uris;
@@ -1030,7 +1031,7 @@ void FSPanelLogin::onClickConnect(void *)
             bool secure_login = !login_uris.empty();
             for (const std::string& uri : login_uris)
             {
-                LLURI parsed(uri);
+                const LLURI parsed(uri);
                 if (parsed.scheme() != "https" || parsed.authority().empty())
                 {
                     secure_login = false;
@@ -1039,10 +1040,30 @@ void FSPanelLogin::onClickConnect(void *)
             }
             if (!secure_login)
             {
-                LLNotificationsUtil::add("GenericAlert", LLSD().with(
-                    "MESSAGE", LLTrans::getString("OGLInsecureGridLogin")));
-                LL_WARNS("OGL") << "Blocked login: grid does not provide HTTPS login URIs." << LL_ENDL;
-                return;
+                const bool pinned_http = OGLNexVerseGrid::isExactPinnedHTTPLogin(
+                    LLGridManager::getInstance()->getGrid(), login_uris);
+                if (!pinned_http)
+                {
+                    LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                        "MESSAGE", LLTrans::getString("OGLInsecureGridLogin")));
+                    LL_WARNS("OGL") << "Rejected unexpected insecure grid endpoint." << LL_ENDL;
+                    return;
+                }
+                if (!OGLNexVerseGrid::gHTTPLoginApprovedThisSession)
+                {
+                    LLNotificationsUtil::add("OGLHTTPLoginWarning", LLSD(), LLSD(),
+                        [](const LLSD& notification, const LLSD& response)
+                        {
+                            if (LLNotificationsUtil::getSelectedOption(notification, response) == 0)
+                            {
+                                OGLNexVerseGrid::gHTTPLoginApprovedThisSession = true;
+                                LL_WARNS("OGL") << "User approved insecure HTTP for pinned Stadt NexVerse this session."
+                                                << LL_ENDL;
+                                FSPanelLogin::onClickConnect(nullptr);
+                            }
+                        });
+                    return;
+                }
             }
         }
 

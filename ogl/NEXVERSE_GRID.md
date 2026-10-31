@@ -2,56 +2,49 @@
 
 Stand: 31.10.2026 | Branch: `ogl-develop`
 
-## Zentrale Konfiguration
+## Feste Werte
 
-Die festen Werte stehen in `indra/newview/oglnexversegrid.h`.
-OGL übernimmt sie beim Viewer-Start, ohne dass Benutzer eine Grid-Adresse
-eingeben oder ein weiteres Grid im Manager hinzufügen müssen.
+Die Werte sind zentral in `indra/newview/oglnexversegrid.h` hinterlegt.
 
-| Eigenschaft | Eingestellter Wert |
+| Eigenschaft | Wert |
 |---|---|
 | Name | Stadt NexVerse |
-| OpenSim-Grid-Schlüssel | hg.stadt-nexverse.de:80 |
-| Veröffentlichte Login-URI | http://hg.stadt-nexverse.de:80/ |
-| Welcome-Seite | https://stadt-nexverse.de/service/welcome |
-| Webseite | https://stadt-nexverse.de/ |
-| Hypergrid-SLURL-Basis | hop://hg.stadt-nexverse.de:80/ |
+| Grid-Schlüssel | hg.stadt-nexverse.de:80 |
+| OpenSim-Login | http://hg.stadt-nexverse.de:80/ |
+| Welcome | https://stadt-nexverse.de/service/welcome |
+| Stadtportal | https://stadt-nexverse.de/ |
+| Hypergrid-Basis | hop://hg.stadt-nexverse.de:80/ |
 
-Quelle: offizielle, öffentlich erreichbare
-`http://hg.stadt-nexverse.de/get_grid_info` (direkt geprüft).
+Die HTTP-Login-URI entspricht der öffentlichen GridInfo-Ausgabe des
+Stadt-NexVerse-OpenSim-Servers. Port 443 ist derzeit nicht erreichbar.
+Die vorhandenen Services auf dem Server wurden nicht verändert.
 
-Die öffentliche Grid-Info veröffentlicht für Registrierung, Passwort,
-Hilfe und Über-uns derzeit lediglich die HTTP-Startseite. OGL bietet
-dafür ersatzweise die existierende HTTPS-Startseite an. Eigene, nicht
-verifizierte Unterseiten wurden nicht erfunden.
+## HTTP-Login – ausdrücklich vom Betreiber gewünscht
 
-## Verhalten
+- Einzige HTTP-Ausnahme: der **exakte** hinterlegte Grid-Schlüssel und
+  die **einzige** URI `http://hg.stadt-nexverse.de:80/`.
+- Bei einem manuellen Login zeigt OGL eine deutsche oder englische
+  Sicherheitswarnung mit „Über HTTP anmelden“ und „Abbrechen“.
+- Nur nach aktiver Bestätigung ist die Anmeldung über HTTP freigegeben.
+  Die Zustimmung gilt ausschließlich für diesen laufenden Viewer-Prozess;
+  ein Neustart setzt sie zurück.
+- Das Authentifizierungsverfahren überprüft unmittelbar vor
+  `LLLoginInstance::connect()` erneut die Zieladresse und Zustimmung.
+  Automatische HTTP-Logins ohne Bestätigung bleiben blockiert.
+- Unbekannte oder zusätzliche HTTP-Adressen werden nicht erlaubt.
+  Andere Grids bleiben in diesem OGL-Fork nicht auswählbar.
+- Die bisherigen Funktionen zum Speichern von Benutzername/Passwort
+  sind unverändert; HTTP schützt die Übertragung jedoch **nicht**.
+  Zugangsdaten oder wiederverwendbare Authentifizierungswerte können
+  auf dem Netzwerkweg mitgelesen oder manipuliert werden.
+  Deshalb möglichst mit einem separaten Testkonto prüfen.
 
-- Das Grid ist beim Programmstart automatisch ausgewählt.
-- Zusätzliche Grids aus Firestorms Online-, App- oder Benutzerliste
-  werden im OGL-Fork nicht geladen. Die vorhandenen Konfigurationsdateien
-  anderer Viewer werden nicht gelöscht.
-- Gridwechsel und neue Gridregistrierungen werden für OGL abgelehnt.
-- Der Grid-Auswahlschalter ist im Loginbereich deaktiviert.
-- Benutzername und Passwort bleiben normale Benutzerfelder.
-- Die vorhandene Firestorm-Anmeldespeicherung bleibt grundsätzlich
-  erhalten, aber eine Anmeldung wird erst über HTTPS erlaubt.
+Das ist eine bewusste Kompatibilitätsausnahme für Stadt NexVerse.
+Sie macht HTTP nicht sicher und ersetzt kein HTTPS. Optional sind
+unter `ogl/server/` weiterhin geprüfte Vorlagen für eine spätere
+HTTPS-Umstellung vorhanden.
 
-## Sicherheitsblockade – noch offen
-
-`hg.stadt-nexverse.de` antwortet auf Port 80 mit einer HTTP-Login-URI,
-aber derzeit nicht auf TCP 443/HTTPS. Deshalb verhindert OGL sowohl
-Anmeldungen über den Login-Button als auch den Aufruf des eigentlichen
-Authentifizierungsdienstes aus automatischen Anmeldewegen.
-
-Dieser Zustand schützt Passwörter, verhindert aber ausdrücklich einen
-realen Login oder Test der 3D-Welt. Das ist **kein Viewerfehler**.
-Für eine Freigabe muss Stadt NexVerse eine gültige HTTPS-Login-URI
-veröffentlichen und einen TLS-terminierten Login-Endpunkt bereitstellen.
-Danach `kLoginURI` in der zentralen OGL-Konfiguration auf die tatsächlich
-geprüfte HTTPS-URI ändern und neu bauen.
-
-## Linux Mint testen
+## Testen auf Linux Mint
 
 ```bash
 cd "/home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm"
@@ -59,19 +52,16 @@ bash ogl/scripts/build-test.sh
 bash ogl/scripts/run-viewer-test.sh
 ```
 
-Alternativ doppelklicken:
-`~/Schreibtisch/OGL-Viewer-Test.desktop`.
+Oder auf dem Schreibtisch `OGL-Viewer-Test.desktop` starten.
+Den Login selbst muss der Benutzer im Viewer bestätigen und testen;
+keine Passwörter in Chatnachrichten oder Debugausgaben übertragen.
 
-Diagnose:
-```bash
-python3 ogl/scripts/ogl-test-report.py
-```
+## Abnahmestand
 
-Abnahme:
-- C++-Build + Resource-Staging
-- Viewer-Start, Loginmaske, NexVerse-Welcome
-- Log `OGLGrid: Using fixed Stadt NexVerse OpenSim grid`
-- Keine anderen auswählbaren Grids
-- Sicherheitsregel HTTPS vor dem eigentlichen Authentifizierungsaufruf
-- 9 Quellcode-Kontrakttests sowie 3 Modul-Tests
-- Erst nach Server-TLS: echter Grid-Login, Avatar, Mesh, Texturen, Himmel
+- OGL-Fenster, feste Grid-Vorauswahl, Welcome-Seite und RTX-Erkennung:
+  lokal bereits geprüft.
+- HTTP-Freigabe und Bestätigungsdialog: implementiert; Build- und
+  automatisierte Tests bestanden.
+- Manueller Login über HTTP und tatsächliche Welt-/Avatar-Darstellung:
+  noch durch den Benutzer abzunehmen.
+- Raytracing-Schatten, Reflexionen und GI: noch nicht implementiert.

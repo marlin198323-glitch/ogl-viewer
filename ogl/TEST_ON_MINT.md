@@ -43,11 +43,12 @@ python3 ogl/scripts/ogl-test-report.py
 1. OGL title, icon and NexVerse welcome appear.
 2. Test narrow/standard/ultrawide window sizes and read text labels.
 3. Verify startup without crash or missing font, texture or CEF plugin.
-4. **Do not enter real passwords yet.** The public Stadt NexVerse grid
-   advertises HTTP login. The OGL button blocks grids without HTTPS,
-   but other login paths still require a comprehensive security audit.
-5. Once an HTTPS login endpoint is implemented, test authentication,
-   region entry and real 3D rendering with a controlled account.
+4. Stadt NexVerse currently uses HTTP. OGL permits the exact fixed URI
+   only after you explicitly choose **Über HTTP anmelden** (or its English
+   equivalent). HTTP traffic is unencrypted: use a separate test account
+   whenever possible; never paste credentials into chat or debugging logs.
+5. Test authentication, region entry and rendering manually after consent.
+   An automatic HTTP login without a fresh per-process consent remains blocked.
 6. Compare textures, mesh, avatar wearables, sky/sun, animations,
    camera, movement, cache reuse and teleport with upstream Firestorm.
 

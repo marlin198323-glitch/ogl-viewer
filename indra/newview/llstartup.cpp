@@ -28,7 +28,8 @@
 
 #include "llappviewer.h"
 #include "llstartup.h"
-#include "indra_constants.h" // OGL: secure single-grid login policy
+#include "indra_constants.h" // OGL: product-specific single-grid login policy
+#include "oglnexversegrid.h" // OGL: per-session HTTP consent
 
 #if LL_VELOPACK && LL_WINDOWS
 #include "llvelopack.h"
@@ -1777,9 +1778,10 @@ bool idle_startup()
 // </AW: crash report grid correctness>
         login->setLastAgentSessionId(gLastAgentSessionId);
 
-        // OGL: enforce HTTPS at the last credential transfer boundary too.
-        // This also covers autologin and command-line paths, not only the
-        // ordinary login panel click. Never allow an HTTP fallback URI.
+        // OGL: check the transport policy again at the real authentication
+        // boundary, covering auto-login and other paths outside the login UI.
+        // Insecure HTTP is permitted only for the exact pinned NexVerse URI,
+        // after an explicit confirmation during this process lifetime.
         if (APP_NAME == "OGL")
         {
             std::vector<std::string> uris;
@@ -1794,14 +1796,23 @@ bool idle_startup()
                     break;
                 }
             }
-            if (!all_https)
+            const bool consented_pinned_http =
+                OGLNexVerseGrid::gHTTPLoginApprovedThisSession &&
+                OGLNexVerseGrid::isExactPinnedHTTPLogin(
+                    LLGridManager::getInstance()->getGrid(), uris);
+            if (!all_https && !consented_pinned_http)
             {
-                LL_WARNS("OGLGrid") << "Blocked all login methods: secure HTTPS endpoint is required."
+                LL_WARNS("OGLGrid") << "Rejected login: HTTPS or explicit fixed-grid HTTP consent required."
                                     << LL_ENDL;
                 transition_back_to_login_panel("");
                 LLNotificationsUtil::add("GenericAlert", LLSD().with(
                     "MESSAGE", LLTrans::getString("OGLInsecureGridLogin")));
                 return false;
+            }
+            if (consented_pinned_http)
+            {
+                LL_WARNS("OGLGrid") << "Using user-approved HTTP login to fixed Stadt NexVerse grid."
+                                    << LL_ENDL;
             }
         }
 

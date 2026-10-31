@@ -1,99 +1,69 @@
-# OGL Firestorm Fork – verified Linux Mint state (2026-10-31)
+# OGL Viewer – Linux Mint: aktueller Build- und Abnahmestand
 
-## Passed
+Stand: 31.10.2026 | Branch `ogl-develop` | Firestorm 7.2.5 / OpenSim
 
-- Official Firestorm release baseline: `Firestorm_7.2.5`,
-  base commit `4ac201fdc561`; fork `marlin198323-glitch/ogl-viewer`,
-  development branch `ogl-develop`.
-- OGL branding implementation committed as `5e66e2df`.
-- CMake OpenSim configuration: `OPENSIM:BOOL=ON`.
-- Branded channel: `OGL Viewer Development`.
-- Full OGL recompile/link: 824/824 Ninja steps, exit 0.
-- Linux manifest resource staging: exit 0.
-- OGL logo in login skin and Linux desktop resources; staged source
-  and destination SHA-256 checks match.
-- Linux Mint X11 start: window title
-  `OGL Viewer Development 7.2.5.8`, login screen reached
-  `STATE_LOGIN_WAIT`.
-- Linux OpenGL: NVIDIA RTX 4070 SUPER, OpenGL 4.6, driver 615.71.09.
-- CEF login background loads
-  `https://stadt-nexverse.de/service/welcome`.
-- Branded runtime writes `~/.local/share/ogl-firestorm-test/logs/OGL.log`.
-- Start log contained zero ERROR/FATAL messages at first check.
-- Static OGL branding/security tests: 6/6 passing.
-- Standalone OGL module tests: 3/3 passing (RTX capability, missing-driver
-  fallback, basic ABI handshake). RTX module loaded by the actual viewer;
-  RTX 4070 SUPER reported hardware_ready=1 / rendering_active=0.
-  This is not an active ray-tracing renderer.
-- Legacy `nexverse-viewer` project was not overwritten or merged.
+## Bereits verifiziert
 
-## Run on Linux Mint
+- Firestorm-basierter OGL Viewer auf Linux Mint kompiliert und per X11
+  mit eigener Verknüpfung gestartet.
+- NVIDIA RTX 4070 SUPER mit OpenGL 4.6 und Vulkan-Raytracing-Erweiterungen
+  erkannt. `hardware_ready=1`, aber `rendering_active=0`:
+  **keine** echten Raytracing-Schatten oder Reflexionen implementiert.
+- Stadt NexVerse ist das fest eingebaute, einzige auswählbare Grid.
+  Seine GridInfo veröffentlicht `http://hg.stadt-nexverse.de:80/`.
+- NexVerse-Welcome-Seite: `https://stadt-nexverse.de/service/welcome`.
+- Eigenes Datenverzeichnis: `~/.local/share/ogl-firestorm-test`.
+- OGL-Branding, Grafik-Icons, Login-Modusname und UI-Ressourcen aufgebaut.
+- Nutzerseitiger Wunsch: bestehende **HTTP-Anmeldung** statt HTTPS.
+  OGL verlangt beim ersten manuellen Login eine ausdrückliche Warnungs-
+  bestätigung ("Über HTTP anmelden"), ausschließlich für das fest
+  hinterlegte Stadt-NexVerse-Grid.
+- Die Freigabe gilt nur für den laufenden Prozess. Der eigentliche
+  Authentifizierungsaufruf prüft sie ebenfalls. Automatische HTTP-Anmeldung
+  ohne erneute Bestätigung und fremde HTTP-Ziele bleiben gesperrt.
+- Vollständiger C++-Build für diese Freigabe erfolgreich.
+- 14/14 Python-Vertrags-/Sicherheitstests und 4/4 native
+  Modul-/Allowlist-Tests bestanden.
 
-- Desktop shortcut: `~/Schreibtisch/OGL-Viewer-Test.desktop`.
-- App menu: `OGL Viewer (Entwicklung)`.
-- Command: `bash ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/run-viewer-test.sh`.
-- Rebuild and test: `bash ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/build-test.sh --run`.
-- Read-only local report: `python3 ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/ogl-test-report.py`.
+## Einschränkungen
 
-Build and staging logs:
-`~/Schreibtisch/OGL-Viewer/.ogl-branding-build.log` and
-`~/Schreibtisch/OGL-Viewer/.ogl-branding-stage.log`.
-Launch log:
-`~/.local/state/ogl-firestorm-test/launch-*.log`.
+- HTTP **verschlüsselt den Logintransport nicht**. Anmeldedaten oder
+  wiederverwendbare Zugangsinformationen können abgefangen und verändert
+  werden. Nach Möglichkeit ausschließlich ein separates Testkonto nutzen.
+- Die Freigabe ersetzt keine TLS-Konfiguration. Unter `ogl/server/`
+  liegt weiterhin die optionale, validierte Caddy-HTTPS-Vorlage.
+  Auf dem öffentlichen Grid-Server wurde **nichts** geändert.
+- Der tatsächliche authentifizierte Login, die 3D-Welt, Avatar-Wearables,
+  Texturen, Meshes, Himmel, Sonne und Teleport müssen noch manuell
+  abgenommen werden.
+- RTX-Modul ist hardwareseitig aktiv, aber noch kein Raytracing-Renderer.
+- Das bestehende native `nexverse-viewer`-Projekt ist unverändert.
 
-## Open acceptance gates
+## Start und Diagnose
 
-1. Actual password authentication was **not** tested. The grid advertises
-   `http://hg.stadt-nexverse.de:80/` as its login endpoint and
-   `https://hg.stadt-nexverse.de` was not available at the last check.
-   OGL's interactive login button now rejects grids without HTTPS
-   login URIs. A real-grid HTTPS deployment and controlled login test
-   are still required.
-2. Avatar wearables, attachments, mesh completeness, sky, sun,
-   animations, teleport, chat/voice and world rendering require a
-   verified in-world OpenSim session. Do not call these accepted.
-3. The modular C ABI handshake runs independently; Firestorm does
-   not yet load in-viewer OGL modules.
-4. Design is early OGL branding, not a fully reworked responsive
-   OGL UI. Fonts, ultra-wide scaling and input ergonomics still
-   need manual UI acceptance.
-5. Production installers, source/license redistribution review,
-   multi-platform CI and updater are not released.
+```bash
+cd "/home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm"
+bash ogl/scripts/run-viewer-test.sh
+python3 ogl/scripts/ogl-test-report.py
+```
 
-The initial authenticated viewer must never be represented as
-production-ready until these gates pass.
+Desktop: `~/Schreibtisch/OGL-Viewer-Test.desktop`.
 
-## Stadt NexVerse fixed-grid integration (2026-10-31)
+Vollständiger Build einschließlich Ressourcen:
+```bash
+bash ogl/scripts/build-test.sh
+```
 
-- Stadt NexVerse is selected automatically and is the only selectable
-  grid. Login UI selection and grid registration outside NexVerse are
-  blocked in the OGL fork; no unrelated user file is deleted.
-- Central, explicit grid profile: `indra/newview/oglnexversegrid.h`.
-- Startup verified: `OGLGrid: Using fixed Stadt NexVerse OpenSim grid`.
-- Verified public endpoints: `http://hg.stadt-nexverse.de:80/` (advertised
-  HTTP login URI) and `https://stadt-nexverse.de/service/welcome`.
-- HTTPS :443 on the grid hostname was unreachable during this test.
-  **No live authentication was attempted**; OGL rejects insecure
-  interactive and automatic login pathways.
-- Contract checks: 9/9 passed; module checks: 3/3 passed.
-- Full C++ incremental rebuild and runtime staging passed.
-- See [`NEXVERSE_GRID.md`](NEXVERSE_GRID.md) for the complete profile.
+Log: `~/.local/share/ogl-firestorm-test/logs/OGL.log`.
+Es dürfen keine realen Zugangsdaten in den Chat oder öffentliche
+Fehlerberichte eingefügt werden.
 
-## 2026-10-31 – HTTPS deployment preparation (no server deployment)
+## Nächste Abnahme
 
-- Verified `hg.stadt-nexverse.de` resolves to `195.90.222.105`;
-  TCP/80 OpenSim/OSWebServer works, but public TCP/443 refuses connections.
-- Authorized Linux Mint and Pi devices are **not** the grid host.
-  SSH from Mint to the real grid host failed authentication.
-- Added Caddy HTTPS/TLS-ALPN-only reverse proxy template and read-only
-  host preflight under `ogl/server/`. Locally validated the Caddyfile
-  using Caddy 2.6.2 (no grid-server changes made).
-- Added cautious client HTTPS activation tool: validates GridInfo over
-  HTTPS with system certificate trust, then updates one OGL source value
-  only with `--activate`. Current `--check` correctly BLOCKS because
-  the public grid's HTTPS service is unavailable.
-- Changed login *style* label from Firestorm to OGL (underlying settings
-  filename unchanged). Works with both login panel layouts.
-- 13/13 OGL source and safety tests + 3/3 native module tests passed.
-- The actual OpenSim HTTPS endpoint has **not** been installed. No
-  login, avatar, mesh or in-world ray tracing can be accepted yet.
+1. Viewer starten und "Stadt NexVerse" als festes Grid prüfen.
+2. **Mit einem separaten Testkonto** bei der HTTP-Warnung
+   "Über HTTP anmelden" wählen; alternativ "Abbrechen" testen.
+3. Prüfen, ob der OpenSim-Login erfolgreich die 3D-Welt öffnet.
+4. Danach reale Region, Avatar/Attachments, Texturen/Meshes,
+   Himmel/Sonne, Kamera, Bewegung und Teleport vergleichen.
+5. Raytracing-Effekte und echtes Cache-Profiling separat implementieren.

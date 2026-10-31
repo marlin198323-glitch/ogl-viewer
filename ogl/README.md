@@ -3,8 +3,8 @@
 This folder contains OGL-specific extensions based on the official upstream
 Firestorm 7.2.5 release. A functional OpenSim Firestorm baseline was already
 compiled and GUI-launched on Linux Mint. The next OGL branding iteration now
-modifies product identity, welcome page, icons and interactive HTTPS login
-validation; these changes require a fresh compiled runtime acceptance.
+modifies product identity, welcome page, icons and a pinned HTTP login
+consent flow; every other insecure login endpoint stays blocked.
 
 - Upstream: https://github.com/FirestormViewer/phoenix-firestorm
 - Fork: https://github.com/marlin198323-glitch/ogl-viewer
@@ -42,6 +42,7 @@ other grids; upstream and remote grid lists are not loaded. See
 [`NEXVERSE_GRID.md`](NEXVERSE_GRID.md) for verified endpoints and TLS
 limitations.
 
-The publicly advertised grid login uses HTTP today, so OGL refuses
-credential submission (including automatic login) until an authenticated
-HTTPS grid endpoint is deployed and verified.
+The public Stadt NexVerse login currently uses HTTP. OGL permits exactly
+that grid URI only after an explicit, temporary warning confirmation.
+Automatic HTTP login without approval is blocked. HTTP does **not** encrypt
+credentials; use a separate test account when possible.

@@ -38,13 +38,34 @@ class StadtNexVerseGridTests(unittest.TestCase):
     def test_secure_login_on_all_paths(self):
         security = self.startup
         self.assertIn('STATE_LOGIN_AUTH_INIT', security)
-        self.assertIn('Blocked all login methods: secure HTTPS endpoint', security)
+        self.assertIn('Rejected login: HTTPS or explicit fixed-grid HTTP consent required', security)
+        self.assertIn('consented_pinned_http', security)
+        self.assertIn('gHTTPLoginApprovedThisSession', security)
+        self.assertIn('isExactPinnedHTTPLogin(', security)
         self.assertIn('transition_back_to_login_panel("")', security)
         self.assertIn('gSavedSettings.setBOOL("AutoLogin", false)', security)
         self.assertIn('parsed.scheme() != "https"', security)
-        self.assertLess(security.index('Blocked all login methods: secure HTTPS endpoint'),
+        self.assertLess(security.index('Rejected login: HTTPS or explicit fixed-grid HTTP consent required'),
                         security.index('login->connect(gUserCredential)'))
         self.assertIn('OGLInsecureGridLogin', security)
+        self.assertIn('OGLHTTPLoginWarning', self.panel)
+        self.assertIn('gHTTPLoginApprovedThisSession = true', self.panel)
+        self.assertIn('getSelectedOption(notification, response) == 0', self.panel)
+        self.assertIn('gHTTPLoginApprovedThisSession &&', security)
+
+    def test_http_warning_has_explicit_translated_accept_cancel_buttons(self):
+        import xml.etree.ElementTree as ET
+        for language in ('en', 'de'):
+            path = ROOT / f'indra/newview/skins/default/xui/{language}/notifications.xml'
+            xml = ET.parse(path).getroot()
+            matches = [e for e in xml.iter('notification')
+                       if e.get('name') == 'OGLHTTPLoginWarning']
+            self.assertEqual(len(matches), 1)
+            buttons = matches[0].find('usetemplate')
+            self.assertEqual(buttons.get('name'), 'okcancelbuttons')
+            self.assertTrue(buttons.get('yestext'))
+            self.assertTrue(buttons.get('notext'))
+            self.assertIn('HTTP', matches[0].text or '')
 
 
 if __name__ == "__main__":

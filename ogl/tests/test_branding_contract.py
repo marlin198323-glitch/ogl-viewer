@@ -18,7 +18,7 @@ class OGLBrandingContract(unittest.TestCase):
             tree = ET.parse(ROOT / f"indra/newview/skins/default/xui/{language}/strings.xml")
             keys = {s.get("name"): (s.text or "").strip() for s in tree.getroot()}
             self.assertIn("OGLInsecureGridLogin", keys)
-            self.assertIn("HTTPS", keys["OGLInsecureGridLogin"])
+            self.assertIn("HTTP", keys["OGLInsecureGridLogin"])
         base = ET.parse(ROOT / "indra/newview/skins/default/xui/en/strings.xml")
         labels = {x.get("name"): (x.text or "").strip() for x in base.getroot()}
         self.assertEqual(labels.get("APP_NAME"), "OGL Viewer")
@@ -39,7 +39,9 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('parsed.scheme() != "https"', source)
         self.assertIn("getLoginURIs(login_uris)", source)
         self.assertIn("OGLInsecureGridLogin", source)
-        self.assertIn("Blocked login: grid does not provide HTTPS", source)
+        self.assertIn("OGLHTTPLoginWarning", source)
+        self.assertIn("OGLNexVerseGrid::isExactPinnedHTTPLogin", source)
+        self.assertIn("User approved insecure HTTP for pinned Stadt NexVerse", source)
 
     def test_launcher_keeps_test_profile_isolated(self):
         launcher = self.source("ogl/scripts/run-viewer-test.sh")

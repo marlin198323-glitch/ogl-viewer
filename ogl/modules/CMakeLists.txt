@@ -46,3 +46,8 @@ add_test(
   NAME ogl_module_handshake
   COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>
 )
+
+# Pure C++ HTTP login allowlist contract. It never opens the network.
+add_executable(ogl_grid_http_policy_test ../tests/test_grid_http_policy.cpp)
+target_compile_features(ogl_grid_http_policy_test PRIVATE cxx_std_17)
+add_test(NAME ogl_grid_http_policy COMMAND ogl_grid_http_policy_test)

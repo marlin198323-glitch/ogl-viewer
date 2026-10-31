@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <notifications>
+<notification icon="alertmodal.tga" name="OGLHTTPLoginWarning" type="alertmodal">
+Stadt NexVerse uses an HTTP login without encryption. Your login credentials can be intercepted or modified in transit.
+
+Do you want to connect to Stadt NexVerse over HTTP anyway? This approval applies only until you close the OGL Viewer.
+    <usetemplate name="okcancelbuttons" yestext="Connect over HTTP" notext="Cancel"/>
+  </notification>
+
     <global name="skipnexttime">
 
 		Do not show me this again

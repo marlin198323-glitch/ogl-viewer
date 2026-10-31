@@ -1,4 +1,10 @@
-# Stadt NexVerse: ROBUST HTTPS without breaking existing HTTP/Hypergrid
+# Stadt NexVerse: optional ROBUST HTTPS upgrade
+
+**Not required for the current OGL test.** Stadt NexVerse has intentionally
+chosen an existing HTTP login. OGL supports the one fixed HTTP login URI after
+an explicit, temporary, localized user confirmation. HTTP remains unencrypted.
+This file documents an **optional future** server TLS migration only.
+
 
 Status (2026-10-31): **deployment not performed**. The actual OpenSim/ROBUST
 host is `195.90.222.105` (`hg.stadt-nexverse.de`), whereas the connected
@@ -84,8 +90,9 @@ points to the grid host, which is a different server.
   `[GridInfoService]` login value from the backed-up configuration and
   restart **only** the affected ROBUST service under the existing
   maintenance procedure. Stop the new Caddy service only if necessary.
-- Do not bypass OGL HTTPS checks or change password traffic back to HTTP
-  merely to get a successful login.
+- Current OGL supports the one verified Stadt NexVerse HTTP endpoint
+  following a per-process user warning/opt-in. HTTP traffic is unencrypted;
+  do not extend that exception to arbitrary grids or unattended login.
 - Never route passwords through `https://stadt-nexverse.de` to the grid
   across a public, unencrypted HTTP hop.
 - A valid HTTPS GridInfo page does not, by itself, prove that the login

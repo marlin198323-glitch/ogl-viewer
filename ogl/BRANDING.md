@@ -16,21 +16,22 @@ This is the development branch, not a production-ready OGL release.
   The icon is installed in the modern login panel and Linux icon resources.
 - Welcome content: `https://stadt-nexverse.de/service/welcome`.
   This is a web-page background, **not** a substitute for the grid login URI.
-- Interactive login UI rejects a grid if **any** advertised authentication
-  URL lacks an HTTPS scheme/authority or if no login URI is available.
-  A localized German/English modal explains the restriction.
+- Interactive login UI requires a localized per-process confirmation for
+  the pinned Stadt NexVerse HTTP endpoint. The last authentication boundary
+  checks consent too; all unexpected HTTP endpoints remain blocked.
 - Existing upstream Firestorm/Second Life copyright and third-party
   acknowledgments are retained. The executable may retain upstream internal
   code names and still includes upstream Firestorm features.
 
-## Important network prerequisite
+## HTTP login compatibility
 
-The currently advertised Stadt NexVerse login endpoint is
-`http://hg.stadt-nexverse.de:80/`. HTTPS on that hostname previously
-failed. Until a valid HTTPS login service has been configured and tested,
-**do not attempt real account login**. The UI guard covers the standard
-login-button route; independently audit other auto-login or command-line
-routes before declaring all paths secure.
+The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.
+The user explicitly requested HTTP compatibility. The OGL login panel
+asks for a per-process confirmation before connecting to **this exact**
+HTTP endpoint, and the authentication boundary checks the same approval.
+Unattended HTTP login without that consent and all other HTTP grids stay
+blocked. HTTP traffic remains unencrypted; use a separate test account
+when possible. An optional HTTPS server upgrade can be performed later.
 
 ## Local Linux test
 
@@ -57,8 +58,10 @@ bash ogl/scripts/build-test.sh --run
 4. Verify English and German layouts, small and large screen widths,
    all fonts, CEF rendering and closing behavior.
 5. Confirm separate settings/cache/log paths.
-6. Verify the HTTP grid login is rejected **without actual passwords**.
-7. Repeat network tests only after HTTPS endpoint is validated.
+6. Verify that HTTP login prompts for explicit consent and that cancelling
+   does not authenticate; only the exact Stadt NexVerse URI is allowed.
+7. Auto-login without an in-process confirmation must remain blocked;
+   unsupported HTTP grids must remain rejected.
 8. Only after login: check sky, sun, textures, mesh, avatar appearance,
    camera, animation, teleports, and asset-cache measurements.
 
