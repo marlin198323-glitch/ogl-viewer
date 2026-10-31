@@ -76,6 +76,8 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIsNone(module.latest_gpu_probe_revision("no GPU jobs yet"))
         source = script.read_text()
         self.assertIn("RTX probe freshness:",source)
+        self.assertIn("older than latest",source)
+        self.assertIn("older viewers log",source)
 
     def test_camera_ray_anchor_report(self):
         source = script.read_text()

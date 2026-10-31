@@ -615,7 +615,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     poll_probe_on_viewer_thread();
     // Log numbers only, never login data or private scene object names.
     // Keep updates sparse to avoid I/O overhead in populated OpenSim regions.
-    if (logger && (first_batch || geometry_revision % 30 == 0))
+    // The opt-in GPU depth probe needs exact CPU revision logging;
+    // otherwise sparse revision-30 logs can incorrectly look newer/older.
+    if (logger && (probe_opt_in || first_batch || geometry_revision % 30 == 0))
         logger(1, (std::string("OGL RTX CPU scene snapshot: triangles=") +
                    std::to_string(count) + " revision=" +
                    std::to_string(geometry_revision) +

@@ -92,13 +92,18 @@ def report():
             print("RTX geometry revision:", revision)
             last_completed_revision = latest_gpu_probe_revision(text)
             if last_completed_revision is not None:
-                if last_completed_revision != revision:
-                    print(f"RTX probe freshness: completed GPU revision "
-                          f"{last_completed_revision}, latest CPU scene revision "
-                          f"{revision} (not the same scene)")
+                if last_completed_revision < revision:
+                    print(f"RTX probe freshness: GPU revision "
+                          f"{last_completed_revision} is older than latest "
+                          f"logged CPU scene revision {revision} (stale)")
+                elif last_completed_revision > revision:
+                    print(f"RTX probe freshness: GPU revision "
+                          f"{last_completed_revision} is newer than last logged "
+                          f"CPU scene revision {revision}; older viewers log "
+                          "CPU revisions sparsely")
                 else:
                     print("RTX probe freshness: completed GPU result matches "
-                          "latest CPU scene revision")
+                          "latest logged CPU scene revision")
         elif scene_batches:
             print("RTX world geometry sample:", scene_batches[-1], "triangles received")
         else:
