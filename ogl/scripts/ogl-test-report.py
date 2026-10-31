@@ -43,6 +43,8 @@ def report():
         print("Error entries:", len(re.findall(r"\b(?:ERROR|FATAL)\b", text)))
         print("Warning entries:", len(re.findall(r"\bWARNING\b", text)))
         print("Login screen ready:", "STATE_LOGIN_WAIT" in text)
+        world_started = "STATE_STARTED" in text
+        print("3D world entered in this log:", world_started)
         print("Viewer stopped cleanly:", "cleanup : Goodbye!" in text)
         rtx_lines = re.findall(
             r"OGLRTX[^\n]*GPU [^\n]*hardware_ready=(\d+) rendering_active=(\d+)",
@@ -52,7 +54,9 @@ def report():
         if scene_batches:
             print("RTX world geometry sample:", scene_batches[-1], "triangles received")
         else:
-            print("RTX world geometry sample: not observed (requires in-world session)")
+            reason = ("no triangle snapshot recorded yet" if world_started else
+                      "last log never reached the 3D world")
+            print("RTX world geometry sample: not observed (" + reason + ")")
         if rtx_lines:
             ready, active = rtx_lines[-1]
             print("RTX Vulkan hardware:", "supported" if ready == "1" else "not supported")

@@ -70,7 +70,9 @@ manuell zu prüfen. Das neue Login-Layout ist eine Entwicklungsfassung.
    der gedrosselte Geometrie-Snapshot erfolgen kann.
 3. Danach `python3 ogl/scripts/ogl-test-report.py` ausführen. Bei Erfolg
    wird `RTX world geometry sample: N triangles received` ausgegeben.
-   Wenn stattdessen `not observed` erscheint, Logdaten prüfen.
+   Wenn stattdessen `not observed` erscheint, auf die neue Zeile
+   `3D world entered in this log` achten. Wenn `False`, ist im letzten
+   Viewer-Start ausschließlich die Loginmaske geprüft worden.
 4. **Noch kein sichtbares Raytracing:** Eine positive Dreiecksanzahl
    bestätigt nur den CPU-Szenenexport. Weiter erforderlich: GPU BLAS/TLAS,
    Ray-Query-Shader und Einblendung in die OpenGL-Szene.
