@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <vector>
+#include <array>
 
 namespace ogl {
 // Cover all objects for practical OpenSim scenes in the opt-in RTX
@@ -31,6 +33,39 @@ inline float camera_ray_box_priority(float nearest_ray_m,
         return std::numeric_limits<float>::infinity();
     return std::max(0.f,nearest_ray_m -
                         0.05f*float(std::min(covered_rays,32u)));
+}
+
+// A near-only allocation can consume every 8192 Vulkan geometry slot
+// before any 30-120m or 120m+ object is visited. Deterministically mix
+// *actual ray-box distances*, preserving the order inside each distance
+// class, with a near:medium:far service ratio of 2:1:1. A missing class
+// never stalls another. This is diagnostic geometry selection, not rendering.
+inline uint32_t camera_depth_band(float entry_distance_m) {
+    if (!std::isfinite(entry_distance_m) || entry_distance_m<0.f)
+        return 3u; // unknown / invalid, handled after known camera boxes
+    return entry_distance_m < 30.f ? 0u :
+           entry_distance_m < 120.f ? 1u : 2u;
+}
+inline std::vector<size_t> stratified_camera_order(
+    const std::vector<float>& distances_m) {
+    std::array<std::vector<size_t>,4> grouped{};
+    for (size_t i=0;i<distances_m.size();++i)
+        grouped[camera_depth_band(distances_m[i])].push_back(i);
+    std::array<size_t,4> cursor{};
+    std::vector<size_t> ordered;
+    ordered.reserve(distances_m.size());
+    constexpr unsigned sequence[]{0u,1u,0u,2u};
+    while (ordered.size()<distances_m.size()) {
+        const size_t before=ordered.size();
+        for (unsigned group:sequence) {
+            if (cursor[group]<grouped[group].size())
+                ordered.push_back(grouped[group][cursor[group]++]);
+        }
+        if (ordered.size()==before) break;
+    }
+    while (cursor[3]<grouped[3].size())
+        ordered.push_back(grouped[3][cursor[3]++]);
+    return ordered;
 }
 
 inline uint32_t camera_ray_object_quota(uint32_t aabb_ray_count,

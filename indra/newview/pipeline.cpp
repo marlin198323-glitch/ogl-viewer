@@ -9546,19 +9546,37 @@ void LLPipeline::renderDeferredLighting()
                 std::vector<ogl_rtx_triangle> triangles;
                 triangles.reserve(ogl_triangle_budget);
                 const LLVector3 eye = camera->getOrigin();
+                size_t near_terrain_triangles=0;
+                size_t mid_terrain_triangles=0;
+                size_t far_terrain_triangles=0;
                 if (ogl_triangle_budget > 1024 && ogl_rtx_region)
                 {
                     const LLVector3 region_origin =
                         ogl_rtx_region->getOriginAgent();
                     const LLVector3 region_eye = eye - region_origin;
-                    ogl::append_nearby_terrain_triangles(triangles,
-                        region_eye.mV[0], region_eye.mV[1],
-                        ogl_rtx_region->getWidth(), region_origin.mV,
-                        ogl_triangle_budget,
-                        [ogl_rtx_region](float x, float y) -> float {
-                            return ogl_rtx_region->getLandHeightRegion(
-                                LLVector3(x,y,0.f));
-                        });
+                    const auto height_at=[ogl_rtx_region](
+                        float x,float y) -> float {
+                        return ogl_rtx_region->getLandHeightRegion(
+                            LLVector3(x,y,0.f));
+                    };
+                    near_terrain_triangles=
+                        ogl::append_nearby_terrain_triangles(
+                            triangles,region_eye.mV[0],region_eye.mV[1],
+                            ogl_rtx_region->getWidth(),region_origin.mV,
+                            ogl_triangle_budget,height_at);
+                    // 5m near-field terrain alone cannot intersect the
+                    // 30-120m / 120m+ OpenGL depth samples. Capture clipped
+                    // lower-LOD outer rings using no more than 640 extra
+                    // diagnostic triangles. This does NOT modify the real
+                    // Firestorm/OpenSim terrain renderer.
+                    mid_terrain_triangles=ogl::append_terrain_lod_ring(
+                        triangles,region_eye.mV[0],region_eye.mV[1],
+                        ogl_rtx_region->getWidth(),region_origin.mV,
+                        10.f,12,50.f,320u,ogl_triangle_budget,height_at);
+                    far_terrain_triangles=ogl::append_terrain_lod_ring(
+                        triangles,region_eye.mV[0],region_eye.mV[1],
+                        ogl_rtx_region->getWidth(),region_origin.mV,
+                        20.f,12,120.f,320u,ogl_triangle_budget,height_at);
                 }
                 const size_t terrain_triangles = triangles.size();
                 unsigned nearby_objects = 0;
@@ -9640,6 +9658,9 @@ void LLPipeline::renderDeferredLighting()
                 unsigned prepass_visible_objects=0;
                 unsigned prepass_fallback_objects=0;
                 unsigned prepass_broadphase_limit=0;
+                std::array<unsigned,3> ray_box_candidates_by_depth{};
+                std::array<unsigned,3> selected_mesh_objects_by_depth{};
+                std::unordered_map<LLVOVolume*,unsigned> ray_box_band;
                 if (ogl_triangle_budget>1024 && !candidates.empty()) {
                     const LLVector3 right=-camera->getLeftAxis();
                     const auto rays=ogl::camera_probe_rays(eye.mV,
@@ -9670,8 +9691,9 @@ void LLPipeline::renderDeferredLighting()
                     fallback_candidates.reserve(512);
                     std::unordered_set<LLVOVolume*> visible_ids;
                     visible_ids.reserve(1024);
-                    std::unordered_map<LLVOVolume*,float> ray_box_priority;
-                    ray_box_priority.reserve(1024);
+                    std::unordered_map<LLVOVolume*,size_t> ray_box_rank;
+                    ray_box_rank.reserve(1024);
+                    ray_box_band.reserve(1024);
                     // Broad-phase first, before expensive volume-triangle
                     // traversal. Rank real ray/AABB hits before forgiving
                     // nominal-radius hits, which are often offscreen objects.
@@ -9713,9 +9735,12 @@ void LLPipeline::renderDeferredLighting()
                             visible_candidates.push_back(
                                 {obj,bbox_rays,false,nearest_entry});
                             visible_ids.insert(obj);
-                            ray_box_priority.emplace(obj,
-                                ogl::camera_ray_box_priority(
-                                    nearest_entry,bbox_rays));
+                            const unsigned band=
+                                ogl::camera_depth_band(nearest_entry);
+                            if (band<3u) {
+                                ++ray_box_candidates_by_depth[band];
+                                ray_box_band.emplace(obj,band);
+                            }
                             if (!sphere_rays) ++exact_bounds_recovered;
                         } else if (sphere_rays) {
                             fallback_candidates.push_back(
@@ -9733,6 +9758,26 @@ void LLPipeline::renderDeferredLighting()
                                 ogl::camera_ray_box_priority(
                                 b.first_ray_distance,b.bbox_rays);
                         });
+                    // Interleave near, medium and far candidate buckets,
+                    // instead of using all GPU slots on the first nearby
+                    // facade. Near gets twice the slots of either farther
+                    // class; bucket order is stable by ray entry distance.
+                    std::vector<float> ray_entries;
+                    ray_entries.reserve(visible_candidates.size());
+                    for (const RayCandidate& rc: visible_candidates)
+                        ray_entries.push_back(rc.first_ray_distance);
+                    const auto depth_order=
+                        ogl::stratified_camera_order(ray_entries);
+                    std::vector<RayCandidate> stratified;
+                    stratified.reserve(visible_candidates.size());
+                    for (size_t order_index:depth_order) {
+                        ray_box_rank.emplace(
+                            visible_candidates[order_index].object,
+                            stratified.size());
+                        stratified.push_back(
+                            visible_candidates[order_index]);
+                    }
+                    visible_candidates.swap(stratified);
                     prepass_visible_candidates =
                         static_cast<unsigned>(visible_candidates.size());
                     prepass_sphere_candidates =
@@ -9749,8 +9794,8 @@ void LLPipeline::renderDeferredLighting()
                         });
                     std::stable_sort(candidates.begin(),camera_visible_end,
                         [&](const auto& a,const auto& b) {
-                            return ray_box_priority.at(a.second) <
-                                   ray_box_priority.at(b.second);
+                            return ray_box_rank.at(a.second) <
+                                   ray_box_rank.at(b.second);
                         });
                     unsigned processed_objects=0;
                     const auto collect_visible_faces =
@@ -9910,7 +9955,15 @@ void LLPipeline::renderDeferredLighting()
                             }
                         }
                     }
-                    if (object_triangles) ++sampled_objects;
+                    if (object_triangles) {
+                        ++sampled_objects;
+                        if (ogl_triangle_budget>1024) {
+                            const auto band=ray_box_band.find(volume_object);
+                            if (band!=ray_box_band.end() &&
+                                band->second<3u)
+                                ++selected_mesh_objects_by_depth[band->second];
+                        }
+                    }
                     if (!local_faces.empty() && ogl_tracked_ids.size()<1024) {
                         float pose[12]{};
                         ogl_object_pose(volume_object,pose);
@@ -9978,6 +10031,9 @@ void LLPipeline::renderDeferredLighting()
                         << sampled_objects << " mesh_triangles="
                         << (triangles.size()-terrain_triangles)
                         << " terrain_triangles=" << terrain_triangles
+                        << " terrain_near=" << near_terrain_triangles
+                        << " terrain_mid=" << mid_terrain_triangles
+                        << " terrain_far=" << far_terrain_triangles
                         << " cap=" << ogl_triangle_budget
                         << " candidate_limit=" << nearby_budget
                         << " exact_ray_anchors=" << exact_camera_anchors
@@ -9995,6 +10051,14 @@ void LLPipeline::renderDeferredLighting()
                         << prepass_visible_objects
                         << " prepass_fallback_objects="
                         << prepass_fallback_objects
+                        << " ray_box_depth_candidates="
+                        << ray_box_candidates_by_depth[0] << "/"
+                        << ray_box_candidates_by_depth[1] << "/"
+                        << ray_box_candidates_by_depth[2]
+                        << " selected_mesh_depth_objects="
+                        << selected_mesh_objects_by_depth[0] << "/"
+                        << selected_mesh_objects_by_depth[1] << "/"
+                        << selected_mesh_objects_by_depth[2]
                         << " unused_triangles="
                         << (ogl_triangle_budget-triangles.size())
                         << " objects_scanned=" << max_objects

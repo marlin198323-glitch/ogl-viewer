@@ -169,14 +169,27 @@ def report():
             reason = ("no triangle snapshot recorded yet" if world_started else
                       "last log never reached the 3D world")
             print("RTX world geometry sample: not observed (" + reason + ")")
+        # Accept older viewer logs without terrain LOD counters too.
         selected = re.findall(
             r"OGL RTX scene selection: candidates=(\d+) sampled_objects=(\d+) "
-            r"mesh_triangles=(\d+) terrain_triangles=(\d+) cap=(\d+)",text)
+            r"mesh_triangles=(\d+) terrain_triangles=(\d+)"
+            r"(?: terrain_near=\d+ terrain_mid=\d+ terrain_far=\d+)? "
+            r"cap=(\d+)",text)
         if selected:
             candidates, sampled_objects, mesh_tris, terrain_tris, budget = selected[-1]
             print(f"RTX scene selection: {sampled_objects}/{candidates} "
                   f"eligible candidate objects; {mesh_tris} mesh triangles, "
                   f"{terrain_tris} terrain triangles; budget {budget}")
+            rings = re.findall(
+                r"OGL RTX scene selection: [^\n]* "
+                r"terrain_near=(\d+) terrain_mid=(\d+) terrain_far=(\d+)",text)
+            if rings:
+                near,mid,far=map(int,rings[-1])
+                print(f"RTX terrain LOD capture: near {near}, medium {mid}, "
+                      f"far {far} triangles (approximate, region-clipped)")
+                if near+mid+far != int(terrain_tris):
+                    print("RTX warning: terrain LOD counts disagree "
+                          "with most recent scene selection")
             unused = int(budget) - int(mesh_tris) - int(terrain_tris)
             print(f"RTX scan geometry capacity: {unused}/{budget} triangle "
                   "slots unused (last scan, not necessarily current GPU scene)")
@@ -230,6 +243,18 @@ def report():
                 print(f"RTX exact camera-ray geometry: {anchors} distinct "
                       f"anchor triangles, {inspected} full-mesh triangles "
                       f"inspected; candidate limit {cap} (last scan)")
+            box_bands=re.findall(
+                r"OGL RTX scene selection: [^\n]*"
+                r"ray_box_depth_candidates=(\d+)/(\d+)/(\d+) "
+                r"selected_mesh_depth_objects=(\d+)/(\d+)/(\d+)",text)
+            if box_bands:
+                counts=list(map(int,box_bands[-1]))
+                print("RTX camera mesh depth-band candidates "
+                      "(near/mid/far): " +
+                      "/".join(str(v) for v in counts[:3]))
+                print("RTX selected visible mesh objects "
+                      "(near/mid/far): " +
+                      "/".join(str(v) for v in counts[3:]))
             recovered = re.findall(
                 r"OGL RTX scene selection: [^\n]*"
                 r"bounds_recovered=(\d+) prepass_candidate_checks=(\d+)",

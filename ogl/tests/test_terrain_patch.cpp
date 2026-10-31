@@ -45,5 +45,33 @@ int main() {
                                                  origin,8192,flat)==0);
     assert(ogl::append_nearby_terrain_triangles(t,128.f,128.f,256.f,
                                                  nullptr,8192,flat)==0);
+    // Mid/far sparse rings must extend beyond the 100m near patch,
+    // preserve strict GPU/caller budgets and never create invalid geometry.
+    t.clear();
+    const auto mid=ogl::append_terrain_lod_ring(t,128.f,128.f,256.f,
+        origin,10.f,12,50.f,320u,8192u,flat);
+    assert(mid>0 && mid<=320u && mid%2==0);
+    const auto far=ogl::append_terrain_lod_ring(t,128.f,128.f,256.f,
+        origin,20.f,12,120.f,320u,8192u,flat);
+    assert(far>0 && far<=320u && far%2==0);
+    assert(t.size()==mid+far);
+    bool saw_mid=false, saw_far=false;
+    for (const auto& tri:t) {
+        assert(ogl::is_valid_triangle(tri));
+        assert(tri.position[0]>=1000.f && tri.position[0]<=1256.f);
+        assert(tri.position[1]>=2000.f && tri.position[1]<=2256.f);
+        const float dx=tri.position[0]-1128.f;
+        const float dy=tri.position[1]-2128.f;
+        const float distance=std::sqrt(dx*dx+dy*dy);
+        saw_mid=saw_mid || (distance>55.f && distance<120.f);
+        saw_far=saw_far || distance>125.f;
+    }
+    assert(saw_mid && saw_far);
+    assert(ogl::append_terrain_lod_ring(t,128.f,128.f,256.f,
+        origin,20.f,12,120.f,320u,t.size(),flat)==0);
+    assert(ogl::append_terrain_lod_ring(t,128.f,128.f,256.f,
+        origin,0.f,12,120.f,320u,8192u,flat)==0);
+    assert(ogl::append_terrain_lod_ring(t,128.f,128.f,256.f,
+        origin,20.f,0,120.f,320u,8192u,flat)==0);
     // The public OpenGL geometry path does not run this function at all.
 }

@@ -23,6 +23,23 @@ int main() {
     assert(ogl::camera_ray_object_quota(2u,false)==128u);
     assert(ogl::camera_ray_object_quota(4u,false)==256u);
     assert(ogl::camera_ray_object_quota(8u,false)==512u);
+    assert(ogl::camera_depth_band(5.f)==0u);
+    assert(ogl::camera_depth_band(30.f)==1u);
+    assert(ogl::camera_depth_band(120.f)==2u);
+    assert(ogl::camera_depth_band(-1.f)==3u);
+    assert(ogl::camera_depth_band(
+        std::numeric_limits<float>::infinity())==3u);
+    const auto order=ogl::stratified_camera_order(
+        {10.f,11.f,12.f,13.f,75.f,150.f,90.f,320.f});
+    // Near:mid:near:far, then repeat. All original indices appear once.
+    assert((order==std::vector<size_t>{0,4,1,5,2,6,3,7}));
+    assert(ogl::stratified_camera_order({6.f,10.f,15.f}) ==
+           std::vector<size_t>({0u,1u,2u}));
+    assert(ogl::stratified_camera_order({65.f,132.f,90.f,250.f}) ==
+           std::vector<size_t>({0u,1u,2u,3u}));
+    assert(ogl::stratified_camera_order({}).empty());
+    const auto unknown=ogl::stratified_camera_order({0.f,-1.f,190.f});
+    assert((unknown==std::vector<size_t>{0,2,1}));
     assert(ogl::camera_ray_object_quota(0u,true)==128u);
     assert(ogl::camera_ray_box_priority(4.f,1) <
            ogl::camera_ray_box_priority(70.f,64));

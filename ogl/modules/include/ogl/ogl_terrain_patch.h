@@ -64,5 +64,80 @@ std::size_t append_nearby_terrain_triangles(
     }
     return out.size() - initial;
 }
+// Supplement the existing 5m near patch with bounded lower-resolution
+// mid/far *rings*. The old near patch is preserved at full resolution.
+// A two-pass checkerboard distributes scarce triangles over the complete
+// clipped region rather than filling a one-sided row-major fragment.
+// This is a sparse developer diagnostic; gaps are expected and must never
+// be mistaken for continuous terrain shading or real shadow geometry.
+template<class HeightSample>
+std::size_t append_terrain_lod_ring(
+    std::vector<ogl_rtx_triangle>& out,
+    float eye_x_region, float eye_y_region, float region_width,
+    const float origin_agent[3], float step, int radius_cells,
+    float inner_radius_m, std::size_t max_additional,
+    std::size_t triangle_budget, HeightSample sample_height)
+{
+    if (!origin_agent || !std::isfinite(eye_x_region) ||
+        !std::isfinite(eye_y_region) ||
+        !std::isfinite(region_width) || !(region_width>=step) ||
+        !std::isfinite(step) || step<=0.f ||
+        !std::isfinite(inner_radius_m) || inner_radius_m<0.f ||
+        radius_cells<=0 || radius_cells>24 ||
+        max_additional<2 || out.size()>=triangle_budget)
+        return 0;
+    for (unsigned axis=0;axis<3;++axis)
+        if (!std::isfinite(origin_agent[axis])) return 0;
+    const std::size_t initial=out.size();
+    const float x_start=std::floor(eye_x_region/step)*step;
+    const float y_start=std::floor(eye_y_region/step)*step;
+    for (int pass=0;pass<2;++pass) {
+        for (int y=-radius_cells;y<radius_cells;++y) {
+            for (int x=-radius_cells;x<radius_cells;++x) {
+                if (out.size()+2>triangle_budget ||
+                    out.size()-initial+2>max_additional)
+                    return out.size()-initial;
+                if (((x+y)&1)!=pass) continue;
+                const float x0=x_start+float(x)*step;
+                const float y0=y_start+float(y)*step;
+                const float x1=x0+step;
+                const float y1=y0+step;
+                if (x0<0.f || y0<0.f ||
+                    x1>region_width || y1>region_width) continue;
+                const float dx=x0+0.5f*step-eye_x_region;
+                const float dy=y0+0.5f*step-eye_y_region;
+                // Do not cover the near fine-resolution patch twice.
+                if (dx*dx+dy*dy<inner_radius_m*inner_radius_m)
+                    continue;
+                const float z00=sample_height(x0,y0);
+                const float z10=sample_height(x1,y0);
+                const float z01=sample_height(x0,y1);
+                const float z11=sample_height(x1,y1);
+                if (!std::isfinite(z00) || !std::isfinite(z10) ||
+                    !std::isfinite(z01) || !std::isfinite(z11)) continue;
+                const float pts[4][3]{
+                    {x0+origin_agent[0],y0+origin_agent[1],z00+origin_agent[2]},
+                    {x1+origin_agent[0],y0+origin_agent[1],z10+origin_agent[2]},
+                    {x0+origin_agent[0],y1+origin_agent[1],z01+origin_agent[2]},
+                    {x1+origin_agent[0],y1+origin_agent[1],z11+origin_agent[2]}
+                };
+                constexpr unsigned indices[2][3]{{0,1,2},{1,3,2}};
+                // Add both triangles together only for a valid grid cell.
+                ogl_rtx_triangle pair[2]{};
+                for (unsigned t=0;t<2;++t)
+                    for (unsigned v=0;v<3;++v)
+                        for (unsigned axis=0;axis<3;++axis)
+                            pair[t].position[v*3+axis]=
+                                pts[indices[t][v]][axis];
+                if (is_valid_triangle(pair[0]) &&
+                    is_valid_triangle(pair[1])) {
+                    out.push_back(pair[0]);
+                    out.push_back(pair[1]);
+                }
+            }
+        }
+    }
+    return out.size()-initial;
+}
 } // namespace ogl
 #endif
