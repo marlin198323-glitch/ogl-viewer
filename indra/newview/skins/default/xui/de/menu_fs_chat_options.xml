@@ -3,6 +3,7 @@
 	<menu_item_check label="Radar anzeigen..." name="nearby_people"/>
 	<menu_item_check label="Stimmen in der Nähe anzeigen..." name="nearby_voice"/>
 	<menu_item_check label="Blockierliste anzeigen..." name="block_list"/>
+	<menu_item_check label="NexVerse Chat: Avatar, Name und Uhrzeit je Nachricht" name="ogl_modern_conversation_cards"/>
 	<menu_item_check label="V1-Stil für Chatverlauf verwenden" name="plain_text_chat_history"/>
 	<menu_item_check label="Profilbild in Chatüberschrift anzeigen" name="chat_header_icons"/>
 	<context_menu label="Schriftgröße..." name="font_size">

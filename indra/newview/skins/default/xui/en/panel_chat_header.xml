@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- NexVerse message row: REAL OpenSim avatar, name+time on top;
+     message follows below in FSChatHistory. No fake profiles. -->
 <panel
-     background_visible="true"
-     bevel_style="in"
-     bg_opaque_color="ChatHeaderOpaqueBackground" 
-     bg_alpha_color="ChatHeaderAlphaBackground"
-     follows="top|left|right"
-     height="24"
-     label="im_header"
-     layout="topleft"
-     name="im_header"
-     width="310">
+ background_visible="true"
+ bevel_style="none"
+ bg_opaque_color="OGLChatMessage"
+ bg_alpha_color="OGLChatMessage"
+ follows="top|left|right"
+ height="42"
+ label="im_header"
+ layout="topleft"
+ name="im_header"
+ width="520">
     <layout_stack
      top="0"
-     height="24"
-     right="-120"
+     height="42"
+     right="-115"
      name="header_ls"
      layout="topleft"
      orientation="horizontal"
@@ -23,57 +25,58 @@
          name="icon_lp"
          auto_resize="false"
          user_resize="false"
-         width="21"
-         height="24"
-         visibility_control="ShowChatMiniIcons">
+         width="44"
+         height="42"
+         visible="true">
             <avatar_icon
-             follows="left"
-             height="18"
-             image_name="Generic_Person"
+             follows="left|top"
+             height="34"
+             default_icon_name="Generic_Person"
              layout="topleft"
-             left="3"
+             left="5"
              mouse_opaque="true"
              name="avatar_icon"
-             top="3"
-             width="18" />
+             top="4"
+             width="34" />
         </layout_panel>
         <layout_panel
          name="name_lp"
          auto_resize="true"
          user_resize="false"
-         height="24">
+         height="42">
             <text
              parse_urls="false"
              allow_scroll="false"
-             v_pad="6"
+             v_pad="5"
              read_only="true"
              follows="left|right"
+             font="SansSerif"
              font.style="BOLD"
-             height="24"
+             height="31"
              layout="topleft"
              left="4"
              right="-1"
              name="user_name"
-             text_color="ChatNameColor"
-             bg_readonly_color="Black"
-             top="0"
+             text_color="OGLChatAccent"
+             bg_readonly_color="OGLChatMessage"
+             top="5"
              translate="false"
              use_ellipses="true"
-             valign="top" 
-             value="TestString PleaseIgnore" />
+             valign="top"
+             value="" />
         </layout_panel>
     </layout_stack>
-  <text
-    allow_scroll="false"
-    font="SansSerifSmall"
-    follows="right"
-    halign="right"
-    height="13"
-    layout="topleft"
-    left_pad="5"
-    name="time_box"
-    right="-5"
-    top="7"
-    value="23:30"
-    width="110" />
+    <text
+     allow_scroll="false"
+     font="SansSerifSmall"
+     text_color="OGLChatTimestamp"
+     follows="right|top"
+     halign="right"
+     height="22"
+     layout="topleft"
+     name="time_box"
+     right="-8"
+     top="8"
+     value=""
+     width="108" />
 </panel>

@@ -34,6 +34,9 @@
 #include "fsfloatercontacts.h"
 #include "fsfloaterim.h"
 #include "fsfloaternearbychat.h"
+#include "llavatariconctrl.h"
+#include "llgroupiconctrl.h"
+#include "lluictrlfactory.h"
 #include "llfloaterreg.h"
 #include "llchiclet.h"
 #include "llchicletbar.h"
@@ -369,6 +372,35 @@ void FSFloaterIMContainer::addFloater(LLFloater* floaterp,
     LLFloater* active_floater = getActiveFloater();
 
     LLMultiFloater::addFloater(floaterp, select_added_floater, insertion_point);
+
+    const LLIMModel::LLIMSession* session =
+        LLIMModel::getInstance()->findIMSession(floaterp->getKey());
+
+    // OGL NexVerse: real OpenSim avatar portraits in the conversations
+    // sidebar. TabContainer's custom-icon mode owns the created control,
+    // and the existing profile-image cache resolves it asynchronously.
+    // Nearby chat and Contacts have no associated resident avatar.
+    if (session && mTabContainer)
+    {
+        LLIconCtrl* portrait = nullptr;
+        if (session->isGroupSessionType())
+        {
+            LLGroupIconCtrl::Params params;
+            params.group_id = session->mSessionID;
+            portrait = LLUICtrlFactory::instance().create<LLGroupIconCtrl>(params);
+        }
+        else if (session->isP2PSessionType() &&
+                 session->mOtherParticipantID.notNull())
+        {
+            LLAvatarIconCtrl::Params params;
+            params.avatar_id = session->mOtherParticipantID;
+            portrait = LLUICtrlFactory::instance().create<LLAvatarIconCtrl>(params);
+        }
+        if (portrait)
+        {
+            mTabContainer->setTabImage(floaterp, portrait);
+        }
+    }
 
     if (!select_added_floater && active_floater)
     {

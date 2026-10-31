@@ -2,10 +2,12 @@
 <floater
   positioning="centered"
   background_visible="true"
+  bg_opaque_color="OGLChatPanel"
+  bg_alpha_color="OGLChatPanel"
   default_tab_group="1"
   show_title="true"
   follows="all"
-  height="332"
+  height="610"
   layout="topleft"
   left="0"
   name="panel_im"
@@ -14,11 +16,11 @@
   can_minimize="true"
   can_close="true"
   visible="false"
-  width="394"
+  width="815"
   can_resize="true"
-  min_width="250"
+  min_width="340"
   save_rect="true"
-  min_height="150">
+  min_height="300">
     <floater.string
      name="participant_added"
      value="[NAME] was invited to the conversation."/>
@@ -529,12 +531,12 @@
     default_tab_group="2"
     animate="false"
     follows="all"
-    height="308"
-    width="394"
+    height="578"
+    width="815"
     layout="topleft"
     orientation="horizontal"
     name="chat_stack"
-    top="22"
+    top="30"
     left="0">
     <layout_panel
       name="im_control_panel_holder"
@@ -562,8 +564,8 @@
         default_tab_group="3"
         animate="false"
         follows="all"
-        height="304"
-        width="394"
+        height="574"
+        width="815"
         layout="topleft"
         orientation="vertical"
         name="im_panels"
@@ -576,6 +578,12 @@
           font="SansSerifSmall"
           follows="all"
           name="chat_history"
+          left_text_pad="52"
+          right_text_pad="12"
+          left_widget_pad="3"
+          top_header_pad="7"
+          bottom_header_pad="3"
+          bg_readonly_color="OGLChatCanvas"
           parse_highlights="true"
           parse_urls="true"
           right="-4"
@@ -614,7 +622,7 @@
         <layout_panel
           tab_group="3"
           top_delta="0"
-          height="26"
+          height="42"
           bottom="-1"
           auto_resize="false"
           name="chat_layout_panel">
@@ -637,17 +645,18 @@
               layout="topleft"
               expand_lines_count="5"
               follows="left|right|bottom"
-              font="SansSerifSmall"
-              height="20"
+              font="SansSerif"
+              height="32"
+              bg_writeable_color="OGLChatInput"
               is_expandable="true"
               text_tentative_color="TextFgTentativeColor"
               name="chat_editor"
               max_length="3070"
               spellcheck="true"
               top="1"
-              bottom="-1"
-              left="4"
-              right="-3"
+              bottom="-4"
+              left="8"
+              right="-6"
               wrap="true" />
             </layout_panel>
             <layout_panel
@@ -689,7 +698,6 @@
                width="10"/>
             </layout_panel>
             <layout_panel
-              visibility_control="FSShowIMSendButton"
               auto_resize="false"
               user_resize="false"
               name="input_button_layout_panel"
@@ -700,8 +708,8 @@
               layout="topleft"
               left="1"
               right="-1"
-              bottom="24"
-              height="24"
+              bottom="6"
+              height="30"
               follows="left|right|bottom"
               name="send_chat"
               label="Send"

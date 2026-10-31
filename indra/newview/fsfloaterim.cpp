@@ -1565,9 +1565,18 @@ void FSFloaterIM::updateMessages()
     if (messages.size())
     {
         LLSD chat_args;
-        chat_args["use_plain_text_chat_history"] = gSavedSettings.getBOOL("PlainTextChatHistory");
-        chat_args["show_names_for_p2p_conv"] = gSavedSettings.getBOOL("IMShowNamesForP2PConv");
-        chat_args["show_time"] = gSavedSettings.getBOOL("FSShowTimestampsIM");
+        // OGL NexVerse conversations use authentic profile photos and a
+        // separate header per message: avatar | display name + time,
+        // with the real chat text on the next line. Keep legacy text mode
+        // available via a persisted control for users who prefer it.
+        const bool ogl_cards = gSavedSettings.getBOOL("OGLModernConversationCards");
+        chat_args["ogl_message_cards"] = ogl_cards;
+        chat_args["use_plain_text_chat_history"] =
+            ogl_cards ? false : gSavedSettings.getBOOL("PlainTextChatHistory");
+        chat_args["show_names_for_p2p_conv"] =
+            ogl_cards ? true : gSavedSettings.getBOOL("IMShowNamesForP2PConv");
+        chat_args["show_time"] =
+            ogl_cards ? true : gSavedSettings.getBOOL("FSShowTimestampsIM");
 
         LLIMModel::LLIMSession* pIMSession = LLIMModel::instance().findIMSession(mSessionID);
         RLV_ASSERT(pIMSession);

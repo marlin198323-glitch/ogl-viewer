@@ -1351,6 +1351,13 @@
   <color
       name="VoiceNotConnectedColor"
       reference="Yellow" />
+  <!-- OGL NexVerse scoped chat palette. Avoid changing global viewer skin. -->
+  <color name="OGLChatCanvas" value="0.035 0.085 0.165 0.98" />
+  <color name="OGLChatPanel" value="0.055 0.135 0.245 0.97" />
+  <color name="OGLChatMessage" value="0.09 0.19 0.31 0.88" />
+  <color name="OGLChatAccent" value="0.24 0.86 0.97 1" />
+  <color name="OGLChatTimestamp" value="0.68 0.77 0.87 1" />
+  <color name="OGLChatInput" value="0.065 0.16 0.26 1" />
   <color
       name="FSChatHistoryBackground"
       reference="Transparent" />
