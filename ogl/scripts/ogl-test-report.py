@@ -106,11 +106,11 @@ def report():
         else:
             print("RTX GPU diagnostic: not run (developer opt-in only)")
         samples = re.findall(
-            r"Deferred depth center tile captured (\d+)x(\d+)", text)
+            r"Deferred depth full-view grid captured (\d+)x(\d+)", text)
         if samples:
             w, h = samples[-1]
-            print(f"OpenGL deferred depth readback: 8x8 center tile captured "
-                  f"from {w}x{h} render target (developer mode only)")
+            print(f"OpenGL deferred depth readback: whole-view 8x8 grid "
+                  f"sampled from {w}x{h} render target (developer mode only)")
             print("Depth samples are NOT yet fed to the Vulkan shadow shader.")
         else:
             print("OpenGL deferred depth readback: not observed "

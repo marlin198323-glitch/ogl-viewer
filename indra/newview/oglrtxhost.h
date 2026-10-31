@@ -26,8 +26,8 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
 bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
     std::size_t capacity, std::uint64_t* geometry_revision);
 
-// Optional debug-only 8x8 center tile from the REAL deferred OpenGL depth
-// texture. Synchronous readback at most once per minute and only with
+// Optional whole-view 8x8 NEAREST depth grid from the REAL deferred OpenGL
+// depth texture. GPU-only downsample, single synchronous readback/minute with
 // OGL_RTX_DEPTH_PROBE=1. Not used for visible shadows.
 void ogl_rtx_probe_deferred_depth(unsigned depth_texture,
     unsigned render_width, unsigned render_height);

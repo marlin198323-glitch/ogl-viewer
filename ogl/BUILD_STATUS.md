@@ -246,3 +246,18 @@ Fehlerberichte eingefügt werden.
 - Vollständiger Linux-Viewer-Build; 36 Python- und 19
   native Tests bestanden. OpenSim-Live-Tiefentest steht aus.
 - [`RTX_10_BLOCKS_2026_10_31_P9.md`](RTX_10_BLOCKS_2026_10_31_P9.md).
+
+
+## 31.10.2026 – zehnte RTX-Runde: ausgerichtete Full-View-Tiefe
+
+- Echte Firestorm-Deferred-Depth-Textur wird optional per GPU
+  auf genau 8×8 Pixelpositionen über das *gesamte* Sichtfeld
+  reduziert; nicht mehr nur der Bildmittelpunkt.
+- 8×8-Pixelmitten entsprechen der Kamera-Ray-Query-Abtastung.
+  64 Float-Werte werden nur einmal pro Entwicklerprobe gelesen.
+- C-ABI v2, Read-/Draw-FBO-/Pack-/Scissor-Restore und
+  OpenGL-Fallback nach Quell-/Native-Tests überprüft.
+- Vollständiger Linux-Viewer-Build und Testpaket erfolgreich.
+- Ein echter OpenSim-Depth-Live-Test fehlt weiterhin; keine
+  sichtbare RT-Darstellung und keine direkte Vulkan-Depth-Einspeisung.
+- [`RTX_10_BLOCKS_2026_10_31_P10.md`](RTX_10_BLOCKS_2026_10_31_P10.md).

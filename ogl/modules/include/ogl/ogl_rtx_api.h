@@ -97,22 +97,22 @@ typedef struct ogl_rtx_shadow_debug {
 } ogl_rtx_shadow_debug;
 OGL_MODULE_EXPORT int ogl_rtx_copy_shadow_debug(ogl_rtx_shadow_debug *output);
 
-/* Real OpenGL deferred depth, CENTER 8x8 CONTIGUOUS TILE ONLY.
- * Captured from the current Firestorm frame's depth texture.
- * These samples are not the 8x8 whole-viewport shadow rays.
- * Do NOT use for on-screen compositing or assert shadow alignment.
- * A frame update invalidates earlier depth.
+/* OpenGL deferred depth, WHOLE-VIEWPORT 8x8 NEAREST SAMPLE GRID.
+ * Pixel (x,y) corresponds to camera ray UV ((x+.5)/8,(y+.5)/8).
+ * OpenGL origin is bottom-left, matching the diagnostic Vulkan shader.
+ * A new camera frame invalidates previous samples. This is NOT a real
+ * world shadow map, and does not enable OpenGL/Vulkan compositing.
  */
-#define OGL_RTX_DEPTH_DEBUG_VERSION 1u
+#define OGL_RTX_DEPTH_DEBUG_VERSION 2u
 #define OGL_RTX_DEPTH_DEBUG_PIXELS 64u
 typedef struct ogl_rtx_depth_debug {
     uint32_t struct_size;
     uint32_t version;
-    uint32_t viewport_width;
+    uint32_t viewport_width;  /* original depth target resolution */
     uint32_t viewport_height;
-    uint32_t x; // lower left pixel coordinate of 8x8 tile
-    uint32_t y;
-    float normalized_depth[OGL_RTX_DEPTH_DEBUG_PIXELS];
+    uint32_t grid_width;      /* exactly 8 */
+    uint32_t grid_height;     /* exactly 8 */
+    float normalized_depth[OGL_RTX_DEPTH_DEBUG_PIXELS]; /* row-major */
 } ogl_rtx_depth_debug;
 OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(const ogl_rtx_depth_debug *sample);
 OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(ogl_rtx_depth_debug *output);

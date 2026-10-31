@@ -66,8 +66,8 @@ int main(int argc, char** argv) {
         depth.version = OGL_RTX_DEPTH_DEBUG_VERSION;
         depth.viewport_width = 1720; // half-resolution deferred target
         depth.viewport_height = 720;
-        depth.x = 850;
-        depth.y = 350;
+        depth.grid_width = 8; // exact whole-viewport ray grid
+        depth.grid_height = 8;
         for (float& pixel : depth.normalized_depth) pixel = 0.75f;
         ogl_rtx_depth_debug output{};
         output.struct_size = sizeof(output);
@@ -79,6 +79,12 @@ int main(int argc, char** argv) {
         depth.normalized_depth[0] = std::numeric_limits<float>::quiet_NaN();
         assert(submit_depth(&depth) == 0);
         depth.normalized_depth[0] = 0.75f;
+        depth.grid_width = 7;
+        assert(submit_depth(&depth) == 0);
+        depth.grid_width = 8;
+        depth.grid_height = 9;
+        assert(submit_depth(&depth) == 0);
+        depth.grid_height = 8;
         depth.viewport_width = 1600; // incompatible aspect
         assert(submit_depth(&depth) == 0);
         depth.viewport_width = 1720;

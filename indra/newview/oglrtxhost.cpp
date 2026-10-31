@@ -230,10 +230,10 @@ bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
 }
 
 
-// Opt-in OpenGL readback of 64 contiguous pixels near the center of the
-// current deferred depth target, NOT a reduction over the whole screen.
-// The production viewer does not call glReadPixels unless the developer
-// explicitly requests this diagnostic mode.
+// One optional readback of a whole-viewport depth grid. GPU-side NEAREST
+// depth-only blit downsamples to 8x8 first, so one glReadPixels() replaces
+// 64 independent readbacks. Sampling centres match camera ray centres.
+// This remains a synchronous developer-only diagnostic (once per minute).
 void ogl_rtx_probe_deferred_depth(unsigned texture,
     unsigned width, unsigned height)
 {
@@ -251,57 +251,83 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
     if (previous != Clock::time_point{} &&
         now - previous < std::chrono::seconds(60))
         return;
-    previous = now; // even a failed read must not thrash OpenGL
+    previous = now; // even failure must never flood GL with readbacks
 
-    // Save all affected READ and pixel-pack state; do not modify the
-    // DRAW framebuffer or the deferred shader's color/depth buffers.
-    GLint old_read = 0, old_pack_buffer = 0;
-    GLint old_pack_alignment = 4, old_row_length = 0;
-    GLint old_skip_pixels = 0, old_skip_rows = 0;
+    // Preserve both framebuffer bindings, renderbuffer binding, scissor and
+    // all pack state touched by glReadPixels(). No changes to color targets.
+    GLint old_read = 0, old_draw = 0, old_renderbuffer = 0;
+    GLint old_pack_buffer = 0, old_pack_alignment = 4;
+    GLint old_row_length = 0, old_skip_pixels = 0, old_skip_rows = 0;
+    const GLboolean old_scissor = glIsEnabled(GL_SCISSOR_TEST);
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &old_read);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &old_draw);
+    glGetIntegerv(GL_RENDERBUFFER_BINDING, &old_renderbuffer);
     glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &old_pack_buffer);
     glGetIntegerv(GL_PACK_ALIGNMENT, &old_pack_alignment);
     glGetIntegerv(GL_PACK_ROW_LENGTH, &old_row_length);
     glGetIntegerv(GL_PACK_SKIP_PIXELS, &old_skip_pixels);
     glGetIntegerv(GL_PACK_SKIP_ROWS, &old_skip_rows);
 
-    GLuint read_fbo = 0;
-    glGenFramebuffers(1, &read_fbo);
-    if (read_fbo) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo);
+    GLuint source = 0, reduced = 0, depth_renderbuffer = 0;
+    glGenFramebuffers(1, &source);
+    glGenFramebuffers(1, &reduced);
+    glGenRenderbuffers(1, &depth_renderbuffer);
+    if (source && reduced && depth_renderbuffer) {
+        glDisable(GL_SCISSOR_TEST); // scissor must not crop the blit
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, source);
         glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                                GL_TEXTURE_2D, texture, 0);
         glReadBuffer(GL_NONE);
-        if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
-            ogl_rtx_depth_debug sample{};
-            sample.struct_size = sizeof(sample);
-            sample.version = OGL_RTX_DEPTH_DEBUG_VERSION;
-            sample.viewport_width = width;
-            sample.viewport_height = height;
-            sample.x = (width - 8) / 2;
-            sample.y = (height - 8) / 2;
+
+        glBindRenderbuffer(GL_RENDERBUFFER, depth_renderbuffer);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 8, 8);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, reduced);
+        glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                  GL_RENDERBUFFER, depth_renderbuffer);
+        glDrawBuffer(GL_NONE);
+        if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE &&
+            glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
+            // Pixel (x,y) maps to UV ((x+.5)/8, (y+.5)/8). Both GL and
+            // Vulkan diagnostic shader use origin=bottom-left here.
+            glBlitFramebuffer(0, 0, width, height, 0, 0, 8, 8,
+                              GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, reduced);
+            glReadBuffer(GL_NONE);
             glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
             glPixelStorei(GL_PACK_ALIGNMENT, 4);
             glPixelStorei(GL_PACK_ROW_LENGTH, 0);
             glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
             glPixelStorei(GL_PACK_SKIP_ROWS, 0);
-            // Synchronous small developer readback only. A production
-            // renderer must use an async PBO or GPU-side interoperability.
-            glReadPixels(sample.x, sample.y, 8, 8,
-                         GL_DEPTH_COMPONENT, GL_FLOAT, sample.normalized_depth);
-            if (rtx_submit_depth(&sample) == 1)
-                LL_INFOS("OGLRTX") << "Deferred depth center tile captured "
-                    << width << "x" << height << " (8x8 sample only); "
+            ogl_rtx_depth_debug sample{};
+            sample.struct_size = sizeof(sample);
+            sample.version = OGL_RTX_DEPTH_DEBUG_VERSION;
+            sample.viewport_width = width;
+            sample.viewport_height = height;
+            sample.grid_width = 8;
+            sample.grid_height = 8;
+            glReadPixels(0, 0, 8, 8, GL_DEPTH_COMPONENT, GL_FLOAT,
+                         sample.normalized_depth);
+            if (glGetError() == GL_NO_ERROR && rtx_submit_depth(&sample) == 1)
+                LL_INFOS("OGLRTX") << "Deferred depth full-view grid captured "
+                    << width << "x" << height << " -> 8x8 (64 aligned samples); "
                     << "no visible RT output." << LL_ENDL;
         }
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, old_read);
-        glDeleteFramebuffers(1, &read_fbo);
     }
+    // Release the temporary framebuffer resources while the correct context
+    // is current. Restore bindings even on allocation/FBO failure.
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, old_read);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, old_draw);
+    glBindRenderbuffer(GL_RENDERBUFFER, old_renderbuffer);
+    if (source) glDeleteFramebuffers(1, &source);
+    if (reduced) glDeleteFramebuffers(1, &reduced);
+    if (depth_renderbuffer) glDeleteRenderbuffers(1, &depth_renderbuffer);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, old_pack_buffer);
     glPixelStorei(GL_PACK_ALIGNMENT, old_pack_alignment);
     glPixelStorei(GL_PACK_ROW_LENGTH, old_row_length);
     glPixelStorei(GL_PACK_SKIP_PIXELS, old_skip_pixels);
     glPixelStorei(GL_PACK_SKIP_ROWS, old_skip_rows);
+    if (old_scissor) glEnable(GL_SCISSOR_TEST);
+    else glDisable(GL_SCISSOR_TEST);
 #else
     (void)texture;
     (void)width;

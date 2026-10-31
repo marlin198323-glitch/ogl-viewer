@@ -130,3 +130,13 @@ nur mit `OGL_RTX_DEPTH_PROBE=1` aktiv und wird noch **nicht**
 an Vulkan als Schatten-Datenquelle übergeben. Kein sichtbares
 Raytracing im Weltbild.
 [Technischer Bericht und lokaler Test](RTX_10_BLOCKS_2026_10_31_P9.md).
+
+
+Die **zehnte RTX-10er-Runde** korrigiert die räumliche Zuordnung
+der Tiefenabfrage: Ein GPU-Blit reduziert Firestorms echte
+Deferred-Tiefe auf ein 8×8-Raster über das **gesamte Sichtfeld**.
+Dessen Pixelmitten entsprechen den 8×8-Kamera-Strahlpositionen;
+damit wird ein künftiger gemeinsamer Depth-/Ray-Query-Pfad
+möglich. Die Daten werden **noch nicht im Vulkan-Schatten-Shader
+verwendet**; sichtbares Raytracing bleibt deaktiviert.
+[Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P10.md).

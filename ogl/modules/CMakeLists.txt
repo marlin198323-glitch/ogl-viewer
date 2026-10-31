@@ -209,11 +209,11 @@ target_compile_features(ogl_camera_frame_validation_test PRIVATE cxx_std_17)
 add_test(NAME ogl_camera_frame_validation
     COMMAND ogl_camera_frame_validation_test)
 
-# Real deferred depth tile validation needs no GPU or GL driver.
-add_executable(ogl_depth_tile_validation_test ../tests/test_depth_tile_validation.cpp)
-target_include_directories(ogl_depth_tile_validation_test PRIVATE include)
-target_compile_features(ogl_depth_tile_validation_test PRIVATE cxx_std_17)
-add_test(NAME ogl_depth_tile_validation COMMAND ogl_depth_tile_validation_test)
+# Full-view deferred depth grid validation needs no GPU or GL driver.
+add_executable(ogl_depth_grid_validation_test ../tests/test_depth_grid_validation.cpp)
+target_include_directories(ogl_depth_grid_validation_test PRIVATE include)
+target_compile_features(ogl_depth_grid_validation_test PRIVATE cxx_std_17)
+add_test(NAME ogl_depth_grid_validation COMMAND ogl_depth_grid_validation_test)
 
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)

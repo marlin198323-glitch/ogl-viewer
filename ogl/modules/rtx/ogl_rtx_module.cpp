@@ -541,8 +541,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
         sample->viewport_width == 0 || sample->viewport_height == 0 ||
         std::fabs((float(sample->viewport_width) / sample->viewport_height) -
                   latest_frame.aspect_ratio) > 0.15f ||
-        !ogl::valid_depth_tile(sample->viewport_width, sample->viewport_height,
-                               sample->x, sample->y, sample->normalized_depth))
+        !ogl::valid_depth_grid(sample->viewport_width, sample->viewport_height,
+                               sample->grid_width, sample->grid_height,
+                               sample->normalized_depth))
         return 0;
     last_depth_debug = *sample; // bounded copy, no GPU or file I/O
     depth_debug_valid = true;

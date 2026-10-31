@@ -353,3 +353,30 @@ Tiefenwerte werden noch nicht als Input in Vulkan benutzt. Das
 8×8-Zentrum ist nicht mit dem 8×8-Vollbild-Ray-Query-Raster
 deckungsgleich. Kein OpenGL/Vulkan-Compositing und keine
 sichtbaren RTX-Weltschatten: `rendering_active=0`.
+
+
+## 31.10.2026 – zehnte 10er-Runde: Full-View-Depth-Koordinaten
+
+- Die bisherige 8×8-Bildmitten-Depth-Probe wurde durch ein
+  **8×8-Raster über die gesamte Deferred-Depth-Textur** ersetzt.
+- GPU-seitiger Depth-only-`glBlitFramebuffer` mit
+  `GL_NEAREST` in ein temporäres 8×8-Depth-Renderziel;
+  anschließend nur ein `glReadPixels` für die 64 Werte.
+- Die Pixelmitten `((x+0.5)/8,(y+0.5)/8)` sind nun
+  mit den Positionen der Vulkan-Kamera-Ray-Queries vereinbar;
+  OpenGL und Vulkan verwenden hierbei unten-links als Rasterursprung.
+- Diagnose-C-ABI auf `OGL_RTX_DEPTH_DEBUG_VERSION=2` angehoben,
+  `grid_width=8` und `grid_height=8` ersetzen die früheren
+  Offsets eines zusammenhängenden kleinen Bildmittenausschnitts.
+- Der Host stellt Read-/Draw-FBO-Bindings, Renderbuffer,
+  Scissor-State und Pixel-Pack-Parameter nach dem Zugriff wieder her.
+- Portable Tests für Wertebereich, Rasterdimensionen, ABI,
+  Shader-Pixelmitten und No-GPU-Fallback. Vollständiger Linux-
+  Firestorm-Build erfolgreich.
+- [`RTX_10_BLOCKS_2026_10_31_P10.md`](RTX_10_BLOCKS_2026_10_31_P10.md).
+
+**Weiter offen:** tatsächlicher OpenGL-Live-Readback im eingeloggten
+Viewer, Vulkan-Eingabe der Depth-Rasterwerte, korrekte
+Oberflächen-/Normalenrekonstruktion, vollständige Szene,
+asynchrones GPU-Compositing und sichtbare Echtzeit-Schatten.
+`rendering_active=0` bleibt unverändert.
