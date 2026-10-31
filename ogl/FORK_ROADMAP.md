@@ -12,10 +12,10 @@
 
 ## 10 implementation blocks
 1. Clone stable Firestorm release and register upstream/fork remotes. DONE
-2. Prepare isolated Python build environment and inspect system requirements. DONE (system compiler prerequisites outstanding)
-3. Verify reproducible ReleaseOS configure/build on Linux. IN PROGRESS (OpenSim CMake configure PASS; compilation stopped by deliberate 100s limit at 126/1355 without compiler errors; full executable not yet built).
-4. Verify authentic OpenSim/OpenGenesisLINK login and full 3D region rendering. OPEN
-5. Implement isolated OGL branding, launcher and user-data separation. OPEN
+2. Prepare isolated Python build environment and inspect system requirements. DONE (libpulse-dev and GCC 11 installed; the successful baseline was compiled using GCC 13).
+3. Verify reproducible ReleaseOS configure/build on Linux. DONE (OpenSim CMake configure PASS; firestorm-bin compile/link 1223/1223 and Linux runtime staging PASS; live test window visible).
+4. Verify authentic OpenSim/OpenGenesisLINK login and full 3D region rendering. IN PROGRESS (local login window PASS; real account authentication and in-world graphics blocked pending secure HTTPS grid login).
+5. Implement isolated OGL branding, launcher and user-data separation. IN PROGRESS (separate desktop test launcher, settings/cache/log profile PASS; Firestorm UI/icon still present, full OGL branding OPEN).
 6. Verify full avatar wearables, appearance, attachments, animations. OPEN
 7. Measure texturing/mesh/cache/sky pipeline vs upstream on repeat visits. OPEN
 8. Integrate versioned OGL module API into the viewer safely. OPEN (standalone proof of concept only)

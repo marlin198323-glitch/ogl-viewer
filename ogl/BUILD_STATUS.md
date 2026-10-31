@@ -1,47 +1,54 @@
-# OGL Firestorm first-build status – 2026-10-31
+# OGL Firestorm Linux Mint test status – 2026-10-31
 
-## Verified
+## VERIFIED: Firestorm-based OGL test viewer runs on the user's PC
 
-- Genuine GitHub fork `marlin198323-glitch/ogl-viewer`, development branch `ogl-develop`.
-- Firestorm official release source branch `Firestorm_7.2.5` at `4ac201fdc561`.
-- Existing `nexverse-viewer` checkout and its uncommitted avatar work preserved.
-- Local Python venv with Autobuild 3.10.2 installed (no global pip changes).
-- Standalone Linux shared-library module ABI example compiles; CTest 1/1 PASS.
-- ReleaseOS CMake configuration with explicit `-DOPENSIM:BOOL=ON` and
-  `-DVIEWER_CHANNEL:STRING=Firestorm-PrivateOGL` PASS.
-- Large WebRTC package installed after cleanup of an interrupted unregistered extraction.
-- Initial two-job build completed 126 of 1355 Ninja steps before the
-  deliberate 100-second execution limit. No compiler diagnostics were found in the
-  captured log. This does **not** certify full build success.
-- Build log: `~/Schreibtisch/OGL-Viewer/.ogl-firestorm-first-build.log`.
-- Configure log: `~/Schreibtisch/OGL-Viewer/.ogl-opensim-configure.log`.
+- Genuine GitHub Firestorm fork: `marlin198323-glitch/ogl-viewer`, branch `ogl-develop`.
+- Release baseline: Firestorm 7.2.5 (`Firestorm_7.2.5`, base SHA `4ac201fdc561`).
+- Built on Linux Mint 22.3 with GCC 13.3, 6 parallel jobs.
+- OpenSim CMake configuration PASS: `-DOPENSIM:BOOL=ON`,
+  `-DVIEWER_CHANNEL:STRING=Firestorm-PrivateOGL`.
+- Full `firestorm-bin` compiled and linked: 1223/1223 steps, exit code 0.
+- Runtime staging `copy_l_viewer_manifest` PASS, exit code 0.
+- Actual Linux X11 GUI startup PASS: visible window
+  `Firestorm-PrivateOGL 7.2.5.263032345` at 1024x738.
+- Startup logs reached `STATE_LOGIN_WAIT`; fonts and media CEF plugin
+  initialized; no ERROR/FATAL lines found in the initial window log.
+- Local C ABI module example CTest passed 1/1, but module loader is **not**
+  connected to the Firestorm viewer yet.
+- User's older `nexverse-viewer` checkout with uncommitted work was not edited.
 
-## Missing/risks
+## User launch
 
-- `libpulse-dev` is not installed; Firestorm configured with dummy volume catcher.
-- GCC 13.3 is installed; upstream Linux guide recommends GCC 11. A reproducible
-  GCC 11 build should be tested, but GCC 13 compatibility is not ruled out.
-- OGL branding, module loader within Firestorm, live-grid login, world and
-  avatar rendering are not implemented or verified.
-- Public grid info returns `<login>http://hg.stadt-nexverse.de:80/</login>`;
-  HTTPS port 443 was unreachable. Resolve secure login before testing real credentials.
+- Linux Mint desktop icon: `~/Schreibtisch/OGL-Firestorm-Test.desktop`
+- Menu: `OGL Viewer (Firestorm-Test)`
+- Shell: `bash ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/run-viewer-test.sh`
+- Isolated settings/cache: `~/.local/share/ogl-firestorm-test`
+- Launcher logs: `~/.local/state/ogl-firestorm-test/launch-*.log`
+- Build log: `~/Schreibtisch/OGL-Viewer/.ogl-firestorm-full-build.log`
+- Packaging log: `~/Schreibtisch/OGL-Viewer/.ogl-firestorm-stage.log`
 
-## Resume on Linux Mint
+## Important limitations before grid/in-world testing
 
-Run the prerequisite report:
+- This is a Firestorm-based OGL **engineering test**, not fully branded
+  OGL. Firestorm logo, menus and welcome content remain on the baseline.
+- The viewer still lacks the production OGL integrated module loader.
+- Public `http://hg.stadt-nexverse.de/get_grid_info` advertised
+  `http://hg.stadt-nexverse.de:80/` as the grid login endpoint.
+  Do **not** enter real credentials until HTTPS is available and validated.
+- A visible login window does **not** verify any authenticated Grid session,
+  region rendering, avatar appearance, texture completeness, teleport or voice.
+- The launcher filters desktop protocol-registration calls out of a staged
+  copy of the original runtime wrapper and uses a private user directory.
+  Upstream source files remain unchanged.
+- Source copyright, licensing and third-party notices must remain intact.
 
-```sh
+## Repeat after a code change
+
+```bash
 cd "$HOME/Schreibtisch/OGL-Viewer/ogl-firestorm"
-bash ogl/scripts/doctor.sh
+cmake --build build-linux-x86_64 --target firestorm-bin --parallel 6
+cmake --build build-linux-x86_64 --target copy_l_viewer_manifest --parallel 5
+bash ogl/scripts/run-viewer-test.sh
 ```
 
-After installing missing system libraries, continue the existing build:
-
-```sh
-cd "$HOME/Schreibtisch/OGL-Viewer/ogl-firestorm"
-cmake --build build-linux-x86_64 --parallel 2
-```
-
-The command continues the incremental CMake/Ninja build; it does not
-automatically start a usable OGL application or release an installer.
-Avoid aggressive parallelism while unrelated OGL builds run on the same host.
+The current live test window can be closed normally before repeating startup.
