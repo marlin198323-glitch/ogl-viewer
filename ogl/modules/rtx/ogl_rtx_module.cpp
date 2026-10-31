@@ -80,9 +80,14 @@ using ProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
 using CameraProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
                         const ogl_rtx_frame_state*, const char*,
                         ogl_gpu_probe_result*);
+using DepthProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
+                        const ogl_rtx_frame_state*, const float*,
+                        const char*, ogl_gpu_probe_result*);
 GpuProbeLibrary probe_library = nullptr;
 ProbeRun probe_run = nullptr;
 CameraProbeRun probe_camera_run = nullptr;
+DepthProbeRun probe_depth_run = nullptr;
+bool probe_depth_enabled = false;
 bool probe_opt_in = false;
 bool probe_camera_enabled = false;
 std::unique_ptr<ogl::AsyncGpuQueue> probe_worker;
@@ -93,10 +98,12 @@ std::chrono::steady_clock::time_point probe_last_time{};
 std::chrono::milliseconds probe_interval{60000}; // production developer default
 const char* const trusted_shader = "./app_settings/ogl/rtx/ray_query_shadow.comp.spv";
 const char* const trusted_camera_shader = "./app_settings/ogl/rtx/camera_sun_shadow.comp.spv";
+const char* const trusted_depth_shader = "./app_settings/ogl/rtx/depth_guided_sun.comp.spv";
 
 void gpu_probe_cleanup() {
     probe_run = nullptr;
     probe_camera_run = nullptr;
+    probe_depth_run = nullptr;
     if (probe_library) gpu_close(probe_library);
     probe_library = nullptr;
 }
@@ -264,6 +271,7 @@ void poll_probe_on_viewer_thread() {
 void schedule_probe_on_viewer_thread() {
     // Never perform Vulkan calls on this render-thread callback.
     if (probe_worker && received_frames > 0 && !captured_geometry.empty() &&
+        (!probe_depth_enabled || depth_debug_valid) &&
         (geometry_revision != probe_last_revision || probe_view_dirty)) {
         using Clock = std::chrono::steady_clock;
         const auto now = Clock::now();
@@ -282,8 +290,16 @@ void schedule_probe_on_viewer_thread() {
             }
             job.vertical_fov_radians = latest_frame.vertical_fov_radians;
             job.aspect_ratio = latest_frame.aspect_ratio;
+            job.near_clip_m = latest_frame.near_clip_m;
+            job.far_clip_m = latest_frame.far_clip_m;
             job.viewport_width = latest_frame.width;
             job.viewport_height = latest_frame.height;
+            if (probe_depth_enabled) {
+                std::copy(std::begin(last_depth_debug.normalized_depth),
+                          std::end(last_depth_debug.normalized_depth),
+                          job.depth_grid.begin());
+                job.has_depth_grid = true;
+            }
             if (probe_worker->enqueue(std::move(job))) {
                 probe_last_time = now;
                 probe_last_revision = geometry_revision;
@@ -316,6 +332,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     gpu_probe_cleanup();
     probe_opt_in = false;
     probe_camera_enabled = false;
+    probe_depth_enabled = false;
     probe_last_revision = 0;
     probe_job_sequence = 0;
     probe_view_dirty = false;
@@ -334,6 +351,11 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     const char* camera_env = std::getenv("OGL_RTX_CAMERA_PROBE");
     probe_camera_enabled = probe_opt_in && camera_env &&
                            std::strcmp(camera_env, "1") == 0;
+    const char* depth_env = std::getenv("OGL_RTX_DEPTH_GUIDED_PROBE");
+    const char* read_env = std::getenv("OGL_RTX_DEPTH_PROBE");
+    probe_depth_enabled = probe_camera_enabled && depth_env && read_env &&
+                          std::strcmp(depth_env, "1") == 0 &&
+                          std::strcmp(read_env, "1") == 0;
     detect();
     // Opt-in is only for developers until we have a non-blocking renderer.
     // No developer/system-specific GPU, user data, or filesystem path.
@@ -344,8 +366,11 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 gpu_symbol(probe_library, "ogl_gpu_probe_run"));
             probe_camera_run = reinterpret_cast<CameraProbeRun>(
                 gpu_symbol(probe_library, "ogl_gpu_probe_camera_run"));
+            probe_depth_run = reinterpret_cast<DepthProbeRun>(
+                gpu_symbol(probe_library, "ogl_gpu_probe_depth_run"));
         }
-        if (!probe_run || (probe_camera_enabled && !probe_camera_run)) {
+        if (!probe_run || (probe_camera_enabled && !probe_camera_run) ||
+            (probe_depth_enabled && !probe_depth_run)) {
             if (logger) logger(1, "OGL RTX opt-in GPU probe unavailable; OpenGL unaffected");
         } else {
             // Worker calls Vulkan. Immutable data; no viewer callbacks.
@@ -371,9 +396,21 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                     }
                     frame.vertical_fov_radians = job.vertical_fov_radians;
                     frame.aspect_ratio = job.aspect_ratio;
-                    rc = probe_camera_run(job.triangles.data(),
-                        static_cast<uint32_t>(job.triangles.size()),
-                        &frame, trusted_camera_shader, &native);
+                    frame.near_clip_m = job.near_clip_m;
+                    frame.far_clip_m = job.far_clip_m;
+                    if (probe_depth_enabled) {
+                        // Unlike the old scene-only fixture, every depth
+                        // sample is an immutable copy from Firestorm's frame.
+                        rc = job.has_depth_grid && probe_depth_run ?
+                            probe_depth_run(job.triangles.data(),
+                                static_cast<uint32_t>(job.triangles.size()),
+                                &frame, job.depth_grid.data(),
+                                trusted_depth_shader, &native) : 1;
+                    } else {
+                        rc = probe_camera_run(job.triangles.data(),
+                            static_cast<uint32_t>(job.triangles.size()),
+                            &frame, trusted_camera_shader, &native);
+                    }
                 } else {
                     rc = probe_run(job.triangles.data(),
                         static_cast<uint32_t>(job.triangles.size()),
@@ -417,6 +454,7 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     gpu_probe_cleanup();
     probe_opt_in = false;
     probe_camera_enabled = false;
+    probe_depth_enabled = false;
     captured_geometry.clear();
     last_shadow_debug = {};
     shadow_debug_valid = false;
@@ -436,7 +474,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
         (latest_frame.width != frame->width ||
          latest_frame.height != frame->height ||
          latest_frame.vertical_fov_radians != frame->vertical_fov_radians ||
-         latest_frame.aspect_ratio != frame->aspect_ratio);
+         latest_frame.aspect_ratio != frame->aspect_ratio ||
+         latest_frame.near_clip_m != frame->near_clip_m ||
+         latest_frame.far_clip_m != frame->far_clip_m);
     if (received_frames > 0)
         for (unsigned i=0; i<3; ++i)
             if (latest_frame.sun_direction[i] != frame->sun_direction[i] ||
@@ -547,6 +587,16 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
         return 0;
     last_depth_debug = *sample; // bounded copy, no GPU or file I/O
     depth_debug_valid = true;
+    if (probe_depth_enabled && probe_worker) {
+        // A newer valid depth grid supersedes the prior GPU result, even
+        // when the camera, sun and mesh revision are unchanged.
+        shadow_debug_valid = false;
+        last_shadow_debug = {};
+        probe_view_dirty = true;
+        probe_worker->invalidate(++probe_job_sequence);
+        schedule_probe_on_viewer_thread();
+        poll_probe_on_viewer_thread();
+    }
     return 1;
 }
 extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(

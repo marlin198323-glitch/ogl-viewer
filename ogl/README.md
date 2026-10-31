@@ -140,3 +140,12 @@ damit wird ein künftiger gemeinsamer Depth-/Ray-Query-Pfad
 möglich. Die Daten werden **noch nicht im Vulkan-Schatten-Shader
 verwendet**; sichtbares Raytracing bleibt deaktiviert.
 [Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P10.md).
+
+
+Die **elfte RTX-10er-Runde** führt die realen 8×8-OpenGL-Tiefenwerte
+erstmals als Eingabe an einen neuen Vulkan-Sonnenstrahl-Shader.
+Nahe/Ferne-Clipping und der Depth-Cache sind integriert;
+synthetische GPU-Szenen mit Hindernis bestehen den Ray-Query-Test.
+Der Standard-Viewer benutzt weiterhin ausschließlich OpenGL;
+**noch keine sichtbaren RTX-Schatten**.
+[Technische Abnahme](RTX_10_BLOCKS_2026_10_31_P11.md).

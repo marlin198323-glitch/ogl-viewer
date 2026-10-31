@@ -18,6 +18,7 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
     const float* camera_right, const float* camera_up,
     float vertical_fov_radians, float aspect_ratio,
+    float near_clip_m, float far_clip_m,
     const float* sun_direction);
 
 // Developer-only 8x8 GPU ray-hit mask. Returns false without changing the

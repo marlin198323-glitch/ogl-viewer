@@ -7,6 +7,7 @@
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_scene_validation.h"
 #include "ogl/ogl_camera_validation.h"
+#include "ogl/ogl_depth_validation.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -115,7 +116,7 @@ struct VulkanContext {
     VkAccelerationStructureKHR tlas = VK_NULL_HANDLE;
     PFN_vkDestroyAccelerationStructureKHR destroy_blas = nullptr;
     Buffer vertices, scratch, storage;
-    Buffer instance_buffer, tlas_scratch, tlas_storage, query_results;
+    Buffer instance_buffer, tlas_scratch, tlas_storage, query_results, depth_input;
     VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
@@ -133,6 +134,8 @@ struct VulkanContext {
             if (descriptor_layout) vkDestroyDescriptorSetLayout(device, descriptor_layout, nullptr);
             if (query_results.buffer) vkDestroyBuffer(device, query_results.buffer, nullptr);
             if (query_results.memory) vkFreeMemory(device, query_results.memory, nullptr);
+            if (depth_input.buffer) vkDestroyBuffer(device, depth_input.buffer, nullptr);
+            if (depth_input.memory) vkFreeMemory(device, depth_input.memory, nullptr);
         }
         ray_pipeline = VK_NULL_HANDLE;
         shader = VK_NULL_HANDLE;
@@ -140,6 +143,7 @@ struct VulkanContext {
         descriptor_pool = VK_NULL_HANDLE;
         descriptor_layout = VK_NULL_HANDLE;
         query_results = {};
+        depth_input = {};
     }
     // Task buffers are transient, but the Vulkan device survives scene changes.
     void reset_task() {
@@ -228,12 +232,16 @@ static int execute_gpu_scene(const char* shader_path,
                              uint32_t wanted_triangles,
                              const float* sun,
                              const ogl_rtx_frame_state* camera,
-                             ogl_gpu_probe_result* result) {
+                             ogl_gpu_probe_result* result,
+                             const float* depth_64) {
     if (!shader_path || !scene || wanted_triangles < 1 ||
         wanted_triangles > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
     for (uint32_t i = 0; i < wanted_triangles; ++i)
         if (!ogl::is_valid_triangle(scene[i])) return 1;
     if (camera && !ogl::valid_camera_frame(*camera)) return 1;
+    if (depth_64 && (!camera ||
+        !ogl::valid_depth_grid(camera->width, camera->height, 8, 8,
+                               depth_64))) return 1;
 
     // Ray sampling covers the source scene footprint, and uses the frame's
     // sun direction only for the opt-in live diagnostics. This is a scene
@@ -246,8 +254,9 @@ static int execute_gpu_scene(const char* shader_path,
         float camera_forward[4]{};
         float camera_right[4]{};
         float camera_up[4]{};
+        float clip_range[4]{};
     } push{};
-    static_assert(sizeof(ScenePush) == 112, "Vulkan push ABI mismatch");
+    static_assert(sizeof(ScenePush) == 128, "Vulkan push ABI mismatch");
     float minv[3]{scene[0].position[0],scene[0].position[1],scene[0].position[2]};
     float maxv[3]{minv[0],minv[1],minv[2]};
     for (uint32_t i = 0; i < wanted_triangles; ++i)
@@ -290,6 +299,8 @@ static int execute_gpu_scene(const char* shader_path,
         // viewer field of view. Their values are supplied directly by
         // Firestorm's camera, not inferred from world-up or a fixed 60°.
         const float tan_half_fov = std::tan(camera->vertical_fov_radians * 0.5f);
+        push.clip_range[0] = camera->near_clip_m;
+        push.clip_range[1] = camera->far_clip_m;
         for (unsigned i=0; i<3; ++i) {
             push.camera_forward[i] = camera->camera_forward[i];
             push.camera_right[i] = camera->camera_right[i] *
@@ -306,15 +317,17 @@ static int execute_gpu_scene(const char* shader_path,
     static thread_local uint32_t cache_hits = 0;
     static thread_local std::vector<ogl_rtx_triangle> cached_scene;
     static thread_local std::array<float, 3> cached_sun{{0.f, 0.f, 1.f}};
-    static thread_local std::array<float, 16> cached_camera{};
+    static thread_local std::array<float, 18> cached_camera{};
     static thread_local std::string cached_shader;
+    static thread_local std::array<float,64> cached_depth{};
+    static thread_local bool cached_depth_valid = false;
     static thread_local ogl_gpu_probe_result cached_output{};
     const std::array<float,3> requested_sun{{
         sun ? sun[0] : 0.f,
         sun ? sun[1] : 0.f,
         sun ? sun[2] : 1.f
     }};
-    std::array<float,16> requested_camera{};
+    std::array<float,18> requested_camera{};
     if (camera) {
         for (unsigned i=0; i<3; ++i) {
             requested_camera[i] = camera->camera_position[i];
@@ -326,12 +339,19 @@ static int execute_gpu_scene(const char* shader_path,
         requested_camera[13] = camera->aspect_ratio;
         requested_camera[14] = static_cast<float>(camera->width);
         requested_camera[15] = static_cast<float>(camera->height);
+        requested_camera[16] = camera->near_clip_m;
+        requested_camera[17] = camera->far_clip_m;
     }
+    // Clip planes are meaningful even for the older camera-ray shader;
+    // readback-mode cache must additionally include every input depth.
+    const bool same_depth = !depth_64 ? !cached_depth_valid :
+        cached_depth_valid && std::equal(depth_64, depth_64+64,
+                                        cached_depth.begin());
     if (persistent && persistent->device &&
         cached_scene.size() == wanted_triangles &&
         !cached_scene.empty() && cached_sun == requested_sun &&
         cached_camera == requested_camera &&
-        cached_shader == shader_path &&
+        same_depth && cached_shader == shader_path &&
         std::memcmp(cached_scene.data(), scene,
             size_t(wanted_triangles) * sizeof(ogl_rtx_triangle)) == 0) {
         ++cache_hits;
@@ -744,7 +764,7 @@ static int execute_gpu_scene(const char* shader_path,
     if (vkCreateShaderModule(c.device, &shader_info, nullptr, &c.shader) != VK_SUCCESS)
         return 1;
 
-    VkDescriptorSetLayoutBinding bindings[2]{};
+    VkDescriptorSetLayoutBinding bindings[3]{};
     bindings[0].binding = 0;
     bindings[0].descriptorCount = 1;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
@@ -753,16 +773,21 @@ static int execute_gpu_scene(const char* shader_path,
     bindings[1].descriptorCount = 1;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[2].binding = 2;
+    bindings[2].descriptorCount = 1;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     VkDescriptorSetLayoutCreateInfo layout_info{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    layout_info.bindingCount = 2;
+    layout_info.bindingCount = depth_64 ? 3 : 2;
     layout_info.pBindings = bindings;
     if (vkCreateDescriptorSetLayout(c.device, &layout_info, nullptr,
                                     &c.descriptor_layout) != VK_SUCCESS)
         return 1;
     VkDescriptorPoolSize pool_sizes[2]{};
     pool_sizes[0] = {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1};
-    pool_sizes[1] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1};
+    pool_sizes[1] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                     depth_64 ? 2u : 1u};
     VkDescriptorPoolCreateInfo descriptor_pool_info{
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     descriptor_pool_info.maxSets = 1;
@@ -801,7 +826,7 @@ static int execute_gpu_scene(const char* shader_path,
     VkDescriptorBufferInfo result_descriptor{};
     result_descriptor.buffer = c.query_results.buffer;
     result_descriptor.range = result_bytes;
-    VkWriteDescriptorSet writes[2]{};
+    VkWriteDescriptorSet writes[3]{};
     for (auto& w : writes) {
         w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         w.dstSet = descriptor;
@@ -813,7 +838,26 @@ static int execute_gpu_scene(const char* shader_path,
     writes[1].dstBinding = 1;
     writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     writes[1].pBufferInfo = &result_descriptor;
-    vkUpdateDescriptorSets(c.device, 2, writes, 0, nullptr);
+    VkDescriptorBufferInfo depth_descriptor{};
+    if (depth_64) {
+        const VkDeviceSize depth_bytes = 64 * sizeof(float);
+        if (!allocate_buffer(c, c.depth_input, depth_bytes,
+                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false)) return 1;
+        void* ptr = nullptr;
+        if (vkMapMemory(c.device, c.depth_input.memory, 0, depth_bytes,
+                        0, &ptr) != VK_SUCCESS) return 1;
+        std::memcpy(ptr, depth_64, depth_bytes);
+        vkUnmapMemory(c.device, c.depth_input.memory);
+        depth_descriptor.buffer = c.depth_input.buffer;
+        depth_descriptor.range = depth_bytes;
+        writes[2].dstBinding = 2;
+        writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        writes[2].pBufferInfo = &depth_descriptor;
+    }
+    vkUpdateDescriptorSets(c.device, depth_64 ? 3u : 2u,
+                           writes, 0, nullptr);
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -895,6 +939,8 @@ static int execute_gpu_scene(const char* shader_path,
         cached_scene.assign(scene, scene + wanted_triangles);
         cached_sun = requested_sun;
         cached_camera = requested_camera;
+        cached_depth_valid = depth_64 != nullptr;
+        if (depth_64) std::copy(depth_64,depth_64+64,cached_depth.begin());
         cached_shader = shader_path;
 #endif
     } else if (hits != 36) {
@@ -918,7 +964,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_run(
     fresh.struct_size = sizeof(fresh);
     fresh.version = OGL_GPU_PROBE_VERSION;
     *result = fresh;
-    return execute_gpu_scene(shader_path, triangles, count, sun_direction_xyz, nullptr, result);
+    return execute_gpu_scene(shader_path, triangles, count, sun_direction_xyz, nullptr, result, nullptr);
 }
 // Camera-visible primary rays followed by secondary sunlight occlusion.
 extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_camera_run(
@@ -934,7 +980,23 @@ extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_camera_run(
     fresh.version = OGL_GPU_PROBE_VERSION;
     *result = fresh;
     return execute_gpu_scene(shader_path, triangles, count,
-                             frame->sun_direction, frame, result);
+                             frame->sun_direction, frame, result, nullptr);
+}
+// Matches the Full-View-Depth-Grid captured by Firestorm in one frame.
+extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_depth_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const ogl_rtx_frame_state* frame, const float* depth_64,
+    const char* shader_path, ogl_gpu_probe_result* result)
+{
+    if (!result || !frame || !depth_64 ||
+        result->struct_size != sizeof(ogl_gpu_probe_result) ||
+        result->version != OGL_GPU_PROBE_VERSION) return 1;
+    ogl_gpu_probe_result fresh{};
+    fresh.struct_size = sizeof(fresh);
+    fresh.version = OGL_GPU_PROBE_VERSION;
+    *result = fresh;
+    return execute_gpu_scene(shader_path, triangles, count,
+                             frame->sun_direction, frame, result, depth_64);
 }
 #else
 int main(int argc, char** argv) {
@@ -957,6 +1019,6 @@ int main(int argc, char** argv) {
         triangles[0].position[3] = 1.f;
         triangles[0].position[7] = 1.f;
     }
-    return execute_gpu_scene(argv[1], triangles.data(), count, nullptr, nullptr, nullptr);
+    return execute_gpu_scene(argv[1], triangles.data(), count, nullptr, nullptr, nullptr, nullptr);
 }
 #endif

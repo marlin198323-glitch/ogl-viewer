@@ -80,7 +80,8 @@ Multi-GPU-Kopplung.
 - [x] Exakte Firestorm-Kamerabasis, Roll, FOV und Aspect in GPU-Shader übernehmen
 - [x] Tatsächliche Firestorm-Deferred-Depth-Textur als ausgerichtetes 8×8-Vollbild-Diagnoseraster abtasten
 - [ ] Echte Deferred-Depth-Live-Daten in einer angemeldeten NexVerse-Region abnehmen
-- [ ] Vulkan erhält passende vollständige Tiefen-/Normalenbuffer statt CPU-Diagnoseproben
+- [x] Vulkan-Diagnose verarbeitet 64 ausgerichtete OpenGL-Tiefenwerte für Sonnenstrahlen
+- [ ] Vulkan erhält vollständige Tiefen- und Normalen-Renderziele ohne synchronen CPU-Readback
 - [ ] Vollständige dynamische OpenSim-Geometrie inklusive Terrain und Avatare erfassen
 - [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen

@@ -9445,7 +9445,8 @@ void LLPipeline::renderDeferredLighting()
             ogl_rtx_submit_camera_sun(viewport.getWidth(), viewport.getHeight(),
                 camera->getOrigin().mV, camera->getAtAxis().mV,
                 right.mV, camera->getUpAxis().mV,
-                camera->getView(), camera->getAspect(), sun.mV);
+                camera->getView(), camera->getAspect(),
+                camera->getNear(), camera->getFar(), sun.mV);
 
             // Capture a strictly limited subset of actual local volume/mesh
             // triangles from the loaded OpenSim scene every 180 frames.

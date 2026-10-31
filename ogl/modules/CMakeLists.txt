@@ -64,6 +64,17 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
 
         # Development-only runtime layout. Never touch a user's settings.
         if(UNIX)
+            add_executable(ogl_depth_sun_shadow_test
+                rtx/ogl_depth_sun_shadow_test.cpp)
+            target_include_directories(ogl_depth_sun_shadow_test PRIVATE include)
+            target_compile_features(ogl_depth_sun_shadow_test PRIVATE cxx_std_17)
+            target_link_libraries(ogl_depth_sun_shadow_test PRIVATE ${CMAKE_DL_LIBS})
+            add_test(NAME ogl_gpu_depth_guided_sun_shadow
+                COMMAND ogl_depth_sun_shadow_test
+                    $<TARGET_FILE:ogl_gpu_probe>
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/depth_guided_sun.comp.spv")
+            set_tests_properties(ogl_gpu_depth_guided_sun_shadow
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
             add_executable(ogl_camera_shadow_test
                 rtx/ogl_camera_shadow_test.cpp)
             target_include_directories(ogl_camera_shadow_test PRIVATE include)
@@ -99,6 +110,9 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/camera_sun_shadow.comp.spv"
                     "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/camera_sun_shadow.comp.spv"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/depth_guided_sun.comp.spv"
+                    "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/depth_guided_sun.comp.spv"
                 VERBATIM)
             add_executable(ogl_live_gpu_probe_test
                 rtx/ogl_live_gpu_probe_test.cpp)
@@ -124,6 +138,15 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     $<TARGET_FILE:ogl_live_gpu_probe_test>
                     $<TARGET_FILE:ogl_rtx_module> --test-camera-refresh)
             set_tests_properties(ogl_live_camera_reprojection_refresh
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
+            add_test(NAME ogl_live_depth_guided_gpu_bridge
+                COMMAND ${CMAKE_COMMAND} -E env
+                    OGL_RTX_SCENE_PROBE=1 OGL_RTX_CAMERA_PROBE=1
+                    OGL_RTX_DEPTH_PROBE=1 OGL_RTX_DEPTH_GUIDED_PROBE=1
+                    OGL_RTX_DEV_INTERVAL_MS=15
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module> --test-depth-guided)
+            set_tests_properties(ogl_live_depth_guided_gpu_bridge
                 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
             file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
             add_test(NAME ogl_live_gpu_probe_missing_library

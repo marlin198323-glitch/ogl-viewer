@@ -54,6 +54,9 @@ jobs:
           glslangValidator -V --target-env vulkan1.2 -S comp ogl/modules/rtx/shaders/camera_sun_shadow.comp -o /tmp/ogl_camera_shadow.spv
           spirv-val --target-env vulkan1.2 /tmp/ogl_camera_shadow.spv
           spirv-val --target-env vulkan1.2 indra/newview/app_settings/ogl/rtx/camera_sun_shadow.comp.spv
+          glslangValidator -V --target-env vulkan1.2 -S comp ogl/modules/rtx/shaders/depth_guided_sun.comp -o /tmp/ogl_depth_sun.spv
+          spirv-val --target-env vulkan1.2 /tmp/ogl_depth_sun.spv
+          spirv-val --target-env vulkan1.2 indra/newview/app_settings/ogl/rtx/depth_guided_sun.comp.spv
       - name: Windows Vulkan headers (no proprietary SDK required)
         if: runner.os == 'Windows'
         shell: pwsh

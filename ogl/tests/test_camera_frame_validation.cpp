@@ -18,6 +18,8 @@ int main() {
     camera.sun_direction[2] = 1.f;
     camera.vertical_fov_radians = 1.0f;
     camera.aspect_ratio = 16.f / 9.f;
+    camera.near_clip_m = 0.1f;
+    camera.far_clip_m = 256.f;
     assert(ogl::valid_camera_frame(camera));
 
     auto bad = camera;
@@ -49,6 +51,16 @@ int main() {
     assert(!ogl::valid_camera_frame(bad));
     bad = camera;
     bad.width = 0;
+    assert(!ogl::valid_camera_frame(bad));
+
+    bad = camera;
+    bad.near_clip_m = 0.f;
+    assert(!ogl::valid_camera_frame(bad));
+    bad = camera;
+    bad.far_clip_m = bad.near_clip_m;
+    assert(!ogl::valid_camera_frame(bad));
+    bad = camera;
+    bad.far_clip_m = std::numeric_limits<float>::infinity();
     assert(!ogl::valid_camera_frame(bad));
 
     // A 90-degree roll changes the right/up axes while staying orthogonal.

@@ -44,6 +44,8 @@ int main(int argc, char** argv) {
     camera.camera_up[1] = 1.f;
     camera.vertical_fov_radians = 1.04719755f;
     camera.aspect_ratio = 1.f;
+    camera.near_clip_m = 0.1f;
+    camera.far_clip_m = 100.f;
     camera.sun_direction[0] = 0.8f;
     camera.sun_direction[2] = 1.f;
 

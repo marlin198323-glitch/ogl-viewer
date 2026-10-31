@@ -50,6 +50,8 @@ int main(int argc, char** argv) {
     valid.camera_up[2] = 1.0f;
     valid.vertical_fov_radians = 1.0f;
     valid.aspect_ratio = float(valid.width) / valid.height;
+    valid.near_clip_m = 0.1f;
+    valid.far_clip_m = 256.f;
     valid.sun_direction[2] = 1.0f;
 
     ogl_rtx_frame_state invalid = valid;

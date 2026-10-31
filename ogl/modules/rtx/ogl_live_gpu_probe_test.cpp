@@ -17,7 +17,8 @@ void test_log(int, const char* message) {
 int main(int argc, char** argv) {
     const bool missing = argc == 3 && std::strcmp(argv[2], "--no-gpu-library") == 0;
     const bool refresh = argc == 3 && std::strcmp(argv[2], "--test-camera-refresh") == 0;
-    if (argc != 2 && !missing && !refresh) return 1;
+    const bool guided = argc == 3 && std::strcmp(argv[2], "--test-depth-guided") == 0;
+    if (argc != 2 && !missing && !refresh && !guided) return 1;
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!library) {
         std::puts("FAIL: could not load OGL RTX module");
@@ -39,7 +40,10 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_gpu_probe_successes"));
     auto copy_debug = reinterpret_cast<int(*)(ogl_rtx_shadow_debug*)>(
         dlsym(library, "ogl_rtx_copy_shadow_debug"));
-    assert(start && stop && status && frame && submit && attempts && successes && copy_debug);
+    auto submit_depth = reinterpret_cast<int(*)(const ogl_rtx_depth_debug*)>(
+        dlsym(library, "ogl_rtx_submit_depth_debug"));
+    assert(start && stop && status && frame && submit && attempts &&
+           successes && copy_debug && submit_depth);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, test_log};
     assert(start(&host) == 0);
     assert(attempts() == 0 && successes() == 0);
@@ -63,6 +67,8 @@ int main(int argc, char** argv) {
     state.camera_up[1] = 1.f;
     state.vertical_fov_radians = 1.04719755f;
     state.aspect_ratio = float(state.width)/state.height;
+    state.near_clip_m = 0.1f;
+    state.far_clip_m = 100.f;
     std::vector<ogl_rtx_triangle> tris(64);
     for (unsigned i = 0; i < tris.size(); ++i) {
         const float off = i == 0 ? 0.f : 10.f + i * 2.f;
@@ -71,7 +77,7 @@ int main(int argc, char** argv) {
         tris[i].position[7] = 1.f;
     }
 
-    if (refresh && (!status()->hardware_ready || !status()->ray_query)) {
+    if ((refresh || guided) && (!status()->hardware_ready || !status()->ray_query)) {
         stop();
         dlclose(library);
         return 77;
@@ -80,6 +86,43 @@ int main(int argc, char** argv) {
         assert(frame(&state) == 1);
         const auto beginning = std::chrono::steady_clock::now();
         assert(submit(tris.data(), tris.size()) == 1);
+        if (guided) {
+            assert(attempts() == 0); // without depth data GPU is never called
+            ogl_rtx_depth_debug sample{};
+            sample.struct_size=sizeof(sample);
+            sample.version=OGL_RTX_DEPTH_DEBUG_VERSION;
+            sample.viewport_width=state.width;
+            sample.viewport_height=state.height;
+            sample.grid_width=8;
+            sample.grid_height=8;
+            for (float& f:sample.normalized_depth) f=1.f;
+            assert(submit_depth(&sample)==1);
+            for (unsigned i=0;i<500 && successes()<1;++i) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                assert(frame(&state)==1);
+            }
+            assert(attempts()==1 && successes()==1);
+            for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
+            assert(copy_debug(&debug)==1 && debug.occluded==0);
+            // New depth input must invalidate old shadow mask before GPU
+            // finishes the next pass, despite unchanged camera and mesh.
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            for (float& f:sample.normalized_depth) f=0.95f;
+            assert(submit_depth(&sample)==1);
+            assert(copy_debug(&debug)==0);
+            for (unsigned i=0;i<500 && successes()<2;++i) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                assert(frame(&state)==1);
+            }
+            assert(attempts()==2 && successes()==2);
+            for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
+            assert(copy_debug(&debug)==1);
+            assert(debug.geometry_revision==1);
+            stop();
+            dlclose(library);
+            std::puts("PASS: depth-guided GPU jobs use valid aligned grids; update without mesh changes");
+            return 0;
+        }
         // Submit must never wait for GPU BLAS/TLAS in this thread.
         const auto elapsed = std::chrono::steady_clock::now() - beginning;
         assert(elapsed < std::chrono::milliseconds(250));

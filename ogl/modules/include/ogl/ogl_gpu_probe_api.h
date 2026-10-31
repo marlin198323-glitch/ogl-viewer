@@ -44,6 +44,14 @@ OGL_MODULE_EXPORT int ogl_gpu_probe_camera_run(
     const ogl_rtx_frame_state* frame,
     const char* shader_path, ogl_gpu_probe_result* result);
 
+// Optional real OpenGL depth-guided shadow ray queries, 8x8 only.
+// The pointer is copied before worker GPU submission. No visual output.
+// This is a diagnostic of standard perspective-depth reconstruction.
+OGL_MODULE_EXPORT int ogl_gpu_probe_depth_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const ogl_rtx_frame_state* frame, const float* depth_64,
+    const char* shader_path, ogl_gpu_probe_result* result);
+
 #ifdef __cplusplus
 }
 #endif

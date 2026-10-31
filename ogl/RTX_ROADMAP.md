@@ -380,3 +380,33 @@ Viewer, Vulkan-Eingabe der Depth-Rasterwerte, korrekte
 Oberflächen-/Normalenrekonstruktion, vollständige Szene,
 asynchrones GPU-Compositing und sichtbare Echtzeit-Schatten.
 `rendering_active=0` bleibt unverändert.
+
+
+## 31.10.2026 – elfte 10er-Runde: reales Tiefenraster erreicht Vulkan
+
+- Firestorm sendet jetzt über Kamera-ABI v3 zusätzlich echte
+  Near-/Far-Clipping-Distanzen an das RTX-Modul und den GPU-Worker.
+- Vulkan-Compute `depth_guided_sun.comp` rekonstruiert aus jedem der
+  64 normierten OpenGL-Tiefenwerte einen Kamerapunkt und prüft einen
+  sekundären Sonnenstrahl an der GPU-BLAS/TLAS.
+- Descriptor-Binding 2 für 64 Tiefenfloats; Vulkan-Push-Constants
+  enthalten die Near-/Far-Parameter.
+- Der GPU-Cache berücksichtigt jeden der 64 Depth-Werte sowie
+  Kamera-, Projektions- und Clipwerte.
+- Hardwaretest mit echten Vulkan-Ray-Queries: ohne Hindernis
+  **0/64**, mit Hindernis **6/64**, Hintergrundtiefe **0/64**.
+- Neuer separater Einstiegspunkt `ogl_gpu_probe_depth_run`.
+  Asynchrones OGL-Modul: keine Depth-GPU-Berechnung ohne
+  gültiges Tiefenraster, bei neuem Raster alte Ergebnisse
+  invalidieren und bei erlaubtem Intervall aktualisieren.
+- Strikter Developer-Opt-in mit vier Umgebungsvariablen,
+  normaler OpenGL-Betrieb ohne Vulkan-Diagnose.
+- 37 Python-/21 native Tests und vollständiger Linux-Viewer-Build
+  erfolgreich. GPU-Tests auf verfügbarer RTX 4070 SUPER.
+- [`RTX_10_BLOCKS_2026_10_31_P11.md`](RTX_10_BLOCKS_2026_10_31_P11.md).
+
+**Noch keine Schatten im echten Weltbild.** Der 8×8-Shader testet
+konventionelle Depth-Rekonstruktion; die tatsächliche Projektions-
+Konvention der eingeloggten Stadt-NexVerse-Welt muss noch
+abgenommen werden. Keine vollständige Region, kein Compositing,
+keine interaktive Bildrate, kein `rendering_active=1`.

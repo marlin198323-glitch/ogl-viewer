@@ -28,6 +28,10 @@ public:
         std::array<float, 3> camera_up{{0.f, 0.f, 0.f}};
         float vertical_fov_radians = 0.f;
         float aspect_ratio = 0.f;
+        float near_clip_m = 0.f;
+        float far_clip_m = 0.f;
+        std::array<float,64> depth_grid{};
+        bool has_depth_grid = false;
         uint32_t viewport_width = 0;
         uint32_t viewport_height = 0;
     };

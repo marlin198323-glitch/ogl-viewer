@@ -261,3 +261,17 @@ Fehlerberichte eingefügt werden.
 - Ein echter OpenSim-Depth-Live-Test fehlt weiterhin; keine
   sichtbare RT-Darstellung und keine direkte Vulkan-Depth-Einspeisung.
 - [`RTX_10_BLOCKS_2026_10_31_P10.md`](RTX_10_BLOCKS_2026_10_31_P10.md).
+
+
+## 31.10.2026 – elfte RTX-Runde: GPU-Verarbeitung von Depth-Raster
+
+- `ogl_gpu_probe_depth_run`: echter Vulkan-Compute-Sonnenstrahl
+  aus perspektivisch rekonstruiertem Depth-Weltpunkt.
+- Firestorm-Kamera-ABI v3 mit Near/Far-Clips; 64 Float-Depth-Werte
+  über validierte asynchrone OGL-Modulschnittstelle übertragen.
+- GPU-Test: 0/64 ohne Blocker, 6/64 mit Blocker, 0/64 bei
+  Hintergrundtiefe. Gleiches Mesh: neue Depth-Rays ohne BLAS-Neubau.
+- Separate opt-in-Funktion, keine Änderung am öffentlichen
+  OpenGL-Renderer. Vollständiger Linux-Build und Fallbacktests grün.
+- Live-OpenSim-Abnahme sowie sichtbare RTX-Schatten weiterhin offen.
+- [`RTX_10_BLOCKS_2026_10_31_P11.md`](RTX_10_BLOCKS_2026_10_31_P11.md).

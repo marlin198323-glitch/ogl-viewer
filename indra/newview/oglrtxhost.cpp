@@ -162,6 +162,7 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
     const float* camera_right, const float* camera_up,
     float vertical_fov_radians, float aspect_ratio,
+    float near_clip_m, float far_clip_m,
     const float* sun_direction) {
 #if LL_LINUX || LL_WINDOWS
     if (!rtx_submit_frame || !rtx_hardware_ready ||
@@ -181,6 +182,8 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     }
     frame.vertical_fov_radians = vertical_fov_radians;
     frame.aspect_ratio = aspect_ratio;
+    frame.near_clip_m = near_clip_m;
+    frame.far_clip_m = far_clip_m;
     rtx_submit_frame(&frame);
 #endif
 }

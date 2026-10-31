@@ -13,7 +13,10 @@ inline bool valid_camera_frame(const ogl_rtx_frame_state& f) {
         !std::isfinite(f.vertical_fov_radians) ||
         f.vertical_fov_radians < 0.05f || f.vertical_fov_radians > 3.1f ||
         !std::isfinite(f.aspect_ratio) ||
-        f.aspect_ratio < 0.1f || f.aspect_ratio > 12.f)
+        f.aspect_ratio < 0.1f || f.aspect_ratio > 12.f ||
+        !std::isfinite(f.near_clip_m) || !std::isfinite(f.far_clip_m) ||
+        f.near_clip_m < 0.005f || f.far_clip_m <= f.near_clip_m ||
+        f.far_clip_m > 100000.f)
         return false;
 
     const float* vectors[] = {f.camera_forward, f.camera_right, f.camera_up};
