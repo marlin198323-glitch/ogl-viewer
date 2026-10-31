@@ -87,11 +87,20 @@ using CameraProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
 using DepthProbeRun = int (*)(const ogl_rtx_triangle*, uint32_t,
                         const ogl_rtx_frame_state*, const float*,
                         const char*, ogl_gpu_probe_result*);
+using DenseProbeRun = int (*)(const ogl_rtx_triangle*,uint32_t,
+                        const ogl_rtx_frame_state*,const float*,
+                        const char*,ogl_gpu_dense_result*);
 GpuProbeLibrary probe_library = nullptr;
 ProbeRun probe_run = nullptr;
 CameraProbeRun probe_camera_run = nullptr;
 DepthProbeRun probe_depth_run = nullptr;
+DenseProbeRun probe_dense_run = nullptr;
 bool probe_depth_enabled = false;
+bool probe_dense_enabled = false;
+bool dense_depth_valid = false;
+ogl_rtx_dense_depth last_dense_depth{};
+ogl_rtx_dense_shadow last_dense_shadow{};
+bool dense_shadow_valid = false;
 bool probe_opt_in = false;
 bool probe_camera_enabled = false;
 std::unique_ptr<ogl::AsyncGpuQueue> probe_worker;
@@ -103,11 +112,14 @@ std::chrono::milliseconds probe_interval{60000}; // production developer default
 const char* const trusted_shader = "./app_settings/ogl/rtx/ray_query_shadow.comp.spv";
 const char* const trusted_camera_shader = "./app_settings/ogl/rtx/camera_sun_shadow.comp.spv";
 const char* const trusted_depth_shader = "./app_settings/ogl/rtx/depth_guided_sun.comp.spv";
+const char* const trusted_dense_shader =
+    "./app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv";
 
 void gpu_probe_cleanup() {
     probe_run = nullptr;
     probe_camera_run = nullptr;
     probe_depth_run = nullptr;
+    probe_dense_run = nullptr;
     if (probe_library) gpu_close(probe_library);
     probe_library = nullptr;
 }
@@ -252,6 +264,49 @@ void poll_probe_on_viewer_thread() {
         (!probe_depth_enabled && outcome.geometry_revision != geometry_revision) ||
         captured_geometry.empty())
         return;
+    if (outcome.return_code == 0 && outcome.dense) {
+        dense_shadow_valid=false;
+        last_dense_shadow={};
+        if (probe_dense_enabled && outcome.has_depth_grid &&
+            outcome.geometry_revision==geometry_revision &&
+            ogl::same_rt_frame(outcome.capture_frame,latest_frame)) {
+            ogl_rtx_dense_shadow ready{};
+            ready.struct_size=sizeof(ready);
+            ready.version=OGL_RTX_DENSE_VERSION;
+            ready.geometry_revision=outcome.geometry_revision;
+            ready.sample_sequence=outcome.revision;
+            ready.capture_frame=outcome.capture_frame;
+            ready.width=OGL_RTX_DENSE_WIDTH;
+            ready.height=OGL_RTX_DENSE_HEIGHT;
+            ready.surface_pixels=outcome.surface_pixels;
+            ready.matched_pixels=outcome.primary_depth_matches;
+            ready.shadow_pixels=outcome.occluded;
+            std::copy(outcome.dense_valid_mask.begin(),
+                      outcome.dense_valid_mask.end(),std::begin(ready.valid_mask));
+            std::copy(outcome.dense_shadow_mask.begin(),
+                      outcome.dense_shadow_mask.end(),std::begin(ready.shadow_mask));
+            std::copy(outcome.dense_capture_depth.begin(),
+                      outcome.dense_capture_depth.end(),
+                      std::begin(ready.capture_depth));
+            if (ogl::valid_dense_shadow(ready,geometry_revision,latest_frame)) {
+                last_dense_shadow=ready;
+                dense_shadow_valid=true;
+                if (logger) logger(1,"OGL RTX dense source synchronized; "
+                                  "64x36 GPU depth matches, no compositing");
+            }
+        }
+        if (logger)
+            logger(1,(std::string("OGL RTX dense GPU probe: triangles=")+
+                std::to_string(outcome.triangle_count)+
+                " rays="+std::to_string(outcome.ray_count)+
+                " surface="+std::to_string(outcome.surface_pixels)+
+                " primary="+std::to_string(outcome.primary_hits)+
+                " matched="+std::to_string(outcome.primary_depth_matches)+
+                " shadowed="+std::to_string(outcome.occluded)+
+                " revision="+std::to_string(outcome.geometry_revision)+
+                "; GPU tile NOT yet composited").c_str());
+        return;
+    }
     if (outcome.return_code == 0) {
         ogl_rtx_shadow_debug fresh{};
         fresh.struct_size = sizeof(fresh);
@@ -336,6 +391,7 @@ void poll_probe_on_viewer_thread() {
             + " gpu_triangles=" + std::to_string(outcome.triangle_count)
             + " mismatch_pixels=" +
               std::to_string(outcome.world_mismatch_pixels)
+            + " dense=" + std::to_string(outcome.dense ? 1 : 0)
             + "; disabled until next start; OpenGL active").c_str());
     }
 }
@@ -345,6 +401,7 @@ void schedule_probe_on_viewer_thread() {
     // Never perform Vulkan calls on this render-thread callback.
     if (probe_worker && received_frames > 0 && !captured_geometry.empty() &&
         (!probe_depth_enabled || depth_debug_valid) &&
+        (!probe_dense_enabled || dense_depth_valid) &&
         (geometry_revision != probe_last_revision || probe_view_dirty)) {
         using Clock = std::chrono::steady_clock;
         const auto now = Clock::now();
@@ -367,6 +424,17 @@ void schedule_probe_on_viewer_thread() {
             job.far_clip_m = latest_frame.far_clip_m;
             job.viewport_width = latest_frame.width;
             job.viewport_height = latest_frame.height;
+            if (probe_dense_enabled) {
+                std::copy(std::begin(last_dense_depth.normalized_depth),
+                          std::end(last_dense_depth.normalized_depth),
+                          job.dense_depth_grid.begin());
+                job.has_dense_grid=true;
+                job.surface_pixels=static_cast<uint32_t>(
+                    std::count_if(job.dense_depth_grid.begin(),
+                        job.dense_depth_grid.end(),
+                        [](float v){return v<0.999999f;}));
+                job.background_pixels=OGL_RTX_DENSE_PIXELS-job.surface_pixels;
+            }
             if (probe_depth_enabled) {
                 std::copy(std::begin(last_depth_debug.normalized_depth),
                           std::end(last_depth_debug.normalized_depth),
@@ -379,6 +447,9 @@ void schedule_probe_on_viewer_thread() {
                 probe_last_time = now;
                 probe_last_revision = geometry_revision;
                 probe_view_dirty = false;
+                if (logger && probe_dense_enabled)
+                    logger(1,"OGL RTX dense GPU snapshot queued: 64x36 "
+                              "depth-aligned samples; no world compositing");
                 if (logger && probe_depth_enabled)
                     logger(1, "OGL RTX depth-guided GPU snapshot queued; "
                         "async test only; no world compositing");
@@ -409,11 +480,16 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     last_depth_debug = {};
     last_depth_stats = {};
     depth_debug_valid = false;
+    last_dense_depth={};
+    last_dense_shadow={};
+    dense_depth_valid=false;
+    dense_shadow_valid=false;
     probe_worker.reset(); // join before unloading Vulkan function pointers
     gpu_probe_cleanup();
     probe_opt_in = false;
     probe_camera_enabled = false;
     probe_depth_enabled = false;
+    probe_dense_enabled = false;
     probe_last_revision = 0;
     probe_job_sequence = 0;
     probe_view_dirty = false;
@@ -437,6 +513,17 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     probe_depth_enabled = probe_camera_enabled && depth_env && read_env &&
                           std::strcmp(depth_env, "1") == 0 &&
                           std::strcmp(read_env, "1") == 0;
+    const char* dense_env=std::getenv("OGL_RTX_DENSE_PREVIEW");
+    probe_dense_enabled=probe_camera_enabled && dense_env &&
+                        std::strcmp(dense_env,"1")==0;
+    if (probe_dense_enabled) {
+        probe_depth_enabled=false; // mutually exclusive worker modes
+        // Main-thread OpenGL capture is already capped at >=2 seconds.
+        // A slightly shorter worker throttle prevents a captured depth
+        // frame being dropped on scheduling jitter and then invalidated
+        // on the next rendered OpenGL frame.
+        probe_interval=std::chrono::milliseconds(1000);
+    }
     detect();
     // Opt-in is only for developers until we have a non-blocking renderer.
     // No developer/system-specific GPU, user data, or filesystem path.
@@ -449,15 +536,21 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 gpu_symbol(probe_library, "ogl_gpu_probe_camera_run"));
             probe_depth_run = reinterpret_cast<DepthProbeRun>(
                 gpu_symbol(probe_library, "ogl_gpu_probe_depth_run"));
+            probe_dense_run = reinterpret_cast<DenseProbeRun>(
+                gpu_symbol(probe_library, "ogl_gpu_probe_dense_run"));
         }
         if (!probe_run || (probe_camera_enabled && !probe_camera_run) ||
-            (probe_depth_enabled && !probe_depth_run)) {
+            (probe_depth_enabled && !probe_depth_run) ||
+            (probe_dense_enabled && !probe_dense_run)) {
             if (logger) logger(1, "OGL RTX opt-in GPU probe unavailable; OpenGL unaffected");
         } else {
             // Worker calls Vulkan. Immutable data; no viewer callbacks.
             try {
             probe_worker.reset(new ogl::AsyncGpuQueue([](
                 const ogl::AsyncGpuQueue::Job& job) {
+                ogl_gpu_dense_result native_dense{};
+                native_dense.struct_size=sizeof(native_dense);
+                native_dense.version=OGL_GPU_DENSE_VERSION;
                 ogl_gpu_probe_result native{};
                 native.struct_size = sizeof(native);
                 native.version = OGL_GPU_PROBE_VERSION;
@@ -479,7 +572,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                     frame.aspect_ratio = job.aspect_ratio;
                     frame.near_clip_m = job.near_clip_m;
                     frame.far_clip_m = job.far_clip_m;
-                    if (probe_depth_enabled) {
+                    if (probe_dense_enabled) {
+                        rc=job.has_dense_grid && probe_dense_run ?
+                            probe_dense_run(job.triangles.data(),
+                                static_cast<uint32_t>(job.triangles.size()),
+                                &frame,job.dense_depth_grid.data(),
+                                trusted_dense_shader,&native_dense) : 1;
+                    } else if (probe_depth_enabled) {
                         // Unlike the old scene-only fixture, every depth
                         // sample is an immutable copy from Firestorm's frame.
                         rc = job.has_depth_grid && probe_depth_run ?
@@ -498,7 +597,32 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                         job.sun.data(), trusted_shader, &native);
                 }
                 ogl::AsyncGpuQueue::Result result{};
-                result.return_code = (rc == 0 && native.success) ? 0 : 1;
+                const bool dense_mode=job.has_dense_grid;
+                result.dense=dense_mode;
+                result.return_code=(rc==0 && (dense_mode ?
+                    native_dense.success : native.success)) ? 0 : 1;
+                if (dense_mode) {
+                    result.triangle_count=native_dense.triangle_count;
+                    result.ray_count=native_dense.ray_count;
+                    result.occluded=native_dense.occluded;
+                    result.primary_hits=native_dense.primary_hits;
+                    result.primary_depth_matches=native_dense.depth_matches;
+                    result.has_depth_grid=true;
+                    result.capture_frame=frame;
+                    result.dense_capture_depth=job.dense_depth_grid;
+                    std::copy(std::begin(native_dense.shadow_mask),
+                              std::end(native_dense.shadow_mask),
+                              result.dense_shadow_mask.begin());
+                    std::copy(std::begin(native_dense.depth_match_mask),
+                              std::end(native_dense.depth_match_mask),
+                              result.dense_valid_mask.begin());
+                    result.surface_pixels=job.surface_pixels;
+                    result.background_pixels=job.background_pixels;
+                    result.world_mask_eligible=true;
+                    result.gpu_return_code=rc;
+                    result.gpu_reported_success=native_dense.success;
+                    return result;
+                }
                 result.gpu_return_code=rc;
                 result.gpu_reported_success=native.success;
                 result.triangle_count = native.triangle_count;
@@ -564,6 +688,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
             (probe_worker ? "1" : "0") +
             " camera=" + (probe_camera_enabled ? "1" : "0") +
             " depth_guided=" + (probe_depth_enabled ? "1" : "0") +
+            " dense=" + (probe_dense_enabled ? "1" : "0") +
             "; diagnostic only").c_str());
     std::string gpu = status.gpu_name[0] ? status.gpu_name : "none";
     logger(1, (std::string("OGL RTX capability: gpu=") + gpu +
@@ -580,6 +705,9 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     probe_opt_in = false;
     probe_camera_enabled = false;
     probe_depth_enabled = false;
+    probe_dense_enabled = false;
+    last_dense_depth={};last_dense_shadow={};
+    dense_depth_valid=false;dense_shadow_valid=false;
     captured_geometry.clear();
     last_shadow_debug = {};
     shadow_debug_valid = false;
@@ -618,6 +746,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
         // a stale camera to an actual world compositor.
         last_world_shadow={};
         world_shadow_valid=false;
+        last_dense_shadow={};
+        dense_shadow_valid=false;
         probe_view_dirty = true;
         // The depth-guided preview is a frozen frame snapshot. Camera
         // movement must not cancel GPU work in progress, or clear the
@@ -633,6 +763,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
     last_depth_debug = {};
     last_depth_stats = {};
     depth_debug_valid = false;
+    dense_depth_valid = false;
     latest_frame = *frame;
     ++received_frames;
     if (probe_worker) {
@@ -657,6 +788,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     if (!count) {
         last_world_shadow={};
         world_shadow_valid=false;
+        last_dense_shadow={};
+        dense_shadow_valid=false;
         // A region change invalidates per-UUID metadata even if no aggregate
         // GPU triangle snapshot was available yet.
         tracked_objects.clear();
@@ -683,6 +816,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     captured_geometry.assign(triangles, triangles + count);
     last_world_shadow={};
     world_shadow_valid=false;
+    last_dense_shadow={};
+    dense_shadow_valid=false;
     ++geometry_revision;
     probe_view_dirty = true;
     if (!probe_depth_enabled) {
@@ -863,6 +998,41 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(
         output->version != OGL_RTX_DEPTH_DEBUG_VERSION || !depth_debug_valid)
         return 0;
     *output = last_depth_debug;
+    return 1;
+}
+
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_dense_depth(
+    const ogl_rtx_dense_depth* input) {
+    if (!probe_dense_enabled || !probe_worker || !status.hardware_ready ||
+        !input || !received_frames || captured_geometry.empty() ||
+        input->struct_size!=sizeof(*input) ||
+        input->version!=OGL_RTX_DENSE_VERSION ||
+        input->width!=OGL_RTX_DENSE_WIDTH ||
+        input->height!=OGL_RTX_DENSE_HEIGHT ||
+        input->viewport_width!=latest_frame.width ||
+        input->viewport_height!=latest_frame.height)
+        return 0;
+    for (float d:input->normalized_depth)
+        if (!std::isfinite(d) || d<0.f || d>1.f) return 0;
+    last_dense_depth=*input;
+    dense_depth_valid=true;
+    last_dense_shadow={};
+    dense_shadow_valid=false;
+    probe_view_dirty=true;
+    probe_worker->invalidate(++probe_job_sequence);
+    schedule_probe_on_viewer_thread();
+    poll_probe_on_viewer_thread();
+    return 1;
+}
+
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_dense_shadow(
+    ogl_rtx_dense_shadow* output) {
+    if (!output || output->struct_size!=sizeof(*output) ||
+        output->version!=OGL_RTX_DENSE_VERSION ||
+        !probe_dense_enabled || !dense_shadow_valid ||
+        !ogl::valid_dense_shadow(last_dense_shadow,geometry_revision,latest_frame))
+        return 0;
+    *output=last_dense_shadow;
     return 1;
 }
 

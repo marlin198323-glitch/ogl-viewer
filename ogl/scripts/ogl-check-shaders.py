@@ -18,7 +18,7 @@ MANIFEST = "ogl/modules/rtx/shaders/spv-lock.json"
 def verify_pairs(root: Path, manifest: dict) -> list[str]:
     errors = []
     pairs = manifest.get("pairs")
-    if manifest.get("schema") != 1 or not isinstance(pairs,list) or len(pairs)!=3:
+    if manifest.get("schema") != 1 or not isinstance(pairs,list) or len(pairs)!=4:
         return ["shader manifest has unexpected structure"]
     seen = set()
     for pair in pairs:
@@ -67,7 +67,7 @@ def main() -> int:
         print("Rebuild changed GLSL files with glslangValidator and spirv-val, "
               "then refresh spv-lock.json.",file=sys.stderr)
         return 1
-    print("OGL RTX shader integrity: 3 source/SPIR-V pairs verified")
+    print("OGL RTX shader integrity: 4 source/SPIR-V pairs verified")
     return 0
 
 if __name__ == "__main__":

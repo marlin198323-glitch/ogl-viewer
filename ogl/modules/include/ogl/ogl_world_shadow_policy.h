@@ -81,6 +81,54 @@ inline bool valid_world_shadow_sample(
            shadowed==sample.occluded_pixels;
 }
 
+// Validate the first denser GPU ray-result tile. The receiver must also
+// compare this capture against the live deferred-depth texture and reject
+// surface/edge discontinuities; validating this ABI is necessary but not
+// sufficient to render a world-space shadow.
+inline bool valid_dense_shadow(
+    const ogl_rtx_dense_shadow& sample,uint64_t current_revision,
+    const ogl_rtx_frame_state& current) {
+    if (sample.struct_size!=sizeof(sample) ||
+        sample.version!=OGL_RTX_DENSE_VERSION ||
+        sample.width!=OGL_RTX_DENSE_WIDTH ||
+        sample.height!=OGL_RTX_DENSE_HEIGHT ||
+        sample.sample_sequence==0 ||
+        sample.geometry_revision==0 ||
+        sample.geometry_revision!=current_revision ||
+        !same_rt_frame(sample.capture_frame,current) ||
+        sample.matched_pixels>OGL_RTX_DENSE_PIXELS ||
+        sample.shadow_pixels>sample.matched_pixels ||
+        sample.surface_pixels>OGL_RTX_DENSE_PIXELS)
+        return false;
+    uint32_t matched=0,shadow=0,surface=0;
+    for (unsigned i=0;i<OGL_RTX_DENSE_PIXELS;++i) {
+        const float depth=sample.capture_depth[i];
+        if (!std::isfinite(depth) || depth<0.f || depth>1.f)
+            return false;
+        const auto valid=sample.valid_mask[i];
+        const auto occlusion=sample.shadow_mask[i];
+        if (valid>1u || occlusion>valid) return false;
+        if (valid && depth>=0.999999f) return false;
+        matched+=valid;
+        shadow+=occlusion;
+        surface+=depth<0.999999f;
+    }
+    return matched==sample.matched_pixels &&
+           shadow==sample.shadow_pixels &&
+           surface==sample.surface_pixels;
+}
+inline bool dense_shadow_pixel_current(
+    const ogl_rtx_dense_shadow& sample,uint32_t pixel,
+    float current_depth,float tolerance=0.00001f) {
+    return pixel<OGL_RTX_DENSE_PIXELS &&
+           sample.valid_mask[pixel]==1 &&
+           sample.shadow_mask[pixel]==1 &&
+           std::isfinite(current_depth) &&
+           current_depth>=0.f && current_depth<0.999999f &&
+           std::isfinite(tolerance) && tolerance>=0.f &&
+           std::fabs(current_depth-sample.capture_depth[pixel])<=tolerance;
+}
+
 // The only safe way to apply a captured shadow bit to a *current* surface
 // until a per-frame dense renderer is implemented: current GL depth must
 // match the sampled source depth. Never interpolate 8x8 occlusion across

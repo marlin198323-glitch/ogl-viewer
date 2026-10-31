@@ -329,6 +329,38 @@ def report():
         else:
             print("RTX world-shadow bridge: no current camera/geometry "
                   "matched GPU source observed in this log")
+        dense_results=re.findall(
+            r"OGL RTX dense GPU probe: triangles=(\d+) "
+            r"rays=(\d+) surface=(\d+) primary=(\d+) "
+            r"matched=(\d+) shadowed=(\d+) revision=(\d+)",text)
+        dense_captures=re.findall(
+            r"Deferred depth dense grid captured (\d+)x(\d+) -> "
+            r"(\d+)x(\d+)",text)
+        dense_composites=re.findall(
+            r"OGL RTX dense world sunlight composed: (\d+) "
+            r"GPU shadow tile\(s\) / (\d+) depth-matched",text)
+        if dense_captures:
+            w,h,gw,gh=dense_captures[-1]
+            print(f"RTX experimental dense GL depth capture: "
+                  f"{w}x{h} -> {gw}x{gh} samples")
+        if dense_results:
+            tris,rays,surface,primary,matched,shadowed,revision=(
+                dense_results[-1])
+            print(f"RTX dense Vulkan sunlight: {shadowed}/{matched} "
+                  f"depth-validated shadows, {primary}/{surface} "
+                  f"primary hits, {rays} GPU ray samples, "
+                  f"{tris} scene triangles (geometry revision {revision})")
+        if dense_composites:
+            shadows,matched=dense_composites[-1]
+            print(f"RTX experimental in-world sunlight compositor: "
+                  f"executed with {shadows} shadow samples from "
+                  f"{matched} verified surfaces; live GL-depth gating. "
+                  "Appearance/FPS require a real viewer screenshot.")
+        elif dense_results:
+            print("RTX experimental in-world sunlight compositor: "
+                  "no completed world-lighting blend recorded; "
+                  "camera, geometry, sky or zero confirmed shadows may "
+                  "prevent the effect.")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)

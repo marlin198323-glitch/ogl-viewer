@@ -84,6 +84,17 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv")
             set_tests_properties(ogl_vulkan_tlas_instance_refit
                 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+            add_executable(ogl_dense_sun_shadow_test
+                rtx/ogl_dense_sun_shadow_test.cpp)
+            target_include_directories(ogl_dense_sun_shadow_test PRIVATE include)
+            target_compile_features(ogl_dense_sun_shadow_test PRIVATE cxx_std_17)
+            target_link_libraries(ogl_dense_sun_shadow_test PRIVATE ${CMAKE_DL_LIBS})
+            add_test(NAME ogl_gpu_dense_depth_guided_sun_shadow
+                COMMAND ogl_dense_sun_shadow_test
+                    $<TARGET_FILE:ogl_gpu_probe>
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv")
+            set_tests_properties(ogl_gpu_dense_depth_guided_sun_shadow
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
             add_executable(ogl_depth_sun_shadow_test
                 rtx/ogl_depth_sun_shadow_test.cpp)
             target_include_directories(ogl_depth_sun_shadow_test PRIVATE include)
@@ -140,8 +151,12 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/depth_guided_sun.comp.spv"
                     "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/depth_guided_sun.comp.spv"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv"
+                    "${CMAKE_CURRENT_BINARY_DIR}/app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv"
                 VERBATIM)
             add_dependencies(ogl_depth_sun_shadow_test ogl_rtx_stage_shaders)
+            add_dependencies(ogl_dense_sun_shadow_test ogl_rtx_stage_shaders)
             add_executable(ogl_live_gpu_probe_test
                 rtx/ogl_live_gpu_probe_test.cpp)
             target_include_directories(ogl_live_gpu_probe_test PRIVATE include)
@@ -175,6 +190,14 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     $<TARGET_FILE:ogl_live_gpu_probe_test>
                     $<TARGET_FILE:ogl_rtx_module> --test-depth-guided)
             set_tests_properties(ogl_live_depth_guided_gpu_bridge
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
+            add_test(NAME ogl_live_dense_gpu_world_bridge
+                COMMAND ${CMAKE_COMMAND} -E env
+                    OGL_RTX_SCENE_PROBE=1 OGL_RTX_CAMERA_PROBE=1
+                    OGL_RTX_DENSE_PREVIEW=1
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module> --test-dense-guided)
+            set_tests_properties(ogl_live_dense_gpu_world_bridge
                 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
             file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
             add_test(NAME ogl_live_gpu_probe_missing_library

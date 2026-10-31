@@ -143,6 +143,44 @@ typedef struct ogl_rtx_world_shadow_sample {
 OGL_MODULE_EXPORT int ogl_rtx_copy_world_shadow_sample(
     ogl_rtx_world_shadow_sample* output);
 
+/* Explicit developer-only 64x36 Vulkan depth-shadow mode.
+ * Separate from the legacy 8x8 diagnostic. This remains a bounded source
+ * tile; it is NOT an automatically upscaled world-space shading texture.
+ * The capture_frame is immutable and must be checked before application.
+ */
+#define OGL_RTX_DENSE_VERSION 1u
+#define OGL_RTX_DENSE_WIDTH 64u
+#define OGL_RTX_DENSE_HEIGHT 36u
+#define OGL_RTX_DENSE_PIXELS (OGL_RTX_DENSE_WIDTH*OGL_RTX_DENSE_HEIGHT)
+typedef struct ogl_rtx_dense_depth {
+    uint32_t struct_size;
+    uint32_t version;
+    uint32_t viewport_width;
+    uint32_t viewport_height;
+    uint32_t width;
+    uint32_t height;
+    float normalized_depth[OGL_RTX_DENSE_PIXELS];
+} ogl_rtx_dense_depth;
+typedef struct ogl_rtx_dense_shadow {
+    uint32_t struct_size;
+    uint32_t version;
+    uint64_t geometry_revision;
+    uint64_t sample_sequence;
+    ogl_rtx_frame_state capture_frame;
+    uint32_t width;
+    uint32_t height;
+    uint32_t surface_pixels;
+    uint32_t matched_pixels;
+    uint32_t shadow_pixels;
+    uint8_t valid_mask[OGL_RTX_DENSE_PIXELS];
+    uint8_t shadow_mask[OGL_RTX_DENSE_PIXELS];
+    float capture_depth[OGL_RTX_DENSE_PIXELS];
+} ogl_rtx_dense_shadow;
+OGL_MODULE_EXPORT int ogl_rtx_submit_dense_depth(
+    const ogl_rtx_dense_depth* input);
+OGL_MODULE_EXPORT int ogl_rtx_copy_dense_shadow(
+    ogl_rtx_dense_shadow* output);
+
 /* OpenGL deferred depth, WHOLE-VIEWPORT 8x8 NEAREST SAMPLE GRID.
  * Pixel (x,y) corresponds to camera ray UV ((x+.5)/8,(y+.5)/8).
  * OpenGL origin is bottom-left, matching the diagnostic Vulkan shader.

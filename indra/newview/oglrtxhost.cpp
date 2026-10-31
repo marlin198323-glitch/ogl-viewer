@@ -63,6 +63,10 @@ using ogl_rtx_copy_shadow_debug_fn = int (*)(ogl_rtx_shadow_debug*);
 ogl_rtx_copy_shadow_debug_fn rtx_copy_shadow_debug = nullptr;
 using ogl_rtx_copy_world_shadow_fn = int (*)(ogl_rtx_world_shadow_sample*);
 ogl_rtx_copy_world_shadow_fn rtx_copy_world_shadow = nullptr;
+using ogl_rtx_submit_dense_fn = int (*)(const ogl_rtx_dense_depth*);
+using ogl_rtx_copy_dense_fn = int (*)(ogl_rtx_dense_shadow*);
+ogl_rtx_submit_dense_fn rtx_submit_dense = nullptr;
+ogl_rtx_copy_dense_fn rtx_copy_dense = nullptr;
 using ogl_rtx_submit_depth_fn = int (*)(const ogl_rtx_depth_debug*);
 ogl_rtx_submit_depth_fn rtx_submit_depth = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
@@ -124,6 +128,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_copy_shadow_debug"));
     rtx_copy_world_shadow = reinterpret_cast<ogl_rtx_copy_world_shadow_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_rtx_copy_world_shadow_sample"));
+    rtx_submit_dense=reinterpret_cast<ogl_rtx_submit_dense_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_rtx_submit_dense_depth"));
+    rtx_copy_dense=reinterpret_cast<ogl_rtx_copy_dense_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_rtx_copy_dense_shadow"));
     rtx_submit_depth = reinterpret_cast<ogl_rtx_submit_depth_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_depth_debug"));
 
@@ -165,6 +173,8 @@ void ogl_shutdown_rtx_module() {
     rtx_received_triangles = nullptr;
     rtx_copy_shadow_debug = nullptr;
     rtx_copy_world_shadow = nullptr;
+    rtx_submit_dense=nullptr;
+    rtx_copy_dense=nullptr;
     rtx_submit_depth = nullptr;
 #endif
 }
@@ -251,6 +261,221 @@ void ogl_rtx_forget_local_object(const std::uint8_t* uuid)
 {
 #if LL_LINUX || LL_WINDOWS
     if (rtx_forget_object && uuid) rtx_forget_object(uuid);
+#endif
+}
+
+// Opt-in 64x36 Vulkan-guided sun shadow on the ACTUAL OpenGL deferred
+// sunlight target. No fullscreen 8x8 UI effect: each fragment reads current
+// GL depth, its own Vulkan source tile, and rejects stale geometry.
+bool ogl_rtx_compose_dense_sun_shadow(unsigned depth_texture,
+    unsigned width,unsigned height,const float* eye,const float* forward,
+    const float* right,const float* up,float fov,float aspect,
+    float near_clip,float far_clip,const float* sun)
+{
+#if LL_LINUX || LL_WINDOWS
+    static const bool opt_in=[]() {
+        const char* v=std::getenv("OGL_RTX_WORLD_COMPOSITE");
+        const char* d=std::getenv("OGL_RTX_DENSE_PREVIEW");
+        return v && d && std::strcmp(v,"1")==0 &&
+               std::strcmp(d,"1")==0;
+    }();
+    if (!opt_in || !rtx_hardware_ready || !rtx_copy_dense ||
+        !depth_texture || !glIsTexture(depth_texture) ||
+        !eye || !forward || !right || !up || !sun ||
+        width<64u || height<36u)
+        return false;
+    ogl_rtx_frame_state current{};
+    current.struct_size=sizeof(current);
+    current.frame_version=OGL_RTX_FRAME_VERSION;
+    current.width=width;current.height=height;
+    for (unsigned i=0;i<3;++i) {
+        current.camera_position[i]=eye[i];
+        current.camera_forward[i]=forward[i];
+        current.camera_right[i]=right[i];
+        current.camera_up[i]=up[i];
+        current.sun_direction[i]=sun[i];
+    }
+    current.vertical_fov_radians=fov;
+    current.aspect_ratio=aspect;
+    current.near_clip_m=near_clip;
+    current.far_clip_m=far_clip;
+    ogl_rtx_dense_shadow source{};
+    source.struct_size=sizeof(source);
+    source.version=OGL_RTX_DENSE_VERSION;
+    if (rtx_copy_dense(&source)!=1 ||
+        !ogl::valid_dense_shadow(source,source.geometry_revision,current) ||
+        source.shadow_pixels==0)
+        return false;
+
+    // Strict depth-gated fragment pass. No bilinear interpolation; a tile
+    // can only darken a pixel whose LIVE deferred depth agrees with the
+    // GPU input depth and whose primary Vulkan ray hit was validated.
+    static const char* vertex_source=R"GLSL(
+#version 330 core
+void main() {
+    vec2 p=vec2((gl_VertexID==1)?3.0:-1.0,
+                (gl_VertexID==2)?3.0:-1.0);
+    gl_Position=vec4(p,0.0,1.0);
+}
+)GLSL";
+    static const char* fragment_source=R"GLSL(
+#version 330 core
+uniform sampler2D uLiveDepth;
+uniform sampler2D uVulkanTile;
+uniform ivec2 uViewport;
+out vec4 outColor;
+void main() {
+    ivec2 pos=ivec2(gl_FragCoord.xy);
+    if (any(lessThan(pos,ivec2(0))) ||
+        any(greaterThanEqual(pos,uViewport))) discard;
+    ivec2 t=clamp(pos*ivec2(64,36)/uViewport,
+                  ivec2(0),ivec2(63,35));
+    vec4 ray=texelFetch(uVulkanTile,t,0);
+    if (ray.r<0.5 || ray.g<0.5) discard;
+    float live=texelFetch(uLiveDepth,pos,0).r;
+    // Sparse source meshes, rigged avatars and moving world geometry must
+    // not be darkened unless current depth still matches capture depth.
+    if (live>=0.999999 || abs(live-ray.b)>0.00001) discard;
+    // Limited first-gen direct-sun attenuation, not GI or path tracing.
+    outColor=vec4(0.0,0.0,0.0,0.36);
+}
+)GLSL";
+    static GLuint program=0,vao=0,tile_texture=0;
+    static bool compile_failed=false;
+    static uint64_t last_upload=0;
+    if (compile_failed) return false;
+    if (!program) {
+        const auto compile=[](GLenum type,const char* source)->GLuint {
+            GLuint shader=glCreateShader(type);
+            if (!shader) return 0;
+            glShaderSource(shader,1,&source,nullptr);
+            glCompileShader(shader);
+            GLint good=0;
+            glGetShaderiv(shader,GL_COMPILE_STATUS,&good);
+            if (!good) {glDeleteShader(shader);return 0;}
+            return shader;
+        };
+        const GLuint vs=compile(GL_VERTEX_SHADER,vertex_source);
+        const GLuint fs=compile(GL_FRAGMENT_SHADER,fragment_source);
+        if (vs && fs) {
+            program=glCreateProgram();
+            glAttachShader(program,vs);
+            glAttachShader(program,fs);
+            glLinkProgram(program);
+            GLint linked=0;
+            glGetProgramiv(program,GL_LINK_STATUS,&linked);
+            if (!linked) {glDeleteProgram(program);program=0;}
+        }
+        if (vs) glDeleteShader(vs);
+        if (fs) glDeleteShader(fs);
+        if (!program) {
+            compile_failed=true;
+            LL_WARNS("OGLRTX") << "Experimental OpenGL shadow compositor "
+                               << "shader rejected; original renderer kept."
+                               << LL_ENDL;
+            return false;
+        }
+        glGenVertexArrays(1,&vao);
+        glGenTextures(1,&tile_texture);
+        if (!vao || !tile_texture) {
+            compile_failed=true;
+            return false;
+        }
+        LL_INFOS("OGLRTX") << "Experimental 64x36 Vulkan-to-OpenGL "
+                             "depth-gated sunlight compositor initialized"
+                          << LL_ENDL;
+    }
+    GLint old_program=0,old_vao=0,old_active=0;
+    GLint old_tex0=0,old_tex1=0;
+    GLint old_viewport[4]{};
+    GLint old_blend_src_rgb=0,old_blend_dst_rgb=0;
+    GLint old_blend_src_alpha=0,old_blend_dst_alpha=0;
+    GLint old_equation_rgb=0,old_equation_alpha=0;
+    GLboolean old_blend=glIsEnabled(GL_BLEND);
+    GLboolean old_depth=glIsEnabled(GL_DEPTH_TEST);
+    GLboolean old_cull=glIsEnabled(GL_CULL_FACE);
+    GLboolean old_scissor=glIsEnabled(GL_SCISSOR_TEST);
+    glGetIntegerv(GL_CURRENT_PROGRAM,&old_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&old_vao);
+    glGetIntegerv(GL_ACTIVE_TEXTURE,&old_active);
+    glGetIntegerv(GL_VIEWPORT,old_viewport);
+    glGetIntegerv(GL_BLEND_SRC_RGB,&old_blend_src_rgb);
+    glGetIntegerv(GL_BLEND_DST_RGB,&old_blend_dst_rgb);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA,&old_blend_src_alpha);
+    glGetIntegerv(GL_BLEND_DST_ALPHA,&old_blend_dst_alpha);
+    glGetIntegerv(GL_BLEND_EQUATION_RGB,&old_equation_rgb);
+    glGetIntegerv(GL_BLEND_EQUATION_ALPHA,&old_equation_alpha);
+    glActiveTexture(GL_TEXTURE0);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&old_tex0);
+    glActiveTexture(GL_TEXTURE1);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&old_tex1);
+    glBindTexture(GL_TEXTURE_2D,tile_texture);
+    if (last_upload!=source.sample_sequence) {
+        std::array<float,OGL_RTX_DENSE_PIXELS*4u> pixels{};
+        for (unsigned i=0;i<OGL_RTX_DENSE_PIXELS;++i) {
+            pixels[i*4+0]=float(source.valid_mask[i]);
+            pixels[i*4+1]=float(source.shadow_mask[i]);
+            pixels[i*4+2]=source.capture_depth[i];
+        }
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,
+                     OGL_RTX_DENSE_WIDTH,OGL_RTX_DENSE_HEIGHT,0,
+                     GL_RGBA,GL_FLOAT,pixels.data());
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+        last_upload=source.sample_sequence;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D,depth_texture);
+    glUseProgram(program);
+    glUniform1i(glGetUniformLocation(program,"uLiveDepth"),0);
+    glUniform1i(glGetUniformLocation(program,"uVulkanTile"),1);
+    glUniform2i(glGetUniformLocation(program,"uViewport"),width,height);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_SCISSOR_TEST);
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,
+                        GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquationSeparate(GL_FUNC_ADD,GL_FUNC_ADD);
+    glViewport(0,0,width,height);
+    glBindVertexArray(vao);
+    glDrawArrays(GL_TRIANGLES,0,3);
+    // Restore everything modified; subsequent Firestorm lighting/UI passes
+    // must observe exactly their original global GL state.
+    glBindVertexArray(old_vao);
+    glUseProgram(old_program);
+    glViewport(old_viewport[0],old_viewport[1],
+               old_viewport[2],old_viewport[3]);
+    glBlendFuncSeparate(old_blend_src_rgb,old_blend_dst_rgb,
+                        old_blend_src_alpha,old_blend_dst_alpha);
+    glBlendEquationSeparate(old_equation_rgb,old_equation_alpha);
+    if (!old_blend) glDisable(GL_BLEND);
+    if (old_depth) glEnable(GL_DEPTH_TEST);
+    if (old_cull) glEnable(GL_CULL_FACE);
+    if (old_scissor) glEnable(GL_SCISSOR_TEST);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D,old_tex1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D,old_tex0);
+    glActiveTexture(old_active);
+    static uint64_t last_logged=0;
+    if (last_logged!=source.sample_sequence) {
+        last_logged=source.sample_sequence;
+        LL_INFOS("OGLRTX") << "OGL RTX dense world sunlight composed: "
+                           << source.shadow_pixels << " GPU shadow tile(s) / "
+                           << source.matched_pixels
+                           << " depth-matched, at 64x36 sample resolution; "
+                           << "current OpenGL depth gates every output pixel"
+                           << LL_ENDL;
+    }
+    return true;
+#else
+    (void)depth_texture;(void)width;(void)height;(void)eye;(void)forward;
+    (void)right;(void)up;(void)fov;(void)aspect;
+    (void)near_clip;(void)far_clip;(void)sun;
+    return false;
 #endif
 }
 
@@ -377,7 +602,12 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
         const char* env = std::getenv("OGL_RTX_DEPTH_PROBE");
         return env && std::strcmp(env, "1") == 0;
     }();
-    if (!enabled || !rtx_hardware_ready || !rtx_submit_depth ||
+    static const bool dense_enabled=[] {
+        const char* env=std::getenv("OGL_RTX_DENSE_PREVIEW");
+        return env && std::strcmp(env,"1")==0;
+    }();
+    if (!enabled || !rtx_hardware_ready ||
+        (dense_enabled ? !rtx_submit_dense : !rtx_submit_depth) ||
         !rtx_received_triangles || rtx_received_triangles() == 0 || !texture ||
         width < 8 || height < 8 || width > 32768 || height > 32768)
         return;
@@ -385,7 +615,8 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
     static Clock::time_point previous{};
     const auto now = Clock::now();
     if (previous != Clock::time_point{} &&
-        now - previous < std::chrono::seconds(60))
+        now - previous < (dense_enabled ?
+            std::chrono::seconds(2) : std::chrono::seconds(60)))
         return;
     previous = now; // even failure must never flood GL with readbacks
 
@@ -404,6 +635,9 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
     glGetIntegerv(GL_PACK_SKIP_PIXELS, &old_skip_pixels);
     glGetIntegerv(GL_PACK_SKIP_ROWS, &old_skip_rows);
 
+    const unsigned grid_w=dense_enabled ? OGL_RTX_DENSE_WIDTH : 8u;
+    const unsigned grid_h=dense_enabled ? OGL_RTX_DENSE_HEIGHT : 8u;
+    if (width<grid_w || height<grid_h) return;
     GLuint source = 0, reduced = 0, depth_renderbuffer = 0;
     glGenFramebuffers(1, &source);
     glGenFramebuffers(1, &reduced);
@@ -416,7 +650,8 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
         glReadBuffer(GL_NONE);
 
         glBindRenderbuffer(GL_RENDERBUFFER, depth_renderbuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 8, 8);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24,
+                              grid_w,grid_h);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, reduced);
         glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                                   GL_RENDERBUFFER, depth_renderbuffer);
@@ -425,7 +660,8 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
             glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
             // Pixel (x,y) maps to UV ((x+.5)/8, (y+.5)/8). Both GL and
             // Vulkan diagnostic shader use origin=bottom-left here.
-            glBlitFramebuffer(0, 0, width, height, 0, 0, 8, 8,
+            glBlitFramebuffer(0, 0, width, height, 0, 0,
+                              grid_w,grid_h,
                               GL_DEPTH_BUFFER_BIT, GL_NEAREST);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, reduced);
             glReadBuffer(GL_NONE);
@@ -434,19 +670,41 @@ void ogl_rtx_probe_deferred_depth(unsigned texture,
             glPixelStorei(GL_PACK_ROW_LENGTH, 0);
             glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
             glPixelStorei(GL_PACK_SKIP_ROWS, 0);
-            ogl_rtx_depth_debug sample{};
-            sample.struct_size = sizeof(sample);
-            sample.version = OGL_RTX_DEPTH_DEBUG_VERSION;
-            sample.viewport_width = width;
-            sample.viewport_height = height;
-            sample.grid_width = 8;
-            sample.grid_height = 8;
-            glReadPixels(0, 0, 8, 8, GL_DEPTH_COMPONENT, GL_FLOAT,
-                         sample.normalized_depth);
-            if (glGetError() == GL_NO_ERROR && rtx_submit_depth(&sample) == 1)
-                LL_INFOS("OGLRTX") << "Deferred depth full-view grid captured "
-                    << width << "x" << height << " -> 8x8 (64 aligned samples); "
-                    << "no visible RT output." << LL_ENDL;
+            if (dense_enabled) {
+                ogl_rtx_dense_depth sample{};
+                sample.struct_size=sizeof(sample);
+                sample.version=OGL_RTX_DENSE_VERSION;
+                sample.viewport_width=width;
+                sample.viewport_height=height;
+                sample.width=grid_w;
+                sample.height=grid_h;
+                glReadPixels(0,0,grid_w,grid_h,GL_DEPTH_COMPONENT,GL_FLOAT,
+                             sample.normalized_depth);
+                if (glGetError()==GL_NO_ERROR &&
+                    rtx_submit_dense(&sample)==1)
+                    LL_INFOS("OGLRTX")
+                        << "Deferred depth dense grid captured "
+                        << width << "x" << height << " -> "
+                        << grid_w << "x" << grid_h
+                        << " (experimental Vulkan ray input)" << LL_ENDL;
+            } else {
+                ogl_rtx_depth_debug sample{};
+                sample.struct_size = sizeof(sample);
+                sample.version = OGL_RTX_DEPTH_DEBUG_VERSION;
+                sample.viewport_width = width;
+                sample.viewport_height = height;
+                sample.grid_width = 8;
+                sample.grid_height = 8;
+                glReadPixels(0, 0, 8, 8, GL_DEPTH_COMPONENT, GL_FLOAT,
+                             sample.normalized_depth);
+                if (glGetError() == GL_NO_ERROR &&
+                    rtx_submit_depth(&sample) == 1)
+                    LL_INFOS("OGLRTX")
+                        << "Deferred depth full-view grid captured "
+                        << width << "x" << height
+                        << " -> 8x8 (64 aligned samples); no visible RT output."
+                        << LL_ENDL;
+            }
         }
     }
     // Release the temporary framebuffer resources while the correct context

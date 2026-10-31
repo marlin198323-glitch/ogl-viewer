@@ -119,6 +119,15 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("startup scene scan: cause=",source)
         self.assertIn("FPS: ([0-9.]+)",source)
 
+    def test_dense_gpu_in_world_compositing_report(self):
+        source=script.read_text()
+        for expected in ("RTX dense Vulkan sunlight:",
+                         "RTX experimental dense GL depth capture:",
+                         "RTX experimental in-world sunlight compositor:",
+                         "dense GPU probe: triangles=",
+                         "dense world sunlight composed:"):
+            self.assertIn(expected,source)
+
     def test_gpu_failure_reason_logging(self):
         source=script.read_text()
         self.assertIn("RTX GPU failure classification:",source)

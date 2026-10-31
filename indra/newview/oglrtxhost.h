@@ -28,6 +28,15 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     float near_clip_m, float far_clip_m,
     const float* sun_direction);
 
+// Experimental, opt-in Vulkan dense mask compositing into the already
+// bound Firestorm deferred sunlight target. Returns true only if real,
+/// synchronized Vulkan-shadow pixels were submitted to OpenGL. Does not
+// modify normals, UI, sky, unverified surfaces or public OpenGL defaults.
+bool ogl_rtx_compose_dense_sun_shadow(unsigned current_depth_texture,
+    unsigned width,unsigned height,const float* eye,const float* forward,
+    const float* right,const float* up,float fov,float aspect,
+    float near_clip,float far_clip,const float* sun);
+
 // World renderer input handshake: verifies the Vulkan tile's exact
 // source camera/geometry and returns aggregate validated pixels. It does NOT
 // composite or upscale this incomplete 8x8 sample into the world.

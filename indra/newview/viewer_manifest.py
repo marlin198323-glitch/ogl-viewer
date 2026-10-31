@@ -101,6 +101,7 @@ class ViewerManifest(LLManifest,FSViewerManifest):
             self.path("rtx/ray_query_shadow.comp.spv")
             self.path("rtx/camera_sun_shadow.comp.spv")
             self.path("rtx/depth_guided_sun.comp.spv")
+            self.path("rtx/dense_depth_guided_sun.comp.spv")
 
         if self.is_packaging_viewer():
             with self.prefix(src_dst="app_settings"):

@@ -42,7 +42,7 @@ class ShaderSyncTests(unittest.TestCase):
                     dest=scratch/pair[field]
                     dest.parent.mkdir(parents=True,exist_ok=True)
                     dest.write_bytes((ROOT/pair[field]).read_bytes())
-            target=scratch/manifest["pairs"][2]["compiled"]
+            target=scratch/manifest["pairs"][3]["compiled"]
             target.write_bytes(b"invalid old SPV")
             self.assertTrue(module.verify_pairs(scratch,manifest))
             bad=json.loads(json.dumps(manifest))

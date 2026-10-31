@@ -18,7 +18,8 @@ int main(int argc, char** argv) {
     const bool missing = argc == 3 && std::strcmp(argv[2], "--no-gpu-library") == 0;
     const bool refresh = argc == 3 && std::strcmp(argv[2], "--test-camera-refresh") == 0;
     const bool guided = argc == 3 && std::strcmp(argv[2], "--test-depth-guided") == 0;
-    if (argc != 2 && !missing && !refresh && !guided) return 1;
+    const bool dense = argc == 3 && std::strcmp(argv[2], "--test-dense-guided") == 0;
+    if (argc != 2 && !missing && !refresh && !guided && !dense) return 1;
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!library) {
         std::puts("FAIL: could not load OGL RTX module");
@@ -44,8 +45,13 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_rtx_copy_world_shadow_sample"));
     auto submit_depth = reinterpret_cast<int(*)(const ogl_rtx_depth_debug*)>(
         dlsym(library, "ogl_rtx_submit_depth_debug"));
+    auto submit_dense = reinterpret_cast<int(*)(const ogl_rtx_dense_depth*)>(
+        dlsym(library, "ogl_rtx_submit_dense_depth"));
+    auto copy_dense = reinterpret_cast<int(*)(ogl_rtx_dense_shadow*)>(
+        dlsym(library, "ogl_rtx_copy_dense_shadow"));
     assert(start && stop && status && frame && submit && attempts &&
-           successes && copy_debug && copy_world && submit_depth);
+           successes && copy_debug && copy_world && submit_depth &&
+           submit_dense && copy_dense);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, test_log};
     assert(start(&host) == 0);
     assert(attempts() == 0 && successes() == 0);
@@ -83,7 +89,8 @@ int main(int argc, char** argv) {
         tris[i].position[7] = 1.f;
     }
 
-    if ((refresh || guided) && (!status()->hardware_ready || !status()->ray_query)) {
+    if ((refresh || guided || dense) &&
+        (!status()->hardware_ready || !status()->ray_query)) {
         stop();
         dlclose(library);
         return 77;
@@ -92,6 +99,50 @@ int main(int argc, char** argv) {
         assert(frame(&state) == 1);
         const auto beginning = std::chrono::steady_clock::now();
         assert(submit(tris.data(), tris.size()) == 1);
+        if (dense) {
+            assert(attempts()==0);
+            ogl_rtx_dense_shadow tile{};
+            tile.struct_size=sizeof(tile);
+            tile.version=OGL_RTX_DENSE_VERSION;
+            assert(copy_dense(&tile)==0);
+            ogl_rtx_dense_depth input{};
+            input.struct_size=sizeof(input);
+            input.version=OGL_RTX_DENSE_VERSION;
+            input.viewport_width=state.width;
+            input.viewport_height=state.height;
+            input.width=OGL_RTX_DENSE_WIDTH;
+            input.height=OGL_RTX_DENSE_HEIGHT;
+            for (float& d:input.normalized_depth) d=1.f;
+            input.width=8;
+            assert(submit_dense(&input)==0);
+            input.width=OGL_RTX_DENSE_WIDTH;
+            assert(submit_dense(&input)==1);
+            for (unsigned i=0;i<500 && successes()<1;++i) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                assert(frame(&state)==1);
+            }
+            assert(successes()==1 && attempts()==1);
+            for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
+            assert(copy_dense(&tile)==1);
+            assert(tile.width==64 && tile.height==36);
+            assert(tile.surface_pixels==0 && tile.matched_pixels==0);
+            assert(tile.shadow_pixels==0 && tile.sample_sequence>0);
+            for(unsigned i=0;i<OGL_RTX_DENSE_PIXELS;++i)
+                assert(tile.valid_mask[i]==0 && tile.shadow_mask[i]==0);
+            tile.version=9;
+            assert(copy_dense(&tile)==0);
+            tile.version=OGL_RTX_DENSE_VERSION;
+            state.camera_position[0]+=0.2f;
+            assert(frame(&state)==1);
+            assert(copy_dense(&tile)==0);
+            assert(submit(nullptr,0)==1);
+            assert(copy_dense(&tile)==0);
+            stop();
+            dlclose(library);
+            std::puts("PASS: dense Vulkan 64x36 async module, stale-frame "
+                      "and region rejection");
+            return 0;
+        }
         if (guided) {
             assert(attempts() == 0); // without depth data GPU is never called
             ogl_rtx_depth_debug sample{};

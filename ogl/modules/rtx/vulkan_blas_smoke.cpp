@@ -234,7 +234,8 @@ static int execute_gpu_scene(const char* shader_path,
                              const ogl_rtx_frame_state* camera,
                              ogl_gpu_probe_result* result,
                              const float* depth_64,
-                             const float* instance_xyz = nullptr) {
+                             const float* instance_xyz = nullptr,
+                             ogl_gpu_dense_result* dense = nullptr) {
     if (!shader_path || !scene || wanted_triangles < 1 ||
         wanted_triangles > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
     for (uint32_t i = 0; i < wanted_triangles; ++i)
@@ -243,9 +244,20 @@ static int execute_gpu_scene(const char* shader_path,
     if (instance_xyz) for (int i=0;i<3;++i)
         if (!std::isfinite(instance_xyz[i]) || std::fabs(instance_xyz[i])>10000.f)
             return 1;
-    if (depth_64 && (!camera ||
-        !ogl::valid_depth_grid(camera->width, camera->height, 8, 8,
-                               depth_64))) return 1;
+    const uint32_t grid_width=dense ? OGL_GPU_DENSE_WIDTH : 8u;
+    const uint32_t grid_height=dense ? OGL_GPU_DENSE_HEIGHT : 8u;
+    const uint32_t grid_pixels=grid_width*grid_height;
+    if (depth_64) {
+        if (!camera || camera->width<grid_width ||
+            camera->height<grid_height) return 1;
+        if (!dense && !ogl::valid_depth_grid(
+              camera->width,camera->height,8,8,depth_64)) return 1;
+        if (dense)
+            for (uint32_t i=0;i<grid_pixels;++i)
+                if (!std::isfinite(depth_64[i]) ||
+                    depth_64[i]<0.f || depth_64[i]>1.f) return 1;
+    }
+    if (dense && (!result || !depth_64)) return 1;
 
     // Ray sampling covers the source scene footprint, and uses the frame's
     // sun direction only for the opt-in live diagnostics. This is a scene
@@ -326,8 +338,7 @@ static int execute_gpu_scene(const char* shader_path,
     static thread_local std::array<float, 3> cached_sun{{0.f, 0.f, 1.f}};
     static thread_local std::array<float, 18> cached_camera{};
     static thread_local std::string cached_shader;
-    static thread_local std::array<float,64> cached_depth{};
-    static thread_local bool cached_depth_valid = false;
+    static thread_local std::vector<float> cached_depth;
     static thread_local ogl_gpu_probe_result cached_output{};
     const std::array<float,3> requested_sun{{
         sun ? sun[0] : 0.f,
@@ -355,10 +366,10 @@ static int execute_gpu_scene(const char* shader_path,
         instance_xyz ? instance_xyz[0] : 0.f,
         instance_xyz ? instance_xyz[1] : 0.f,
         instance_xyz ? instance_xyz[2] : 0.f}};
-    const bool same_depth = !depth_64 ? !cached_depth_valid :
-        cached_depth_valid && std::equal(depth_64, depth_64+64,
-                                        cached_depth.begin());
-    if (persistent && persistent->device &&
+    const bool same_depth = !depth_64 ? cached_depth.empty() :
+        cached_depth.size()==grid_pixels &&
+        std::equal(depth_64,depth_64+grid_pixels,cached_depth.begin());
+    if (!dense && persistent && persistent->device &&
         cached_scene.size() == wanted_triangles &&
         !cached_scene.empty() && cached_sun == requested_sun &&
         cached_camera == requested_camera &&
@@ -994,7 +1005,7 @@ static int execute_gpu_scene(const char* shader_path,
     if (vkAllocateDescriptorSets(c.device, &descriptor_alloc, &descriptor) != VK_SUCCESS)
         return 1;
 
-    constexpr uint32_t result_count = 8u * 8u;
+    const uint32_t result_count=grid_pixels;
     // Depth-guided shader writes sun visibility, primary BLAS intersection
     // and comparison of primary hit distance against OpenGL depth.
     // The original fixture/camera shaders still write only 64 uint values.
@@ -1034,7 +1045,7 @@ static int execute_gpu_scene(const char* shader_path,
     writes[1].pBufferInfo = &result_descriptor;
     VkDescriptorBufferInfo depth_descriptor{};
     if (depth_64) {
-        const VkDeviceSize depth_bytes = 64 * sizeof(float);
+        const VkDeviceSize depth_bytes = grid_pixels * sizeof(float);
         if (!allocate_buffer(c, c.depth_input, depth_bytes,
                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -1087,7 +1098,8 @@ static int execute_gpu_scene(const char* shader_path,
                             c.pipeline_layout, 0, 1, &descriptor, 0, nullptr);
     vkCmdPushConstants(c.command, c.pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT,
                        0, sizeof(push), &push);
-    vkCmdDispatch(c.command, 1, 1, 1);
+    vkCmdDispatch(c.command,
+                  (grid_width+7u)/8u,(grid_height+7u)/8u,1u);
     if (vkEndCommandBuffer(c.command) != VK_SUCCESS)
         return 1;
     if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
@@ -1097,13 +1109,13 @@ static int execute_gpu_scene(const char* shader_path,
     if (vkMapMemory(c.device, c.query_results.memory, 0, result_bytes, 0,
                     &mapped) != VK_SUCCESS)
         return 1;
-    std::array<uint32_t, result_count * 4u> results{};
+    std::vector<uint32_t> results(result_count*output_sections);
     std::memcpy(results.data(), mapped, result_bytes);
     vkUnmapMemory(c.device, c.query_results.memory);
     uint32_t hits = 0;
-    for (unsigned y = 0; y < 8; ++y) {
-        for (unsigned x = 0; x < 8; ++x) {
-            const uint32_t actual = results[y * 8 + x];
+    for (unsigned y = 0; y < grid_height; ++y) {
+        for (unsigned x = 0; x < grid_width; ++x) {
+            const uint32_t actual = results[y*grid_width+x];
             const uint32_t expected = (x + y <= 7) ? 1u : 0u;
             if (actual > 1 || (!result && actual != expected)) {
                 std::printf("FAIL: GPU shadow mask (%u,%u) expected=%u actual=%u\n",
@@ -1131,8 +1143,14 @@ static int execute_gpu_scene(const char* shader_path,
             matches+=same;
             closer+=relation==2;
             farther+=relation==3;
-            result->primary_mask[i]=static_cast<uint8_t>(hit);
-            result->depth_match_mask[i]=static_cast<uint8_t>(same);
+            if (i<64u) {
+                result->primary_mask[i]=static_cast<uint8_t>(hit);
+                result->depth_match_mask[i]=static_cast<uint8_t>(same);
+            }
+            if (dense) {
+                dense->primary_mask[i]=static_cast<uint8_t>(hit);
+                dense->depth_match_mask[i]=static_cast<uint8_t>(same);
+            }
         }
         if (primary_hits!=matches+closer+farther) return 1;
         result->primary_hits=primary_hits;
@@ -1147,11 +1165,27 @@ static int execute_gpu_scene(const char* shader_path,
         result->unoccluded = result_count - hits;
         result->ray_count = result_count;
         result->triangle_count = wanted_triangles;
-        result->mask_width = 8;
-        result->mask_height = 8;
-        for (size_t i = 0; i < result_count; ++i)
-            result->shadow_mask[i] = static_cast<uint8_t>(results[i]);
+        result->mask_width = grid_width;
+        result->mask_height = grid_height;
+        for (size_t i = 0; i < result_count; ++i) {
+            if (i<64u)
+                result->shadow_mask[i]=static_cast<uint8_t>(results[i]);
+            if (dense) dense->shadow_mask[i]=static_cast<uint8_t>(results[i]);
+        }
         result->success = 1;
+        if (dense) {
+            dense->success=1u;
+            dense->width=grid_width;
+            dense->height=grid_height;
+            dense->triangle_count=wanted_triangles;
+            dense->ray_count=grid_pixels;
+            dense->occluded=hits;
+            dense->primary_hits=result->primary_hits;
+            dense->depth_matches=result->primary_depth_matches;
+            dense->surface_pixels=static_cast<uint32_t>(
+                std::count_if(depth_64,depth_64+grid_pixels,
+                    [](float d){return d<0.999999f;}));
+        }
 #ifdef OGL_GPU_PROBE_LIBRARY
         result->vulkan_device_creations = device_creations;
         result->blas_builds = blas_builds;
@@ -1162,8 +1196,9 @@ static int execute_gpu_scene(const char* shader_path,
         cached_scene.assign(scene, scene + wanted_triangles);
         cached_sun = requested_sun;
         cached_camera = requested_camera;
-        cached_depth_valid = depth_64 != nullptr;
-        if (depth_64) std::copy(depth_64,depth_64+64,cached_depth.begin());
+        if (depth_64)
+            cached_depth.assign(depth_64,depth_64+grid_pixels);
+        else cached_depth.clear();
         cached_shader = shader_path;
         cached_instance_xyz = requested_instance;
 #endif
@@ -1221,6 +1256,28 @@ extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_camera_run(
     return execute_gpu_scene(shader_path, triangles, count,
                              frame->sun_direction, frame, result, nullptr);
 }
+// First dense GPU input from the live viewport (still a developer opt-in).
+extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_dense_run(
+    const ogl_rtx_triangle* triangles,uint32_t count,
+    const ogl_rtx_frame_state* frame,const float* depth_2304,
+    const char* shader_path,ogl_gpu_dense_result* result)
+{
+    if (!result || !frame || !depth_2304 ||
+        result->struct_size!=sizeof(*result) ||
+        result->version!=OGL_GPU_DENSE_VERSION)
+        return 1;
+    ogl_gpu_dense_result ready{};
+    ready.struct_size=sizeof(ready);
+    ready.version=OGL_GPU_DENSE_VERSION;
+    *result=ready;
+    ogl_gpu_probe_result legacy{};
+    legacy.struct_size=sizeof(legacy);
+    legacy.version=OGL_GPU_PROBE_VERSION;
+    return execute_gpu_scene(shader_path,triangles,count,
+                             frame->sun_direction,frame,&legacy,depth_2304,
+                             nullptr,result);
+}
+
 // Matches the Full-View-Depth-Grid captured by Firestorm in one frame.
 extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_depth_run(
     const ogl_rtx_triangle* triangles, uint32_t count,

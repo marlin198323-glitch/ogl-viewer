@@ -32,6 +32,8 @@ public:
         float far_clip_m = 0.f;
         std::array<float,64> depth_grid{};
         bool has_depth_grid = false;
+        bool has_dense_grid = false;
+        std::array<float,OGL_RTX_DENSE_PIXELS> dense_depth_grid{};
         uint32_t surface_pixels = 0;
         uint32_t background_pixels = 0;
         uint32_t viewport_width = 0;
@@ -51,6 +53,10 @@ public:
         uint32_t background_pixels = 0;
         std::array<uint8_t, 64> shadow_mask{};
         std::array<uint8_t, 64> surface_mask{};
+        bool dense=false;
+        std::array<uint8_t,OGL_RTX_DENSE_PIXELS> dense_shadow_mask{};
+        std::array<uint8_t,OGL_RTX_DENSE_PIXELS> dense_valid_mask{};
+        std::array<float,OGL_RTX_DENSE_PIXELS> dense_capture_depth{};
         // Immutable, depth-validated GPU input for future world rendering.
         // Not the latest (possibly different) view after async execution.
         ogl_rtx_frame_state capture_frame{};
@@ -160,11 +166,24 @@ private:
                 job.revision >= m_latest_revision) {
                 uint32_t mask_hits = 0;
                 bool mask_valid = true;
-                for (uint8_t pixel : outcome.shadow_mask) {
-                    if (pixel > 1u) mask_valid = false;
-                    mask_hits += pixel;
+                if (job.has_dense_grid && outcome.dense) {
+                    for (unsigned i=0;i<OGL_RTX_DENSE_PIXELS;++i) {
+                        const auto pixel=outcome.dense_shadow_mask[i];
+                        if (pixel>1u || pixel>outcome.dense_valid_mask[i])
+                            mask_valid=false;
+                        mask_hits+=pixel;
+                    }
+                } else {
+                    for (uint8_t pixel : outcome.shadow_mask) {
+                        if (pixel > 1u) mask_valid = false;
+                        mask_hits += pixel;
+                    }
                 }
-                if (outcome.return_code != 0 || outcome.ray_count != 64 ||
+                const uint32_t expected_rays=job.has_dense_grid ?
+                    OGL_RTX_DENSE_PIXELS : 64u;
+                if (outcome.return_code != 0 ||
+                    outcome.ray_count != expected_rays ||
+                    outcome.dense!=job.has_dense_grid ||
                     outcome.triangle_count != job.triangles.size() ||
                     outcome.occluded > outcome.ray_count || !mask_valid ||
                     mask_hits != outcome.occluded) {

@@ -10213,6 +10213,30 @@ void LLPipeline::renderDeferredLighting()
 
                 unbindDeferredShader(sun_shader);
             }
+            // First real, strictly opt-in RTX sunlight framebuffer blend:
+            // the Vulkan worker supplies 64x36 validated ray hits and the
+            // OpenGL compositor re-reads LIVE per-pixel scene depth.
+            // No 8x8 HUD mask is ever applied to the world image.
+            // Public builds without OGL_RTX_WORLD_COMPOSITE=1 remain
+            // byte-for-byte on Firestorm's ordinary lighting path.
+            if (!gCubeSnapshot && ogl_rtx_hardware_supported() &&
+                mRT->deferredScreen.getWidth() ==
+                    deferred_light_target->getWidth() &&
+                mRT->deferredScreen.getHeight() ==
+                    deferred_light_target->getHeight()) {
+                LLViewerCamera* rt_cam=LLViewerCamera::getInstance();
+                const LLVector3 rt_sun=
+                    LLEnvironment::instance().getSunDirection();
+                const LLVector3 rt_right=-rt_cam->getLeftAxis();
+                ogl_rtx_compose_dense_sun_shadow(
+                    mRT->deferredScreen.getDepth(),
+                    deferred_light_target->getWidth(),
+                    deferred_light_target->getHeight(),
+                    rt_cam->getOrigin().mV,rt_cam->getAtAxis().mV,
+                    rt_right.mV,rt_cam->getUpAxis().mV,
+                    rt_cam->getView(),rt_cam->getAspect(),
+                    rt_cam->getNear(),rt_cam->getFar(),rt_sun.mV);
+            }
             deferred_light_target->flush();
         }
 

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Experimental 64x36 Vulkan depth-guided raytracing on real OpenSim data.
+# First experimental in-world sunlight compositor: stale camera/geometry
+# or mismatched OpenGL depth rejects all output; never used in public mode.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+export OGL_RTX_SCENE_PROBE=1
+export OGL_RTX_CAMERA_PROBE=1
+export OGL_RTX_DEPTH_PROBE=1
+export OGL_RTX_DENSE_PREVIEW=1
+export OGL_RTX_WORLD_COMPOSITE=1
+unset OGL_RTX_DEBUG_OVERLAY
+unset OGL_RTX_DEPTH_GUIDED_PROBE
+printf '%s\n' 'OGL RTX experiment: 64x36 live OpenSim Vulkan ray queries.'   'OpenGL stays the public fallback. No fake 8x8 shadow upscaling.'
+exec bash "$DIR/run-viewer-test.sh" "$@"
