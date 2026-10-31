@@ -18,9 +18,16 @@ if(UNIX)
 endif()
 
 # Keep the Vulkan RT SDK optional: unsupported systems retain OpenGL.
-set(OGL_VULKAN_HEADER_DIR "" CACHE PATH "Vulkan SDK include directory")
-if(NOT OGL_VULKAN_HEADER_DIR)
-    find_path(OGL_VULKAN_HEADER_DIR vulkan/vulkan.h)
+set(OGL_VULKAN_HEADER_DIR "" CACHE PATH "Optional Vulkan SDK include directory")
+if(NOT OGL_VULKAN_HEADER_DIR OR
+   NOT EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core.h")
+    # Use a distinct find_path variable: a CACHE PATH pre-set to an empty
+    # string is considered already defined and find_path otherwise skips
+    # searching /usr/include even when libvulkan-dev is installed.
+    find_path(OGL_VULKAN_DISCOVERED_INCLUDE NAMES vulkan/vulkan_core.h)
+    if(OGL_VULKAN_DISCOVERED_INCLUDE)
+        set(OGL_VULKAN_HEADER_DIR "${OGL_VULKAN_DISCOVERED_INCLUDE}")
+    endif()
 endif()
 if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core.h")
     add_library(ogl_rtx_module SHARED rtx/ogl_rtx_module.cpp)
