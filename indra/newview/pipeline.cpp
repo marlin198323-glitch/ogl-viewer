@@ -33,6 +33,8 @@
 #include "../../ogl/modules/include/ogl/ogl_terrain_patch.h" // optional low-poly terrain occluders
 #include "../../ogl/modules/include/ogl/ogl_scene_sampling.h" // conservative RT scene selection
 #include "../../ogl/modules/include/ogl/ogl_scene_ray_visibility.h" // exact camera-ray anchors
+#include "../../ogl/modules/include/ogl/ogl_scene_snapshot_policy.h" // bounded partial-scene guard
+#include <chrono>
 #include <vector>
 
 // library includes
@@ -9491,6 +9493,20 @@ void LLPipeline::renderDeferredLighting()
             // receives and validates world-space triangle data for now.
             // Keep expensive volume traversal off the every-frame path.
             static unsigned ogl_geometry_frame_counter = 0;
+            // Last accepted *developer* sample. The normal OpenGL viewer
+            // never uses this policy, and a region change resets it.
+            static unsigned ogl_last_sample_triangles = 0;
+            static unsigned ogl_last_sample_objects = 0;
+            static unsigned ogl_partial_scene_deferrals = 0;
+            static LLVector3 ogl_last_sample_eye;
+            static LLVector3 ogl_last_sample_forward;
+            static LLUUID ogl_sample_region_id;
+            if (ogl_sample_region_id != current_region_id) {
+                ogl_sample_region_id = current_region_id;
+                ogl_last_sample_triangles = 0;
+                ogl_last_sample_objects = 0;
+                ogl_partial_scene_deferrals = 0;
+            }
             // Keep the larger RT scene capture deliberately developer-only.
             // Public OpenGL remains independent of graphics card and avoids
             // spending time walking extra objects or building big BLAS data.
@@ -9518,6 +9534,8 @@ void LLPipeline::renderDeferredLighting()
             }
             if (++ogl_geometry_frame_counter >= 180)
             {
+                const auto ogl_scan_started =
+                    std::chrono::steady_clock::now();
                 ogl_geometry_frame_counter = 0;
                 std::vector<ogl_rtx_triangle> triangles;
                 triangles.reserve(ogl_triangle_budget);
@@ -9540,7 +9558,12 @@ void LLPipeline::renderDeferredLighting()
                 unsigned nearby_objects = 0;
                 unsigned sampled_objects = 0;
                 const S32 total_objects = gObjectList.getNumObjects();
-                const S32 max_objects = llmin(total_objects, 4096);
+                // Developer scanning covers up to 16K candidates instead of
+                // rotating arbitrary 4K slices that periodically contain
+                // only terrain. Normal OpenGL keeps the old work limit.
+                const S32 scan_limit = ogl_triangle_budget > 1024 ?
+                    16384 : 4096;
+                const S32 max_objects = llmin(total_objects, scan_limit);
                 static S32 scan_cursor = 0;
                 const S32 start = total_objects ? scan_cursor % total_objects : 0;
                 const unsigned nearby_budget =
@@ -9592,6 +9615,7 @@ void LLPipeline::renderDeferredLighting()
                 // sparse index samples. This small optional CPU prepass is
                 // capped independently; normal OpenGL never performs it.
                 unsigned exact_camera_anchors=0;
+                unsigned exact_camera_hit_samples=0;
                 unsigned prepass_scanned_triangles=0;
                 unsigned exact_bounds_recovered=0;
                 unsigned prepass_candidate_checks=0;
@@ -9646,7 +9670,13 @@ void LLPipeline::renderDeferredLighting()
                         ++checked_objects;
                         const LLQuaternion rotation=obj->getRenderRotation();
                         unsigned checked_in_object=0;
-                        for (S32 f=0;f<llmin(vol->getNumVolumeFaces(),16) &&
+                        const S32 prepass_face_count =
+                            llmin(vol->getNumVolumeFaces(),16);
+                        const uint32_t per_face_quota =
+                            std::max(1u, max_per_prepass_object /
+                                static_cast<unsigned>(
+                                    std::max(1,prepass_face_count)));
+                        for (S32 f=0;f<prepass_face_count &&
                              checked_in_object<max_per_prepass_object &&
                              prepass_scanned_triangles<max_prepass_triangles;++f) {
                             const LLVolumeFace& face=vol->getVolumeFace(f);
@@ -9655,15 +9685,25 @@ void LLPipeline::renderDeferredLighting()
                                 continue;
                             const uint32_t count=static_cast<uint32_t>(
                                 face.mNumIndices/3);
-                            for (uint32_t t=0;t<count &&
+                            // A high-poly face may carry many more than 512
+                            // indexed triangles, and the relevant near part
+                            // need not be stored first. Spread the limited
+                            // CPU ray-triangle test across EVERY volume face.
+                            const uint32_t face_checks = std::min(
+                                count, per_face_quota);
+                            for (uint32_t t=0;t<face_checks &&
                                  checked_in_object<max_per_prepass_object &&
                                  prepass_scanned_triangles<max_prepass_triangles;++t) {
                                 ++checked_in_object;
                                 ++prepass_scanned_triangles;
+                                const uint32_t triangle_index =
+                                    ogl::spread_triangle_index(
+                                        count,face_checks,t);
                                 ogl_rtx_triangle tri{};
                                 bool valid=true;
                                 for (unsigned vertex=0;vertex<3;++vertex) {
-                                    const U16 idx=face.mIndices[t*3+vertex];
+                                    const U16 idx=face.mIndices[
+                                        triangle_index*3+vertex];
                                     if (idx>=face.mNumVertices) {
                                         valid=false;break;
                                     }
@@ -9679,6 +9719,8 @@ void LLPipeline::renderDeferredLighting()
                             }
                         }
                     }
+                    exact_camera_hit_samples =
+                        ogl::count_camera_hit_samples(closest);
                     exact_camera_anchors=ogl::append_camera_hit_triangles(
                         closest,triangles,ogl_triangle_budget);
                 }
@@ -9769,11 +9811,33 @@ void LLPipeline::renderDeferredLighting()
                 // the first 4,096 objects when region objects exceed budget.
                 if (total_objects > 0)
                     scan_cursor = (start + max_objects) % total_objects;
+                const float eye_moved = ogl_last_sample_triangles ?
+                    (eye-ogl_last_sample_eye).length() : 0.f;
+                const float camera_alignment = ogl_last_sample_triangles ?
+                    camera_forward*ogl_last_sample_forward : 1.f;
+                bool publish_geometry = !triangles.empty();
+                if (ogl_triangle_budget > 1024 && publish_geometry &&
+                    !ogl::should_publish_scene_snapshot(
+                        ogl_last_sample_triangles, ogl_last_sample_objects,
+                        static_cast<unsigned>(triangles.size()),
+                        sampled_objects, eye_moved, camera_alignment,
+                        ogl_partial_scene_deferrals)) {
+                    publish_geometry = false;
+                    ++ogl_partial_scene_deferrals;
+                } else if (ogl_triangle_budget > 1024 && publish_geometry) {
+                    ogl_last_sample_triangles =
+                        static_cast<unsigned>(triangles.size());
+                    ogl_last_sample_objects = sampled_objects;
+                    ogl_last_sample_eye = eye;
+                    ogl_last_sample_forward = camera_forward;
+                    ogl_partial_scene_deferrals = 0;
+                }
                 // Sparse, anonymous coverage feedback for the user's
                 // real-world GPU/GL-depth mismatch diagnostic.
-                static unsigned scene_report_number = 0;
-                if (ogl_triangle_budget > 1024 &&
-                    (++scene_report_number % 20u == 1u))
+                // Every completed developer scan is small, anonymized and
+                // needed to correlate a GPU result with the actual candidate
+                // traversal. Previously only 1 in 20 scans was printed.
+                if (ogl_triangle_budget > 1024)
                     LL_INFOS("OGLRTX") << "OGL RTX scene selection: candidates="
                         << candidates.size() << " sampled_objects="
                         << sampled_objects << " mesh_triangles="
@@ -9782,12 +9846,22 @@ void LLPipeline::renderDeferredLighting()
                         << " cap=" << ogl_triangle_budget
                         << " candidate_limit=" << nearby_budget
                         << " exact_ray_anchors=" << exact_camera_anchors
+                        << " exact_ray_samples=" << exact_camera_hit_samples
                         << " prepass_triangles=" << prepass_scanned_triangles
                         << " bounds_recovered=" << exact_bounds_recovered
                         << " prepass_candidate_checks=" << prepass_candidate_checks
                         << " unused_triangles="
-                        << (ogl_triangle_budget-triangles.size()) << LL_ENDL;
-                if (!triangles.empty())
+                        << (ogl_triangle_budget-triangles.size())
+                        << " objects_scanned=" << max_objects
+                        << " objects_total=" << total_objects
+                        << " scene_publish=" << (publish_geometry ? 1 : 0)
+                        << " partial_deferrals=" << ogl_partial_scene_deferrals
+                        << " scan_ms=" << std::chrono::duration_cast<
+                            std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now()-
+                            ogl_scan_started).count()
+                        << LL_ENDL;
+                if (publish_geometry)
                     ogl_rtx_submit_world_triangles(
                         triangles.front().position,
                         static_cast<unsigned>(triangles.size()));

@@ -3,6 +3,7 @@
 #include "ogl/ogl_camera_validation.h"
 #include "ogl/ogl_depth_validation.h"
 #include "ogl/ogl_depth_diagnostics.h"
+#include "ogl/ogl_scene_depth_compare.h"
 #include "ogl/ogl_dynamic_scene.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_async_gpu_queue.h"
@@ -716,6 +717,38 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
             " view_m_min=" + std::to_string(surface_stats.view_distance_min) +
             " view_m_max=" + std::to_string(surface_stats.view_distance_max) +
             "; diagnostic only").c_str());
+    }
+    if (probe_depth_enabled && probe_worker && !captured_geometry.empty()) {
+        // Independent reference from the same copied GL depth and scene.
+        // A bounded 64x8192 CPU ray test only once per depth readback
+        // (currently throttled to >=60s), never on the public viewer path.
+        const auto start=std::chrono::steady_clock::now();
+        ogl::SceneDepthAgreement reference{};
+        const bool compared=ogl::compare_cpu_scene_to_gl_depth(
+            captured_geometry.data(),
+            static_cast<uint32_t>(captured_geometry.size()),
+            sample->normalized_depth,
+            latest_frame.camera_position,latest_frame.camera_forward,
+            latest_frame.camera_right,latest_frame.camera_up,
+            latest_frame.vertical_fov_radians,latest_frame.aspect_ratio,
+            latest_frame.near_clip_m,latest_frame.far_clip_m,reference);
+        if (compared && logger) {
+            const auto elapsed=std::chrono::duration_cast<
+                std::chrono::microseconds>(
+                std::chrono::steady_clock::now()-start).count();
+            logger(1,(std::string("OGL RTX CPU depth reference: revision=")+
+                std::to_string(geometry_revision)+" triangles="+
+                std::to_string(captured_geometry.size())+" surface="+
+                std::to_string(reference.surface)+" background="+
+                std::to_string(reference.background)+" primary_hits="+
+                std::to_string(reference.primary_hits)+" depth_matches="+
+                std::to_string(reference.matching)+" primary_closer="+
+                std::to_string(reference.closer)+" primary_farther="+
+                std::to_string(reference.farther)+" ray_samples="+
+                std::to_string(reference.ray_samples)+" cpu_us="+
+                std::to_string(elapsed)+
+                "; independent test only, not visible shadows").c_str());
+        }
     }
     if (probe_depth_enabled && probe_worker) {
         // A newer valid depth grid supersedes the prior GPU result, even

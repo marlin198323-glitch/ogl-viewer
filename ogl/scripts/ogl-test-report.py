@@ -49,6 +49,19 @@ GPU_RESULT_REVISION = re.compile(
     r"OGL RTX GPU probe: triangles=\d+ rays=\d+ "
     r"occluded=\d+ revision=(\d+)"
 )
+CPU_DEPTH_REFERENCE = re.compile(
+    r"OGL RTX CPU depth reference: revision=(\d+) triangles=(\d+) "
+    r"surface=(\d+) background=(\d+) primary_hits=(\d+) "
+    r"depth_matches=(\d+) primary_closer=(\d+) "
+    r"primary_farther=(\d+) ray_samples=(\d+) cpu_us=(\d+)"
+)
+
+
+def latest_cpu_depth_reference(log_text: str):
+    records = list(CPU_DEPTH_REFERENCE.finditer(log_text))
+    if not records:
+        return None
+    return tuple(int(i) for i in records[-1].groups())
 
 
 def latest_gpu_probe_revision(log_text: str):
@@ -127,16 +140,34 @@ def report():
                   f"eligible candidate objects; {mesh_tris} mesh triangles, "
                   f"{terrain_tris} terrain triangles; budget {budget}")
             unused = int(budget) - int(mesh_tris) - int(terrain_tris)
-            print(f"RTX geometry capacity: {unused}/{budget} triangle slots unused "
-                  "(partial geometry still possible)")
+            print(f"RTX scan geometry capacity: {unused}/{budget} triangle "
+                  "slots unused (last scan, not necessarily current GPU scene)")
+            publish = re.findall(
+                r"OGL RTX scene selection: [^\n]*objects_scanned=(\d+) "
+                r"objects_total=(\d+) scene_publish=(\d) "
+                r"partial_deferrals=(\d+)", text)
+            if publish:
+                scanned, total, accepted, deferred = publish[-1]
+                print(f"RTX scene scan: {scanned}/{total} objects examined; "
+                      f"{'published' if accepted == '1' else 'deferred'}; "
+                      f"consecutive partial-scan deferrals {deferred}")
+            timings = re.findall(
+                r"OGL RTX scene selection: [^\n]* scan_ms=(\d+)",text)
+            if timings:
+                print(f"RTX CPU scene scan cost: {timings[-1]} ms "
+                      "(developer-only, last completed scan)")
             anchor_events = re.findall(
                 r"OGL RTX scene selection: [^\n]*candidate_limit=(\d+) "
-                r"exact_ray_anchors=(\d+) prepass_triangles=(\d+)",text)
+                r"exact_ray_anchors=(\d+)(?: exact_ray_samples=(\d+))? "
+                r"prepass_triangles=(\d+)",text)
             if anchor_events:
-                cap, anchors, inspected = anchor_events[-1]
-                print(f"RTX exact camera-ray geometry: {anchors}/64 anchor "
-                      f"triangles, {inspected} full-mesh triangles inspected; "
-                      f"candidate limit {cap} (last periodic scan)")
+                cap, anchors, ray_samples, inspected = anchor_events[-1]
+                if ray_samples:
+                    print(f"RTX exact camera-ray coverage: {ray_samples}/64 "
+                          "rays with sampled mesh intersections")
+                print(f"RTX exact camera-ray geometry: {anchors} distinct "
+                      f"anchor triangles, {inspected} full-mesh triangles "
+                      f"inspected; candidate limit {cap} (last scan)")
             recovered = re.findall(
                 r"OGL RTX scene selection: [^\n]*"
                 r"bounds_recovered=(\d+) prepass_candidate_checks=(\d+)",
@@ -146,6 +177,19 @@ def report():
                 print(f"RTX drawable bounds recovery: {recovered_count} "
                       f"additional visible mesh candidates from "
                       f"{examined_count} broad-phase checks")
+        cpu_reference = latest_cpu_depth_reference(text)
+        if cpu_reference:
+            (cpu_revision, cpu_tris, cpu_surface, cpu_sky, cpu_hits,
+             cpu_matched, cpu_closer, cpu_farther, cpu_covered, cpu_us) = (
+                 cpu_reference)
+            print(f"RTX independent CPU depth reference: revision "
+                  f"{cpu_revision}, {cpu_tris} scene triangles, "
+                  f"{cpu_hits}/{cpu_surface} primary hits, "
+                  f"{cpu_matched}/{cpu_surface} depth matches, "
+                  f"{cpu_closer} closer / {cpu_farther} farther "
+                  f"({cpu_us} microseconds of CPU test)")
+            if cpu_hits != cpu_matched+cpu_closer+cpu_farther:
+                print("RTX CPU depth reference: inconsistent classifications")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)
@@ -191,6 +235,32 @@ def report():
                     print(f"RTX OpenGL/Vulkan depth agreement: "
                           f"{matched}/{surfaces} surface samples "
                           "(within 2% or 0.25 m)")
+                    if 0 < matched and int(hits) <= matched:
+                        print(f"RTX validated diagnostic shadow rays: "
+                              f"{hits}/{matched} GL/Vulkan depth-matched "
+                              "surfaces (not world rendering)")
+                    elif matched == 0:
+                        print("RTX validated diagnostic shadow rays: no "
+                              "matching GL surfaces; shadow count cannot "
+                              "demonstrate world shading")
+                    if cpu_reference:
+                        if int(revision) == cpu_reference[0]:
+                            if ((primary_hits, matched) ==
+                                    (cpu_reference[4],cpu_reference[5])):
+                                print("RTX CPU/Vulkan comparison: same "
+                                      "geometry revision, same primary and "
+                                      "depth match counts (frame/depth "
+                                      "synchronization not verified)")
+                            else:
+                                print("RTX CPU/Vulkan comparison: same "
+                                      "geometry revision, DIFFERENT primary "
+                                      "or depth match counts; camera/depth "
+                                      "sample synchronization must be "
+                                      "checked before blaming GPU math")
+                        else:
+                            print("RTX CPU/Vulkan comparison: reference "
+                                  "belongs to a different geometry revision; "
+                                  "cannot compare counts")
                     comparison = re.findall(
                         r"OGL RTX GPU probe: [^\n]*primary_hits=\d+ "
                         r"depth_matches=\d+ primary_closer=(\d+) "

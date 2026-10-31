@@ -35,7 +35,10 @@ inline bool scene_candidate_in_range(float distance_m, float forward_cos,
     if (distance_m <= 90.f+radius) return true;
     // Wide cone also covers ultrawide viewport edges; camera-space
     // projection and per-triangle visibility are not asserted here.
-    return forward_cos >= 0.15f && distance_m <= 256.f+radius;
+    // OpenGL's actual 8x8 depth reports visible surfaces beyond 600 m in
+    // some OpenSim scenes. Far candidates remain lower priority than nearby
+    // foreground objects and are still constrained by the triangle budget.
+    return forward_cos >= 0.15f && distance_m <= 768.f+radius;
 }
 
 // Lower score = collect first. Favour closer objects in front of camera,

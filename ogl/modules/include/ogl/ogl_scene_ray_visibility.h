@@ -129,6 +129,13 @@ inline void retain_nearest_camera_triangles(const SceneRays& rays,
         }
     }
 }
+inline unsigned count_camera_hit_samples(const SceneRayHits& hits) {
+    unsigned covered=0;
+    for (const auto& h : hits) {
+        if (std::isfinite(h.distance)) ++covered;
+    }
+    return covered;
+}
 inline unsigned append_camera_hit_triangles(const SceneRayHits& hits,
     std::vector<ogl_rtx_triangle>& out, std::size_t max_count) {
     unsigned anchors=0;

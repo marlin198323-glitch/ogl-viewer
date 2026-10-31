@@ -21,9 +21,16 @@ int main() {
     for (const auto& hit:hits)
         if (std::isfinite(hit.distance)) ++coverage;
     assert(coverage>=16);
+    assert(ogl::count_camera_hit_samples(hits)==coverage);
     std::vector<ogl_rtx_triangle> anchored;
     const unsigned count=ogl::append_camera_hit_triangles(hits,anchored,8192);
     assert(count==1 && anchored.size()==1);
+    // A large triangle covers multiple actual rays, despite being one
+    // distinct anchoring triangle in the scene buffer.
+    assert(coverage>anchored.size());
+    const auto none=ogl::SceneRayHits{};
+    assert(ogl::count_camera_hit_samples(none)==0);
+    assert(ogl::append_camera_hit_triangles(none,anchored,8192)==0);
     // A second, nearer face replaces each overlapped camera hit.
     ogl_rtx_triangle front=tri;
     for (unsigned v=0;v<3;++v) front.position[3*v+2]=1.f;

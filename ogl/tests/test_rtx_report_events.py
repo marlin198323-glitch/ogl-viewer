@@ -61,7 +61,12 @@ class RTXSceneLogTests(unittest.TestCase):
 
     def test_scene_capacity_exposed(self):
         source = script.read_text()
-        self.assertIn("RTX geometry capacity:", source)
+        self.assertIn("RTX scan geometry capacity:", source)
+        self.assertIn("RTX scene scan:", source)
+        self.assertIn("partial_deferrals=", source)
+        self.assertIn("exact_ray_samples=", source)
+        self.assertIn("RTX exact camera-ray coverage:", source)
+        self.assertIn("RTX validated diagnostic shadow rays:", source)
         self.assertIn("eligible candidate objects;", source)
 
     def test_warning_indicators_not_sensitive_details(self):
@@ -69,6 +74,20 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("OpenSim/texture warning indicators:", source)
         self.assertIn("Low system memory detected",source)
         self.assertIn("bounds_recovered=",source)
+
+    def test_independent_cpu_reference_log_parser(self):
+        result = module.latest_cpu_depth_reference(
+            "OGL RTX CPU depth reference: revision=18 triangles=8192 "
+            "surface=51 background=13 primary_hits=42 depth_matches=36 "
+            "primary_closer=6 primary_farther=0 ray_samples=50 cpu_us=2400")
+        self.assertEqual(result, (18,8192,51,13,42,36,6,0,50,2400))
+        self.assertIsNone(module.latest_cpu_depth_reference("no cpu probe"))
+        source = script.read_text()
+        self.assertIn("RTX independent CPU depth reference:",source)
+        self.assertIn("RTX CPU/Vulkan comparison:",source)
+        self.assertIn("DIFFERENT primary",source)
+        self.assertIn("sample synchronization must be",source)
+        self.assertIn("RTX CPU scene scan cost:",source)
 
     def test_latest_probe_revision_freshness(self):
         log = ("OGL RTX CPU scene snapshot: triangles=8192 revision=1\n"

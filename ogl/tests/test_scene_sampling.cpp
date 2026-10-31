@@ -40,7 +40,10 @@ int main() {
     assert(ogl::scene_candidate_in_range(223.f,0.95f,2.f));
     assert(ogl::scene_candidate_in_range(75.f,-1.f,2.f));
     assert(!ogl::scene_candidate_in_range(223.f,-0.5f,2.f));
-    assert(!ogl::scene_candidate_in_range(300.f,1.f,2.f));
+    assert(ogl::scene_candidate_in_range(300.f,1.f,2.f));
+    assert(ogl::scene_candidate_in_range(632.f,0.5f,2.f));
+    assert(!ogl::scene_candidate_in_range(800.f,1.f,2.f));
+    assert(!ogl::scene_candidate_in_range(632.f,-0.5f,2.f));
     assert(ogl::scene_candidate_in_range(93.f,-0.5f,8.f));
     assert(!ogl::scene_candidate_in_range(
         std::numeric_limits<float>::infinity(),1.f,1.f));
