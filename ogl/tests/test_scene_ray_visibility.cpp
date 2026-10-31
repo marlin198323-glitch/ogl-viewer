@@ -51,9 +51,23 @@ int main() {
     const float actual_low[3]={-10.f,-10.f,-4.f};
     const float actual_high[3]={10.f,10.f,-1.f};
     assert(ogl::ray_hits_aabb(rays[27],actual_low,actual_high));
+    float box_entry=-10.f;
+    assert(ogl::ray_aabb_entry_distance(
+        rays[27],actual_low,actual_high,box_entry));
+    assert(box_entry>=0.f && box_entry<10.f);
+    const float close_low[3]={-10.f,-10.f,0.f};
+    const float close_high[3]={10.f,10.f,1.f};
+    float close_entry=-1.f;
+    assert(ogl::ray_aabb_entry_distance(
+        rays[27],close_low,close_high,close_entry));
+    assert(close_entry<=box_entry);
     const float miss_low[3]={40.f,40.f,-4.f};
     const float miss_high[3]={45.f,45.f,-1.f};
     assert(!ogl::ray_hits_aabb(rays[27],miss_low,miss_high));
+    box_entry=123.f;
+    assert(!ogl::ray_aabb_entry_distance(rays[27],
+        miss_low,miss_high,box_entry));
+    assert(box_entry==123.f);
     const float swapped_low[3]={20.f,20.f,20.f};
     const float swapped_high[3]={-20.f,-20.f,-20.f};
     assert(!ogl::ray_hits_aabb(rays[27],swapped_low,swapped_high));

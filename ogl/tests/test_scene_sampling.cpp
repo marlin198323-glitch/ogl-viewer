@@ -24,6 +24,14 @@ int main() {
     assert(ogl::camera_ray_object_quota(4u,false)==256u);
     assert(ogl::camera_ray_object_quota(8u,false)==512u);
     assert(ogl::camera_ray_object_quota(0u,true)==128u);
+    assert(ogl::camera_ray_box_priority(4.f,1) <
+           ogl::camera_ray_box_priority(70.f,64));
+    assert(ogl::camera_ray_box_priority(4.f,12) <
+           ogl::camera_ray_box_priority(4.f,1));
+    assert(std::isinf(ogl::camera_ray_box_priority(0.f,0)));
+    assert(std::isinf(ogl::camera_ray_box_priority(-1.f,20)));
+    assert(std::isinf(ogl::camera_ray_box_priority(
+        std::numeric_limits<float>::infinity(),1)));
     for (uint32_t total: {1u,4u,32u,33u,100u,500u,65535u}) {
         const uint32_t count=std::min(total,32u);
         uint32_t prev=0;

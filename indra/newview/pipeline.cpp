@@ -36,6 +36,7 @@
 #include "../../ogl/modules/include/ogl/ogl_scene_snapshot_policy.h" // bounded partial-scene guard
 #include <chrono>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 // library includes
@@ -9638,19 +9639,30 @@ void LLPipeline::renderDeferredLighting()
                 unsigned prepass_sphere_candidates=0;
                 unsigned prepass_visible_objects=0;
                 unsigned prepass_fallback_objects=0;
+                unsigned prepass_broadphase_limit=0;
                 if (ogl_triangle_budget>1024 && !candidates.empty()) {
                     const LLVector3 right=-camera->getLeftAxis();
                     const auto rays=ogl::camera_probe_rays(eye.mV,
                         camera_forward.mV,right.mV,camera->getUpAxis().mV,
                         camera->getView(),camera->getAspect());
                     ogl::SceneRayHits closest{};
-                    constexpr unsigned max_prepass_triangles=32768u;
-                    constexpr unsigned max_prepass_objects=512u;
-                    constexpr unsigned max_prepass_broad_candidates=8192u;
+                    // Real logs showed 16,817 eligible candidates but
+                    // only the first 8,192 got checked for ray-box overlap.
+                    // Bound the entire broadphase to at most the full 32K
+                    // object scan; real priority is determined by ray entry,
+                    // not by camera-to-origin distance alone.
+                    constexpr unsigned max_prepass_triangles=65536u;
+                    constexpr unsigned max_prepass_objects=1024u;
+                    constexpr unsigned max_prepass_broad_candidates=32768u;
+                    prepass_broadphase_limit=std::min(
+                        static_cast<unsigned>(candidates.size()),
+                        max_prepass_broad_candidates);
                     struct RayCandidate {
                         LLVOVolume* object=nullptr;
                         unsigned bbox_rays=0;
                         bool sphere_fallback=false;
+                        float first_ray_distance=
+                            std::numeric_limits<float>::infinity();
                     };
                     std::vector<RayCandidate> visible_candidates;
                     std::vector<RayCandidate> fallback_candidates;
@@ -9658,6 +9670,8 @@ void LLPipeline::renderDeferredLighting()
                     fallback_candidates.reserve(512);
                     std::unordered_set<LLVOVolume*> visible_ids;
                     visible_ids.reserve(1024);
+                    std::unordered_map<LLVOVolume*,float> ray_box_priority;
+                    ray_box_priority.reserve(1024);
                     // Broad-phase first, before expensive volume-triangle
                     // traversal. Rank real ray/AABB hits before forgiving
                     // nominal-radius hits, which are often offscreen objects.
@@ -9680,24 +9694,45 @@ void LLPipeline::renderDeferredLighting()
                             ext[0].isFinite3() && ext[1].isFinite3();
                         unsigned bbox_rays=0;
                         unsigned sphere_rays=0;
+                        float nearest_entry=
+                            std::numeric_limits<float>::infinity();
                         for (const auto& ray:rays) {
-                            if (has_bounds && ogl::ray_hits_aabb(ray,
-                                ext[0].getF32ptr(),ext[1].getF32ptr()))
+                            float entry=0.f;
+                            if (has_bounds &&
+                                ogl::ray_aabb_entry_distance(ray,
+                                    ext[0].getF32ptr(),
+                                    ext[1].getF32ptr(),entry)) {
                                 ++bbox_rays;
+                                nearest_entry=std::min(nearest_entry,entry);
+                            }
                             if (ogl::ray_hits_sphere(ray,position.mV,
                                                     sphere_radius))
                                 ++sphere_rays;
                         }
                         if (bbox_rays) {
                             visible_candidates.push_back(
-                                {obj,bbox_rays,false});
+                                {obj,bbox_rays,false,nearest_entry});
                             visible_ids.insert(obj);
+                            ray_box_priority.emplace(obj,
+                                ogl::camera_ray_box_priority(
+                                    nearest_entry,bbox_rays));
                             if (!sphere_rays) ++exact_bounds_recovered;
                         } else if (sphere_rays) {
                             fallback_candidates.push_back(
-                                {obj,0u,true});
+                                {obj,0u,true,
+                                    std::numeric_limits<float>::infinity()});
                         }
                     }
+                    // Within camera-visible boxes, frontmost bounds get
+                    // the scarce exact face and 8192-triangle scene slots.
+                    std::stable_sort(visible_candidates.begin(),
+                        visible_candidates.end(),
+                        [](const RayCandidate& a,const RayCandidate& b) {
+                            return ogl::camera_ray_box_priority(
+                                a.first_ray_distance,a.bbox_rays) <
+                                ogl::camera_ray_box_priority(
+                                b.first_ray_distance,b.bbox_rays);
+                        });
                     prepass_visible_candidates =
                         static_cast<unsigned>(visible_candidates.size());
                     prepass_sphere_candidates =
@@ -9706,11 +9741,16 @@ void LLPipeline::renderDeferredLighting()
                     // the exact ray collector. An anchored object will not
                     // be crowded out by offscreen props selected only by
                     // their distance to the camera.
-                    std::stable_partition(candidates.begin(),
-                        candidates.end(),
+                    auto camera_visible_end=std::stable_partition(
+                        candidates.begin(), candidates.end(),
                         [&](const auto& entry) {
                             return visible_ids.find(entry.second) !=
                                    visible_ids.end();
+                        });
+                    std::stable_sort(candidates.begin(),camera_visible_end,
+                        [&](const auto& a,const auto& b) {
+                            return ray_box_priority.at(a.second) <
+                                   ray_box_priority.at(b.second);
                         });
                     unsigned processed_objects=0;
                     const auto collect_visible_faces =
@@ -9945,6 +9985,8 @@ void LLPipeline::renderDeferredLighting()
                         << " prepass_triangles=" << prepass_scanned_triangles
                         << " bounds_recovered=" << exact_bounds_recovered
                         << " prepass_candidate_checks=" << prepass_candidate_checks
+                        << " prepass_broadphase_limit="
+                        << prepass_broadphase_limit
                         << " prepass_visible_candidates="
                         << prepass_visible_candidates
                         << " prepass_sphere_candidates="

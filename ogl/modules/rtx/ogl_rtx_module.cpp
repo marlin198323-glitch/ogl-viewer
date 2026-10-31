@@ -746,7 +746,18 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
                 std::to_string(reference.closer)+" primary_farther="+
                 std::to_string(reference.farther)+" ray_samples="+
                 std::to_string(reference.ray_samples)+" cpu_us="+
-                std::to_string(elapsed)+
+                std::to_string(elapsed)+" depth_near="+
+                std::to_string(reference.ranges[0].surface)+"/"+
+                std::to_string(reference.ranges[0].primary_hits)+"/"+
+                std::to_string(reference.ranges[0].matching)+
+                " depth_mid="+
+                std::to_string(reference.ranges[1].surface)+"/"+
+                std::to_string(reference.ranges[1].primary_hits)+"/"+
+                std::to_string(reference.ranges[1].matching)+
+                " depth_far="+
+                std::to_string(reference.ranges[2].surface)+"/"+
+                std::to_string(reference.ranges[2].primary_hits)+"/"+
+                std::to_string(reference.ranges[2].matching)+
                 "; independent test only, not visible shadows").c_str());
         }
     }

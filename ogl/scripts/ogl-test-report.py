@@ -69,6 +69,19 @@ def latest_gpu_probe_revision(log_text: str):
     return int(records[-1].group(1)) if records else None
 
 
+GPU_DEPTH_HISTORY = re.compile(
+    r"OGL RTX GPU probe: triangles=\d+ rays=64 occluded=\d+ "
+    r"revision=(\d+) [^\n]*surface_samples=(\d+) "
+    r"background_samples=\d+ primary_hits=(\d+) depth_matches=(\d+)"
+)
+
+
+def gpu_depth_history(log_text: str, limit: int = 6):
+    """Numeric completed diagnostics, no object/grid/account identifiers."""
+    return [tuple(int(v) for v in m.groups())
+            for m in list(GPU_DEPTH_HISTORY.finditer(log_text))[-max(0,limit):]]
+
+
 def scene_selection_at_revision(log_text: str, revision: int):
     """Resolve a completed GPU result to its *own* published CPU scene scan.
 
@@ -226,6 +239,14 @@ def report():
                 print(f"RTX drawable bounds recovery: {recovered_count} "
                       f"additional visible mesh candidates from "
                       f"{examined_count} broad-phase checks")
+            broad_limit=re.findall(
+                r"OGL RTX scene selection: [^\n]*"
+                r"prepass_broadphase_limit=(\d+)",text)
+            if broad_limit and recovered:
+                examined=int(recovered[-1][1])
+                limit=int(broad_limit[-1])
+                print(f"RTX camera broad-phase coverage: {examined}/{limit} "
+                      "eligible candidates evaluated in latest scan")
         cpu_reference = latest_cpu_depth_reference(text)
         if cpu_reference:
             (cpu_revision, cpu_tris, cpu_surface, cpu_sky, cpu_hits,
@@ -239,6 +260,19 @@ def report():
                   f"({cpu_us} microseconds of CPU test)")
             if cpu_hits != cpu_matched+cpu_closer+cpu_farther:
                 print("RTX CPU depth reference: inconsistent classifications")
+            depth_ranges=re.findall(
+                r"OGL RTX CPU depth reference: [^\n]*"
+                r"depth_near=(\d+)/(\d+)/(\d+) "
+                r"depth_mid=(\d+)/(\d+)/(\d+) "
+                r"depth_far=(\d+)/(\d+)/(\d+)",text)
+            if depth_ranges:
+                stats=depth_ranges[-1]
+                for label, offset in (("near <30m",0),
+                                      ("medium 30–120m",3),
+                                      ("far >=120m",6)):
+                    surface, hits, matches=map(int,stats[offset:offset+3])
+                    print(f"RTX CPU depth range {label}: {matches}/{surface} "
+                          f"matched, {hits}/{surface} ray hits")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)
@@ -296,6 +330,16 @@ def report():
                     print(f"RTX OpenGL/Vulkan depth agreement: "
                           f"{matched}/{surfaces} surface samples "
                           "(within 2% or 0.25 m)")
+                    print(f"RTX Vulkan geometry coverage gap: "
+                          f"{max(0,surfaces-primary_hits)}/{surfaces} "
+                          "GL surfaces have no primary Vulkan triangle hit")
+                    recent=gpu_depth_history(text)
+                    if len(recent)>=2:
+                        summary=", ".join(
+                            f"r{rev}: {matches}/{samples}"
+                            for rev,samples,ray_hits,matches in recent)
+                        print(f"RTX completed depth-match history "
+                              f"(last {len(recent)}): {summary}")
                     if 0 < matched and int(hits) <= matched:
                         print(f"RTX validated diagnostic shadow rays: "
                               f"{hits}/{matched} GL/Vulkan depth-matched "

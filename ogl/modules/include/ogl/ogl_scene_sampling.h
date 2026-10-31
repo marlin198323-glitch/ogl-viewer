@@ -21,6 +21,18 @@ inline uint32_t developer_object_scan_start(uint32_t total,
 
 // Spend more CPU triangle tests on objects occupying multiple camera rays,
 // without letting a single wall/mesh exhaust the whole prepass budget.
+// Rank real camera-ray intersections by entry distance (nearest first).
+// Coverage is a tie breaker rather than letting a giant distant skybox
+// starve nearby surfaces. Invalid/empty bounds are always last.
+inline float camera_ray_box_priority(float nearest_ray_m,
+                                      uint32_t covered_rays) {
+    if (!std::isfinite(nearest_ray_m) || nearest_ray_m<0.f ||
+        covered_rays==0 || covered_rays>64u)
+        return std::numeric_limits<float>::infinity();
+    return std::max(0.f,nearest_ray_m -
+                        0.05f*float(std::min(covered_rays,32u)));
+}
+
 inline uint32_t camera_ray_object_quota(uint32_t aabb_ray_count,
                                         bool sphere_fallback) {
     if (sphere_fallback) return 128u;

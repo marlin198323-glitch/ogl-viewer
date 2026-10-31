@@ -90,6 +90,25 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("DIFFERENT primary",source)
         self.assertIn("sample synchronization must be",source)
         self.assertIn("RTX CPU scene scan cost:",source)
+        self.assertIn("RTX camera broad-phase coverage:",source)
+        self.assertIn("RTX CPU depth range",source)
+        self.assertIn("depth_near=",source)
+
+    def test_completed_gpu_depth_match_history(self):
+        first = ("OGL RTX GPU probe: triangles=8192 rays=64 occluded=7 "
+                 "revision=8 device_inits=1 surface_samples=43 "
+                 "background_samples=21 primary_hits=32 depth_matches=21")
+        second = ("OGL RTX GPU probe: triangles=8192 rays=64 occluded=9 "
+                  "revision=10 device_inits=1 surface_samples=46 "
+                  "background_samples=18 primary_hits=37 depth_matches=22")
+        self.assertEqual(module.gpu_depth_history(first+"\n"+second),
+                         [(8,43,32,21),(10,46,37,22)])
+        self.assertEqual(module.gpu_depth_history(first+"\n"+second,1),
+                         [(10,46,37,22)])
+        self.assertEqual(module.gpu_depth_history("no gpu result"),[])
+        source=script.read_text()
+        self.assertIn("RTX Vulkan geometry coverage gap:",source)
+        self.assertIn("RTX completed depth-match history",source)
 
     def test_gpu_source_scan_resolves_older_revision(self):
         text = (

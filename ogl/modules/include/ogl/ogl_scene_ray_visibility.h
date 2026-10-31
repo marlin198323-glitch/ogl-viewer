@@ -64,8 +64,9 @@ inline bool ray_hits_sphere(const SceneRay& ray, const float* centre,
 // Conservative world-space bounds from the drawable (rather than its
 // nominal object scale). Large/displaced OpenSim meshes can have geometry
 // away from the object's render position. No mesh traversal for a missed box.
-inline bool ray_hits_aabb(const SceneRay& ray, const float* low,
-                          const float* high, float padding=0.5f) {
+inline bool ray_aabb_entry_distance(const SceneRay& ray, const float* low,
+                                    const float* high, float& entry,
+                                    float padding=0.5f) {
     if (!low || !high || !std::isfinite(padding) || padding<0.f)
         return false;
     float closest=0.f, furthest=1000.f;
@@ -88,7 +89,15 @@ inline bool ray_hits_aabb(const SceneRay& ray, const float* low,
         furthest=std::min(furthest,t1);
         if (furthest<closest) return false;
     }
-    return furthest>=0.f;
+    if (furthest<0.f) return false;
+    entry=closest;
+    return true;
+}
+
+inline bool ray_hits_aabb(const SceneRay& ray, const float* low,
+                          const float* high, float padding=0.5f) {
+    float ignored=0.f;
+    return ray_aabb_entry_distance(ray,low,high,ignored,padding);
 }
 
 inline bool ray_hits_triangle(const SceneRay& ray, const ogl_rtx_triangle& tri,

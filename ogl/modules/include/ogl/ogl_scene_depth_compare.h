@@ -12,6 +12,14 @@
 #include <cmath>
 
 namespace ogl {
+struct DepthRangeStats {
+    uint32_t surface=0;
+    uint32_t primary_hits=0;
+    uint32_t matching=0;
+    uint32_t closer=0;
+    uint32_t farther=0;
+};
+
 struct SceneDepthAgreement {
     uint32_t surface=0;
     uint32_t background=0;
@@ -20,6 +28,9 @@ struct SceneDepthAgreement {
     uint32_t closer=0;
     uint32_t farther=0;
     uint32_t ray_samples=0;
+    // Perspective-space ranges: near <30m, medium 30–120m, far >=120m.
+    // Counters help identify missing nearby facades vs far background.
+    std::array<DepthRangeStats,3> ranges{};
 };
 inline bool compare_cpu_scene_to_gl_depth(const ogl_rtx_triangle* scene,
     uint32_t count, const float* depth, const float* eye,
@@ -61,6 +72,10 @@ inline bool compare_cpu_scene_to_gl_depth(const ogl_rtx_triangle* scene,
             continue;
         }
         ++out.surface;
+        const unsigned band = view_depth<30.f ? 0u :
+                              (view_depth<120.f ? 1u : 2u);
+        auto& range=out.ranges[band];
+        ++range.surface;
         float cosine=0.f;
         for (unsigned axis=0;axis<3;++axis)
             cosine+=rays[i].direction[axis]*forward[axis]*inv_forward;
@@ -68,11 +83,19 @@ inline bool compare_cpu_scene_to_gl_depth(const ogl_rtx_triangle* scene,
         const float gl_distance=view_depth/cosine;
         if (!std::isfinite(nearest[i].distance)) continue;
         ++out.primary_hits;
+        ++range.primary_hits;
         const float diff=nearest[i].distance-gl_distance;
         const float epsilon=std::max(0.25f,0.02f*gl_distance);
-        if (std::fabs(diff)<=epsilon) ++out.matching;
-        else if (diff<0.f) ++out.closer;
-        else ++out.farther;
+        if (std::fabs(diff)<=epsilon) {
+            ++out.matching;
+            ++range.matching;
+        } else if (diff<0.f) {
+            ++out.closer;
+            ++range.closer;
+        } else {
+            ++out.farther;
+            ++range.farther;
+        }
     }
     result=out;
     return true;
