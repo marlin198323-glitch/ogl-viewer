@@ -61,6 +61,36 @@ inline bool ray_hits_sphere(const SceneRay& ray, const float* centre,
     return perpendicular_sq <= radius*radius;
 }
 
+// Conservative world-space bounds from the drawable (rather than its
+// nominal object scale). Large/displaced OpenSim meshes can have geometry
+// away from the object's render position. No mesh traversal for a missed box.
+inline bool ray_hits_aabb(const SceneRay& ray, const float* low,
+                          const float* high, float padding=0.5f) {
+    if (!low || !high || !std::isfinite(padding) || padding<0.f)
+        return false;
+    float closest=0.f, furthest=1000.f;
+    for (unsigned axis=0;axis<3;++axis) {
+        if (!std::isfinite(low[axis]) || !std::isfinite(high[axis]) ||
+            low[axis]>high[axis] ||
+            !std::isfinite(ray.origin[axis]) ||
+            !std::isfinite(ray.direction[axis]))
+            return false;
+        const float lo=low[axis]-padding;
+        const float hi=high[axis]+padding;
+        if (std::fabs(ray.direction[axis]) < 1.e-7f) {
+            if (ray.origin[axis]<lo || ray.origin[axis]>hi) return false;
+            continue;
+        }
+        float t0=(lo-ray.origin[axis])/ray.direction[axis];
+        float t1=(hi-ray.origin[axis])/ray.direction[axis];
+        if (t0>t1) std::swap(t0,t1);
+        closest=std::max(closest,t0);
+        furthest=std::min(furthest,t1);
+        if (furthest<closest) return false;
+    }
+    return furthest>=0.f;
+}
+
 inline bool ray_hits_triangle(const SceneRay& ray, const ogl_rtx_triangle& tri,
                               float& distance) {
     const float* v=tri.position;

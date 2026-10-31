@@ -64,6 +64,12 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX geometry capacity:", source)
         self.assertIn("eligible candidate objects;", source)
 
+    def test_warning_indicators_not_sensitive_details(self):
+        source = script.read_text()
+        self.assertIn("OpenSim/texture warning indicators:", source)
+        self.assertIn("Low system memory detected",source)
+        self.assertIn("bounds_recovered=",source)
+
     def test_latest_probe_revision_freshness(self):
         log = ("OGL RTX CPU scene snapshot: triangles=8192 revision=1\n"
                "OGL RTX GPU probe: triangles=8192 rays=64 occluded=0 revision=1\n"

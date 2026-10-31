@@ -9593,6 +9593,8 @@ void LLPipeline::renderDeferredLighting()
                 // capped independently; normal OpenGL never performs it.
                 unsigned exact_camera_anchors=0;
                 unsigned prepass_scanned_triangles=0;
+                unsigned exact_bounds_recovered=0;
+                unsigned prepass_candidate_checks=0;
                 if (ogl_triangle_budget>1024 && !candidates.empty()) {
                     const LLVector3 right=-camera->getLeftAxis();
                     const auto rays=ogl::camera_probe_rays(eye.mV,
@@ -9616,14 +9618,31 @@ void LLPipeline::renderDeferredLighting()
                         // index lists for objects outside all 64 rays.
                         const float sphere_radius=std::max(2.f,
                             2.5f*scale.length());
+                        // The drawable's actual spatial extents are usually
+                        // more reliable than scale for displaced mesh data.
+                        // Use a UNION with the nominal sphere so invalid or
+                        // temporarily stale bounds never exclude an object
+                        // that would previously have passed.
+                        const LLVector4a* ext=obj->mDrawable.notNull() ?
+                            obj->mDrawable->getSpatialExtents() : nullptr;
+                        const bool has_bounds=ext &&
+                            ext[0].isFinite3() && ext[1].isFinite3();
                         bool ray_near_object=false;
+                        bool recovered_by_bounds=false;
                         for (const auto& ray:rays) {
-                            if (ogl::ray_hits_sphere(ray,position.mV,
-                                                    sphere_radius)) {
+                            const bool sphere_hit=ogl::ray_hits_sphere(
+                                ray,position.mV,sphere_radius);
+                            const bool bounds_hit=has_bounds &&
+                                ogl::ray_hits_aabb(ray,
+                                    ext[0].getF32ptr(),ext[1].getF32ptr());
+                            if (sphere_hit || bounds_hit) {
+                                recovered_by_bounds=bounds_hit && !sphere_hit;
                                 ray_near_object=true; break;
                             }
                         }
+                        ++prepass_candidate_checks;
                         if (!ray_near_object) continue;
+                        if (recovered_by_bounds) ++exact_bounds_recovered;
                         ++checked_objects;
                         const LLQuaternion rotation=obj->getRenderRotation();
                         unsigned checked_in_object=0;
@@ -9764,6 +9783,8 @@ void LLPipeline::renderDeferredLighting()
                         << " candidate_limit=" << nearby_budget
                         << " exact_ray_anchors=" << exact_camera_anchors
                         << " prepass_triangles=" << prepass_scanned_triangles
+                        << " bounds_recovered=" << exact_bounds_recovered
+                        << " prepass_candidate_checks=" << prepass_candidate_checks
                         << " unused_triangles="
                         << (ogl_triangle_budget-triangles.size()) << LL_ENDL;
                 if (!triangles.empty())

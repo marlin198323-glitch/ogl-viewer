@@ -71,6 +71,14 @@ def report():
         print("Log file:", LOG)
         print("Error entries:", len(re.findall(r"\b(?:ERROR|FATAL)\b", text)))
         print("Warning entries:", len(re.findall(r"\bWARNING\b", text)))
+        # Aggregate specific failures without printing the private URLs,
+        # account identifiers or scene/object IDs in the log.
+        http502 = len(re.findall(r"\bHttp_502\b", text))
+        downrez = text.count("Low system memory detected")
+        if http502 or downrez:
+            print(f"OpenSim/texture warning indicators: {http502} HTTP 502 "
+                  f"log entries, {downrez} texture memory-downrez entries "
+                  "(may include repeated reports for one incident)")
         print("Login screen ready:", "STATE_LOGIN_WAIT" in text)
         world_started = "STATE_STARTED" in text
         print("3D world entered in this log:", world_started)
@@ -129,6 +137,15 @@ def report():
                 print(f"RTX exact camera-ray geometry: {anchors}/64 anchor "
                       f"triangles, {inspected} full-mesh triangles inspected; "
                       f"candidate limit {cap} (last periodic scan)")
+            recovered = re.findall(
+                r"OGL RTX scene selection: [^\n]*"
+                r"bounds_recovered=(\d+) prepass_candidate_checks=(\d+)",
+                text)
+            if recovered:
+                recovered_count, examined_count = recovered[-1]
+                print(f"RTX drawable bounds recovery: {recovered_count} "
+                      f"additional visible mesh candidates from "
+                      f"{examined_count} broad-phase checks")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)

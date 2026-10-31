@@ -37,4 +37,18 @@ int main() {
     const float distant[3]={0.f,0.f,-20.f};
     assert(ogl::ray_hits_sphere(rays[27],distant,40.f));
     assert(!ogl::ray_hits_sphere(rays[27],distant,-1.f));
+    // An actual drawable can lie far from the nominal object centre:
+    // its broad-phase AABB must recover a valid camera candidate.
+    const float displaced_center[3]={100.f,100.f,-10.f};
+    assert(!ogl::ray_hits_sphere(rays[27],displaced_center,2.f));
+    const float actual_low[3]={-10.f,-10.f,-4.f};
+    const float actual_high[3]={10.f,10.f,-1.f};
+    assert(ogl::ray_hits_aabb(rays[27],actual_low,actual_high));
+    const float miss_low[3]={40.f,40.f,-4.f};
+    const float miss_high[3]={45.f,45.f,-1.f};
+    assert(!ogl::ray_hits_aabb(rays[27],miss_low,miss_high));
+    const float swapped_low[3]={20.f,20.f,20.f};
+    const float swapped_high[3]={-20.f,-20.f,-20.f};
+    assert(!ogl::ray_hits_aabb(rays[27],swapped_low,swapped_high));
+    assert(!ogl::ray_hits_aabb(rays[27],actual_low,actual_high,-1.f));
 }
