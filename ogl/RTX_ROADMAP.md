@@ -298,3 +298,30 @@ Framebuffer. Kein Schatten-Compositing und kein Endnutzer-RTX-Schalter.
 ist bisher ein 8×8-Test mit synthetischer Geometrie und vereinfachter
 Kameraausrichtung. Kein OpenGL-Compositing, keine Vollbild-Raytracing-
 Schatten und kein produktiver RTX-Schalter. `rendering_active=0`.
+
+
+## 31.10.2026 – achte RTX-10er-Runde: präzise Firestorm-Kameradaten
+
+- Die Renderpipeline nutzt für GPU-Kamerastrahlen jetzt unmittelbar
+  `LLCamera::getAtAxis()`, `-getLeftAxis()`, `getUpAxis()`,
+  `getView()` (vertikaler FOV in Radiant) und `getAspect()`.
+  Feste 60°-Näherung und world-up-abgeleitete Achsen entfallen.
+- Frame-ABI auf `OGL_RTX_FRAME_VERSION=2` erweitert und durch eine
+  herstellerunabhängige Prüffunktion abgesichert.
+- Vulkan-Push-Constants benutzen korrekte Firestorm-Kamerabasis;
+  FOV, Seitenverhältnis und Rollwinkel sind Teil des GPU-Cache-Schlüssels.
+- Wichtiger Fehler behoben: Mesh-Revisionsnummer und GPU-Auftragssequenz
+  sind getrennt; bei reiner Kamerabewegung kann ein neuer GPU-Job mit
+  unverändertem Mesh erzeugt werden.
+- Gemeinsamer GPU-Scheduler für Frame- und Mesh-Updates mit weiterhin
+  standardmäßiger 60-Sekunden-Grenze für Entwicklerdiagnosen.
+- Der neue GPU-Modultest beweist zwei Kameradurchläufe bei derselben
+  Geometrie mit veralteter Maske zuverlässig invalidiert.
+- ABI-Prüfungen für Kamera-Roll, FOV, Portrait, Ultrawide und ungültige
+  Werte. Vollständiger Linux-C++-Build grün.
+- [`RTX_10_BLOCKS_2026_10_31_P8.md`](RTX_10_BLOCKS_2026_10_31_P8.md).
+
+**Weiterhin offen:** echte Tiefen-/Normalen-Daten aus der
+Deferred-Pipeline, vollständige OpenSim-Szene, bildrichtige
+OpenGL/Vulkan-Überblendung, Qualität und Laufzeitmessungen.
+`rendering_active=0` bleibt wahr.

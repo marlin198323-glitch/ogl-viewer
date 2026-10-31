@@ -10,11 +10,14 @@ void ogl_shutdown_rtx_module();
 // Capability is not rendering: reporting RTX hardware does not enable raytracing.
 bool ogl_rtx_hardware_supported();
 bool ogl_rtx_rendering_active();
-// Preliminary frame data connection. No Vulkan tracing or scene geometry yet.
+// Actual Firestorm frame/camera bridge for opt-in Vulkan diagnostics.
+ // The active OpenGL world renderer remains unchanged.
 // Triangles are copied synchronously; never retained by the host.
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
+    const float* camera_right, const float* camera_up,
+    float vertical_fov_radians, float aspect_ratio,
     const float* sun_direction);
 
 // Developer-only 8x8 GPU ray-hit mask. Returns false without changing the

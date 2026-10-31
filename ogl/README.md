@@ -112,3 +112,12 @@ ist als separater, standardmäßig deaktivierter Entwicklermodus
 integriert. Die reale OpenSim-Welt wird **noch nicht** mit sichtbaren
 Raytracing-Schatten dargestellt.
 [GPU-Test und technische Grenzen](RTX_10_BLOCKS_2026_10_31_P7.md).
+
+
+Die **achte RTX-10er-Runde** bindet die exakte Firestorm-Kamera
+(Rechts-/Obenachsen, Roll, vertikaler FOV, Aspect) an Vulkan an.
+Der asynchrone GPU-Scheduler kann bei neuer Perspektive denselben
+OpenSim-Mesh-Snapshot erneut berechnen, ohne alte Masken zu zeigen.
+Dies bleibt ein ausdrücklich aktivierter Diagnosemodus.
+**Keine sichtbaren Raytracing-Schatten im Weltbild.**
+[GPU- und Kameratestbericht](RTX_10_BLOCKS_2026_10_31_P8.md).

@@ -18,16 +18,22 @@ namespace ogl {
 class AsyncGpuQueue {
 public:
     struct Job {
-        uint64_t revision = 0;
+        uint64_t revision = 0;          // Unique asynchronous job sequence
+        uint64_t geometry_revision = 0; // OpenSim mesh snapshot revision
         std::vector<ogl_rtx_triangle> triangles;
         std::array<float, 3> sun{{0.f, 0.f, 1.f}};
         std::array<float, 3> camera_position{{0.f, 0.f, 0.f}};
         std::array<float, 3> camera_forward{{0.f, 0.f, 0.f}};
+        std::array<float, 3> camera_right{{0.f, 0.f, 0.f}};
+        std::array<float, 3> camera_up{{0.f, 0.f, 0.f}};
+        float vertical_fov_radians = 0.f;
+        float aspect_ratio = 0.f;
         uint32_t viewport_width = 0;
         uint32_t viewport_height = 0;
     };
     struct Result {
         uint64_t revision = 0;
+        uint64_t geometry_revision = 0;
         uint32_t triangle_count = 0;
         uint32_t ray_count = 0;
         uint32_t occluded = 0;
@@ -142,6 +148,7 @@ private:
                     ++m_stats.successes;
                 }
                 outcome.revision = job.revision;
+                outcome.geometry_revision = job.geometry_revision;
                 m_completed = outcome;
                 m_has_completed = true;
             }

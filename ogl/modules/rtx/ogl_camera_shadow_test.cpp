@@ -40,6 +40,10 @@ int main(int argc, char** argv) {
     camera.height = 800;
     camera.camera_position[2] = 2.f;
     camera.camera_forward[2] = -1.f;
+    camera.camera_right[0] = 1.f;
+    camera.camera_up[1] = 1.f;
+    camera.vertical_fov_radians = 1.04719755f;
+    camera.aspect_ratio = 1.f;
     camera.sun_direction[0] = 0.8f;
     camera.sun_direction[2] = 1.f;
 
@@ -74,6 +78,21 @@ int main(int argc, char** argv) {
     assert(moved.vulkan_device_creations==1);
     assert(moved.blas_builds==2);
     assert(moved.cache_hits==1); // moving camera must invalidate result
+    // Real Firestorm camera can roll, zoom and change aspect ratio.
+    // All of these must change GPU rays without rebuilding scene BLAS.
+    camera.camera_right[0] = 0.f;
+    camera.camera_right[1] = 1.f;
+    camera.camera_up[0] = -1.f;
+    camera.camera_up[1] = 0.f;
+    camera.vertical_fov_radians = 0.82f;
+    camera.width = 1600;
+    camera.height = 800;
+    camera.aspect_ratio = 2.f;
+    const auto rolled=probe();
+    assert(rolled.blas_builds==2 && rolled.cache_hits==1);
+    assert(rolled.vulkan_device_creations==1);
+    const auto rolled_cached=probe();
+    assert(rolled_cached.cache_hits==2 && rolled_cached.blas_builds==2);
     auto broken=camera;
     broken.camera_forward[2]=0.f;
     ogl_gpu_probe_result out{};

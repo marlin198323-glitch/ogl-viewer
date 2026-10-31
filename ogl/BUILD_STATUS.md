@@ -217,3 +217,16 @@ Fehlerberichte eingefügt werden.
 - Kameraausrichtung nur angenähert, tatsächliche OpenSim-Region noch
   nicht mit GPU-Schatten und Renderbild abgenommen.
 - [`RTX_10_BLOCKS_2026_10_31_P7.md`](RTX_10_BLOCKS_2026_10_31_P7.md).
+
+
+## 31.10.2026 – achte RTX-Runde: reale Kamerabasis
+
+- FOV, Aspect, Right- und Up-Achsen werden aus der laufenden Firestorm-
+  Kamera abgerufen, nicht aus fester 60-Grad-Kamera oder world-up.
+- Vulkan-Kamera-Rays und Cache-Schlüssel verwenden diese Daten.
+- Asynchroner GPU-Auftrag nun von Mesh-Revisionsnummer getrennt;
+  Kameraänderungen können ohne Meshänderung neu berechnet werden.
+- Vollständiger Linux-Viewer-Build mit neuer Kamera-ABI v2 erfolgreich.
+- Native Regressionen prüfen live zwei GPU-Aufträge bei einer
+  unveränderten Mesh-Version, Roll, FOV, Seitenverhältnis und No-GPU.
+- [`RTX_10_BLOCKS_2026_10_31_P8.md`](RTX_10_BLOCKS_2026_10_31_P8.md).

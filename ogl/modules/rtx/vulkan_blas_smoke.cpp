@@ -6,6 +6,7 @@
 #include "ogl/ogl_rtx_api.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_scene_validation.h"
+#include "ogl/ogl_camera_validation.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -232,20 +233,7 @@ static int execute_gpu_scene(const char* shader_path,
         wanted_triangles > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
     for (uint32_t i = 0; i < wanted_triangles; ++i)
         if (!ogl::is_valid_triangle(scene[i])) return 1;
-    if (camera) {
-        if (camera->struct_size != sizeof(ogl_rtx_frame_state) ||
-            camera->frame_version != OGL_RTX_FRAME_VERSION ||
-            !camera->width || !camera->height) return 1;
-        for (float f : camera->camera_position)
-            if (!std::isfinite(f) || std::fabs(f) > 1.e6f) return 1;
-        for (float f : camera->camera_forward)
-            if (!std::isfinite(f)) return 1;
-        const float fwd_sq =
-            camera->camera_forward[0] * camera->camera_forward[0] +
-            camera->camera_forward[1] * camera->camera_forward[1] +
-            camera->camera_forward[2] * camera->camera_forward[2];
-        if (!std::isfinite(fwd_sq) || fwd_sq < 1.e-6f) return 1;
-    }
+    if (camera && !ogl::valid_camera_frame(*camera)) return 1;
 
     // Ray sampling covers the source scene footprint, and uses the frame's
     // sun direction only for the opt-in live diagnostics. This is a scene
@@ -298,32 +286,15 @@ static int execute_gpu_scene(const char* shader_path,
     if (camera) {
         for (unsigned i=0; i<3; ++i)
             push.camera_origin[i] = camera->camera_position[i];
-        const float* f = camera->camera_forward;
-        const float fl = std::sqrt(f[0]*f[0]+f[1]*f[1]+f[2]*f[2]);
-        float front[3]{f[0]/fl, f[1]/fl, f[2]/fl};
-        for (unsigned i=0; i<3; ++i) push.camera_forward[i] = front[i];
-        // Roll-free approximation of viewer orientation. Full viewer camera
-        // up/right matrices are a later milestone for correct compositing.
-        const float up_ref[3]{0.f, std::fabs(front[2]) > 0.98f ? 1.f : 0.f,
-                              std::fabs(front[2]) > 0.98f ? 0.f : 1.f};
-        float right[3]{
-            front[1]*up_ref[2]-front[2]*up_ref[1],
-            front[2]*up_ref[0]-front[0]*up_ref[2],
-            front[0]*up_ref[1]-front[1]*up_ref[0]};
-        const float rl = std::sqrt(right[0]*right[0] + right[1]*right[1] +
-                                   right[2]*right[2]);
-        if (rl < 1.e-6f) return 1;
-        for (float& v : right) v /= rl;
-        const float up[3]{
-            right[1]*front[2]-right[2]*front[1],
-            right[2]*front[0]-right[0]*front[2],
-            right[0]*front[1]-right[1]*front[0]};
-        const float aspect = std::max(0.25f, std::min(4.f,
-            static_cast<float>(camera->width)/camera->height));
-        constexpr float tan_half_fov = 0.57735026919f; // diagnostic 60 deg
+        // The axes already include roll, horizon tilt and the actual
+        // viewer field of view. Their values are supplied directly by
+        // Firestorm's camera, not inferred from world-up or a fixed 60°.
+        const float tan_half_fov = std::tan(camera->vertical_fov_radians * 0.5f);
         for (unsigned i=0; i<3; ++i) {
-            push.camera_right[i] = right[i]*tan_half_fov*aspect;
-            push.camera_up[i] = up[i]*tan_half_fov;
+            push.camera_forward[i] = camera->camera_forward[i];
+            push.camera_right[i] = camera->camera_right[i] *
+                tan_half_fov * camera->aspect_ratio;
+            push.camera_up[i] = camera->camera_up[i] * tan_half_fov;
         }
     }
 #ifdef OGL_GPU_PROBE_LIBRARY
@@ -335,7 +306,7 @@ static int execute_gpu_scene(const char* shader_path,
     static thread_local uint32_t cache_hits = 0;
     static thread_local std::vector<ogl_rtx_triangle> cached_scene;
     static thread_local std::array<float, 3> cached_sun{{0.f, 0.f, 1.f}};
-    static thread_local std::array<float, 8> cached_camera{};
+    static thread_local std::array<float, 16> cached_camera{};
     static thread_local std::string cached_shader;
     static thread_local ogl_gpu_probe_result cached_output{};
     const std::array<float,3> requested_sun{{
@@ -343,14 +314,18 @@ static int execute_gpu_scene(const char* shader_path,
         sun ? sun[1] : 0.f,
         sun ? sun[2] : 1.f
     }};
-    std::array<float,8> requested_camera{};
+    std::array<float,16> requested_camera{};
     if (camera) {
         for (unsigned i=0; i<3; ++i) {
             requested_camera[i] = camera->camera_position[i];
             requested_camera[i+3] = camera->camera_forward[i];
+            requested_camera[i+6] = camera->camera_right[i];
+            requested_camera[i+9] = camera->camera_up[i];
         }
-        requested_camera[6] = static_cast<float>(camera->width);
-        requested_camera[7] = static_cast<float>(camera->height);
+        requested_camera[12] = camera->vertical_fov_radians;
+        requested_camera[13] = camera->aspect_ratio;
+        requested_camera[14] = static_cast<float>(camera->width);
+        requested_camera[15] = static_cast<float>(camera->height);
     }
     if (persistent && persistent->device &&
         cached_scene.size() == wanted_triangles &&

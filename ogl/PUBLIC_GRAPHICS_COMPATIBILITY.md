@@ -77,7 +77,8 @@ Multi-GPU-Kopplung.
 - [x] Isolierter 8x8-Vulkan-Compute-Test: 64 Ray Queries, 36 Treffer, 28 Misses
 - [x] GPU-8×8-Ray-Hit-Maske validiert bis zur Firestorm-Debug-Hostschnittstelle übertragen
 - [x] Synthetische Kameraszene: primäre GPU-Strahlen + sekundäre Sonnenschatten geprüft
-- [ ] Exakte Firestorm-Kamera-/Tiefen-/Normalenbasis für OpenSim-Schatten übernehmen
+- [x] Exakte Firestorm-Kamerabasis, Roll, FOV und Aspect in GPU-Shader übernehmen
+- [ ] Tatsächlichen OpenGL-Tiefen-/Normalenbuffer und vollständige OpenSim-Geometrie anbinden
 - [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer

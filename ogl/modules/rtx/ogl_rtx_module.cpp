@@ -1,5 +1,6 @@
 #include "ogl/ogl_rtx_api.h"
 #include "ogl/ogl_scene_validation.h"
+#include "ogl/ogl_camera_validation.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_async_gpu_queue.h"
 #include <vulkan/vulkan.h>
@@ -85,7 +86,10 @@ bool probe_opt_in = false;
 bool probe_camera_enabled = false;
 std::unique_ptr<ogl::AsyncGpuQueue> probe_worker;
 uint64_t probe_last_revision = 0;
+uint64_t probe_job_sequence = 0; // distinct from mesh revision
+bool probe_view_dirty = false;
 std::chrono::steady_clock::time_point probe_last_time{};
+std::chrono::milliseconds probe_interval{60000}; // production developer default
 const char* const trusted_shader = "./app_settings/ogl/rtx/ray_query_shadow.comp.spv";
 const char* const trusted_camera_shader = "./app_settings/ogl/rtx/camera_sun_shadow.comp.spv";
 
@@ -222,8 +226,10 @@ void poll_probe_on_viewer_thread() {
     if (!probe_worker) return;
     ogl::AsyncGpuQueue::Result outcome{};
     if (!probe_worker->try_take(outcome)) return;
-    if (outcome.revision != geometry_revision || captured_geometry.empty())
-        return; // stale after region/mesh change
+    if (outcome.revision != probe_job_sequence ||
+        outcome.geometry_revision != geometry_revision ||
+        captured_geometry.empty())
+        return; // stale after camera, lighting, region or mesh change
     if (outcome.return_code == 0) {
         ogl_rtx_shadow_debug fresh{};
         fresh.struct_size = sizeof(fresh);
@@ -241,7 +247,7 @@ void poll_probe_on_viewer_thread() {
                 std::to_string(outcome.triangle_count) + " rays=" +
                 std::to_string(outcome.ray_count) + " occluded=" +
                 std::to_string(outcome.occluded) + " revision=" +
-                std::to_string(outcome.revision) + " device_inits=" +
+                std::to_string(outcome.geometry_revision) + " device_inits=" +
                 std::to_string(outcome.gpu_device_creations) + " blas_builds=" +
                 std::to_string(outcome.blas_builds) + " cache_hits=" +
                 std::to_string(outcome.cache_hits) +
@@ -250,6 +256,41 @@ void poll_probe_on_viewer_thread() {
         logger(1, "OGL RTX async GPU probe failed; disabled until next start; OpenGL active");
     }
 }
+// One scheduler for new camera frames and new mesh snapshots. Throttle
+// GPU diagnostics in the opt-in mode; never submit Vulkan on this thread.
+void schedule_probe_on_viewer_thread() {
+    // Never perform Vulkan calls on this render-thread callback.
+    if (probe_worker && received_frames > 0 && !captured_geometry.empty() &&
+        (geometry_revision != probe_last_revision || probe_view_dirty)) {
+        using Clock = std::chrono::steady_clock;
+        const auto now = Clock::now();
+        if (probe_last_time == Clock::time_point{} ||
+            now - probe_last_time >= probe_interval) {
+            ogl::AsyncGpuQueue::Job job{};
+            job.revision = ++probe_job_sequence;
+            job.geometry_revision = geometry_revision;
+            job.triangles = captured_geometry;
+            for (unsigned axis = 0; axis < 3; ++axis) {
+                job.sun[axis] = latest_frame.sun_direction[axis];
+                job.camera_position[axis] = latest_frame.camera_position[axis];
+                job.camera_forward[axis] = latest_frame.camera_forward[axis];
+                job.camera_right[axis] = latest_frame.camera_right[axis];
+                job.camera_up[axis] = latest_frame.camera_up[axis];
+            }
+            job.vertical_fov_radians = latest_frame.vertical_fov_radians;
+            job.aspect_ratio = latest_frame.aspect_ratio;
+            job.viewport_width = latest_frame.width;
+            job.viewport_height = latest_frame.height;
+            if (probe_worker->enqueue(std::move(job))) {
+                probe_last_time = now;
+                probe_last_revision = geometry_revision;
+                probe_view_dirty = false;
+            }
+        }
+    }
+
+}
+
 }
 
 extern "C" OGL_MODULE_EXPORT const ogl_module_info *ogl_module_get_info() {
@@ -271,9 +312,20 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     probe_opt_in = false;
     probe_camera_enabled = false;
     probe_last_revision = 0;
+    probe_job_sequence = 0;
+    probe_view_dirty = false;
     probe_last_time = {};
+    probe_interval = std::chrono::milliseconds(60000);
     const char* env = std::getenv("OGL_RTX_SCENE_PROBE");
     probe_opt_in = env && std::strcmp(env, "1") == 0;
+    // Explicit opt-in developer test override, never used for normal users.
+    const char* delay = probe_opt_in ? std::getenv("OGL_RTX_DEV_INTERVAL_MS") : nullptr;
+    if (delay && *delay) {
+        char* end = nullptr;
+        const unsigned long interval = std::strtoul(delay, &end, 10);
+        if (end && *end == '\0' && interval >= 10 && interval <= 60000)
+            probe_interval = std::chrono::milliseconds(interval);
+    }
     const char* camera_env = std::getenv("OGL_RTX_CAMERA_PROBE");
     probe_camera_enabled = probe_opt_in && camera_env &&
                            std::strcmp(camera_env, "1") == 0;
@@ -308,8 +360,12 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                     for (unsigned axis=0; axis<3; ++axis) {
                         frame.camera_position[axis] = job.camera_position[axis];
                         frame.camera_forward[axis] = job.camera_forward[axis];
+                        frame.camera_right[axis] = job.camera_right[axis];
+                        frame.camera_up[axis] = job.camera_up[axis];
                         frame.sun_direction[axis] = job.sun[axis];
                     }
+                    frame.vertical_fov_radians = job.vertical_fov_radians;
+                    frame.aspect_ratio = job.aspect_ratio;
                     rc = probe_camera_run(job.triangles.data(),
                         static_cast<uint32_t>(job.triangles.size()),
                         &frame, trusted_camera_shader, &native);
@@ -365,29 +421,36 @@ extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
     return &status;
 }
 extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state *frame) {
-    if (!frame || frame->struct_size < sizeof(ogl_rtx_frame_state) ||
-        frame->frame_version != OGL_RTX_FRAME_VERSION || !status.hardware_ready ||
-        frame->width == 0 || frame->height == 0) return 0;
+    if (!frame || !status.hardware_ready ||
+        !ogl::valid_camera_frame(*frame)) return 0;
     // This diagnostic mask is tied to camera and sunlight. Even a
     // completed GPU query becomes obsolete after any of these changes.
     bool view_changed = received_frames > 0 &&
         (latest_frame.width != frame->width ||
-         latest_frame.height != frame->height);
+         latest_frame.height != frame->height ||
+         latest_frame.vertical_fov_radians != frame->vertical_fov_radians ||
+         latest_frame.aspect_ratio != frame->aspect_ratio);
     if (received_frames > 0)
         for (unsigned i=0; i<3; ++i)
             if (latest_frame.sun_direction[i] != frame->sun_direction[i] ||
                 latest_frame.camera_position[i] != frame->camera_position[i] ||
-                latest_frame.camera_forward[i] != frame->camera_forward[i])
+                latest_frame.camera_forward[i] != frame->camera_forward[i] ||
+                latest_frame.camera_right[i] != frame->camera_right[i] ||
+                latest_frame.camera_up[i] != frame->camera_up[i])
                 view_changed = true;
     if (view_changed) {
         shadow_debug_valid = false;
         last_shadow_debug = {};
-        if (probe_worker) probe_worker->invalidate(geometry_revision);
+        probe_view_dirty = true;
+        if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
     }
     latest_frame = *frame;
     ++received_frames;
-    if (probe_worker && received_frames % 30 == 0)
-        poll_probe_on_viewer_thread();
+    if (probe_worker) {
+        schedule_probe_on_viewer_thread();
+        if (received_frames % 30 == 0)
+            poll_probe_on_viewer_thread();
+    }
     // Vulkan diagnostics may run only with explicit developer opt-in,
     // after a valid scene snapshot. No user-visible RT pixels are produced.
     if (received_frames == 1 && logger)
@@ -408,7 +471,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
             ++geometry_revision; // Teleport/region change invalidates old AS.
             last_shadow_debug = {};
             shadow_debug_valid = false;
-            if (probe_worker) probe_worker->invalidate(geometry_revision);
+            probe_view_dirty = false;
+            if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
             if (logger)
                 logger(1, (std::string("OGL RTX CPU scene cleared revision=") +
                            std::to_string(geometry_revision)).c_str());
@@ -426,33 +490,11 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     ++geometry_revision;
     last_shadow_debug = {};
     shadow_debug_valid = false;
-    // Mark the earlier scene obsolete whether or not the throttle allows a
-    // new GPU job. Keep this revision admissible for a fresh enqueue.
-    if (probe_worker && geometry_revision > 0)
-        probe_worker->invalidate(geometry_revision - 1);
-    // Never perform Vulkan calls on this render-thread callback.
-    if (probe_worker && received_frames > 0 &&
-        geometry_revision != probe_last_revision) {
-        using Clock = std::chrono::steady_clock;
-        const auto now = Clock::now();
-        if (probe_last_time == Clock::time_point{} ||
-            now - probe_last_time >= std::chrono::seconds(60)) {
-            ogl::AsyncGpuQueue::Job job{};
-            job.revision = geometry_revision;
-            job.triangles = captured_geometry;
-            for (unsigned axis = 0; axis < 3; ++axis) {
-                job.sun[axis] = latest_frame.sun_direction[axis];
-                job.camera_position[axis] = latest_frame.camera_position[axis];
-                job.camera_forward[axis] = latest_frame.camera_forward[axis];
-            }
-            job.viewport_width = latest_frame.width;
-            job.viewport_height = latest_frame.height;
-            if (probe_worker->enqueue(std::move(job))) {
-                probe_last_time = now;
-                probe_last_revision = geometry_revision;
-            }
-        }
-    }
+    // Invalidate all earlier camera/mesh jobs; a new work item receives
+    // a *distinct* sequence number, independent of this mesh revision.
+    probe_view_dirty = true;
+    if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+    schedule_probe_on_viewer_thread();
     poll_probe_on_viewer_thread();
     // Log numbers only, never login data or private scene object names.
     // Keep updates sparse to avoid I/O overhead in populated OpenSim regions.

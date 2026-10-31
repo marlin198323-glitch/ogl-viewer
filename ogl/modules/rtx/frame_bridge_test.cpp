@@ -42,6 +42,10 @@ int main(int argc, char** argv) {
     valid.width = 3440;
     valid.height = 1440;
     valid.camera_forward[0] = 1.0f;
+    valid.camera_right[1] = 1.0f;
+    valid.camera_up[2] = 1.0f;
+    valid.vertical_fov_radians = 1.0f;
+    valid.aspect_ratio = float(valid.width) / valid.height;
     valid.sun_direction[2] = 1.0f;
 
     ogl_rtx_frame_state invalid = valid;

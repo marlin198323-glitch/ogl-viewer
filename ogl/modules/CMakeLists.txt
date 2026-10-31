@@ -117,6 +117,14 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
                     $<TARGET_FILE:ogl_rtx_module>)
             set_tests_properties(ogl_live_opt_in_camera_sun_shadow
                 PROPERTIES TIMEOUT 30)
+            add_test(NAME ogl_live_camera_reprojection_refresh
+                COMMAND ${CMAKE_COMMAND} -E env
+                    OGL_RTX_SCENE_PROBE=1 OGL_RTX_CAMERA_PROBE=1
+                    OGL_RTX_DEV_INTERVAL_MS=15
+                    $<TARGET_FILE:ogl_live_gpu_probe_test>
+                    $<TARGET_FILE:ogl_rtx_module> --test-camera-refresh)
+            set_tests_properties(ogl_live_camera_reprojection_refresh
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
             file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/missing_gpu_probe")
             add_test(NAME ogl_live_gpu_probe_missing_library
                 COMMAND ${CMAKE_COMMAND} -E env OGL_RTX_SCENE_PROBE=1
@@ -192,6 +200,14 @@ target_compile_features(ogl_async_gpu_queue_test PRIVATE cxx_std_17)
 target_link_libraries(ogl_async_gpu_queue_test PRIVATE Threads::Threads)
 add_test(NAME ogl_async_gpu_queue COMMAND ogl_async_gpu_queue_test)
 set_tests_properties(ogl_async_gpu_queue PROPERTIES TIMEOUT 10)
+
+# Projection ABI tests run on every platform without any graphics hardware.
+add_executable(ogl_camera_frame_validation_test
+    ../tests/test_camera_frame_validation.cpp)
+target_include_directories(ogl_camera_frame_validation_test PRIVATE include)
+target_compile_features(ogl_camera_frame_validation_test PRIVATE cxx_std_17)
+add_test(NAME ogl_camera_frame_validation
+    COMMAND ogl_camera_frame_validation_test)
 
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)

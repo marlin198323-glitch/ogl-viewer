@@ -28,12 +28,12 @@ typedef struct ogl_rtx_status {
     char message[256];
 } ogl_rtx_status;
 
-/* Renderer data bridge v1: one world-view camera/light sample per frame.
+/* Renderer data bridge v2: exact Firestorm camera/light sample per frame.
  * Actual acceleration structures, mesh data, GPU Vulkan tracing and
  * OpenGL compositing are NOT implemented by this bridge. Do not set
  * rendering_active until real ray-traced pixels are displayed.
  */
-#define OGL_RTX_FRAME_VERSION 1u
+#define OGL_RTX_FRAME_VERSION 2u
 typedef struct ogl_rtx_frame_state {
     uint32_t struct_size;
     uint32_t frame_version;
@@ -42,9 +42,13 @@ typedef struct ogl_rtx_frame_state {
     float camera_position[3];
     float camera_forward[3];
     float sun_direction[3];
+    float camera_right[3];      /* -LLCamera::getLeftAxis() */
+    float camera_up[3];         /* LLCamera::getUpAxis() */
+    float vertical_fov_radians; /* LLCamera::getView(), radians */
+    float aspect_ratio;         /* LLCamera::getAspect() */
 } ogl_rtx_frame_state;
 
-/* Copies only the latest world-view camera/light state into the module.
+/* Copies the latest exact Firestorm camera axes, FOV and light into the module.
  * Returns 1 if accepted, 0 if missing hardware or invalid arguments.
  */
 OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state *frame);

@@ -16,7 +16,8 @@ void test_log(int, const char* message) {
 
 int main(int argc, char** argv) {
     const bool missing = argc == 3 && std::strcmp(argv[2], "--no-gpu-library") == 0;
-    if (argc != 2 && !missing) return 1;
+    const bool refresh = argc == 3 && std::strcmp(argv[2], "--test-camera-refresh") == 0;
+    if (argc != 2 && !missing && !refresh) return 1;
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!library) {
         std::puts("FAIL: could not load OGL RTX module");
@@ -58,6 +59,10 @@ int main(int argc, char** argv) {
     state.sun_direction[2] = 1.f;
     state.camera_position[2] = 2.f;
     state.camera_forward[2] = -1.f;
+    state.camera_right[0] = 1.f;
+    state.camera_up[1] = 1.f;
+    state.vertical_fov_radians = 1.04719755f;
+    state.aspect_ratio = float(state.width)/state.height;
     std::vector<ogl_rtx_triangle> tris(64);
     for (unsigned i = 0; i < tris.size(); ++i) {
         const float off = i == 0 ? 0.f : 10.f + i * 2.f;
@@ -66,6 +71,11 @@ int main(int argc, char** argv) {
         tris[i].position[7] = 1.f;
     }
 
+    if (refresh && (!status()->hardware_ready || !status()->ray_query)) {
+        stop();
+        dlclose(library);
+        return 77;
+    }
     if (status()->hardware_ready && status()->ray_query) {
         assert(frame(&state) == 1);
         const auto beginning = std::chrono::steady_clock::now();
@@ -93,6 +103,25 @@ int main(int argc, char** argv) {
                 hits += pixel;
             }
             assert(hits == debug.occluded);
+            if (refresh) {
+                // Same geometry revision, different camera. Old job must
+                // be invalidated; a second GPU job must be scheduled.
+                state.camera_position[0] += 0.65f;
+                assert(frame(&state) == 1);
+                assert(copy_debug(&debug) == 0);
+                for (unsigned i = 0; i < 500 && successes() < 2; ++i) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    assert(frame(&state) == 1);
+                }
+                assert(successes() == 2 && attempts() == 2);
+                for (unsigned i = 0; i < 30; ++i) assert(frame(&state) == 1);
+                assert(copy_debug(&debug) == 1);
+                assert(debug.geometry_revision == 1); // only camera changed
+                stop();
+                dlclose(library);
+                std::puts("PASS: same mesh with changed camera launches fresh GPU rays");
+                return 0;
+            }
             assert(copy_debug(nullptr) == 0);
             ogl_rtx_shadow_debug too_small{};
             too_small.struct_size = sizeof(too_small) - 1;

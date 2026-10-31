@@ -152,10 +152,13 @@ bool ogl_rtx_rendering_active() {
 
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
+    const float* camera_right, const float* camera_up,
+    float vertical_fov_radians, float aspect_ratio,
     const float* sun_direction) {
 #if LL_LINUX || LL_WINDOWS
     if (!rtx_submit_frame || !rtx_hardware_ready ||
-        !camera_position || !camera_forward || !sun_direction) return;
+        !camera_position || !camera_forward || !camera_right ||
+        !camera_up || !sun_direction) return;
     ogl_rtx_frame_state frame{};
     frame.struct_size = sizeof(frame);
     frame.frame_version = OGL_RTX_FRAME_VERSION;
@@ -164,8 +167,12 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     for (unsigned i=0; i<3; ++i) {
         frame.camera_position[i] = camera_position[i];
         frame.camera_forward[i] = camera_forward[i];
+        frame.camera_right[i] = camera_right[i];
+        frame.camera_up[i] = camera_up[i];
         frame.sun_direction[i] = sun_direction[i];
     }
+    frame.vertical_fov_radians = vertical_fov_radians;
+    frame.aspect_ratio = aspect_ratio;
     rtx_submit_frame(&frame);
 #endif
 }
