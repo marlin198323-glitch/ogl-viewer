@@ -2,6 +2,7 @@
 #define OGL_WORLD_SHADOW_POLICY_H
 
 #include "ogl_rtx_api.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -127,6 +128,31 @@ inline bool dense_shadow_pixel_current(
            current_depth>=0.f && current_depth<0.999999f &&
            std::isfinite(tolerance) && tolerance>=0.f &&
            std::fabs(current_depth-sample.capture_depth[pixel])<=tolerance;
+}
+
+// A 128x72 captured depth represents ONE texel per 27x19 output pixels
+// at 3440x1390. Comparing raw nonlinear depth with epsilon=1e-5
+// incorrectly rejects pixels on the SAME sloped ground/wall within
+// that texel. Compare eye-space distances instead and bound the
+// conservative acceptance by 0.25m..1.5m (2% with distance).
+// This is still a coarse diagnostic: mesh/object discontinuities
+// require a higher-res material ID/normal buffer later.
+inline float rt_view_depth(float depth,float near_m,float far_m) {
+    if (!std::isfinite(depth) || !std::isfinite(near_m) ||
+        !std::isfinite(far_m) || depth<0.f || depth>=0.999999f ||
+        near_m<=0.f || far_m<=near_m) return 0.f;
+    const float den=far_m+near_m-(2.f*depth-1.f)*(far_m-near_m);
+    if (!std::isfinite(den) || den<=0.f) return 0.f;
+    const float d=2.f*near_m*far_m/den;
+    return std::isfinite(d) && d>0.f ? d : 0.f;
+}
+inline bool dense_view_depth_matches(float captured,float current,
+                                    float near_m,float far_m) {
+    const float original=rt_view_depth(captured,near_m,far_m);
+    const float now=rt_view_depth(current,near_m,far_m);
+    if (original<=0.f || now<=0.f) return false;
+    const float tolerance=std::clamp(original*0.02f,0.25f,1.5f);
+    return std::fabs(now-original)<=tolerance;
 }
 
 // The only safe way to apply a captured shadow bit to a *current* surface

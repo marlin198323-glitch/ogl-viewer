@@ -139,6 +139,14 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("full raytracing/path ",source)
         self.assertIn("tracing is NOT implemented",source)
 
+    def test_world_shadow_fragment_coverage_accountability(self):
+        source=script.read_text()
+        self.assertIn("RTX OpenGL fragment coverage:",source)
+        self.assertIn("GL shadow pixel coverage: samples=",source)
+        self.assertIn("RTX visible-shadow blocker:",source)
+        self.assertIn("NOT final ",source)
+        self.assertIn("screen brightness",source)
+
     def test_dense_worker_telemetry(self):
         source=script.read_text()
         self.assertIn("RTX dense GPU worker duration:",source)

@@ -339,6 +339,9 @@ def report():
         dense_composites=re.findall(
             r"OGL RTX dense world sunlight composed: (\d+) "
             r"GPU shadow tile\(s\) / (\d+) depth-matched",text)
+        gl_coverage=re.findall(
+            r"OGL RTX GL shadow pixel coverage: samples=(\d+) "
+            r"source=(\d+) scene=(\d+)",text)
         if dense_captures:
             w,h,gw,gh=dense_captures[-1]
             print(f"RTX experimental dense GL depth capture: "
@@ -361,6 +364,19 @@ def report():
             elif cpu_scene and int(revision)==cpu_scene[2]:
                 print("RTX dense GPU freshness: geometry revisions match; "
                       "live camera and depth must also match")
+        if gl_coverage:
+            samples,seq,scene=gl_coverage[-1]
+            print(f"RTX OpenGL fragment coverage: {samples} surviving "
+                  f"samples (GPU source {seq}, scene revision {scene}); "
+                  "counts deferred-lightmap rasterization, NOT final "
+                  "screen brightness")
+            if int(samples)==0:
+                print("RTX visible-shadow blocker: no GL fragments survived "
+                      "the live-depth test despite submitted Vulkan rays. "
+                      "Check depth sampling, FBO state, and receiver geometry.")
+        elif dense_composites:
+            print("RTX OpenGL fragment coverage: not measured in this "
+                  "log; a submitted Vulkan mask does not prove visible pixels")
         dense_worker_ms=re.findall(
             r"OGL RTX dense GPU probe: [^\n]*worker_wall_ms=(\d+)",text)
         if dense_worker_ms:

@@ -279,6 +279,34 @@ bool ogl_rtx_compose_dense_sun_shadow(unsigned depth_texture,
         return v && d && std::strcmp(v,"1")==0 &&
                std::strcmp(d,"1")==0;
     }();
+    // Log *actual fragment coverage*, not the number of Vulkan tile
+    // shadows. A valid 128x72 mask might shade ZERO OpenGL pixels after
+    // the depth check; previously the log wrongly implied visible output.
+    static GLuint rt_coverage_query=0;
+    static bool rt_coverage_pending=false;
+    static uint64_t rt_query_sequence=0,rt_query_scene=0;
+    static uint64_t rt_last_measured_sequence=0,rt_last_measured_scene=0;
+    if (rt_coverage_query && !glIsQuery(rt_coverage_query)) {
+        rt_coverage_query=0;rt_coverage_pending=false;
+        rt_last_measured_sequence=0;rt_last_measured_scene=0;
+    }
+    if (rt_coverage_query && rt_coverage_pending) {
+        GLuint available=0;
+        glGetQueryObjectuiv(rt_coverage_query,GL_QUERY_RESULT_AVAILABLE,
+                            &available);
+        if (available) {
+            GLuint samples=0;
+            glGetQueryObjectuiv(rt_coverage_query,GL_QUERY_RESULT,&samples);
+            rt_coverage_pending=false;
+            LL_INFOS("OGLRTX")
+                << "OGL RTX GL shadow pixel coverage: samples=" << samples
+                << " source=" << rt_query_sequence
+                << " scene=" << rt_query_scene
+                << " (post-depth-discard fragments in deferred lightmap; "
+                   "not proof of final displayed color)"
+                << LL_ENDL;
+        }
+    }
     if (!opt_in || !rtx_hardware_ready || !rtx_copy_dense ||
         !depth_texture || !glIsTexture(depth_texture) ||
         !eye || !forward || !right || !up || !sun ||
@@ -323,7 +351,14 @@ void main() {
 uniform sampler2D uLiveDepth;
 uniform sampler2D uVulkanTile;
 uniform ivec2 uViewport;
+uniform vec2 uNearFar;
+uniform int uDiagnosticTint;
 out vec4 outColor;
+float viewDistance(float d) {
+    float n=uNearFar.x,f=uNearFar.y;
+    float den=f+n-(2.0*d-1.0)*(f-n);
+    return (den>0.0) ? (2.0*n*f)/den : -1.0;
+}
 void main() {
     ivec2 pos=ivec2(gl_FragCoord.xy);
     if (any(lessThan(pos,ivec2(0))) ||
@@ -335,7 +370,15 @@ void main() {
     float live=texelFetch(uLiveDepth,pos,0).r;
     // Sparse source meshes, rigged avatars and moving world geometry must
     // not be darkened unless current depth still matches capture depth.
-    if (live>=0.999999 || abs(live-ray.b)>0.00001) discard;
+    if (live>=0.999999 || ray.b>=0.999999) discard;
+    float reference=viewDistance(ray.b);
+    float now=viewDistance(live);
+    if (reference<=0.0 || now<=0.0) discard;
+    // Nonlinear-depth epsilon 1e-5 discarded most FULL-RES pixels:
+    // the 128x72 source represents one center sample per large tile.
+    // Conservative, distance-scaled acceptance, NOT cross-object blur.
+    float tolerance=clamp(reference*0.02,0.25,1.5);
+    if (abs(now-reference)>tolerance) discard;
     // Soft per-tile transition mitigates hard 54x39-pixel blocks at
     // ultrawide resolutions. This NEVER invents an unvalidated ray hit:
     // we soften solely WITHIN a shadowed, live-depth-matched tile.
@@ -345,7 +388,11 @@ void main() {
                                  min(cell.y,1.0-cell.y));
     float feather=smoothstep(0.0,0.18,distanceToTileEdge);
     // First-gen direct sunlight attenuation, not GI or path tracing.
-    outColor=vec4(0.0,0.0,0.0,0.36*feather);
+    // Distinct debug tint demonstrates which valid pixels actually
+    // received ray-query shadows, without inventing shadow receivers.
+    outColor=(uDiagnosticTint!=0) ?
+        vec4(1.0,0.0,0.28,0.82*feather) :
+        vec4(0.0,0.0,0.0,0.48*feather);
 }
 )GLSL";
     static GLuint program=0,vao=0,tile_texture=0;
@@ -449,6 +496,14 @@ void main() {
     glUniform1i(glGetUniformLocation(program,"uLiveDepth"),0);
     glUniform1i(glGetUniformLocation(program,"uVulkanTile"),1);
     glUniform2i(glGetUniformLocation(program,"uViewport"),width,height);
+    glUniform2f(glGetUniformLocation(program,"uNearFar"),
+                near_clip,far_clip);
+    static const bool diagnostic_tint=[] {
+        const char* value=std::getenv("OGL_RTX_SHADOW_VISUALIZE");
+        return value && std::strcmp(value,"1")==0;
+    }();
+    glUniform1i(glGetUniformLocation(program,"uDiagnosticTint"),
+                diagnostic_tint ? 1 : 0);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glDisable(GL_SCISSOR_TEST);
@@ -458,7 +513,28 @@ void main() {
     glBlendEquationSeparate(GL_FUNC_ADD,GL_FUNC_ADD);
     glViewport(0,0,width,height);
     glBindVertexArray(vao);
+    // GL_SAMPLES_PASSED counts fragments surviving discard. This detects
+    // an ineffective compositor even when thousands of Vulkan rays hit.
+    // Query once per captured scene, never synchronously wait on the GPU.
+    GLint other_query=0;
+    glGetQueryiv(GL_SAMPLES_PASSED,GL_CURRENT_QUERY,&other_query);
+    if (!rt_coverage_query && !other_query)
+        glGenQueries(1,&rt_coverage_query);
+    const bool record_coverage=rt_coverage_query &&
+        !rt_coverage_pending && !other_query &&
+        (rt_last_measured_sequence!=source.sample_sequence ||
+         rt_last_measured_scene!=source.geometry_revision);
+    if (record_coverage)
+        glBeginQuery(GL_SAMPLES_PASSED,rt_coverage_query);
     glDrawArrays(GL_TRIANGLES,0,3);
+    if (record_coverage) {
+        glEndQuery(GL_SAMPLES_PASSED);
+        rt_coverage_pending=true;
+        rt_query_sequence=source.sample_sequence;
+        rt_query_scene=source.geometry_revision;
+        rt_last_measured_sequence=source.sample_sequence;
+        rt_last_measured_scene=source.geometry_revision;
+    }
     // Restore everything modified; subsequent Firestorm lighting/UI passes
     // must observe exactly their original global GL state.
     glBindVertexArray(old_vao);
@@ -477,14 +553,17 @@ void main() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D,old_tex0);
     glActiveTexture(old_active);
-    static uint64_t last_logged=0;
-    if (last_logged!=source.sample_sequence) {
+    static uint64_t last_logged=0,last_logged_scene=0;
+    if (last_logged!=source.sample_sequence ||
+        last_logged_scene!=source.geometry_revision) {
         last_logged=source.sample_sequence;
+        last_logged_scene=source.geometry_revision;
         LL_INFOS("OGLRTX") << "OGL RTX dense world sunlight composed: "
                            << source.shadow_pixels << " GPU shadow tile(s) / "
                            << source.matched_pixels
                            << " depth-matched, at 128x72 sample resolution; "
-                           << "current OpenGL depth gates every output pixel"
+                           << "GPU shadow mask submitted to GL; pixel "
+                              "coverage separately measured (may be zero)"
                            << LL_ENDL;
     }
     return true;

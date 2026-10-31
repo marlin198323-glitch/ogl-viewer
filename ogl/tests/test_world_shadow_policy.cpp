@@ -95,5 +95,31 @@ int main() {
     assert(!ogl::valid_dense_shadow(dense,11,frame));
     dense.capture_depth[123]=0.76f;
     assert(ogl::valid_dense_shadow(dense,11,frame));
+    // Strict raw depth == 1e-5 was too strict for a sloped 128x72 tile.
+    auto project=[&](float view_m){
+        const float n=frame.near_clip_m,f=frame.far_clip_m;
+        return f/(f-n)*(1.f-n/view_m);
+    };
+    assert(ogl::dense_view_depth_matches(project(10.f),
+                                         project(10.18f),
+                                         frame.near_clip_m,frame.far_clip_m));
+    assert(!ogl::dense_view_depth_matches(project(10.f),
+                                          project(11.f),
+                                          frame.near_clip_m,frame.far_clip_m));
+    assert(ogl::dense_view_depth_matches(project(200.f),
+                                         project(201.4f),
+                                         frame.near_clip_m,frame.far_clip_m));
+    assert(!ogl::dense_view_depth_matches(project(200.f),
+                                          project(202.1f),
+                                          frame.near_clip_m,frame.far_clip_m));
+    assert(!ogl::dense_view_depth_matches(1.f,project(10.f),
+                                          frame.near_clip_m,frame.far_clip_m));
+    assert(!ogl::dense_view_depth_matches(project(10.f),1.f,
+                                          frame.near_clip_m,frame.far_clip_m));
+    assert(!ogl::dense_view_depth_matches(project(10.f),
+                                          std::numeric_limits<float>::quiet_NaN(),
+                                          frame.near_clip_m,frame.far_clip_m));
+    assert(!ogl::dense_view_depth_matches(project(10.f),project(10.f),
+                                          0.f,frame.far_clip_m));
     return 0;
 }
