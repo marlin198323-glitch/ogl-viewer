@@ -538,3 +538,36 @@ umgesetzt und im Viewer bildlich abgenommen ist.
 Schattenprojektion, vollständige dynamische OpenSim-Geometrie,
 GPU-/GL-Synchronisation sowie korrektes Sonnenlicht-Compositing.
 `rendering_active=0` bleibt zutreffend.
+
+
+## 31.10.2026 – RTX-Runde 15: unabhängiger GPU-Primärstrahl-/Depth-Abgleich
+
+- Echte Live-Logs: 56 von 64 OpenGL-Depth-Pixeln repräsentieren
+  Oberflächen, aber letzte Sonnenprobe `0/64` Hits.
+  Das sagt ohne GPU-Szenenabdeckung nichts über tatsächliche
+  Schattenfreiheit aus.
+- Der Depth-Guided-Vulkan-Shader führt jetzt pro gültigem
+  Pixel eine **zusätzliche Primär-Ray-Query** aus der Kamera
+  durch, um die OpenGL-Tiefe mit der unvollständigen
+  Vulkan-BLAS/TLAS-Geometrie zu vergleichen.
+- Zwei neue GPU-Masken: `primaryHit` und `depthMatch`.
+  Die tolerierte Abweichung ist max(0,25m, 2% der Entfernung).
+  Eigene Probe-ABI **v4**, 64/192 Uint-Resultbuffer je nach Shader.
+- Der asynchrone GPU-Worker bewahrt für einen Frame die
+  Primärtreffer- und Übereinstimmungszahlen; der lokale Bericht
+  zeigt sie jeweils zusammen mit `surface_samples` und
+  `occluded` aus demselben abgeschlossenen GPU-Job.
+- GPU-Referenztest: volle Fläche 64 Primärtreffer und
+  64 passende Depth-Werte, absichtliche Blockergeometrie
+  verursacht messbare Depth-Abweichungen. Himmel erzeugt
+  keine Primärtreffer.
+- 25 Native-/43 Python-Tests, Linux-Viewer-Build sowie
+  No-Vulkan-Fallback geprüft.
+- [`RTX_10_BLOCKS_2026_10_31_P15.md`](RTX_10_BLOCKS_2026_10_31_P15.md).
+
+**Nächster Live-Test:** Bei `primary_hits=0` ist zunächst
+Geometrieabdeckung oder Koordinatentransformation zu
+prüfen. `primary_hits>0` und `depth_matches=0`
+weist auf fehlende Tiefenübereinstimmung bzw. andere
+Vordergrundgeometrie hin. Kein aktiver RTX-World-Lighting-Pass;
+die OpenGL-Welt bleibt unverändert.

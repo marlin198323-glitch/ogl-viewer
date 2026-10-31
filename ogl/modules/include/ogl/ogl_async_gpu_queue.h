@@ -43,6 +43,8 @@ public:
         uint32_t triangle_count = 0;
         uint32_t ray_count = 0;
         uint32_t occluded = 0;
+        uint32_t primary_hits = 0;
+        uint32_t primary_depth_matches = 0;
         uint32_t surface_pixels = 0;
         uint32_t background_pixels = 0;
         std::array<uint8_t, 64> shadow_mask{};

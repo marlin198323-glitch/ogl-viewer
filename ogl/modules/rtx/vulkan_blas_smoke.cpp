@@ -806,7 +806,12 @@ static int execute_gpu_scene(const char* shader_path,
         return 1;
 
     constexpr uint32_t result_count = 8u * 8u;
-    constexpr uint32_t result_bytes = result_count * sizeof(uint32_t);
+    // Depth-guided shader writes sun visibility, primary BLAS intersection
+    // and comparison of primary hit distance against OpenGL depth.
+    // The original fixture/camera shaders still write only 64 uint values.
+    const uint32_t output_sections = depth_64 ? 3u : 1u;
+    const uint32_t result_bytes =
+        result_count * output_sections * sizeof(uint32_t);
     if (!allocate_buffer(c, c.query_results, result_bytes,
                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -903,7 +908,7 @@ static int execute_gpu_scene(const char* shader_path,
     if (vkMapMemory(c.device, c.query_results.memory, 0, result_bytes, 0,
                     &mapped) != VK_SUCCESS)
         return 1;
-    std::array<uint32_t, result_count> results{};
+    std::array<uint32_t, result_count * 3u> results{};
     std::memcpy(results.data(), mapped, result_bytes);
     vkUnmapMemory(c.device, c.query_results.memory);
     uint32_t hits = 0;
@@ -921,6 +926,22 @@ static int execute_gpu_scene(const char* shader_path,
     }
     std::printf("PASS: GPU 8x8 ray-query probe; occluded=%u visible=%u\n",
                 hits, result_count - hits);
+    if (result && depth_64) {
+        unsigned primary_hits=0, matches=0;
+        for (uint32_t i=0; i<result_count; ++i) {
+            const uint32_t hit = results[result_count+i];
+            const uint32_t same = results[2u*result_count+i];
+            if (hit>1 || same>1 || same>hit) return 1;
+            primary_hits+=hit;
+            matches+=same;
+            result->primary_mask[i]=static_cast<uint8_t>(hit);
+            result->depth_match_mask[i]=static_cast<uint8_t>(same);
+        }
+        result->primary_hits=primary_hits;
+        result->primary_depth_matches=matches;
+        std::printf("PASS: primary scene coverage=%u depth_agreement=%u of 64\n",
+                    primary_hits,matches);
+    }
     if (result) {
         result->occluded = hits;
         result->unoccluded = result_count - hits;
@@ -928,7 +949,7 @@ static int execute_gpu_scene(const char* shader_path,
         result->triangle_count = wanted_triangles;
         result->mask_width = 8;
         result->mask_height = 8;
-        for (size_t i = 0; i < results.size(); ++i)
+        for (size_t i = 0; i < result_count; ++i)
             result->shadow_mask[i] = static_cast<uint8_t>(results[i]);
         result->success = 1;
 #ifdef OGL_GPU_PROBE_LIBRARY

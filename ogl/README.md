@@ -179,3 +179,13 @@ Debug-Vorschau erscheinen Himmel grau, unverschattete Flächen
 türkis und verschattete Flächen rot – weiterhin ausdrücklich
 **NOT WORLD SHADOWS**.
 [Abnahme und Entwicklungsgrenzen](RTX_10_BLOCKS_2026_10_31_P14.md).
+
+
+**RTX-Runde 15:** Die optionale Vulkan-GPU-Diagnose vergleicht
+erstmals die tatsächlichen OpenGL-Depth-Werte mit einem
+eigenen GPU-Kamera-Primärstrahl in die unvollständige
+OpenSim-BLAS. Neue Live-Zähler `primary_hits` und
+`depth_matches` helfen einzuordnen, weshalb die 8×8-
+Sonnenverschattung manchmal `0/64` ergibt.
+[Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P15.md).
+Es gibt weiterhin keine sichtbare RTX-Weltbeleuchtung.

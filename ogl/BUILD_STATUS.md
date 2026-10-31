@@ -329,3 +329,17 @@ Fehlerberichte eingefügt werden.
 - In-Viewer-Preview: Grau/Türkis/Rot und `surf / sky`-Zählung,
   weiter **NOT WORLD SHADOWS**.
 - [`RTX_10_BLOCKS_2026_10_31_P14.md`](RTX_10_BLOCKS_2026_10_31_P14.md).
+
+
+## 31.10.2026 – Primär-Rays als zusätzliche Depth-Gegenprobe
+
+- Vulkan-Compute-Depth-Probe prüft neben Sonnenverschattung
+  die vorhandene Scene-BLAS aus dem Kamerastrahl und
+  vergleicht den Abstand zur OpenGL-Depth-Oberfläche.
+- GPU-Probe-C-ABI v4, zusätzliche `primary_hits` und
+  `primary_depth_matches` im asynchronen GPU-Worker.
+- Referenz-GPU-Tests für Vollfläche, verdeckenden Blocker und
+  Himmel; portable No-Vulkan-Fallbacks und Linux-Build.
+- Lokaler Report unterscheidet künftig fehlende Mesh-Treffer
+  von abweichender OpenGL-Tiefenrekonstruktion.
+- [`RTX_10_BLOCKS_2026_10_31_P15.md`](RTX_10_BLOCKS_2026_10_31_P15.md).

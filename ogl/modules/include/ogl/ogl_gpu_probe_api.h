@@ -3,7 +3,7 @@
 
 #include "ogl_rtx_api.h"
 
-#define OGL_GPU_PROBE_VERSION 3u
+#define OGL_GPU_PROBE_VERSION 4u
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +26,11 @@ typedef struct ogl_gpu_probe_result {
     uint32_t cache_hits;              /* same mesh + sun + shader reused */
     uint32_t mask_width;              /* debug-only 8, not world-resolution */
     uint32_t mask_height;             /* debug-only 8, not world-resolution */
-    uint8_t shadow_mask[64];          /* row-major; 1 = ray hit, 0 = miss */
+    uint8_t shadow_mask[64];          /* row-major; 1 = sun shadow */
+    uint32_t primary_hits;            /* incomplete BLAS hits from eye */
+    uint32_t primary_depth_matches;   /* BLAS hit agrees with OpenGL depth */
+    uint8_t primary_mask[64];         /* 1 = Vulkan geometry hit */
+    uint8_t depth_match_mask[64];     /* 1 = agrees with GL depth */
 } ogl_gpu_probe_result;
 
 // Return 0 for successful Vulkan compute (including an empty mask),

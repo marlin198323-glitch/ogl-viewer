@@ -7,6 +7,8 @@ layout(local_size_x=8, local_size_y=8, local_size_z=1) in;
 layout(set=0,binding=0) uniform accelerationStructureEXT scene;
 layout(set=0,binding=1,std430) buffer Results {
     uint occlusion[64];
+    uint primaryHit[64];
+    uint depthMatch[64];
 } outputBuffer;
 layout(set=0,binding=2,std430) readonly buffer DeferredDepth {
     float normalizedDepth[64];
@@ -27,6 +29,8 @@ void main() {
     const uint index=pixel.y*8u+pixel.x;
     const float d=inputDepth.normalizedDepth[index];
     outputBuffer.occlusion[index]=0u;
+    outputBuffer.primaryHit[index]=0u;
+    outputBuffer.depthMatch[index]=0u;
     // OpenGL background: depth 1. Nothing visible to shadow.
     if (d >= 0.999999 || d < 0.0 || d > 1.0 || isnan(d) || isinf(d))
         return;
@@ -44,8 +48,26 @@ void main() {
     const float denom=f+n-z_ndc*(f-n);
     if (denom <= 0.000001) return;
     const float viewDistance=(2.0*n*f)/denom;
+    const float depthRayDistance = viewDistance/cosine;
     const vec3 worldSurface=params.camera_origin.xyz +
-        eyeRay*(viewDistance/cosine);
+        eyeRay*depthRayDistance;
+
+    // Separate coverage diagnostic: does the incomplete Vulkan snapshot
+    // contain the same visible surface that OpenGL rendered? Distinguish
+    // absent geometry from a failed sun ray, never use to shade final image.
+    rayQueryEXT primary;
+    rayQueryInitializeEXT(primary,scene,gl_RayFlagsOpaqueEXT,0xffu,
+        params.camera_origin.xyz,0.01,eyeRay,max(1000.0,depthRayDistance+5.0));
+    while (rayQueryProceedEXT(primary)) {}
+    if (rayQueryGetIntersectionTypeEXT(primary,true) ==
+        gl_RayQueryCommittedIntersectionTriangleEXT) {
+        outputBuffer.primaryHit[index]=1u;
+        const float primaryDistance =
+            rayQueryGetIntersectionTEXT(primary,true);
+        const float tolerance=max(0.25,depthRayDistance*0.02);
+        if (abs(primaryDistance-depthRayDistance) <= tolerance)
+            outputBuffer.depthMatch[index]=1u;
+    }
     const vec3 sunDir=normalize(params.ray_direction.xyz);
     rayQueryEXT shadow;
     rayQueryInitializeEXT(shadow,scene,gl_RayFlagsOpaqueEXT,0xffu,
