@@ -9455,6 +9455,23 @@ void LLPipeline::renderDeferredLighting()
             // clearing on an empty 180-frame batch cancels legitimate GPU
             // work and makes the optional RTX diagnostics impossible.
             static LLUUID ogl_rtx_last_region_id;
+            static std::vector<LLUUID> ogl_tracked_ids; // opt-in only, capped
+            // Construct row-major local-to-agent 3x4 transform. The Vulkan
+            // scene registry stores untransformed volume-face vertices.
+            auto ogl_object_pose = [](LLViewerObject* object,float out[12]) {
+                const LLVector3 scale=object->getScale();
+                const LLQuaternion rotate=object->getRenderRotation();
+                const LLVector3 position=object->getRenderPosition();
+                const LLVector3 x=LLVector3(scale.mV[0],0.f,0.f)*rotate;
+                const LLVector3 y=LLVector3(0.f,scale.mV[1],0.f)*rotate;
+                const LLVector3 z=LLVector3(0.f,0.f,scale.mV[2])*rotate;
+                for (unsigned row=0;row<3;++row) {
+                    out[row*4]=x.mV[row];
+                    out[row*4+1]=y.mV[row];
+                    out[row*4+2]=z.mV[row];
+                    out[row*4+3]=position.mV[row];
+                }
+            };
             LLViewerRegion* ogl_rtx_region = gAgent.getRegion();
             const LLUUID current_region_id = ogl_rtx_region ?
                 ogl_rtx_region->getRegionID() : LLUUID::null;
@@ -9462,6 +9479,7 @@ void LLPipeline::renderDeferredLighting()
             {
                 if (!ogl_rtx_last_region_id.isNull())
                     ogl_rtx_submit_world_triangles(nullptr, 0);
+                ogl_tracked_ids.clear();
                 ogl_rtx_last_region_id = current_region_id;
             }
 
@@ -9479,6 +9497,23 @@ void LLPipeline::renderDeferredLighting()
                 return mode && std::strcmp(mode,"1")==0 ?
                     OGL_RTX_MAX_SCENE_TRIANGLES : 1024u;
             }();
+            if (ogl_triangle_budget>1024) {
+                // Per-frame pose refresh (cheap map lookup, no mesh walk),
+                // bounded by the previously captured object UUID list.
+                for (auto it=ogl_tracked_ids.begin();
+                     it!=ogl_tracked_ids.end();) {
+                    LLViewerObject* obj=gObjectList.findObject(*it);
+                    if (!obj || obj->isDead()) {
+                        ogl_rtx_forget_local_object(it->mData);
+                        it=ogl_tracked_ids.erase(it);
+                        continue;
+                    }
+                    float pose[12]{};
+                    ogl_object_pose(obj,pose);
+                    ogl_rtx_update_object_pose(it->mData,pose);
+                    ++it;
+                }
+            }
             if (++ogl_geometry_frame_counter >= 180)
             {
                 ogl_geometry_frame_counter = 0;
@@ -9527,6 +9562,9 @@ void LLPipeline::renderDeferredLighting()
                     const LLVector3 scale = volume_object->getScale();
                     const LLQuaternion rotation = volume_object->getRenderRotation();
                     ++nearby_objects;
+                    std::vector<ogl_rtx_triangle> local_faces;
+                    if (ogl_triangle_budget>1024)
+                        local_faces.reserve(64);
                     const S32 face_count = llmin(volume->getNumVolumeFaces(), 16);
                     for (S32 f = 0; f < face_count &&
                             triangles.size() < ogl_triangle_budget; ++f)
@@ -9541,6 +9579,7 @@ void LLPipeline::renderDeferredLighting()
                                 triangles.size() < ogl_triangle_budget; ++t)
                         {
                             ogl_rtx_triangle triangle{};
+                            ogl_rtx_triangle local_triangle{};
                             bool valid = true;
                             for (S32 v = 0; v < 3; ++v)
                             {
@@ -9551,13 +9590,30 @@ void LLPipeline::renderDeferredLighting()
                                     break;
                                 }
                                 LLVector3 vertex(face.mPositions[index].getF32ptr());
+                                for (S32 axis=0;axis<3;++axis)
+                                    local_triangle.position[v*3+axis]=vertex.mV[axis];
                                 vertex = vertex.scaledVec(scale) * rotation + position;
                                 for (S32 axis = 0; axis < 3; ++axis)
                                     triangle.position[v * 3 + axis] = vertex.mV[axis];
                             }
-                            if (valid && ogl::is_valid_triangle(triangle))
+                            if (valid && ogl::is_valid_triangle(triangle)) {
                                 triangles.emplace_back(triangle);
+                                if (ogl_triangle_budget>1024 &&
+                                    ogl::is_valid_triangle(local_triangle))
+                                    local_faces.emplace_back(local_triangle);
+                            }
                         }
+                    }
+                    if (!local_faces.empty() && ogl_tracked_ids.size()<1024) {
+                        float pose[12]{};
+                        ogl_object_pose(volume_object,pose);
+                        const LLUUID id=volume_object->getID();
+                        if (ogl_rtx_track_local_object(id.mData,
+                                local_faces.front().position,
+                                static_cast<unsigned>(local_faces.size()),pose) &&
+                            std::find(ogl_tracked_ids.begin(),ogl_tracked_ids.end(),
+                                      id)==ogl_tracked_ids.end())
+                            ogl_tracked_ids.push_back(id);
                     }
                 }
                 // Rotate traversal over large scenes; never lock on only

@@ -65,11 +65,14 @@ int main(int argc, char** argv) {
     assert(new_light.blas_builds == 1); // unchanged geometry, GPU BLAS/TLAS reused
     assert(new_light.cache_hits == 1);
 
-    // Geometry changes do require another BLAS build at this milestone.
+    // Changed vertex positions with stable primitive count must refit
+    // the SAME Vulkan BLAS; TLAS keeps its original BLAS reference.
     triangle.position[0] = 0.1f;
     const auto moved = invoke(sun_a);
     assert(moved.vulkan_device_creations == 1);
-    assert(moved.blas_builds == 2); // changed geometry rebuilds GPU BLAS
+    assert(moved.blas_builds == 1); // original BLAS survives
+    assert(moved.blas_refits == 1); // Vulkan MODE_UPDATE (GPU refit)
+    assert(moved.tlas_refits == 0); // BLAS keeps its device address
 
     // Invalid data must not run Vulkan or overwrite the cached valid scene.
     triangle.position[0] = NAN;
@@ -79,7 +82,7 @@ int main(int argc, char** argv) {
     assert(run(&triangle, 1, sun_a, argv[2], &invalid) == 1);
 
     // Largest supported snapshot must reuse the same Vulkan logical device
-    // while replacing its old BLAS/TLAS with the new 1,024-triangle scene.
+    // while replacing BLAS/TLAS when triangle count actually changes.
     std::vector<ogl_rtx_triangle> many(OGL_RTX_MAX_SCENE_TRIANGLES);
     for (uint32_t i = 0; i < many.size(); ++i) {
         const float x = float(i % 32) * 2.f;
@@ -108,10 +111,12 @@ int main(int argc, char** argv) {
     };
     const auto large = run_many();
     assert(large.vulkan_device_creations == 1);
-    assert(large.blas_builds == 3);
+    assert(large.blas_builds == 2);
+    assert(large.blas_refits == 1);
     const auto cached_large = run_many();
     assert(cached_large.vulkan_device_creations == 1);
-    assert(cached_large.blas_builds == 3);
+    assert(cached_large.blas_builds == 2);
+    assert(cached_large.blas_refits == 1);
     assert(cached_large.cache_hits == 2);
     std::printf("PASS: persistent Vulkan device=%u GPU BLAS builds=%u cache hits=%u\n",
         cached_large.vulkan_device_creations, cached_large.blas_builds,

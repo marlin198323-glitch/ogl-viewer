@@ -233,12 +233,16 @@ static int execute_gpu_scene(const char* shader_path,
                              const float* sun,
                              const ogl_rtx_frame_state* camera,
                              ogl_gpu_probe_result* result,
-                             const float* depth_64) {
+                             const float* depth_64,
+                             const float* instance_xyz = nullptr) {
     if (!shader_path || !scene || wanted_triangles < 1 ||
         wanted_triangles > OGL_RTX_MAX_SCENE_TRIANGLES) return 1;
     for (uint32_t i = 0; i < wanted_triangles; ++i)
         if (!ogl::is_valid_triangle(scene[i])) return 1;
     if (camera && !ogl::valid_camera_frame(*camera)) return 1;
+    if (instance_xyz) for (int i=0;i<3;++i)
+        if (!std::isfinite(instance_xyz[i]) || std::fabs(instance_xyz[i])>10000.f)
+            return 1;
     if (depth_64 && (!camera ||
         !ogl::valid_depth_grid(camera->width, camera->height, 8, 8,
                                depth_64))) return 1;
@@ -314,6 +318,9 @@ static int execute_gpu_scene(const char* shader_path,
     static thread_local std::unique_ptr<VulkanContext> persistent;
     static thread_local uint32_t device_creations = 0;
     static thread_local uint32_t blas_builds = 0;
+    static thread_local uint32_t blas_refits = 0;
+    static thread_local uint32_t tlas_refits = 0;
+    static thread_local std::array<float,3> cached_instance_xyz{};
     static thread_local uint32_t cache_hits = 0;
     static thread_local std::vector<ogl_rtx_triangle> cached_scene;
     static thread_local std::array<float, 3> cached_sun{{0.f, 0.f, 1.f}};
@@ -344,6 +351,10 @@ static int execute_gpu_scene(const char* shader_path,
     }
     // Clip planes are meaningful even for the older camera-ray shader;
     // readback-mode cache must additionally include every input depth.
+    const std::array<float,3> requested_instance{{
+        instance_xyz ? instance_xyz[0] : 0.f,
+        instance_xyz ? instance_xyz[1] : 0.f,
+        instance_xyz ? instance_xyz[2] : 0.f}};
     const bool same_depth = !depth_64 ? !cached_depth_valid :
         cached_depth_valid && std::equal(depth_64, depth_64+64,
                                         cached_depth.begin());
@@ -351,27 +362,37 @@ static int execute_gpu_scene(const char* shader_path,
         cached_scene.size() == wanted_triangles &&
         !cached_scene.empty() && cached_sun == requested_sun &&
         cached_camera == requested_camera &&
-        same_depth && cached_shader == shader_path &&
+        same_depth && cached_instance_xyz == requested_instance &&
+        cached_shader == shader_path &&
         std::memcmp(cached_scene.data(), scene,
             size_t(wanted_triangles) * sizeof(ogl_rtx_triangle)) == 0) {
         ++cache_hits;
         *result = cached_output;
         result->vulkan_device_creations = device_creations;
         result->blas_builds = blas_builds;
+        result->blas_refits = blas_refits;
+        result->tlas_refits = tlas_refits;
         result->cache_hits = cache_hits;
         return 0;
     }
-    const bool reuse_geometry = persistent && persistent->device &&
+    const bool same_topology = persistent && persistent->device &&
         persistent->blas && persistent->tlas &&
-        cached_scene.size() == wanted_triangles &&
-        cached_shader == shader_path &&
+        cached_scene.size() == wanted_triangles;
+    const bool reuse_geometry = same_topology &&
         std::memcmp(cached_scene.data(), scene,
             size_t(wanted_triangles) * sizeof(ogl_rtx_triangle)) == 0;
+    // Vulkan UPDATE requires the SAME vertex/primitive layout and all
+    // build-time resources kept alive; first build uses ALLOW_UPDATE.
+    // This supports changed vertex positions (animated/deformed geometry),
+    // not adding/removing triangles or changing primitive topology.
+    const bool refit_geometry = same_topology && !reuse_geometry &&
+        persistent->vertices.buffer && persistent->scratch.buffer &&
+        persistent->blas && persistent->tlas;
     cached_scene.clear(); // failed calls cannot cache incomplete outputs
     if (!persistent) persistent.reset(new VulkanContext);
     if (persistent->device) {
-        if (reuse_geometry) persistent->reset_query(); // preserve GPU AS
-        else persistent->reset_task();                 // rebuild changed mesh
+        if (reuse_geometry || refit_geometry) persistent->reset_query();
+        else persistent->reset_task(); // changes in primitive count
     }
     VulkanContext& c = *persistent;
 #else
@@ -520,7 +541,79 @@ static int execute_gpu_scene(const char* shader_path,
     submit.pCommandBuffers = &c.command;
 
 #ifdef OGL_GPU_PROBE_LIBRARY
-    if (!reuse_geometry) {
+    if (refit_geometry) {
+        // Vertex positions changed but the primitive topology/count has
+        // not. Preserve BLAS device address and the TLAS instance that
+        // refers to it; perform an in-place Vulkan UPDATE (refit).
+        const VkDeviceSize bytes = size_t(wanted_triangles) *
+                                   sizeof(ogl_rtx_triangle);
+        if (bytes > c.vertices.size) return 1;
+        void* updated = nullptr;
+        if (vkMapMemory(c.device,c.vertices.memory,0,bytes,0,
+                        &updated) != VK_SUCCESS) return 1;
+        std::memcpy(updated,scene,bytes);
+        vkUnmapMemory(c.device,c.vertices.memory);
+
+        VkAccelerationStructureGeometryTrianglesDataKHR deform{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR};
+        deform.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        deform.vertexData.deviceAddress = buffer_address(c,c.vertices);
+        deform.vertexStride = 3*sizeof(float);
+        deform.maxVertex = wanted_triangles*3u-1u;
+        deform.indexType = VK_INDEX_TYPE_NONE_KHR;
+        if (!deform.vertexData.deviceAddress) return 1;
+        VkAccelerationStructureGeometryKHR geo{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
+        geo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+        geo.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+        geo.geometry.triangles = deform;
+        VkAccelerationStructureBuildGeometryInfoKHR update_info{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+        update_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        update_info.flags =
+            VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
+            VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        update_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
+        update_info.srcAccelerationStructure = c.blas;
+        update_info.dstAccelerationStructure = c.blas;
+        update_info.geometryCount = 1;
+        update_info.pGeometries = &geo;
+        const uint32_t primitive_count = wanted_triangles;
+        VkAccelerationStructureBuildSizesInfoKHR update_sizes{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+        get_build_sizes(c.device,VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                        &update_info,&primitive_count,&update_sizes);
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR properties{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+        VkPhysicalDeviceProperties2 props{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        props.pNext = &properties;
+        vkGetPhysicalDeviceProperties2(c.physical,&props);
+        const VkDeviceSize alignment =
+            properties.minAccelerationStructureScratchOffsetAlignment;
+        if (!alignment || (alignment & (alignment-1u))) return 1;
+        const VkDeviceAddress base = buffer_address(c,c.scratch);
+        const VkDeviceAddress aligned = (base+alignment-1u)&~(alignment-1u);
+        if (!base || update_sizes.updateScratchSize > c.scratch.size ||
+            (aligned-base) + update_sizes.updateScratchSize > c.scratch.size)
+            return 1;
+        update_info.scratchData.deviceAddress = aligned;
+        if (vkResetCommandPool(c.device,c.pool,0) != VK_SUCCESS ||
+            vkBeginCommandBuffer(c.command,&begin) != VK_SUCCESS)
+            return 1;
+        VkAccelerationStructureBuildRangeInfoKHR range{};
+        range.primitiveCount = wanted_triangles;
+        const VkAccelerationStructureBuildRangeInfoKHR* ranges[]{&range};
+        build_blas(c.command,1,&update_info,ranges);
+        if (vkEndCommandBuffer(c.command) != VK_SUCCESS ||
+            vkQueueSubmit(c.queue,1,&submit,VK_NULL_HANDLE) != VK_SUCCESS ||
+            vkQueueWaitIdle(c.queue) != VK_SUCCESS)
+            return 1;
+        ++blas_refits;
+        std::printf("PASS: refitted BLAS in place, %u triangles; retained TLAS instance\n",
+                    wanted_triangles);
+    }
+    if (!reuse_geometry && !refit_geometry) {
 #endif
     // Caller supplies the actual validated module scene snapshot.
     // GPU probe and deterministic tests share this exact same path.
@@ -559,7 +652,8 @@ static int execute_gpu_scene(const char* shader_path,
     VkAccelerationStructureBuildGeometryInfoKHR build_info{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
     build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-    build_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    build_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
+                       VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
     build_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     build_info.geometryCount = 1;
     build_info.pGeometries = &geometry;
@@ -586,7 +680,9 @@ static int execute_gpu_scene(const char* shader_path,
     vkGetPhysicalDeviceProperties2(c.physical, &props2);
     const VkDeviceSize alignment = accel_properties.minAccelerationStructureScratchOffsetAlignment;
     if (!alignment || (alignment & (alignment - 1))) return 1;
-    if (!allocate_buffer(c, c.scratch, sizes.buildScratchSize + alignment,
+    if (!allocate_buffer(c, c.scratch,
+                         std::max(sizes.buildScratchSize,sizes.updateScratchSize) +
+                         alignment,
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true)) {
@@ -650,6 +746,9 @@ static int execute_gpu_scene(const char* shader_path,
     instance.transform.matrix[0][0] = 1.f;
     instance.transform.matrix[1][1] = 1.f;
     instance.transform.matrix[2][2] = 1.f;
+    for (unsigned axis=0;axis<3;++axis)
+        instance.transform.matrix[axis][3] =
+            instance_xyz ? instance_xyz[axis] : 0.f;
     instance.mask = 0xFF;
     instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
     instance.accelerationStructureReference = blas_address;
@@ -679,7 +778,8 @@ static int execute_gpu_scene(const char* shader_path,
     VkAccelerationStructureBuildGeometryInfoKHR top_build{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
     top_build.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    top_build.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    top_build.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
+                      VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
     top_build.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     top_build.geometryCount = 1;
     top_build.pGeometries = &top_geometry;
@@ -695,7 +795,9 @@ static int execute_gpu_scene(const char* shader_path,
                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false))
         return 1;
-    if (!allocate_buffer(c, c.tlas_scratch, top_sizes.buildScratchSize + alignment,
+    if (!allocate_buffer(c, c.tlas_scratch,
+                         std::max(top_sizes.buildScratchSize,top_sizes.updateScratchSize)
+                         + alignment,
                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true))
@@ -743,7 +845,94 @@ static int execute_gpu_scene(const char* shader_path,
         static_cast<unsigned long long>(top_sizes.buildScratchSize));
 #ifdef OGL_GPU_PROBE_LIBRARY
     } else {
-        std::puts("PASS: reusing existing GPU BLAS/TLAS after lighting change");
+        std::puts(refit_geometry ?
+            "PASS: preserved TLAS after BLAS in-place refit" :
+            "PASS: reusing existing GPU BLAS/TLAS after lighting change");
+    }
+#endif
+#ifdef OGL_GPU_PROBE_LIBRARY
+    if ((reuse_geometry || refit_geometry) &&
+        cached_instance_xyz != requested_instance) {
+        // Instance translation changed: the existing BLAS is untouched.
+        // Refresh TLAS in-place using the same one-instance topology.
+        VkAccelerationStructureDeviceAddressInfoKHR blas_address_info{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
+        blas_address_info.accelerationStructure = c.blas;
+        const auto address = get_blas_address(c.device,&blas_address_info);
+        if (!address) return 1;
+        VkAccelerationStructureInstanceKHR instance{};
+        for (unsigned axis=0;axis<3;++axis)
+            instance.transform.matrix[axis][axis] = 1.f;
+        for (unsigned axis=0;axis<3;++axis)
+            instance.transform.matrix[axis][3]=requested_instance[axis];
+        instance.mask = 0xff;
+        instance.flags =
+            VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        instance.accelerationStructureReference = address;
+        void* target=nullptr;
+        if (vkMapMemory(c.device,c.instance_buffer.memory,0,
+                        sizeof(instance),0,&target)!=VK_SUCCESS) return 1;
+        std::memcpy(target,&instance,sizeof(instance));
+        vkUnmapMemory(c.device,c.instance_buffer.memory);
+        VkAccelerationStructureGeometryInstancesDataKHR instances{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR};
+        instances.data.deviceAddress=buffer_address(c,c.instance_buffer);
+        if (!instances.data.deviceAddress) return 1;
+        VkAccelerationStructureGeometryKHR geometry{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
+        geometry.geometryType=VK_GEOMETRY_TYPE_INSTANCES_KHR;
+        geometry.geometry.instances=instances;
+        VkAccelerationStructureBuildGeometryInfoKHR update{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+        update.type=VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        update.flags=VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
+                     VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        update.mode=VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
+        update.srcAccelerationStructure=c.tlas;
+        update.dstAccelerationStructure=c.tlas;
+        update.geometryCount=1;
+        update.pGeometries=&geometry;
+        const uint32_t instance_count=1;
+        VkAccelerationStructureBuildSizesInfoKHR sizes{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+        get_build_sizes(c.device,VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                        &update,&instance_count,&sizes);
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR properties{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+        VkPhysicalDeviceProperties2 properties2{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        properties2.pNext=&properties;
+        vkGetPhysicalDeviceProperties2(c.physical,&properties2);
+        // Device addresses are 64-bit. The alignment mask must NOT be
+        // computed as a 32-bit inverse, which truncates the GPU address!
+        const VkDeviceSize alignment =
+            properties.minAccelerationStructureScratchOffsetAlignment;
+        if (!alignment || (alignment & (alignment-1u))) return 1;
+        const auto base=buffer_address(c,c.tlas_scratch);
+        const auto aligned=(base+alignment-1u)&~(alignment-1u);
+        if (!base || (aligned-base)+sizes.updateScratchSize>c.tlas_scratch.size) {
+            std::printf("FAIL: TLAS refit scratch need=%llu available=%llu align=%llu\n",
+                static_cast<unsigned long long>((aligned-base)+sizes.updateScratchSize),
+                static_cast<unsigned long long>(c.tlas_scratch.size),
+                static_cast<unsigned long long>(alignment));
+            return 1;
+        }
+        update.scratchData.deviceAddress=aligned;
+        if (vkResetCommandPool(c.device,c.pool,0)!=VK_SUCCESS ||
+            vkBeginCommandBuffer(c.command,&begin)!=VK_SUCCESS) {
+            std::puts("FAIL: TLAS refit command pool/reset"); return 1;
+        }
+        VkAccelerationStructureBuildRangeInfoKHR range{};
+        range.primitiveCount=1;
+        const VkAccelerationStructureBuildRangeInfoKHR* ranges[]{&range};
+        build_blas(c.command,1,&update,ranges);
+        if (vkEndCommandBuffer(c.command)!=VK_SUCCESS ||
+            vkQueueSubmit(c.queue,1,&submit,VK_NULL_HANDLE)!=VK_SUCCESS ||
+            vkQueueWaitIdle(c.queue)!=VK_SUCCESS) {
+            std::puts("FAIL: TLAS refit Vulkan queue submission"); return 1;
+        }
+        ++tlas_refits;
+        std::puts("PASS: TLAS instance transform updated in-place, BLAS preserved");
     }
 #endif
     // A real Vulkan ray query: one ray hits the triangle, one deliberately
@@ -955,6 +1144,8 @@ static int execute_gpu_scene(const char* shader_path,
 #ifdef OGL_GPU_PROBE_LIBRARY
         result->vulkan_device_creations = device_creations;
         result->blas_builds = blas_builds;
+        result->blas_refits = blas_refits;
+        result->tlas_refits = tlas_refits;
         result->cache_hits = cache_hits;
         cached_output = *result;
         cached_scene.assign(scene, scene + wanted_triangles);
@@ -963,6 +1154,7 @@ static int execute_gpu_scene(const char* shader_path,
         cached_depth_valid = depth_64 != nullptr;
         if (depth_64) std::copy(depth_64,depth_64+64,cached_depth.begin());
         cached_shader = shader_path;
+        cached_instance_xyz = requested_instance;
 #endif
     } else if (hits != 36) {
         std::puts("FAIL: deterministic synthetic scene mask mismatch");
@@ -973,6 +1165,21 @@ static int execute_gpu_scene(const char* shader_path,
 }
 
 #ifdef OGL_GPU_PROBE_LIBRARY
+extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_transform_run(
+    const ogl_rtx_triangle* triangles,uint32_t count,
+    const float* sun_direction_xyz,const float* instance_position_xyz,
+    const char* shader_path,ogl_gpu_probe_result* result)
+{
+    if (!instance_position_xyz || !result ||
+        result->struct_size!=sizeof(*result) ||
+        result->version!=OGL_GPU_PROBE_VERSION) return 1;
+    ogl_gpu_probe_result fresh{};
+    fresh.struct_size=sizeof(fresh);
+    fresh.version=OGL_GPU_PROBE_VERSION;
+    *result=fresh;
+    return execute_gpu_scene(shader_path,triangles,count,sun_direction_xyz,
+                             nullptr,result,nullptr,instance_position_xyz);
+}
 extern "C" OGL_MODULE_EXPORT int ogl_gpu_probe_run(
     const ogl_rtx_triangle* triangles, uint32_t count,
     const float* sun_direction_xyz,

@@ -138,7 +138,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         api = (ROOT / "ogl/modules/include/ogl/ogl_gpu_probe_api.h").read_text()
         test = (ROOT / "ogl/modules/rtx/ogl_gpu_persistent_test.cpp").read_text()
         log = (ROOT / "ogl/scripts/ogl-test-report.py").read_text()
-        self.assertIn("#define OGL_GPU_PROBE_VERSION 4u", api)
+        self.assertIn("#define OGL_GPU_PROBE_VERSION 6u", api)
         for key in ("vulkan_device_creations", "blas_builds", "cache_hits"):
             self.assertIn(key, api)
         self.assertIn("thread_local std::unique_ptr<VulkanContext>", source)
@@ -148,7 +148,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("cached_scene.assign(scene, scene + wanted_triangles)", source)
         self.assertIn("ogl_gpu_device_persistent_and_scene_cache",
                       (ROOT / "ogl/modules/CMakeLists.txt").read_text())
-        self.assertIn("cached_large.blas_builds == 3", test)
+        self.assertIn("cached_large.blas_builds == 2", test)
+        self.assertIn("moved.blas_refits == 1", test)
+        self.assertIn("moved.tlas_refits == 0", test)
         self.assertIn("cached_large.cache_hits == 2", test)
         self.assertIn("RTX GPU reuse:", log)
         self.assertNotIn("0x10DE", source)
@@ -341,6 +343,36 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("const uint32_t output_sections = depth_64 ? 3u : 1u",gpu)
         self.assertIn("primary_hits=",module)
         self.assertIn("depth_matches=",module)
+
+    def test_vulkan_as_inplace_refit_and_tlas_instance_transform(self):
+        gpu=(ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        api=(ROOT / "ogl/modules/include/ogl/ogl_gpu_probe_api.h").read_text()
+        cmake=(ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        self.assertIn("VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR",gpu)
+        self.assertIn("VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR",gpu)
+        self.assertIn("update.srcAccelerationStructure=c.tlas",gpu)
+        self.assertIn("update_info.srcAccelerationStructure = c.blas",gpu)
+        self.assertIn("ogl_gpu_probe_transform_run(",gpu)
+        self.assertIn("tlas_refits",api)
+        self.assertIn("blas_refits",api)
+        self.assertIn("ogl_vulkan_tlas_instance_refit",cmake)
+
+    def test_dynamic_object_identity_pose_and_vulkan_refit(self):
+        cache=(ROOT / "ogl/modules/include/ogl/ogl_dynamic_scene.h").read_text()
+        gpu=(ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        cmake=(ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        self.assertIn("using ObjectKey = std::array<uint8_t, 16>",cache)
+        self.assertIn("SceneChange update_transform",cache)
+        self.assertIn("m_geometry_generation",cache)
+        self.assertIn("m_transform_generation",cache)
+        self.assertIn("VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR",gpu)
+        self.assertIn("ogl_dynamic_scene_updates",cmake)
+        self.assertIn("ogl_live_uuid_object_registry",cmake)
+        self.assertIn("ogl_rtx_track_local_object",(
+            ROOT / "indra/newview/pipeline.cpp").read_text())
+        self.assertIn("ogl_rtx_update_object_pose",(
+            ROOT / "indra/newview/pipeline.cpp").read_text())
+        self.assertIn("ogl_vulkan_tlas_instance_refit",cmake)
 
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

@@ -14,6 +14,13 @@ bool ogl_rtx_rendering_active();
  // The active OpenGL world renderer remains unchanged.
 // Triangles are copied synchronously; never retained by the host.
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
+// Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
+// Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.
+bool ogl_rtx_track_local_object(const std::uint8_t* uuid16,
+    const float* local_triangle_xyz,unsigned count,const float* affine3x4);
+bool ogl_rtx_update_object_pose(const std::uint8_t* uuid16,
+    const float* affine3x4);
+void ogl_rtx_forget_local_object(const std::uint8_t* uuid16);
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
     const float* camera_right, const float* camera_up,

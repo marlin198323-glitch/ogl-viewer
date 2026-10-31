@@ -67,6 +67,22 @@ typedef struct ogl_rtx_triangle {
 OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(const ogl_rtx_triangle *triangles,
                                                uint32_t count);
 OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void);
+
+/* Prototype per-object registry for incremental RT geometry/transform
+ * tracking. IDs are the full 16 UUID bytes; object vertices are LOCAL.
+ * Affine transform is 3x4 row-major (translation in cols 3,7,11).
+ * This registry is not yet uploaded as a multi-instance Vulkan TLAS.
+ * All APIs are called on the viewer render thread.
+ */
+OGL_MODULE_EXPORT int ogl_rtx_track_object(const uint8_t* uuid16,
+    const ogl_rtx_triangle* local_triangles, uint32_t count,
+    const float* affine3x4);
+OGL_MODULE_EXPORT int ogl_rtx_track_transform(const uint8_t* uuid16,
+    const float* affine3x4);
+OGL_MODULE_EXPORT int ogl_rtx_forget_object(const uint8_t* uuid16);
+OGL_MODULE_EXPORT uint32_t ogl_rtx_tracked_objects(void);
+OGL_MODULE_EXPORT uint64_t ogl_rtx_object_geometry_generation(void);
+OGL_MODULE_EXPORT uint64_t ogl_rtx_object_transform_generation(void);
 /* Diagnostic only, counted only with OGL_RTX_SCENE_PROBE=1.
  * NEVER means shadows are visible in the viewer.
  */

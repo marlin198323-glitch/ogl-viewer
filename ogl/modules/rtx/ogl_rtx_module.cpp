@@ -3,6 +3,7 @@
 #include "ogl/ogl_camera_validation.h"
 #include "ogl/ogl_depth_validation.h"
 #include "ogl/ogl_depth_diagnostics.h"
+#include "ogl/ogl_dynamic_scene.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_async_gpu_queue.h"
 #include <vulkan/vulkan.h>
@@ -112,6 +113,7 @@ void gpu_probe_cleanup() {
 ogl_log_fn logger = nullptr;
 ogl_rtx_frame_state latest_frame{};
 uint64_t received_frames = 0;
+ogl::DynamicScene tracked_objects; // stable per-UUID CPU metadata
 std::vector<ogl_rtx_triangle> captured_geometry;
 uint64_t geometry_revision = 0;
 ogl_rtx_shadow_debug last_shadow_debug{};
@@ -270,7 +272,9 @@ void poll_probe_on_viewer_thread() {
                 std::to_string(outcome.occluded) + " revision=" +
                 std::to_string(outcome.geometry_revision) + " device_inits=" +
                 std::to_string(outcome.gpu_device_creations) + " blas_builds=" +
-                std::to_string(outcome.blas_builds) + " cache_hits=" +
+                std::to_string(outcome.blas_builds) + " blas_refits=" +
+                std::to_string(outcome.blas_refits) + " tlas_refits=" +
+                std::to_string(outcome.tlas_refits) + " cache_hits=" +
                 std::to_string(outcome.cache_hits) +
                 (probe_depth_enabled ?
                     " surface_samples=" + std::to_string(outcome.surface_pixels) +
@@ -467,6 +471,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 }
                 result.gpu_device_creations = native.vulkan_device_creations;
                 result.blas_builds = native.blas_builds;
+                result.blas_refits = native.blas_refits;
+                result.tlas_refits = native.tlas_refits;
                 result.cache_hits = native.cache_hits;
                 return result;
             }));
@@ -567,6 +573,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     if (!status.hardware_ready || count > OGL_RTX_MAX_SCENE_TRIANGLES ||
         (count && !triangles)) return 0;
     if (!count) {
+        // A region change invalidates per-UUID metadata even if no aggregate
+        // GPU triangle snapshot was available yet.
+        tracked_objects.clear();
         if (!captured_geometry.empty()) {
             captured_geometry.clear();
             ++geometry_revision; // Teleport/region change invalidates old AS.
@@ -609,6 +618,52 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
                    "; GPU scene bridge test only; no in-viewer raytracing").c_str());
     return 1;
 }
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_track_object(
+    const uint8_t* uuid16,const ogl_rtx_triangle* triangles,uint32_t count,
+    const float* affine3x4)
+{
+    if (!status.hardware_ready || !probe_opt_in || !uuid16 || !affine3x4)
+        return 0;
+    ogl::ObjectKey id{};
+    ogl::Affine3x4 transform{};
+    std::copy(uuid16,uuid16+16,id.begin());
+    std::copy(affine3x4,affine3x4+12,transform.begin());
+    const auto result=tracked_objects.upsert(id,triangles,count,transform);
+    return result!=ogl::SceneChange::Invalid ? 1:0;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_track_transform(
+    const uint8_t* uuid16,const float* affine3x4)
+{
+    if (!status.hardware_ready || !probe_opt_in || !uuid16 || !affine3x4)
+        return 0;
+    ogl::ObjectKey id{};
+    ogl::Affine3x4 transform{};
+    std::copy(uuid16,uuid16+16,id.begin());
+    std::copy(affine3x4,affine3x4+12,transform.begin());
+    const auto result=tracked_objects.update_transform(id,transform);
+    return result!=ogl::SceneChange::Invalid ? 1:0;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_forget_object(const uint8_t* uuid16)
+{
+    if (!uuid16) return 0;
+    ogl::ObjectKey id{};
+    std::copy(uuid16,uuid16+16,id.begin());
+    tracked_objects.erase(id);
+    return 1;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_tracked_objects(void)
+{
+    return static_cast<uint32_t>(tracked_objects.objects());
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_object_geometry_generation(void)
+{
+    return tracked_objects.geometry_generation();
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_object_transform_generation(void)
+{
+    return tracked_objects.transform_generation();
+}
+
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void) {
     return static_cast<uint32_t>(captured_geometry.size());
 }

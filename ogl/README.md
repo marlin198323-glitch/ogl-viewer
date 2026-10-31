@@ -189,3 +189,13 @@ OpenSim-BLAS. Neue Live-Zähler `primary_hits` und
 Sonnenverschattung manchmal `0/64` ergibt.
 [Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P15.md).
 Es gibt weiterhin keine sichtbare RTX-Weltbeleuchtung.
+
+
+**Dynamische Raytracing-Datenstrukturen (31.10.2026):**
+BLAS-Refit und TLAS-Transform-Refit laufen als Vulkan-GPU-
+Entwicklertests. Eine begrenzte CPU-Objektregistry übernimmt
+UUIDs, lokale Dreiecke und pro-Frame-Transformationen aus dem
+Firestorm-Scanner. Die produktive GPU-TLAS ist jedoch noch
+nicht mehrinstanzig; es fehlen vollständige Regionsdaten,
+animierte Avatare und GPU-Realtime-Synchronisation.
+[Technische Details](RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md).

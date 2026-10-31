@@ -64,6 +64,26 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
 
         # Development-only runtime layout. Never touch a user's settings.
         if(UNIX)
+            add_executable(ogl_dynamic_registry_test rtx/ogl_dynamic_registry_test.cpp)
+            target_include_directories(ogl_dynamic_registry_test PRIVATE include)
+            target_compile_features(ogl_dynamic_registry_test PRIVATE cxx_std_17)
+            target_link_libraries(ogl_dynamic_registry_test PRIVATE ${CMAKE_DL_LIBS})
+            add_test(NAME ogl_live_uuid_object_registry
+                COMMAND ${CMAKE_COMMAND} -E env OGL_RTX_SCENE_PROBE=1
+                    $<TARGET_FILE:ogl_dynamic_registry_test>
+                    $<TARGET_FILE:ogl_rtx_module>)
+            set_tests_properties(ogl_live_uuid_object_registry
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
+            add_executable(ogl_gpu_transform_test rtx/ogl_gpu_transform_test.cpp)
+            target_include_directories(ogl_gpu_transform_test PRIVATE include)
+            target_compile_features(ogl_gpu_transform_test PRIVATE cxx_std_17)
+            target_link_libraries(ogl_gpu_transform_test PRIVATE ${CMAKE_DL_LIBS})
+            add_test(NAME ogl_vulkan_tlas_instance_refit
+                COMMAND ogl_gpu_transform_test
+                    $<TARGET_FILE:ogl_gpu_probe>
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../../indra/newview/app_settings/ogl/rtx/ray_query_shadow.comp.spv")
+            set_tests_properties(ogl_vulkan_tlas_instance_refit
+                PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
             add_executable(ogl_depth_sun_shadow_test
                 rtx/ogl_depth_sun_shadow_test.cpp)
             target_include_directories(ogl_depth_sun_shadow_test PRIVATE include)
@@ -260,6 +280,12 @@ add_executable(ogl_terrain_patch_test ../tests/test_terrain_patch.cpp)
 target_include_directories(ogl_terrain_patch_test PRIVATE include)
 target_compile_features(ogl_terrain_patch_test PRIVATE cxx_std_17)
 add_test(NAME ogl_terrain_patch_geometry COMMAND ogl_terrain_patch_test)
+
+# Stable per-object identity and independent geometry/pose revisions.
+add_executable(ogl_dynamic_scene_test ../tests/test_dynamic_scene.cpp)
+target_include_directories(ogl_dynamic_scene_test PRIVATE include)
+target_compile_features(ogl_dynamic_scene_test PRIVATE cxx_std_17)
+add_test(NAME ogl_dynamic_scene_updates COMMAND ogl_dynamic_scene_test)
 
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)

@@ -83,7 +83,10 @@ Multi-GPU-Kopplung.
 - [x] Vulkan-Diagnose verarbeitet 64 ausgerichtete OpenGL-Tiefenwerte für Sonnenstrahlen
 - [ ] Vulkan erhält vollständige Tiefen- und Normalen-Renderziele ohne synchronen CPU-Readback
 - [x] Bounded Entwickler-Szenensnapshot bis 8.192 Dreiecke inklusive grobem Terrain einbinden
+- [x] Vulkan-BLAS-Refit und transform-only-TLAS-Refit mit echten GPU-Abnahmetests
+- [x] UUID-basierte CPU-Objektverwaltung mit Renderframe-Transformaktualisierung
 - [ ] Vollständige dynamische OpenSim-Geometrie mit echten Terrain-Patches, Avataren, Materialsicherheit und Updates erfassen
+- [ ] Mehrinstanzige Vulkan-TLAS mit eigenständigen gecachten Prim-/Mesh-/Avatar-BLAS und GPU-synchronen Realtime-Updates
 - [x] Abgesicherten 8×8-Vulkan-Ergebnis-Preview als klar gekennzeichnetes Entwickler-UI hinzufügen
 - [x] Himmel/Oberflächen getrennt klassifizieren und GPU-Messwerte zum exakt gleichen Kamera-Snapshot zuordnen
 - [x] Kamera-Primärstrahlen mit OpenGL-Depth abgleichen, fehlende Mesh-Abdeckung getrennt von echten Schatten prüfen

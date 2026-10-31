@@ -343,3 +343,15 @@ Fehlerberichte eingefügt werden.
 - Lokaler Report unterscheidet künftig fehlende Mesh-Treffer
   von abweichender OpenGL-Tiefenrekonstruktion.
 - [`RTX_10_BLOCKS_2026_10_31_P15.md`](RTX_10_BLOCKS_2026_10_31_P15.md).
+
+
+## 31.10.2026 – AS-Update-Stufe
+
+- Vulkan-BLAS-Refit bei gleichem Triangellayout und
+  TLAS-Refit bei einer Transform-Änderung als echte GPU-Tests.
+- CPU-Registry mit lokalen Dreiecken, stabilen OpenSim-UUIDs
+  und getrennten Geometrie-/Transform-Revisionen. Vom
+  opt-in-Viewer-Scan mit pro-Frame-Poseaktualisierung gespeist.
+- Nur eine aggregierte Live-GPU-BLAS/TLAS-Instanz; volle
+  dynamische Regions-TLAS ist noch nicht integriert.
+- [`RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md`](RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md).

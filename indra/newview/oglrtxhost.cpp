@@ -49,6 +49,13 @@ using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_rtx_submit_frame_fn rtx_submit_frame = nullptr;
 using ogl_rtx_submit_geometry_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
+using ogl_track_object_fn = int (*)(const uint8_t*,const ogl_rtx_triangle*,
+                                     uint32_t,const float*);
+using ogl_track_pose_fn = int (*)(const uint8_t*,const float*);
+using ogl_forget_object_fn = int (*)(const uint8_t*);
+ogl_track_object_fn rtx_track_object = nullptr;
+ogl_track_pose_fn rtx_track_pose = nullptr;
+ogl_forget_object_fn rtx_forget_object = nullptr;
 using ogl_rtx_triangles_fn = uint32_t (*)();
 ogl_rtx_triangles_fn rtx_received_triangles = nullptr;
 using ogl_rtx_copy_shadow_debug_fn = int (*)(ogl_rtx_shadow_debug*);
@@ -102,6 +109,12 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_frame"));
     rtx_submit_geometry = reinterpret_cast<ogl_rtx_submit_geometry_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
+    rtx_track_object = reinterpret_cast<ogl_track_object_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_rtx_track_object"));
+    rtx_track_pose = reinterpret_cast<ogl_track_pose_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_rtx_track_transform"));
+    rtx_forget_object = reinterpret_cast<ogl_forget_object_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_rtx_forget_object"));
     rtx_received_triangles = reinterpret_cast<ogl_rtx_triangles_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_received_triangles"));
     rtx_copy_shadow_debug = reinterpret_cast<ogl_rtx_copy_shadow_debug_fn>(
@@ -141,6 +154,9 @@ void ogl_shutdown_rtx_module() {
     rtx_rendering_enabled = false;
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
+    rtx_track_object = nullptr;
+    rtx_track_pose = nullptr;
+    rtx_forget_object = nullptr;
     rtx_received_triangles = nullptr;
     rtx_copy_shadow_debug = nullptr;
     rtx_submit_depth = nullptr;
@@ -203,6 +219,34 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 #endif
 }
 
+
+bool ogl_rtx_track_local_object(const std::uint8_t* uuid,
+    const float* local_xyz,unsigned count,const float* pose)
+{
+#if LL_LINUX || LL_WINDOWS
+    if (!rtx_hardware_ready || !rtx_track_object || !uuid || !local_xyz ||
+        !pose || count==0 || count>OGL_RTX_MAX_SCENE_TRIANGLES) return false;
+    return rtx_track_object(uuid,reinterpret_cast<const ogl_rtx_triangle*>(local_xyz),
+                            count,pose)==1;
+#else
+    return false;
+#endif
+}
+bool ogl_rtx_update_object_pose(const std::uint8_t* uuid,const float* pose)
+{
+#if LL_LINUX || LL_WINDOWS
+    return rtx_hardware_ready && rtx_track_pose && uuid && pose &&
+           rtx_track_pose(uuid,pose)==1;
+#else
+    return false;
+#endif
+}
+void ogl_rtx_forget_local_object(const std::uint8_t* uuid)
+{
+#if LL_LINUX || LL_WINDOWS
+    if (rtx_forget_object && uuid) rtx_forget_object(uuid);
+#endif
+}
 
 // Firestorm's future diagnostic compositor can request a _current_ sample.
 // The GPU module remains a black box; no OpenGL/Vulkan calls here.

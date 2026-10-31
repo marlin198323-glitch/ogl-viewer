@@ -98,11 +98,15 @@ def report():
                   f"{hits}/{rays} ray hits; revision {revision}")
             counters = re.findall(
                 r"OGL RTX GPU probe: [^\n]*device_inits=(\d+) "
-                r"blas_builds=(\d+) cache_hits=(\d+)", text)
+                r"blas_builds=(\d+)(?: blas_refits=(\d+))?"
+                r"(?: tlas_refits=(\d+))? cache_hits=(\d+)", text)
             if counters:
-                device_inits, blas_builds, cache_hits = counters[-1]
+                device_inits, blas_builds, blas_refits, tlas_refits, cache_hits = counters[-1]
                 print(f"RTX GPU reuse: {device_inits} device init(s), "
-                      f"{blas_builds} BLAS build(s), {cache_hits} cache hit(s)")
+                      f"{blas_builds} BLAS build(s), "
+                      f"{blas_refits or '0'} BLAS refit(s), "
+                      f"{tlas_refits or '0'} TLAS refit(s), "
+                      f"{cache_hits} cache hit(s)")
             print("RTX GPU shadow probe: 8x8 validated debug mask"
                   " (not a rendered shadow map)")
             print("RTX GPU diagnostic is NOT visual raytracing in the world.")

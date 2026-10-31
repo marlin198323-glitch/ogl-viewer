@@ -3,7 +3,7 @@
 
 #include "ogl_rtx_api.h"
 
-#define OGL_GPU_PROBE_VERSION 4u
+#define OGL_GPU_PROBE_VERSION 6u
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +31,8 @@ typedef struct ogl_gpu_probe_result {
     uint32_t primary_depth_matches;   /* BLAS hit agrees with OpenGL depth */
     uint8_t primary_mask[64];         /* 1 = Vulkan geometry hit */
     uint8_t depth_match_mask[64];     /* 1 = agrees with GL depth */
+    uint32_t blas_refits;             /* Vulkan in-place BLAS UPDATE operations */
+    uint32_t tlas_refits;             /* instance-transform TLAS UPDATE operations */
 } ogl_gpu_probe_result;
 
 // Return 0 for successful Vulkan compute (including an empty mask),
@@ -39,6 +41,15 @@ typedef struct ogl_gpu_probe_result {
 OGL_MODULE_EXPORT int ogl_gpu_probe_run(
     const ogl_rtx_triangle* triangles, uint32_t count,
     const float* sun_direction_xyz,
+    const char* shader_path, ogl_gpu_probe_result* result);
+
+// Transform-only diagnostic for an existing BLAS instance. Position must
+// be finite. Unchanged geometry can reuse the BLAS while TLAS is refitted.
+// Deliberately supports ONE GPU instance at this milestone, not the entire
+// OpenSim object hierarchy.
+OGL_MODULE_EXPORT int ogl_gpu_probe_transform_run(
+    const ogl_rtx_triangle* triangles, uint32_t count,
+    const float* sun_direction_xyz, const float* instance_position_xyz,
     const char* shader_path, ogl_gpu_probe_result* result);
 
 // Dedicated experimental perspective primary + sun-ray shader.

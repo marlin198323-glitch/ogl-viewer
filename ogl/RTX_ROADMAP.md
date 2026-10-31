@@ -571,3 +571,31 @@ prüfen. `primary_hits>0` und `depth_matches=0`
 weist auf fehlende Tiefenübereinstimmung bzw. andere
 Vordergrundgeometrie hin. Kein aktiver RTX-World-Lighting-Pass;
 die OpenGL-Welt bleibt unverändert.
+
+
+## 31.10.2026 – dynamische Vulkan BLAS-/TLAS-Updates
+
+- **BLAS-In-Place-Refit** über Vulkan `ALLOW_UPDATE` /
+  `MODE_UPDATE`, wenn Primitivezahl und Layout unverändert sind.
+  BLAS-Geräteadresse und TLAS-Referenz bleiben erhalten.
+- **TLAS-Instanz-Refit** auf der echten GPU: transform-only-
+  Verschiebung einer Instanz, ohne die zugehörige BLAS zu
+  ersetzen. Das Rayhit-Muster ändert sich nachweislich;
+  die GPU-Refit-Zähler sind Teil der versionierten Probe-ABI.
+- Neue `ogl::DynamicScene` mit vollständiger OpenSim-
+  Objekt-UUID (16 Byte) für getrennte lokale Geometrie und
+  pose-only-Updates. Geometrie- und Transformationsrevisionen
+  werden unabhängig inkrementiert; der Cache ist begrenzt.
+- Im Opt-in-Viewer-Scan werden ausgewählte Prims/Volume-Meshes
+  als lokale Dreiecke und 3×4-Transforms gespeichert. Bereits
+  registrierte Objekt-Transforms werden **pro Renderframe**
+  verfolgt, ohne die Faces erneut zu iterieren.
+- Vulkan- und Modul-Hardwaretests für BLAS-/TLAS-Updates,
+  UUID-Verwaltung, Fehlerfälle und Fallback.
+- [`RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md`](RTX_DYNAMIC_ACCELERATION_STRUCTURES_2026_10_31.md).
+
+**Offen:** Mehrinstanzige TLAS mit separaten Mesh-BLAS pro
+Prim/Avatar/Terrain; Skinned-Avatar-Geometrie; komplette
+Regionsabdeckung und asynchrone GPU-Updates in Echtzeit.
+Das bestehende 8×8-GPU-Probe-System bleibt gedrosselt,
+`rendering_active=0` bleibt korrekt.
