@@ -35,6 +35,7 @@
 #include "../../ogl/modules/include/ogl/ogl_scene_ray_visibility.h" // exact camera-ray anchors
 #include "../../ogl/modules/include/ogl/ogl_scene_snapshot_policy.h" // bounded partial-scene guard
 #include <chrono>
+#include <unordered_set>
 #include <vector>
 
 // library includes
@@ -9498,6 +9499,8 @@ void LLPipeline::renderDeferredLighting()
             static unsigned ogl_last_sample_triangles = 0;
             static unsigned ogl_last_sample_objects = 0;
             static unsigned ogl_partial_scene_deferrals = 0;
+            static unsigned ogl_last_sample_anchor_hits = 0;
+            static unsigned ogl_anchor_scene_deferrals = 0;
             static LLVector3 ogl_last_sample_eye;
             static LLVector3 ogl_last_sample_forward;
             static LLUUID ogl_sample_region_id;
@@ -9506,6 +9509,8 @@ void LLPipeline::renderDeferredLighting()
                 ogl_last_sample_triangles = 0;
                 ogl_last_sample_objects = 0;
                 ogl_partial_scene_deferrals = 0;
+                ogl_last_sample_anchor_hits = 0;
+                ogl_anchor_scene_deferrals = 0;
             }
             // Keep the larger RT scene capture deliberately developer-only.
             // Public OpenGL remains independent of graphics card and avoids
@@ -9558,14 +9563,21 @@ void LLPipeline::renderDeferredLighting()
                 unsigned nearby_objects = 0;
                 unsigned sampled_objects = 0;
                 const S32 total_objects = gObjectList.getNumObjects();
-                // Developer scanning covers up to 16K candidates instead of
-                // rotating arbitrary 4K slices that periodically contain
-                // only terrain. Normal OpenGL keeps the old work limit.
+                // In the developer mode, most loaded OpenSim scenes can
+                // now be scanned in one pass. This prevents successive
+                // incomplete 16K windows from swapping the visible mesh
+                // objects as the scan cursor rotates. Normal OpenGL keeps
+                // the old lightweight 4096 object scan limit.
                 const S32 scan_limit = ogl_triangle_budget > 1024 ?
-                    16384 : 4096;
+                    static_cast<S32>(ogl::developer_object_scan_limit(
+                        static_cast<uint32_t>(total_objects))) : 4096;
                 const S32 max_objects = llmin(total_objects, scan_limit);
                 static S32 scan_cursor = 0;
-                const S32 start = total_objects ? scan_cursor % total_objects : 0;
+                const S32 start = ogl_triangle_budget > 1024 ?
+                    static_cast<S32>(ogl::developer_object_scan_start(
+                        static_cast<uint32_t>(total_objects),
+                        static_cast<uint32_t>(scan_cursor))) :
+                    (total_objects ? scan_cursor % total_objects : 0);
                 const unsigned nearby_budget =
                     ogl_triangle_budget > 1024 ? 1024u : 96u;
                 const S32 face_triangle_budget =
@@ -9611,14 +9623,21 @@ void LLPipeline::renderDeferredLighting()
                         [](const auto& a,const auto& b) {
                             return a.first < b.first;
                         });
-                // First reserve real camera-ray intersections, not merely
-                // sparse index samples. This small optional CPU prepass is
-                // capped independently; normal OpenGL never performs it.
+                // Give camera-visible objects first choice of the bounded
+                // 8192 triangle GPU scene. A 28K-object OpenSim region may
+                // have thousands of closer-but-offscreen props which would
+                // otherwise consume the entire Vulkan budget. Reorder only
+                // the opt-in developer collector; OpenGL rendering is not
+                // affected.
                 unsigned exact_camera_anchors=0;
                 unsigned exact_camera_hit_samples=0;
                 unsigned prepass_scanned_triangles=0;
                 unsigned exact_bounds_recovered=0;
                 unsigned prepass_candidate_checks=0;
+                unsigned prepass_visible_candidates=0;
+                unsigned prepass_sphere_candidates=0;
+                unsigned prepass_visible_objects=0;
+                unsigned prepass_fallback_objects=0;
                 if (ogl_triangle_budget>1024 && !candidates.empty()) {
                     const LLVector3 right=-camera->getLeftAxis();
                     const auto rays=ogl::camera_probe_rays(eye.mV,
@@ -9627,98 +9646,155 @@ void LLPipeline::renderDeferredLighting()
                     ogl::SceneRayHits closest{};
                     constexpr unsigned max_prepass_triangles=32768u;
                     constexpr unsigned max_prepass_objects=512u;
-                    constexpr unsigned max_per_prepass_object=512u;
-                    unsigned checked_objects=0;
-                    for (const auto& candidate : candidates) {
-                        if (prepass_scanned_triangles>=max_prepass_triangles ||
-                            checked_objects>=max_prepass_objects) break;
+                    constexpr unsigned max_prepass_broad_candidates=8192u;
+                    struct RayCandidate {
+                        LLVOVolume* object=nullptr;
+                        unsigned bbox_rays=0;
+                        bool sphere_fallback=false;
+                    };
+                    std::vector<RayCandidate> visible_candidates;
+                    std::vector<RayCandidate> fallback_candidates;
+                    visible_candidates.reserve(512);
+                    fallback_candidates.reserve(512);
+                    std::unordered_set<LLVOVolume*> visible_ids;
+                    visible_ids.reserve(1024);
+                    // Broad-phase first, before expensive volume-triangle
+                    // traversal. Rank real ray/AABB hits before forgiving
+                    // nominal-radius hits, which are often offscreen objects.
+                    // Bounding sphere fallback protects stale drawable bounds
+                    // and volumes without a drawable.
+                    for (const auto& candidate:candidates) {
+                        if (prepass_candidate_checks>=
+                            max_prepass_broad_candidates) break;
+                        ++prepass_candidate_checks;
                         LLVOVolume* obj=candidate.second;
-                        if (!obj || obj->isDead()) continue;
-                        LLVolume* vol=obj->getVolume();
-                        if (!vol) continue;
+                        if (!obj || obj->isDead() || !obj->getVolume())
+                            continue;
                         const LLVector3 position=obj->getRenderPosition();
                         const LLVector3 scale=obj->getScale();
-                        // Conservative sphere: prevent reading large mesh
-                        // index lists for objects outside all 64 rays.
                         const float sphere_radius=std::max(2.f,
                             2.5f*scale.length());
-                        // The drawable's actual spatial extents are usually
-                        // more reliable than scale for displaced mesh data.
-                        // Use a UNION with the nominal sphere so invalid or
-                        // temporarily stale bounds never exclude an object
-                        // that would previously have passed.
                         const LLVector4a* ext=obj->mDrawable.notNull() ?
                             obj->mDrawable->getSpatialExtents() : nullptr;
                         const bool has_bounds=ext &&
                             ext[0].isFinite3() && ext[1].isFinite3();
-                        bool ray_near_object=false;
-                        bool recovered_by_bounds=false;
+                        unsigned bbox_rays=0;
+                        unsigned sphere_rays=0;
                         for (const auto& ray:rays) {
-                            const bool sphere_hit=ogl::ray_hits_sphere(
-                                ray,position.mV,sphere_radius);
-                            const bool bounds_hit=has_bounds &&
-                                ogl::ray_hits_aabb(ray,
-                                    ext[0].getF32ptr(),ext[1].getF32ptr());
-                            if (sphere_hit || bounds_hit) {
-                                recovered_by_bounds=bounds_hit && !sphere_hit;
-                                ray_near_object=true; break;
-                            }
+                            if (has_bounds && ogl::ray_hits_aabb(ray,
+                                ext[0].getF32ptr(),ext[1].getF32ptr()))
+                                ++bbox_rays;
+                            if (ogl::ray_hits_sphere(ray,position.mV,
+                                                    sphere_radius))
+                                ++sphere_rays;
                         }
-                        ++prepass_candidate_checks;
-                        if (!ray_near_object) continue;
-                        if (recovered_by_bounds) ++exact_bounds_recovered;
-                        ++checked_objects;
-                        const LLQuaternion rotation=obj->getRenderRotation();
-                        unsigned checked_in_object=0;
-                        const S32 prepass_face_count =
-                            llmin(vol->getNumVolumeFaces(),16);
-                        const uint32_t per_face_quota =
-                            std::max(1u, max_per_prepass_object /
-                                static_cast<unsigned>(
-                                    std::max(1,prepass_face_count)));
-                        for (S32 f=0;f<prepass_face_count &&
-                             checked_in_object<max_per_prepass_object &&
-                             prepass_scanned_triangles<max_prepass_triangles;++f) {
-                            const LLVolumeFace& face=vol->getVolumeFace(f);
-                            if (!face.mPositions || !face.mIndices ||
-                                face.mNumVertices<=0 || face.mNumIndices<=0)
-                                continue;
-                            const uint32_t count=static_cast<uint32_t>(
-                                face.mNumIndices/3);
-                            // A high-poly face may carry many more than 512
-                            // indexed triangles, and the relevant near part
-                            // need not be stored first. Spread the limited
-                            // CPU ray-triangle test across EVERY volume face.
-                            const uint32_t face_checks = std::min(
-                                count, per_face_quota);
-                            for (uint32_t t=0;t<face_checks &&
-                                 checked_in_object<max_per_prepass_object &&
-                                 prepass_scanned_triangles<max_prepass_triangles;++t) {
-                                ++checked_in_object;
-                                ++prepass_scanned_triangles;
-                                const uint32_t triangle_index =
-                                    ogl::spread_triangle_index(
-                                        count,face_checks,t);
-                                ogl_rtx_triangle tri{};
-                                bool valid=true;
-                                for (unsigned vertex=0;vertex<3;++vertex) {
-                                    const U16 idx=face.mIndices[
-                                        triangle_index*3+vertex];
-                                    if (idx>=face.mNumVertices) {
-                                        valid=false;break;
-                                    }
-                                    LLVector3 point(
-                                        face.mPositions[idx].getF32ptr());
-                                    point=point.scaledVec(scale)*rotation+position;
-                                    for (unsigned axis=0;axis<3;++axis)
-                                        tri.position[vertex*3+axis]=point.mV[axis];
-                                }
-                                if (valid && ogl::is_valid_triangle(tri))
-                                    ogl::retain_nearest_camera_triangles(
-                                        rays,closest,tri);
-                            }
+                        if (bbox_rays) {
+                            visible_candidates.push_back(
+                                {obj,bbox_rays,false});
+                            visible_ids.insert(obj);
+                            if (!sphere_rays) ++exact_bounds_recovered;
+                        } else if (sphere_rays) {
+                            fallback_candidates.push_back(
+                                {obj,0u,true});
                         }
                     }
+                    prepass_visible_candidates =
+                        static_cast<unsigned>(visible_candidates.size());
+                    prepass_sphere_candidates =
+                        static_cast<unsigned>(fallback_candidates.size());
+                    // The sparse world fill uses the SAME prioritization as
+                    // the exact ray collector. An anchored object will not
+                    // be crowded out by offscreen props selected only by
+                    // their distance to the camera.
+                    std::stable_partition(candidates.begin(),
+                        candidates.end(),
+                        [&](const auto& entry) {
+                            return visible_ids.find(entry.second) !=
+                                   visible_ids.end();
+                        });
+                    unsigned processed_objects=0;
+                    const auto collect_visible_faces =
+                        [&](const std::vector<RayCandidate>& group,
+                            unsigned& accepted_objects) {
+                        for (const RayCandidate& candidate:group) {
+                            if (prepass_scanned_triangles>=
+                                    max_prepass_triangles ||
+                                processed_objects>=max_prepass_objects)
+                                break;
+                            LLVOVolume* obj=candidate.object;
+                            if (!obj || obj->isDead()) continue;
+                            LLVolume* vol=obj->getVolume();
+                            if (!vol) continue;
+                            const LLVector3 position=obj->getRenderPosition();
+                            const LLVector3 scale=obj->getScale();
+                            const LLQuaternion rotation=
+                                obj->getRenderRotation();
+                            const unsigned object_quota =
+                                ogl::camera_ray_object_quota(
+                                    candidate.bbox_rays,
+                                    candidate.sphere_fallback);
+                            if (!object_quota) continue;
+                            ++processed_objects;
+                            ++accepted_objects;
+                            unsigned checked_in_object=0;
+                            const S32 face_count=
+                                llmin(vol->getNumVolumeFaces(),16);
+                            const uint32_t face_quota=std::max(
+                                1u,object_quota/
+                                static_cast<unsigned>(std::max(1,face_count)));
+                            for (S32 f=0;f<face_count &&
+                                 checked_in_object<object_quota &&
+                                 prepass_scanned_triangles<
+                                    max_prepass_triangles;++f) {
+                                const LLVolumeFace& face=
+                                    vol->getVolumeFace(f);
+                                if (!face.mPositions || !face.mIndices ||
+                                    face.mNumVertices<=0 ||
+                                    face.mNumIndices<=0)
+                                    continue;
+                                const uint32_t count=
+                                    static_cast<uint32_t>(
+                                        face.mNumIndices/3);
+                                const uint32_t checks=
+                                    std::min(count,face_quota);
+                                for (uint32_t t=0;t<checks &&
+                                     checked_in_object<object_quota &&
+                                     prepass_scanned_triangles<
+                                        max_prepass_triangles;++t) {
+                                    ++checked_in_object;
+                                    ++prepass_scanned_triangles;
+                                    const uint32_t triangle_index=
+                                        ogl::spread_triangle_index(
+                                            count,checks,t);
+                                    ogl_rtx_triangle triangle{};
+                                    bool valid=true;
+                                    for (unsigned vertex=0;vertex<3;
+                                         ++vertex) {
+                                        const U16 idx=face.mIndices[
+                                            triangle_index*3+vertex];
+                                        if (idx>=face.mNumVertices) {
+                                            valid=false;break;
+                                        }
+                                        LLVector3 point(face.mPositions[
+                                            idx].getF32ptr());
+                                        point=point.scaledVec(scale)*
+                                            rotation+position;
+                                        for (unsigned axis=0;axis<3;++axis)
+                                            triangle.position[
+                                                vertex*3+axis]=point.mV[axis];
+                                    }
+                                    if (valid &&
+                                        ogl::is_valid_triangle(triangle))
+                                        ogl::retain_nearest_camera_triangles(
+                                            rays,closest,triangle);
+                                }
+                            }
+                        }
+                    };
+                    collect_visible_faces(visible_candidates,
+                                          prepass_visible_objects);
+                    collect_visible_faces(fallback_candidates,
+                                          prepass_fallback_objects);
                     exact_camera_hit_samples =
                         ogl::count_camera_hit_samples(closest);
                     exact_camera_anchors=ogl::append_camera_hit_triangles(
@@ -9816,21 +9892,40 @@ void LLPipeline::renderDeferredLighting()
                 const float camera_alignment = ogl_last_sample_triangles ?
                     camera_forward*ogl_last_sample_forward : 1.f;
                 bool publish_geometry = !triangles.empty();
-                if (ogl_triangle_budget > 1024 && publish_geometry &&
-                    !ogl::should_publish_scene_snapshot(
-                        ogl_last_sample_triangles, ogl_last_sample_objects,
-                        static_cast<unsigned>(triangles.size()),
-                        sampled_objects, eye_moved, camera_alignment,
-                        ogl_partial_scene_deferrals)) {
-                    publish_geometry = false;
-                    ++ogl_partial_scene_deferrals;
-                } else if (ogl_triangle_budget > 1024 && publish_geometry) {
-                    ogl_last_sample_triangles =
-                        static_cast<unsigned>(triangles.size());
-                    ogl_last_sample_objects = sampled_objects;
-                    ogl_last_sample_eye = eye;
-                    ogl_last_sample_forward = camera_forward;
-                    ogl_partial_scene_deferrals = 0;
+                if (ogl_triangle_budget > 1024 && publish_geometry) {
+                    const bool geometry_acceptable =
+                        ogl::should_publish_scene_snapshot(
+                            ogl_last_sample_triangles,
+                            ogl_last_sample_objects,
+                            static_cast<unsigned>(triangles.size()),
+                            sampled_objects,eye_moved,camera_alignment,
+                            ogl_partial_scene_deferrals);
+                    const bool anchor_acceptable =
+                        ogl::should_publish_anchor_snapshot(
+                            ogl_last_sample_anchor_hits,
+                            exact_camera_hit_samples,
+                            eye_moved,camera_alignment,
+                            ogl_anchor_scene_deferrals);
+                    if (!geometry_acceptable) {
+                        publish_geometry=false;
+                        ++ogl_partial_scene_deferrals;
+                    } else {
+                        ogl_partial_scene_deferrals=0;
+                    }
+                    if (!anchor_acceptable) {
+                        publish_geometry=false;
+                        ++ogl_anchor_scene_deferrals;
+                    } else {
+                        ogl_anchor_scene_deferrals=0;
+                    }
+                    if (publish_geometry) {
+                        ogl_last_sample_triangles=
+                            static_cast<unsigned>(triangles.size());
+                        ogl_last_sample_objects=sampled_objects;
+                        ogl_last_sample_anchor_hits=exact_camera_hit_samples;
+                        ogl_last_sample_eye=eye;
+                        ogl_last_sample_forward=camera_forward;
+                    }
                 }
                 // Sparse, anonymous coverage feedback for the user's
                 // real-world GPU/GL-depth mismatch diagnostic.
@@ -9850,12 +9945,21 @@ void LLPipeline::renderDeferredLighting()
                         << " prepass_triangles=" << prepass_scanned_triangles
                         << " bounds_recovered=" << exact_bounds_recovered
                         << " prepass_candidate_checks=" << prepass_candidate_checks
+                        << " prepass_visible_candidates="
+                        << prepass_visible_candidates
+                        << " prepass_sphere_candidates="
+                        << prepass_sphere_candidates
+                        << " prepass_visible_objects="
+                        << prepass_visible_objects
+                        << " prepass_fallback_objects="
+                        << prepass_fallback_objects
                         << " unused_triangles="
                         << (ogl_triangle_budget-triangles.size())
                         << " objects_scanned=" << max_objects
                         << " objects_total=" << total_objects
                         << " scene_publish=" << (publish_geometry ? 1 : 0)
                         << " partial_deferrals=" << ogl_partial_scene_deferrals
+                        << " anchor_deferrals=" << ogl_anchor_scene_deferrals
                         << " scan_ms=" << std::chrono::duration_cast<
                             std::chrono::milliseconds>(
                             std::chrono::steady_clock::now()-

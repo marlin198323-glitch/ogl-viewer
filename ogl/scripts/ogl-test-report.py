@@ -69,6 +69,31 @@ def latest_gpu_probe_revision(log_text: str):
     return int(records[-1].group(1)) if records else None
 
 
+def scene_selection_at_revision(log_text: str, revision: int):
+    """Resolve a completed GPU result to its *own* published CPU scene scan.
+
+    A full scene scan can contain 30 exact anchors while a later rotating
+    slice contains only two. Never attribute the last scan's mesh coverage
+    to an older asynchronous GPU job. No scene names or user data are read.
+    """
+    pending = None
+    snapshots = {}
+    for line in log_text.splitlines():
+        if "OGL RTX scene selection:" in line:
+            pending = line.partition("OGL RTX scene selection: ")[2]
+        match = SCENE_EVENT.search(line)
+        if match:
+            if match.group(3) is not None:
+                snapshots.clear()
+                pending = None
+            elif pending is not None:
+                published = re.search(r"scene_publish=(\d)", pending)
+                if published is None or published.group(1) == "1":
+                    snapshots[int(match.group(2))] = pending
+                pending = None
+    return snapshots.get(revision)
+
+
 def report():
     print("OGL Viewer – local Linux Mint test")
     print("Binary:", "present" if BINARY.is_file() else "missing")
@@ -151,6 +176,30 @@ def report():
                 print(f"RTX scene scan: {scanned}/{total} objects examined; "
                       f"{'published' if accepted == '1' else 'deferred'}; "
                       f"consecutive partial-scan deferrals {deferred}")
+                anchor_deferrals = re.findall(
+                    r"OGL RTX scene selection: [^\n]*"
+                    r"anchor_deferrals=(\d+)",text)
+                if anchor_deferrals:
+                    print("RTX dropped-anchor snapshot protection: "
+                          f"{anchor_deferrals[-1]} consecutive ray-coverage "
+                          "deferrals (maximum 2)")
+                if int(total) <= 32768 and int(scanned) == int(total):
+                    print("RTX scene traversal: entire loaded object list "
+                          "examined in this developer scan")
+                elif int(scanned) < int(total):
+                    print("RTX scene traversal: bounded partial object "
+                          "window; ray visibility can vary across scans")
+            classified = re.findall(
+                r"OGL RTX scene selection: [^\n]*"
+                r"prepass_visible_candidates=(\d+) "
+                r"prepass_sphere_candidates=(\d+) "
+                r"prepass_visible_objects=(\d+) "
+                r"prepass_fallback_objects=(\d+)",text)
+            if classified:
+                bbox, sphere, used_bbox, used_sphere = classified[-1]
+                print(f"RTX camera-visible broadphase: {bbox} drawable-box "
+                      f"candidate(s), {sphere} sphere-only fallback(s); "
+                      f"processed {used_bbox} box / {used_sphere} fallback")
             timings = re.findall(
                 r"OGL RTX scene selection: [^\n]* scan_ms=(\d+)",text)
             if timings:
@@ -199,6 +248,18 @@ def report():
             r"occluded=(\d+) revision=(\d+)", text)
         if probes:
             count, rays, hits, revision = probes[-1]
+            source_scan = scene_selection_at_revision(text, int(revision))
+            if source_scan:
+                anchor = re.search(r"exact_ray_samples=(\d+)",source_scan)
+                bbox = re.search(
+                    r"prepass_visible_candidates=(\d+)",source_scan)
+                if anchor:
+                    print(f"RTX GPU source scan: revision {revision} "
+                          f"contained {anchor.group(1)}/64 exact mesh-ray "
+                          "samples (not the last, possibly newer CPU scan)")
+                if bbox:
+                    print(f"RTX GPU source scan: {bbox.group(1)} "
+                          "drawable-box candidate(s) were identified")
             print(f"RTX GPU diagnostic: {count} scene triangles; "
                   f"{hits}/{rays} ray hits; revision {revision}")
             counters = re.findall(

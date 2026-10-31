@@ -9,6 +9,25 @@ namespace ogl {
 // Developer-mode safety net for discontinuities in a rotating OpenSim object
 // snapshot. A normal viewer render or a region change must not reuse stale
 // objects. This delays *replacement* only, for a small number of scans.
+// A full triangle buffer may still be the wrong partial scene: the rotating
+// collector sometimes held 8192 triangles yet provided 0/64 exact visible
+// mesh rays after previously providing 30/64 from an unchanged camera.
+// Do not overwrite that usable scene immediately. Cap deferrals at two
+// scans, and never hold across significant camera movement/rotation.
+inline bool should_publish_anchor_snapshot(uint32_t last_ray_samples,
+    uint32_t current_ray_samples, float eye_translation_m,
+    float forward_cosine, uint32_t previous_deferrals,
+    uint32_t max_deferrals=2u) {
+    if (last_ray_samples<16u ||
+        !std::isfinite(eye_translation_m) ||
+        !std::isfinite(forward_cosine) ||
+        eye_translation_m>=2.f ||
+        forward_cosine<0.99f ||
+        previous_deferrals>=max_deferrals)
+        return true;
+    return current_ray_samples*4u >= last_ray_samples;
+}
+
 inline bool should_publish_scene_snapshot(uint32_t previous_triangles,
     uint32_t previous_objects, uint32_t current_triangles,
     uint32_t current_objects, float eye_translation_m, float forward_cosine,

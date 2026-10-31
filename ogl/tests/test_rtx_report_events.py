@@ -64,6 +64,8 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX scan geometry capacity:", source)
         self.assertIn("RTX scene scan:", source)
         self.assertIn("partial_deferrals=", source)
+        self.assertIn("anchor_deferrals=", source)
+        self.assertIn("RTX dropped-anchor snapshot protection:",source)
         self.assertIn("exact_ray_samples=", source)
         self.assertIn("RTX exact camera-ray coverage:", source)
         self.assertIn("RTX validated diagnostic shadow rays:", source)
@@ -88,6 +90,33 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("DIFFERENT primary",source)
         self.assertIn("sample synchronization must be",source)
         self.assertIn("RTX CPU scene scan cost:",source)
+
+    def test_gpu_source_scan_resolves_older_revision(self):
+        text = (
+            "OGL RTX scene selection: exact_ray_anchors=30 "
+            "exact_ray_samples=31 prepass_triangles=32768 scene_publish=1\n"
+            "OGL RTX CPU scene snapshot: triangles=8192 revision=1\n"
+            "OGL RTX scene selection: exact_ray_anchors=2 "
+            "exact_ray_samples=2 prepass_triangles=32768 scene_publish=1\n"
+            "OGL RTX CPU scene snapshot: triangles=8192 revision=2\n"
+            "OGL RTX GPU probe: triangles=8192 rays=64 occluded=7 revision=1\n")
+        self.assertIn("exact_ray_samples=31",
+            module.scene_selection_at_revision(text,1))
+        self.assertIn("exact_ray_samples=2",
+            module.scene_selection_at_revision(text,2))
+        self.assertIsNone(module.scene_selection_at_revision(text,3))
+
+    def test_gpu_source_scan_skips_deferred_and_teleported(self):
+        text = (
+            "OGL RTX scene selection: exact_ray_samples=30 scene_publish=1\n"
+            "OGL RTX CPU scene snapshot: triangles=8192 revision=4\n"
+            "OGL RTX scene selection: exact_ray_samples=0 scene_publish=0\n"
+            "OGL RTX CPU scene snapshot: triangles=8192 revision=5\n")
+        self.assertIsNone(module.scene_selection_at_revision(text,5))
+        self.assertIn("exact_ray_samples=30",
+            module.scene_selection_at_revision(text,4))
+        text += "OGL RTX CPU scene cleared revision=6\n"
+        self.assertIsNone(module.scene_selection_at_revision(text,4))
 
     def test_latest_probe_revision_freshness(self):
         log = ("OGL RTX CPU scene snapshot: triangles=8192 revision=1\n"

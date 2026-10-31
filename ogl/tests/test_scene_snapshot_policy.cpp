@@ -28,4 +28,15 @@ int main() {
         std::numeric_limits<float>::infinity(),0));
     // Small, truly sparse regions should not be frozen by a 2K threshold.
     assert(should_publish_scene_snapshot(1024,50,200,0,0.f,1.f,0));
+    using ogl::should_publish_anchor_snapshot;
+    assert(should_publish_anchor_snapshot(0,0,0.f,1.f,0));
+    assert(should_publish_anchor_snapshot(14,0,0.f,1.f,0));
+    assert(!should_publish_anchor_snapshot(30,2,0.f,1.f,0));
+    assert(!should_publish_anchor_snapshot(30,0,0.f,1.f,1));
+    assert(should_publish_anchor_snapshot(30,0,0.f,1.f,2));
+    assert(should_publish_anchor_snapshot(30,10,0.f,1.f,0));
+    assert(should_publish_anchor_snapshot(30,0,3.f,1.f,0));
+    assert(should_publish_anchor_snapshot(30,0,0.f,0.97f,0));
+    assert(should_publish_anchor_snapshot(30,0,
+        std::numeric_limits<float>::quiet_NaN(),1.f,0));
 }

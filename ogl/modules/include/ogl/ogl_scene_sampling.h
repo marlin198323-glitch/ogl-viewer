@@ -7,6 +7,29 @@
 #include <limits>
 
 namespace ogl {
+// Cover all objects for practical OpenSim scenes in the opt-in RTX
+// diagnostic. Previously rotating 16K slices of a 28K region omitted
+// camera-visible geometry every other scan. At larger object counts,
+// retain the same deterministic bounded rotating traversal.
+inline uint32_t developer_object_scan_limit(uint32_t total) {
+    return std::min(total,32768u);
+}
+inline uint32_t developer_object_scan_start(uint32_t total,
+                                            uint32_t cursor) {
+    return total<=32768u || !total ? 0u : cursor%total;
+}
+
+// Spend more CPU triangle tests on objects occupying multiple camera rays,
+// without letting a single wall/mesh exhaust the whole prepass budget.
+inline uint32_t camera_ray_object_quota(uint32_t aabb_ray_count,
+                                        bool sphere_fallback) {
+    if (sphere_fallback) return 128u;
+    if (aabb_ray_count==0u) return 0u;
+    if (aabb_ray_count<=2u) return 128u;
+    if (aabb_ray_count<=7u) return 256u;
+    return 512u;
+}
+
 // Spread a strict budget over the *whole* triangle index list. Sampling
 // only the first 32 triangles causes severe missing-foreground artifacts on
 // OpenSim mesh objects. 64-bit multiplication avoids large-index overflow.
