@@ -33,6 +33,7 @@
 
 #include "indra_constants.h"        // for key and mask constants
 #include "oglnexversegrid.h" // Central fixed Stadt NexVerse profile
+#include "oglrtxhost.h" // RTX status: ready hardware vs actual rendered effects
 #include "llfloaterreg.h"
 #include "llfontgl.h"
 #include "llmd5.h"
@@ -205,7 +206,9 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
         login_holder->addChild(this);
     }
 
-    if (!gSavedSettings.getBOOL("FSUseLegacyLoginPanel"))
+    // One consistent responsive OGL login layout, regardless of older
+    // Firestorm/Phoenix-style preferences in migrated user settings.
+    if (APP_NAME == "OGL" || !gSavedSettings.getBOOL("FSUseLegacyLoginPanel"))
     {
         buildFromFile( "panel_fs_nui_login.xml");
     }
@@ -215,6 +218,22 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
     }
 
     reshape(rect.getWidth(), rect.getHeight());
+
+    // An accurate in-viewer status: RTX-capable hardware must never be
+    // presented as live ray-traced rendering until a scene bridge exists.
+    if (APP_NAME == "OGL")
+    {
+        LLTextBox* graphics = findChild<LLTextBox>("ogl_graphics_status");
+        if (graphics)
+        {
+            if (ogl_rtx_rendering_active())
+                graphics->setText(LLStringExplicit("RTX-Rendering aktiv"));
+            else if (ogl_rtx_hardware_supported())
+                graphics->setText(LLStringExplicit("RTX bereit | Raytracing noch aus"));
+            else
+                graphics->setText(LLStringExplicit("OpenGL aktiv | RTX nicht verfügbar"));
+        }
+    }
 
     LLUICtrl& mode_combo = getChildRef<LLUICtrl>("mode_combo");
     mode_combo.setValue(gSavedSettings.getString("SessionSettingsFile"));

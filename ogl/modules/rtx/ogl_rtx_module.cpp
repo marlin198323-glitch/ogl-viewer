@@ -13,6 +13,8 @@ const ogl_module_info info{
     "de.nexverse.ogl.rtx", "OGL RTX Capability", "0.1.0"
 };
 ogl_log_fn logger = nullptr;
+ogl_rtx_frame_state latest_frame{};
+uint64_t received_frames = 0;
 void report(std::string message) {
     std::snprintf(status.message, sizeof(status.message), "%s", message.c_str());
 }
@@ -102,7 +104,7 @@ void detect() {
                     status.hardware_ready = status.acceleration_structure &&
                         (status.ray_query || status.ray_tracing_pipeline);
                     if (status.hardware_ready) {
-                        report("RTX Vulkan hardware ready; a renderer/scene bridge is not yet implemented.");
+                        report("RTX Vulkan supported; camera/sun frame interface available, no BLAS/TLAS renderer.");
                         break;
                     }
                     report("RTX Vulkan features disabled; OpenGL fallback.");
@@ -124,6 +126,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
         host->abi_version != OGL_MODULE_ABI_VERSION || !host->log_message)
         return 1;
     logger = host->log_message;
+    latest_frame = {};
+    received_frames = 0;
     detect();
     std::string gpu = status.gpu_name[0] ? status.gpu_name : "none";
     logger(1, (std::string("OGL RTX capability: gpu=") + gpu +
@@ -137,4 +141,18 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
 extern "C" OGL_MODULE_EXPORT void ogl_module_stop() { logger = nullptr; }
 extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
     return &status;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state *frame) {
+    if (!frame || frame->struct_size < sizeof(ogl_rtx_frame_state) ||
+        frame->frame_version != OGL_RTX_FRAME_VERSION || !status.hardware_ready ||
+        frame->width == 0 || frame->height == 0) return 0;
+    latest_frame = *frame;
+    ++received_frames;
+    // Shader dispatch remains disabled: no TLAS/BLAS or scene geometry yet.
+    if (received_frames == 1 && logger)
+        logger(1, "OGL RTX camera/sun frame bridge connected; no raytraced pixels yet.");
+    return 1;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_rtx_received_frames(void) {
+    return received_frames;
 }

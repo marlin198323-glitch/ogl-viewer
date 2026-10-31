@@ -22,8 +22,27 @@ Stand: 31.10.2026 | Branch `ogl-develop` | Firestorm 7.2.5 / OpenSim
   Authentifizierungsaufruf prüft sie ebenfalls. Automatische HTTP-Anmeldung
   ohne erneute Bestätigung und fremde HTTP-Ziele bleiben gesperrt.
 - Vollständiger C++-Build für diese Freigabe erfolgreich.
-- 14/14 Python-Vertrags-/Sicherheitstests und 4/4 native
-  Modul-/Allowlist-Tests bestanden.
+- Historischer Zwischenstand: 14/14 Python-Vertrags-/Sicherheitstests
+  und 4/4 native Modul-/Allowlist-Tests bestanden; aktueller Stand siehe oben.
+
+## NexVerse-Login und RTX-Bridge – aktueller UI-Stand
+
+- Die Login-Leiste wurde in OGL-Dunkelblau mit Cyan-Akzenten gestaltet:
+  Logo, native Beschriftungen, klarere Eingabefelder, cyanfarbener
+  „Welt betreten“-Button, Stadt-NexVerse-Grid-Auswahl und lesbare Links.
+- Welcome-Seite bleibt unverändert im eingebetteten Browser.
+- OGL nutzt die neue Leiste unabhängig von historischen Firestorm/Phoenix-
+  Einstellungen; deutscher Buttontext ist separat geprüft.
+- Die native Grafikstatus-Zeile unterscheidet zwischen RTX-Kartenunterstützung
+  und tatsächlich aktivem Raytracing: Bei RTX 4070 SUPER erscheint
+  „RTX bereit | Raytracing noch aus“.
+- Das Modul kann Kamera-, Sonnen- und Bildgrößendaten aus Firestorms
+  Deferred-Renderpfad annehmen; kein in-world-Frame wurde bisher
+  mit einer echten Anmeldung abgenommen.
+- **Keine sichtbaren RTX-Schatten, Reflexionen oder GI**: Die erforderliche
+  Mesh-Geometrie, GPU-Beschleunigungsstrukturen und Vulkan-Ausgabe fehlen.
+- 16/16 Python/UI-Vertragstests, 5/5 native Modul- und API-Tests bestanden;
+  OGL C++-Build und lokale Ressourcenbereitstellung ebenfalls erfolgreich.
 
 ## Einschränkungen
 

@@ -15,13 +15,25 @@
 - **No ray tracing lighting, shadows, reflections or GI is rendered yet.**
   The value `rendering_active=0` is intentionally explicit and accurate.
 - No third-party user plugin paths or unknown native modules are allowed.
+- Frame-data bridge v1 implemented and compiled in the real OGL world
+  deferred lighting path: viewport dimensions, camera position/direction,
+  and sun direction are sent through the RTX module C ABI.
+- Native RTX module API test submits synthetic camera/sun frames and checks
+  acceptance/validation. **Actual world frame transfer has yet to be
+  confirmed after an authenticated OpenSim login**.
+- Geometry transfer, Vulkan BLAS/TLAS, shader ray queries, shadow textures,
+  denoising and OpenGL/Vulkan compositing have **not** been implemented.
+- No OpenSim server configuration change is required for viewer-local RTX;
+  the viewer reuses geometry/material/lighting already supplied by OpenSim.
+  Advanced effects still depend on asset and material fidelity.
+
 
 ## Required renderer phases
 
 1. GPU capability module and in-viewer lifecycle. DONE (Linux).
-2. Introduce a toggleable renderer interface, Vulkan device/queue manager,
-   synchronization and external-memory/surface transfer without touching
-   the default OpenGL path. NOT STARTED.
+2. Camera/sun/viewport data bridge v1: IMPLEMENTED and native-tested;
+   actual in-world delivery still pending login acceptance. Vulkan
+   device/queue, synchronization and surface transfer: NOT STARTED.
 3. Connect Firestorm's resident world geometry: terrain, prims, mesh,
    skinned/rigged avatar meshes, attachments and dynamic objects.
    Maintain BLAS/TLAS acceleration structures and changes per frame.

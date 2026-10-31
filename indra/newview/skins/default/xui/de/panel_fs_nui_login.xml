@@ -37,7 +37,7 @@
 					<layout_stack name="2nd_row_stack">
 						<layout_panel name="grid_panel">
 							<text name="grid_login_text">
-								Grid:
+								WELT:
 							</text>
 							<text name="grid_builder_text">
 								+ Klicken um Grids hinzuzufügen
@@ -45,7 +45,7 @@
 						</layout_panel>
 						<layout_panel name="mode_selection">
 							<text name="mode_selection_text">
-								Modus:
+								ANSICHT:
 							</text>
 							<combo_box name="mode_combo" tool_tip="Wählen Sie, welcher Viewer-Style Ihnen am meisten vertraut ist, um die Standards Ihren Bedürfnissen anzupassen.">
 								<combo_box.item label="Modern" name="Modern"/>
@@ -56,9 +56,9 @@
 					</layout_stack>
 				</layout_panel>
 			</layout_stack>
-			<button label="Anmelden" name="connect_btn"/>
+			<button label="Welt betreten" name="connect_btn"/>
 			<text name="create_new_account_text">
-				Registrieren
+				Bürger werden
 			</text>
 			<text name="forgot_password_text">
 				Kennwort vergessen?

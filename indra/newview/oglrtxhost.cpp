@@ -9,6 +9,10 @@
 
 namespace {
 void *rtx_module_handle = nullptr;
+bool rtx_hardware_ready = false;
+bool rtx_rendering_enabled = false;
+using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
+ogl_rtx_submit_frame_fn rtx_submit_frame = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
 
 void host_log(int severity, const char *message) {
@@ -52,6 +56,9 @@ void ogl_init_rtx_module() {
         return;
     }
 
+    rtx_submit_frame = reinterpret_cast<ogl_rtx_submit_frame_fn>(
+        dlsym(rtx_module_handle, "ogl_rtx_submit_frame"));
+
     const ogl_host_api api{sizeof(ogl_host_api), OGL_MODULE_ABI_VERSION, host_log};
     if (start(&api) != 0) {
         LL_WARNS("OGLRTX") << "RTX capability initialization rejected; keeping OpenGL."
@@ -62,6 +69,8 @@ void ogl_init_rtx_module() {
     const ogl_rtx_status *status = get_status();
     if (status && status->struct_size >= sizeof(ogl_rtx_status) &&
         status->status_version == OGL_RTX_STATUS_VERSION) {
+        rtx_hardware_ready = status->hardware_ready != 0;
+        rtx_rendering_enabled = status->rendering_active != 0;
         LL_INFOS("OGLRTX") << "GPU " << status->gpu_name
             << " hardware_ready=" << status->hardware_ready
             << " rendering_active=" << status->rendering_active
@@ -78,5 +87,44 @@ void ogl_shutdown_rtx_module() {
     }
     rtx_stop = nullptr;
     rtx_module_handle = nullptr;
+    rtx_hardware_ready = false;
+    rtx_rendering_enabled = false;
+    rtx_submit_frame = nullptr;
+#endif
+}
+
+bool ogl_rtx_hardware_supported() {
+#if LL_LINUX
+    return rtx_hardware_ready;
+#else
+    return false;
+#endif
+}
+
+bool ogl_rtx_rendering_active() {
+#if LL_LINUX
+    return rtx_rendering_enabled;
+#else
+    return false;
+#endif
+}
+
+void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
+    const float* camera_position, const float* camera_forward,
+    const float* sun_direction) {
+#if LL_LINUX
+    if (!rtx_submit_frame || !rtx_hardware_ready ||
+        !camera_position || !camera_forward || !sun_direction) return;
+    ogl_rtx_frame_state frame{};
+    frame.struct_size = sizeof(frame);
+    frame.frame_version = OGL_RTX_FRAME_VERSION;
+    frame.width = width;
+    frame.height = height;
+    for (unsigned i=0; i<3; ++i) {
+        frame.camera_position[i] = camera_position[i];
+        frame.camera_forward[i] = camera_forward[i];
+        frame.sun_direction[i] = sun_direction[i];
+    }
+    rtx_submit_frame(&frame);
 #endif
 }

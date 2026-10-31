@@ -27,6 +27,14 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
     target_link_libraries(ogl_rtx_module PRIVATE ${CMAKE_DL_LIBS})
     set_target_properties(ogl_rtx_module PROPERTIES PREFIX "" OUTPUT_NAME "ogl_rtx")
 
+    # GPU hardware/frame-state ABI test. Does not assert actual rays rendered.
+    add_executable(ogl_rtx_frame_bridge_test rtx/frame_bridge_test.cpp)
+    target_include_directories(ogl_rtx_frame_bridge_test PRIVATE include)
+    target_compile_features(ogl_rtx_frame_bridge_test PRIVATE cxx_std_17)
+    target_link_libraries(ogl_rtx_frame_bridge_test PRIVATE ${CMAKE_DL_LIBS})
+    add_test(NAME ogl_rtx_frame_bridge
+             COMMAND ogl_rtx_frame_bridge_test $<TARGET_FILE:ogl_rtx_module>)
+
     add_test(
       NAME ogl_rtx_handshake
       COMMAND ogl_module_probe $<TARGET_FILE:ogl_rtx_module>

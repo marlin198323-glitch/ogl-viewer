@@ -38,6 +38,16 @@ python3 ogl/scripts/ogl-test-report.py
 - The test wrapper suppresses desktop protocol-registration commands
   from the staged Firestorm launcher.
 
+## Aktuelles NexVerse-Design
+
+Die neue OGL-Loginleiste trägt Dunkelblau/Cyan statt Firestorm-Grau,
+führt die Felder NexVerse-Name, Passwort und Startort klar und zeigt
+„Welt betreten“. Die NexVerse-Welcome-Seite bleibt unverändert.
+Die Grafikzeile „RTX bereit | Raytracing noch aus“ meldet korrekt, dass
+keine RT-Effekte erzeugt werden, auch wenn eine NVIDIA RTX erkannt wurde.
+Auf ultrabreiten und Hoch-DPI-Displays sind UI-Skalierung und Überlappungen
+manuell zu prüfen. Das neue Login-Layout ist eine Entwicklungsfassung.
+
 ## Acceptance
 
 1. OGL title, icon and NexVerse welcome appear.

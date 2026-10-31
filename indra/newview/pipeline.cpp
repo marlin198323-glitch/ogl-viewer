@@ -27,6 +27,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "pipeline.h"
+#include "oglrtxhost.h" // OGL: optional camera/sun data bridge to RTX module
 
 // library includes
 #include "llimagepng.h"
@@ -9426,6 +9427,18 @@ void LLPipeline::renderDeferredLighting()
     {
         LL_PROFILE_ZONE_NAMED_CATEGORY_PIPELINE("deferred");
         LLViewerCamera *camera = LLViewerCamera::getInstance();
+
+        // OGL RTX architecture phase 2: expose the real world camera and
+        // sun direction to the trusted Vulkan module. This transfers no
+        // geometry and performs no ray tracing/compositing yet. OpenGL
+        // continues to render every pixel; non-RTX systems are untouched.
+        if (!gCubeSnapshot && ogl_rtx_hardware_supported() && gViewerWindow)
+        {
+            const LLRect viewport = gViewerWindow->getWorldViewRectRaw();
+            const LLVector3 sun = LLEnvironment::instance().getSunDirection();
+            ogl_rtx_submit_camera_sun(viewport.getWidth(), viewport.getHeight(),
+                camera->getOrigin().mV, camera->getAtAxis().mV, sun.mV);
+        }
 
         if (gPipeline.hasRenderType(LLPipeline::RENDER_TYPE_HUD))
         {
