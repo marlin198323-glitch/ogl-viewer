@@ -215,3 +215,30 @@ sichtbare Raytracing-Schatten und OpenGL/Vulkan-Komposition.
 neu auf. Kein persistentes Vulkan-Gerät und kein sichtbares RT-Bild.
 `rendering_active=0` bleibt korrekt. Öffentliche Nutzer benötigen
 weder Opt-in noch einen Vulkan-RT-fähigen Rechner.
+
+
+## 31.10.2026 – fünfte RTX-10er-Runde: GPU-Device und BLAS/TLAS wiederverwenden
+
+- `VulkanContext` bleibt **pro GPU-Worker-Thread** zwischen mehreren
+  Diagnosejobs erhalten. Vulkan-Instanz und logisches Gerät werden nicht
+  bei jeder Änderung neu erstellt.
+- Ein byteidentischer CPU-Dreiecks-Snapshot mit unveränderter Sonne und
+  Shaderressource nutzt die gecachten Ray-Query-Ergebnisse.
+- Bei **reinem Lichtwechsel** bleiben bestehende GPU-BLAS/TLAS erhalten;
+  der Ray-Query-Compute-Pass wird mit neuem Licht neu ausgeführt.
+- Bei geänderter Geometrie werden taskbezogene GPU-AS-Ressourcen
+  sauber freigegeben und neu aufgebaut; das Vulkan-Gerät bleibt erhalten.
+- ABI v2 der Diagnose meldet Geräteinitialisierungen, BLAS-Neuaufbauten
+  und Cache-Treffer. Die Statistik erscheint nur bei Entwickler-Opt-in
+  im anonymisierten Viewer-Log.
+- Test mit 1 und 1.024 Dreiecken auf RTX 4070 SUPER:
+  **1 Geräteinitialisierung, 3 BLAS-Builds, 2 Cache-Hits**.
+- 32 Python- und 14 native Tests, darunter GPU-freie Fallbacktests;
+  vollständiger Linux-OGL-Build erfolgreich.
+- Details: [`RTX_10_BLOCKS_2026_10_31_P5.md`](RTX_10_BLOCKS_2026_10_31_P5.md).
+
+**Noch offen:** Sichtbare RT-Schatten in der 3D-Welt, OpenGL/Vulkan-
+Compositing, inkrementelle Mesh-Updates innerhalb einer BLAS,
+Multi-GPU-Auswahl sowie vollständige Windows-Viewer-/AMD-/Intel-Abnahme.
+`rendering_active=0` bleibt korrekt. Die GPU-Diagnose ist kein
+Produktiv-Renderer.

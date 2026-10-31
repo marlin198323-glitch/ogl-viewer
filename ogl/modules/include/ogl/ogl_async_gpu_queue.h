@@ -27,6 +27,9 @@ public:
         uint32_t triangle_count = 0;
         uint32_t ray_count = 0;
         uint32_t occluded = 0;
+        uint32_t gpu_device_creations = 0;
+        uint32_t blas_builds = 0;
+        uint32_t cache_hits = 0;
         int return_code = 1;
     };
     struct Stats {

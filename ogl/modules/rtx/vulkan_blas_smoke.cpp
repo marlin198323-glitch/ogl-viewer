@@ -15,6 +15,7 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #if defined(_WIN32)
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
@@ -108,6 +109,7 @@ struct VulkanContext {
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queue_family = ~0u;
     VkCommandPool pool = VK_NULL_HANDLE;
+    VkCommandBuffer command = VK_NULL_HANDLE;
     VkAccelerationStructureKHR blas = VK_NULL_HANDLE;
     VkAccelerationStructureKHR tlas = VK_NULL_HANDLE;
     PFN_vkDestroyAccelerationStructureKHR destroy_blas = nullptr;
@@ -118,7 +120,9 @@ struct VulkanContext {
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkPipeline ray_pipeline = VK_NULL_HANDLE;
     VkShaderModule shader = VK_NULL_HANDLE;
-    ~VulkanContext() {
+    // Retain completed BLAS/TLAS when only sunlight direction changes;
+    // discard descriptors/compute output before the next dispatch.
+    void reset_query() {
         if (device) {
             vkDeviceWaitIdle(device);
             if (ray_pipeline) vkDestroyPipeline(device, ray_pipeline, nullptr);
@@ -126,17 +130,39 @@ struct VulkanContext {
             if (pipeline_layout) vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
             if (descriptor_pool) vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
             if (descriptor_layout) vkDestroyDescriptorSetLayout(device, descriptor_layout, nullptr);
+            if (query_results.buffer) vkDestroyBuffer(device, query_results.buffer, nullptr);
+            if (query_results.memory) vkFreeMemory(device, query_results.memory, nullptr);
+        }
+        ray_pipeline = VK_NULL_HANDLE;
+        shader = VK_NULL_HANDLE;
+        pipeline_layout = VK_NULL_HANDLE;
+        descriptor_pool = VK_NULL_HANDLE;
+        descriptor_layout = VK_NULL_HANDLE;
+        query_results = {};
+    }
+    // Task buffers are transient, but the Vulkan device survives scene changes.
+    void reset_task() {
+        reset_query();
+        if (device) {
             if (tlas && destroy_blas) destroy_blas(device, tlas, nullptr);
             if (blas && destroy_blas) destroy_blas(device, blas, nullptr);
             for (const Buffer* b : {&vertices, &scratch, &storage,
-                                    &instance_buffer, &tlas_scratch, &tlas_storage,
-                                    &query_results}) {
+                                    &instance_buffer, &tlas_scratch, &tlas_storage}) {
                 if (b->buffer) vkDestroyBuffer(device, b->buffer, nullptr);
                 if (b->memory) vkFreeMemory(device, b->memory, nullptr);
             }
             if (pool) vkDestroyCommandPool(device, pool, nullptr);
-            vkDestroyDevice(device, nullptr);
         }
+        blas = VK_NULL_HANDLE;
+        tlas = VK_NULL_HANDLE;
+        pool = VK_NULL_HANDLE;
+        command = VK_NULL_HANDLE;
+        for (Buffer* b : {&vertices, &scratch, &storage,
+                          &instance_buffer, &tlas_scratch, &tlas_storage}) *b = {};
+    }
+    ~VulkanContext() {
+        reset_task();
+        if (device) vkDestroyDevice(device, nullptr);
         if (instance) vkDestroyInstance(instance, nullptr);
     }
 };
@@ -250,7 +276,53 @@ static int execute_gpu_scene(const char* shader_path,
     if (push.direction[0] == 0.f && push.direction[1] == 0.f &&
         push.direction[2] == 0.f)
         push.direction[2] = 1.f;
+#ifdef OGL_GPU_PROBE_LIBRARY
+    // This state is owned by the single GPU worker thread and destroyed when
+    // that thread exits, BEFORE the Vulkan SO/DLL is unloaded.
+    static thread_local std::unique_ptr<VulkanContext> persistent;
+    static thread_local uint32_t device_creations = 0;
+    static thread_local uint32_t blas_builds = 0;
+    static thread_local uint32_t cache_hits = 0;
+    static thread_local std::vector<ogl_rtx_triangle> cached_scene;
+    static thread_local std::array<float, 3> cached_sun{{0.f, 0.f, 1.f}};
+    static thread_local std::string cached_shader;
+    static thread_local ogl_gpu_probe_result cached_output{};
+    const std::array<float,3> requested_sun{{
+        sun ? sun[0] : 0.f,
+        sun ? sun[1] : 0.f,
+        sun ? sun[2] : 1.f
+    }};
+    if (persistent && persistent->device &&
+        cached_scene.size() == wanted_triangles &&
+        !cached_scene.empty() && cached_sun == requested_sun &&
+        cached_shader == shader_path &&
+        std::memcmp(cached_scene.data(), scene,
+            size_t(wanted_triangles) * sizeof(ogl_rtx_triangle)) == 0) {
+        ++cache_hits;
+        *result = cached_output;
+        result->vulkan_device_creations = device_creations;
+        result->blas_builds = blas_builds;
+        result->cache_hits = cache_hits;
+        return 0;
+    }
+    const bool reuse_geometry = persistent && persistent->device &&
+        persistent->blas && persistent->tlas &&
+        cached_scene.size() == wanted_triangles &&
+        cached_shader == shader_path &&
+        std::memcmp(cached_scene.data(), scene,
+            size_t(wanted_triangles) * sizeof(ogl_rtx_triangle)) == 0;
+    cached_scene.clear(); // failed calls cannot cache incomplete outputs
+    if (!persistent) persistent.reset(new VulkanContext);
+    if (persistent->device) {
+        if (reuse_geometry) persistent->reset_query(); // preserve GPU AS
+        else persistent->reset_task();                 // rebuild changed mesh
+    }
+    VulkanContext& c = *persistent;
+#else
     VulkanContext c;
+#endif
+    VkPhysicalDeviceProperties chosen{};
+    if (!c.device) {
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "OGL universal Vulkan BLAS acceptance";
     app.apiVersion = VK_API_VERSION_1_2;
@@ -281,7 +353,6 @@ static int execute_gpu_scene(const char* shader_path,
         VK_KHR_RAY_QUERY_EXTENSION_NAME,
         VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
     };
-    VkPhysicalDeviceProperties chosen{};
     for (int preference = 0; preference < 2 && !c.physical; ++preference) {
         for (const auto gpu : gpus) {
             VkPhysicalDeviceProperties p{};
@@ -362,6 +433,12 @@ static int execute_gpu_scene(const char* shader_path,
         return 1;
     }
     vkGetDeviceQueue(c.device, c.queue_family, 0, &c.queue);
+#ifdef OGL_GPU_PROBE_LIBRARY
+    ++device_creations;
+#endif
+    } else {
+        vkGetPhysicalDeviceProperties(c.physical, &chosen);
+    }
 
     auto get_build_sizes = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
         vkGetDeviceProcAddr(c.device, "vkGetAccelerationStructureBuildSizesKHR"));
@@ -379,6 +456,16 @@ static int execute_gpu_scene(const char* shader_path,
         return 1;
     }
 
+    void* mapped = nullptr;
+    VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &c.command;
+
+#ifdef OGL_GPU_PROBE_LIBRARY
+    if (!reuse_geometry) {
+#endif
     // Caller supplies the actual validated module scene snapshot.
     // GPU probe and deterministic tests share this exact same path.
     std::vector<ogl_rtx_triangle> triangles(scene, scene + wanted_triangles);
@@ -393,7 +480,7 @@ static int execute_gpu_scene(const char* shader_path,
         std::puts("FAIL: vertex GPU buffer allocation");
         return 1;
     }
-    void* mapped = nullptr;
+    mapped = nullptr;
     if (vkMapMemory(c.device, c.vertices.memory, 0, vertex_bytes, 0, &mapped) != VK_SUCCESS)
         return 1;
     std::memcpy(mapped, triangles.data(), vertex_bytes);
@@ -471,24 +558,18 @@ static int execute_gpu_scene(const char* shader_path,
     cmd_info.commandPool = c.pool;
     cmd_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     cmd_info.commandBufferCount = 1;
-    VkCommandBuffer command = VK_NULL_HANDLE;
-    if (vkAllocateCommandBuffers(c.device, &cmd_info, &command) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(c.device, &cmd_info, &c.command) != VK_SUCCESS)
         return 1;
-    VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS) return 1;
+    if (vkBeginCommandBuffer(c.command, &begin) != VK_SUCCESS) return 1;
     VkAccelerationStructureBuildRangeInfoKHR range{};
     range.primitiveCount = primitive_count;
     const VkAccelerationStructureBuildRangeInfoKHR* ranges[] = {&range};
-    build_blas(command, 1, &build_info, ranges);
-    if (vkEndCommandBuffer(command) != VK_SUCCESS) return 1;
+    build_blas(c.command, 1, &build_info, ranges);
+    if (vkEndCommandBuffer(c.command) != VK_SUCCESS) return 1;
 
-    VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submit.commandBufferCount = 1;
-    submit.pCommandBuffers = &command;
     if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
         vkQueueWaitIdle(c.queue) != VK_SUCCESS) {
-        std::puts("FAIL: GPU BLAS command submission");
+        std::puts("FAIL: GPU BLAS c.command submission");
         return 1;
     }
     VkAccelerationStructureDeviceAddressInfoKHR address_info{
@@ -499,6 +580,9 @@ static int execute_gpu_scene(const char* shader_path,
         std::puts("FAIL: completed BLAS has no GPU device address");
         return 1;
     }
+#ifdef OGL_GPU_PROBE_LIBRARY
+    ++blas_builds;
+#endif
     std::printf("PASS: GPU BLAS built from %u ABI triangles on %s, AS bytes=%llu scratch bytes=%llu\n",
         wanted_triangles, chosen.deviceName,
         static_cast<unsigned long long>(sizes.accelerationStructureSize),
@@ -574,10 +658,10 @@ static int execute_gpu_scene(const char* shader_path,
     top_build.dstAccelerationStructure = c.tlas;
 
     // QueueWaitIdle above guarantees BLAS completion before TLAS build.
-    // Reset the pool and safely reuse its command buffer.
+    // Reset the pool and safely reuse its c.command buffer.
     if (vkResetCommandPool(c.device, c.pool, 0) != VK_SUCCESS)
         return 1;
-    if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS)
+    if (vkBeginCommandBuffer(c.command, &begin) != VK_SUCCESS)
         return 1;
     // TLAS contains ONE instance even if its BLAS has 1024 triangles.
     // Reusing BLAS primitiveCount here reads beyond the instance buffer,
@@ -585,12 +669,12 @@ static int execute_gpu_scene(const char* shader_path,
     VkAccelerationStructureBuildRangeInfoKHR top_range{};
     top_range.primitiveCount = instance_count;
     const VkAccelerationStructureBuildRangeInfoKHR* top_ranges[] = {&top_range};
-    build_blas(command, 1, &top_build, top_ranges);
-    if (vkEndCommandBuffer(command) != VK_SUCCESS)
+    build_blas(c.command, 1, &top_build, top_ranges);
+    if (vkEndCommandBuffer(c.command) != VK_SUCCESS)
         return 1;
     if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
         vkQueueWaitIdle(c.queue) != VK_SUCCESS) {
-        std::puts("FAIL: TLAS GPU command submission");
+        std::puts("FAIL: TLAS GPU c.command submission");
         return 1;
     }
     address_info.accelerationStructure = c.tlas;
@@ -601,6 +685,11 @@ static int execute_gpu_scene(const char* shader_path,
     std::printf("PASS: GPU TLAS built with 1 BLAS instance, AS bytes=%llu scratch bytes=%llu\n",
         static_cast<unsigned long long>(top_sizes.accelerationStructureSize),
         static_cast<unsigned long long>(top_sizes.buildScratchSize));
+#ifdef OGL_GPU_PROBE_LIBRARY
+    } else {
+        std::puts("PASS: reusing existing GPU BLAS/TLAS after lighting change");
+    }
+#endif
     // A real Vulkan ray query: one ray hits the triangle, one deliberately
     // misses. Results are returned through a host-visible storage buffer.
     std::ifstream input(shader_path, std::ios::binary | std::ios::ate);
@@ -717,15 +806,15 @@ static int execute_gpu_scene(const char* shader_path,
         return 1;
     if (vkResetCommandPool(c.device, c.pool, 0) != VK_SUCCESS)
         return 1;
-    if (vkBeginCommandBuffer(command, &begin) != VK_SUCCESS)
+    if (vkBeginCommandBuffer(c.command, &begin) != VK_SUCCESS)
         return 1;
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, c.ray_pipeline);
-    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_COMPUTE,
+    vkCmdBindPipeline(c.command, VK_PIPELINE_BIND_POINT_COMPUTE, c.ray_pipeline);
+    vkCmdBindDescriptorSets(c.command, VK_PIPELINE_BIND_POINT_COMPUTE,
                             c.pipeline_layout, 0, 1, &descriptor, 0, nullptr);
-    vkCmdPushConstants(command, c.pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT,
+    vkCmdPushConstants(c.command, c.pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT,
                        0, sizeof(push), &push);
-    vkCmdDispatch(command, 1, 1, 1);
-    if (vkEndCommandBuffer(command) != VK_SUCCESS)
+    vkCmdDispatch(c.command, 1, 1, 1);
+    if (vkEndCommandBuffer(c.command) != VK_SUCCESS)
         return 1;
     if (vkQueueSubmit(c.queue, 1, &submit, VK_NULL_HANDLE) != VK_SUCCESS ||
         vkQueueWaitIdle(c.queue) != VK_SUCCESS)
@@ -758,6 +847,15 @@ static int execute_gpu_scene(const char* shader_path,
         result->ray_count = result_count;
         result->triangle_count = wanted_triangles;
         result->success = 1;
+#ifdef OGL_GPU_PROBE_LIBRARY
+        result->vulkan_device_creations = device_creations;
+        result->blas_builds = blas_builds;
+        result->cache_hits = cache_hits;
+        cached_output = *result;
+        cached_scene.assign(scene, scene + wanted_triangles);
+        cached_sun = requested_sun;
+        cached_shader = shader_path;
+#endif
     } else if (hits != 36) {
         std::puts("FAIL: deterministic synthetic scene mask mismatch");
         return 1;

@@ -87,3 +87,10 @@ aus dem Viewer-Render-Thread in eine begrenzte, herstellerunabhängige
 asynchrone Warteschlange. Teleports, Fehlerfälle, Hardware-Fallback und
 Shutdown sind abgesichert. **Noch keine sichtbaren Raytracing-Schatten.**
 [Details](RTX_10_BLOCKS_2026_10_31_P4.md).
+
+
+In der **fünften RTX-10er-Runde** bleiben Vulkan-Gerät und beim
+Sonnenlichtwechsel die GPU-BLAS/TLAS im optionalen Diagnose-Worker
+bestehen. Identische Inputs nutzen gecachte Ray-Query-Daten. Der
+Endnutzer-Viewer ist weiterhin **OpenGL ohne sichtbare RTX-Schatten**.
+[Technischer GPU-Wiederverwendungsnachweis](RTX_10_BLOCKS_2026_10_31_P5.md).

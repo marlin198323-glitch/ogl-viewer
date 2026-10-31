@@ -219,7 +219,10 @@ void poll_probe_on_viewer_thread() {
                 std::to_string(outcome.triangle_count) + " rays=" +
                 std::to_string(outcome.ray_count) + " occluded=" +
                 std::to_string(outcome.occluded) + " revision=" +
-                std::to_string(outcome.revision) +
+                std::to_string(outcome.revision) + " device_inits=" +
+                std::to_string(outcome.gpu_device_creations) + " blas_builds=" +
+                std::to_string(outcome.blas_builds) + " cache_hits=" +
+                std::to_string(outcome.cache_hits) +
                 "; ASYNC DIAGNOSTIC ONLY no shadow compositing").c_str());
     } else if (logger) {
         logger(1, "OGL RTX async GPU probe failed; disabled until next start; OpenGL active");
@@ -272,6 +275,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 result.triangle_count = native.triangle_count;
                 result.ray_count = native.ray_count;
                 result.occluded = native.occluded;
+                result.gpu_device_creations = native.vulkan_device_creations;
+                result.blas_builds = native.blas_builds;
+                result.cache_hits = native.cache_hits;
                 return result;
             }));
             } catch (...) {

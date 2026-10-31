@@ -90,8 +90,16 @@ def report():
             count, rays, hits, revision = probes[-1]
             print(f"RTX GPU diagnostic: {count} scene triangles; "
                   f"{hits}/{rays} ray hits; revision {revision}")
+            counters = re.findall(
+                r"OGL RTX GPU probe: [^\n]*device_inits=(\d+) "
+                r"blas_builds=(\d+) cache_hits=(\d+)", text)
+            if counters:
+                device_inits, blas_builds, cache_hits = counters[-1]
+                print(f"RTX GPU reuse: {device_inits} device init(s), "
+                      f"{blas_builds} BLAS build(s), {cache_hits} cache hit(s)")
             print("RTX GPU diagnostic is NOT visual raytracing in the world.")
-        elif "OGL RTX GPU scene probe failed;" in text:
+        elif ("OGL RTX GPU scene probe failed;" in text or
+              "OGL RTX async GPU probe failed;" in text):
             print("RTX GPU diagnostic: failed; OpenGL fallback active")
         else:
             print("RTX GPU diagnostic: not run (developer opt-in only)")

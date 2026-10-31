@@ -62,8 +62,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         cmake = (ROOT / "ogl/modules/CMakeLists.txt").read_text()
         self.assertIn('VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR', src)
         self.assertIn('VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR', src)
-        self.assertIn('build_blas(command, 1, &build_info, ranges)', src)
-        self.assertIn('build_blas(command, 1, &top_build, top_ranges)', src)
+        self.assertIn('build_blas(c.command, 1, &build_info, ranges)', src)
+        self.assertIn('build_blas(c.command, 1, &top_build, top_ranges)', src)
         self.assertIn('top_range.primitiveCount = instance_count', src)
         self.assertIn('range.primitiveCount = primitive_count', src)
         self.assertIn('ogl_vulkan_module_scene_64', cmake)
@@ -129,6 +129,26 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("ogl_gpu_probe.so", manifest)
         self.assertIn("layout(push_constant)", shader)
         self.assertIn("params.ray_direction.xyz", shader)
+
+    def test_persistent_gpu_resources_are_vendor_neutral_and_opt_in(self):
+        source = (ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        api = (ROOT / "ogl/modules/include/ogl/ogl_gpu_probe_api.h").read_text()
+        test = (ROOT / "ogl/modules/rtx/ogl_gpu_persistent_test.cpp").read_text()
+        log = (ROOT / "ogl/scripts/ogl-test-report.py").read_text()
+        self.assertIn("#define OGL_GPU_PROBE_VERSION 2u", api)
+        for key in ("vulkan_device_creations", "blas_builds", "cache_hits"):
+            self.assertIn(key, api)
+        self.assertIn("thread_local std::unique_ptr<VulkanContext>", source)
+        self.assertIn("reuse_geometry", source)
+        self.assertIn("persistent->reset_query()", source)
+        self.assertIn("persistent->reset_task()", source)
+        self.assertIn("cached_scene.assign(scene, scene + wanted_triangles)", source)
+        self.assertIn("ogl_gpu_device_persistent_and_scene_cache",
+                      (ROOT / "ogl/modules/CMakeLists.txt").read_text())
+        self.assertIn("cached_large.blas_builds == 3", test)
+        self.assertIn("cached_large.cache_hits == 2", test)
+        self.assertIn("RTX GPU reuse:", log)
+        self.assertNotIn("0x10DE", source)
 
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

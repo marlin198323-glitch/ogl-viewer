@@ -173,3 +173,18 @@ Fehlerberichte eingefügt werden.
   und SPIR-V-Ressource erfolgreich.
 - Native GPU- und CPU-Regressionen, sowie No-Vulkan-Fallback getestet.
 - Bericht: [`RTX_10_BLOCKS_2026_10_31_P4.md`](RTX_10_BLOCKS_2026_10_31_P4.md).
+
+
+## 31.10.2026 – fünfte RTX-10er-Runde: persistentes Vulkan-Gerät
+
+- Kontext und logisches Vulkan-Gerät bleiben während mehrerer Jobs
+  desselben Workers erhalten; geänderte Meshes lösen BLAS/TLAS-Neubau aus.
+- Unveränderte Geometrie und neue Sonnenrichtung: dieselbe BLAS/TLAS,
+  neuer GPU-Ray-Query-Pass, keine weitere Geräteinitialisierung.
+- Bei identischen Inputs: vollständiger Diagnose-Cache-Hit.
+- Diagnose-ABI v2 enthält `vulkan_device_creations`, `blas_builds`,
+  `cache_hits`. Das Viewer-Protokoll unterscheidet GPU-Wiederverwendung
+  vom Textur-/Mesh-Cache.
+- Neuer GPU-Lifecycle-Test bis 1.024 Dreiecke; kompletter Linux-Build
+  inklusive beider RTX-SOs erfolgreich. OpenGL-Fallback unverändert.
+- [`RTX_10_BLOCKS_2026_10_31_P5.md`](RTX_10_BLOCKS_2026_10_31_P5.md).
