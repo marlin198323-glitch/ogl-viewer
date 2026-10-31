@@ -20,7 +20,16 @@ class PortablePluginFoundationTests(unittest.TestCase):
         p=Path(directory)/"example.ogltheme"
         with zipfile.ZipFile(p,"w",compression=zipfile.ZIP_DEFLATED) as z:
             for name,value in entries:
-                z.writestr(name,value)
+                # ZipInfo(name) normalizes backslashes to '/' when the
+                # test runs on Windows. Override the raw stored filename
+                # AFTER construction so ZIP traversal checks actually
+                # receive identical hostile names on all three OSes.
+                info=zipfile.ZipInfo("placeholder")
+                info.filename=name
+                info.compress_type=zipfile.ZIP_DEFLATED
+                z.writestr(info,value)
+        with zipfile.ZipFile(p) as z:
+            assert z.namelist()==[name for name,_ in entries], (z.namelist(),entries)
         return p
 
     def test_example_theme_supports_all_three_os(self):
