@@ -443,3 +443,31 @@ kein Compositing, keine vollständige Szene und keine Echtzeit-
 Schattenkarte. Ihre tatsächliche Bilddarstellung muss der Nutzer
 in einer eingeloggten lokalen OGL-Sitzung abnehmen.
 `rendering_active=0` bleibt bestehen.
+
+
+## 31.10.2026 – tatsächliche RTX-Live-Log-Auswertung und Fehlerkorrektur
+
+- Im eingeloggten OGL Viewer wurden reale 1.024-Dreiecke-Samples und
+  3440×1390→8×8-Deferred-Depth-Abfragen nachgewiesen; im ursprünglichen
+  Testlauf gab es dennoch **keinen abgeschlossenen Vulkan-GPU-Job**.
+- Echte Ursache: Leere Abschnitte des rotierenden OpenSim-Objektscanners
+  wurden fälschlich als Regionswechsel gemeldet und räumten die RTX-Szene.
+  Jetzt ist ausschließlich ein tatsächlicher `getRegionID()`-Wechsel
+  für das Leeren des bisherigen Szenen-Snapshots zuständig.
+- Für den ausdrücklich aktivierten Depth-Guided-**Debug-Preview**
+  wird eine vollständig eingefrorene GPU-Kamera-/Depth-/Mesh-Probe
+  akzeptiert, auch wenn während der asynchronen GPU-Bearbeitung
+  Kamera oder neue Mesh-Teilsamples eintreffen. Der reale
+  Regionswechsel und ein neuer Depth-Snapshot invalidieren weiterhin.
+- GPU-Arbeiter-Initialisierung, Auftragseinreihung und erfolgreicher
+  Abschluss sind in anonymen numerischen Logmeldungen unterscheidbar.
+  Der lokale Bericht meldet keine veraltete falsche Aussage mehr.
+- Native GPU-Regression: Kamera und Geometrie ändern nach GPU-Queue,
+  Ergebnis wird noch korrekt publiziert, echter Szenen-Clear entfernt es.
+- 40 Python- und 21 Native-Tests bestanden; kompletter Linux-Build
+  und OpenGL-Fallback überprüft.
+- Details: [`RTX_LIVE_FIX_2026_10_31.md`](RTX_LIVE_FIX_2026_10_31.md).
+
+**Noch offen:** erneuter echter OpenSim-Login und visuelle Abnahme
+der 8×8-Debug-Anzeige. Keine RTX-Weltbeleuchtung und keine
+sichtbaren hochwertigen Echtzeit-Rays; `rendering_active=0`.

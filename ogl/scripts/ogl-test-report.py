@@ -63,7 +63,9 @@ def report():
         print("Login screen ready:", "STATE_LOGIN_WAIT" in text)
         world_started = "STATE_STARTED" in text
         print("3D world entered in this log:", world_started)
-        print("Viewer stopped cleanly:", "cleanup : Goodbye!" in text)
+        print("Viewer stopped cleanly:", (
+            "yes" if "cleanup : Goodbye!" in text
+            else "not recorded (viewer may still be running)"))
         rtx_lines = re.findall(
             r"OGLRTX[^\n]*GPU [^\n]*hardware_ready=(\d+) rendering_active=(\d+)",
             text
@@ -83,6 +85,10 @@ def report():
             reason = ("no triangle snapshot recorded yet" if world_started else
                       "last log never reached the 3D world")
             print("RTX world geometry sample: not observed (" + reason + ")")
+        developer = re.findall(
+            r"OGL RTX developer probe configured: worker=(\d) "
+            r"camera=(\d) depth_guided=(\d)", text)
+        queued = text.count("OGL RTX depth-guided GPU snapshot queued")
         probes = re.findall(
             r"OGL RTX GPU probe: triangles=(\d+) rays=(\d+) "
             r"occluded=(\d+) revision=(\d+)", text)
@@ -103,15 +109,27 @@ def report():
         elif ("OGL RTX GPU scene probe failed;" in text or
               "OGL RTX async GPU probe failed;" in text):
             print("RTX GPU diagnostic: failed; OpenGL fallback active")
+        elif developer:
+            worker, camera, guided = developer[-1]
+            print(f"RTX GPU diagnostic: configured, but no completed probe "
+                  f"(worker={worker}, camera={camera}, depth_guided={guided}, "
+                  f"queued={queued})")
+            print("Check current session for worker failure or stale GPU snapshots.")
         else:
-            print("RTX GPU diagnostic: not run (developer opt-in only)")
+            print("RTX GPU diagnostic: no completed probe recorded "
+                  "(developer mode may be off, or older build lacks job logs)")
         samples = re.findall(
             r"Deferred depth full-view grid captured (\d+)x(\d+)", text)
         if samples:
             w, h = samples[-1]
             print(f"OpenGL deferred depth readback: whole-view 8x8 grid "
                   f"sampled from {w}x{h} render target (developer mode only)")
-            print("Depth samples are NOT yet fed to the Vulkan shadow shader.")
+            if probes and developer and developer[-1][2] == "1":
+                print("Depth-to-Vulkan GPU processing: confirmed by completed probe.")
+            elif queued:
+                print("Depth-to-Vulkan GPU processing: queued, no successful result logged.")
+            else:
+                print("Depth-to-Vulkan GPU processing: not confirmed by this log.")
         else:
             print("OpenGL deferred depth readback: not observed "
                   "(requires logged-in world and OGL_RTX_DEPTH_PROBE=1)")

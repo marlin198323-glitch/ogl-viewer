@@ -9448,6 +9448,22 @@ void LLPipeline::renderDeferredLighting()
                 camera->getView(), camera->getAspect(),
                 camera->getNear(), camera->getFar(), sun.mV);
 
+            // A scan window with no qualifying volume is NOT a teleport.
+            // Only a genuine OpenSim region ID change clears the ray scene.
+            // The world scanner intentionally skips many object types, so
+            // clearing on an empty 180-frame batch cancels legitimate GPU
+            // work and makes the optional RTX diagnostics impossible.
+            static LLUUID ogl_rtx_last_region_id;
+            LLViewerRegion* ogl_rtx_region = gAgent.getRegion();
+            const LLUUID current_region_id = ogl_rtx_region ?
+                ogl_rtx_region->getRegionID() : LLUUID::null;
+            if (current_region_id != ogl_rtx_last_region_id)
+            {
+                if (!ogl_rtx_last_region_id.isNull())
+                    ogl_rtx_submit_world_triangles(nullptr, 0);
+                ogl_rtx_last_region_id = current_region_id;
+            }
+
             // Capture a strictly limited subset of actual local volume/mesh
             // triangles from the loaded OpenSim scene every 180 frames.
             // This is NOT raytraced image output: the Vulkan module only
@@ -9523,8 +9539,8 @@ void LLPipeline::renderDeferredLighting()
                     ogl_rtx_submit_world_triangles(
                         triangles.front().position,
                         static_cast<unsigned>(triangles.size()));
-                else
-                    ogl_rtx_submit_world_triangles(nullptr, 0);
+                // Empty rotating subsets are normal in busy OpenSim regions.
+                // Keep the last safe snapshot until real region change.
             }
         }
 

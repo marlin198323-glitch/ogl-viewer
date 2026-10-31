@@ -276,6 +276,21 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("fresh.sample_sequence = outcome.revision;", module)
         self.assertIn("rendering_active=0", module)
 
+    def test_live_rtx_depth_snapshot_survives_rotating_scene_scan(self):
+        pipeline = (ROOT / "indra/newview/pipeline.cpp").read_text()
+        plugin = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        test = (ROOT / "ogl/modules/rtx/ogl_live_gpu_probe_test.cpp").read_text()
+        self.assertIn("ogl_rtx_last_region_id", pipeline)
+        self.assertIn("ogl_rtx_region->getRegionID()", pipeline)
+        self.assertIn("if (!ogl_rtx_last_region_id.isNull())", pipeline)
+        self.assertNotIn("else\n                    ogl_rtx_submit_world_triangles(nullptr, 0);",pipeline)
+        self.assertIn("(!probe_depth_enabled && outcome.geometry_revision != geometry_revision)",plugin)
+        self.assertIn("if (!probe_depth_enabled) {",plugin)
+        self.assertIn('OGL RTX depth-guided GPU snapshot queued',plugin)
+        self.assertIn("assert(debug.geometry_revision==1); // captured before mesh scan", test)
+        self.assertIn("assert(debug.geometry_revision==2);", test)
+        self.assertIn("assert(submit(nullptr,0)==1)", test)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

@@ -289,3 +289,17 @@ Fehlerberichte eingefügt werden.
 - Der 2D-Preview wurde noch nicht in einer echten angemeldeten
   OpenSim-Sitzung visuell abgenommen; keine RTX-Weltschatten.
 - [`RTX_10_BLOCKS_2026_10_31_P12.md`](RTX_10_BLOCKS_2026_10_31_P12.md).
+
+
+## 31.10.2026 – RTX-Live-Fix nach echtem OpenSim-Log
+
+- Beweis im Log: GPU-Hardware und Deferred-Depth-Readback funktionieren;
+  falsches Leeren der Teilscan-Szene und asynchrone Frame-Invalidierung
+  blockierten die sichtbare 8×8-Diagnose.
+- Region-ID statt leerem rotierenden Scan für RTX-Szenen-Clear.
+- Asynchrone Depth-Guided-Diagnose mit immutable Job-Snapshot und
+  Logmeldungen für Worker-Start/Queue-Erfolg/Fertigstellung.
+- Python-Report korrekt für noch laufenden Viewer und GPU-Zustand.
+- Vollständiger Linux-Viewer-Build und Fallback-Tests grün;
+  Abnahme im realen Viewer nach Neustart noch erforderlich.
+- [`RTX_LIVE_FIX_2026_10_31.md`](RTX_LIVE_FIX_2026_10_31.md).

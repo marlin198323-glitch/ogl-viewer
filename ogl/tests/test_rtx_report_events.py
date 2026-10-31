@@ -37,6 +37,13 @@ class RTXSceneLogTests(unittest.TestCase):
             "OGL RTX CPU scene snapshot: triangles=200 revision=3"),
             ("sample", 200, 3))
 
+    def test_depth_report_distinguishes_queued_and_completed(self):
+        source = script.read_text()
+        self.assertIn('Depth-to-Vulkan GPU processing: queued', source)
+        self.assertIn('Depth-to-Vulkan GPU processing: confirmed', source)
+        self.assertNotIn('Depth samples are NOT yet fed', source)
+        self.assertIn('developer probe configured: worker=', source)
+
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(
             "username=private\n"

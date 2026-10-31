@@ -97,6 +97,13 @@ int main(int argc, char** argv) {
             sample.grid_height=8;
             for (float& f:sample.normalized_depth) f=1.f;
             assert(submit_depth(&sample)==1);
+            // Mimic a real busy OpenSim viewport: camera drifts, and the
+            // scanner rotates through a different mesh subset BEFORE GPU
+            // worker finishes. The immutable debug snapshot must survive.
+            state.camera_position[0] += 0.25f;
+            assert(frame(&state)==1);
+            tris[0].position[0] += 0.1f;
+            assert(submit(tris.data(),tris.size())==1);
             for (unsigned i=0;i<500 && successes()<1;++i) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 assert(frame(&state)==1);
@@ -105,6 +112,7 @@ int main(int argc, char** argv) {
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_debug(&debug)==1 && debug.occluded==0);
             assert(debug.sample_sequence > 0);
+            assert(debug.geometry_revision==1); // captured before mesh scan
             const uint64_t original_sample_sequence = debug.sample_sequence;
             // New depth input must invalidate old shadow mask before GPU
             // finishes the next pass, despite unchanged camera and mesh.
@@ -119,8 +127,10 @@ int main(int argc, char** argv) {
             assert(attempts()==2 && successes()==2);
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_debug(&debug)==1);
-            assert(debug.geometry_revision==1);
+            assert(debug.geometry_revision==2);
             assert(debug.sample_sequence > original_sample_sequence);
+            assert(submit(nullptr,0)==1); // genuine region transition
+            assert(copy_debug(&debug)==0);
             stop();
             dlclose(library);
             std::puts("PASS: depth-guided GPU jobs use valid aligned grids; update without mesh changes");

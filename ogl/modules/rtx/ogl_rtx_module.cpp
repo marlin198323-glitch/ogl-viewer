@@ -236,15 +236,19 @@ void poll_probe_on_viewer_thread() {
     if (!probe_worker) return;
     ogl::AsyncGpuQueue::Result outcome{};
     if (!probe_worker->try_take(outcome)) return;
+    // In depth-guided diagnostic mode the worker owns an immutable frame,
+    // mesh and depth snapshot. It is a *labeled, expiring UI preview*, not
+    // live world shading. New frame/mesh samples must not cancel this frozen
+    // GPU job. Real region changes and newer depth captures still cancel it.
     if (outcome.revision != probe_job_sequence ||
-        outcome.geometry_revision != geometry_revision ||
+        (!probe_depth_enabled && outcome.geometry_revision != geometry_revision) ||
         captured_geometry.empty())
-        return; // stale after camera, lighting, region or mesh change
+        return;
     if (outcome.return_code == 0) {
         ogl_rtx_shadow_debug fresh{};
         fresh.struct_size = sizeof(fresh);
         fresh.version = OGL_RTX_SHADOW_DEBUG_VERSION;
-        fresh.geometry_revision = geometry_revision;
+        fresh.geometry_revision = outcome.geometry_revision;
         fresh.sample_sequence = outcome.revision;
         fresh.width = 8;
         fresh.height = 8;
@@ -305,6 +309,9 @@ void schedule_probe_on_viewer_thread() {
                 probe_last_time = now;
                 probe_last_revision = geometry_revision;
                 probe_view_dirty = false;
+                if (logger && probe_depth_enabled)
+                    logger(1, "OGL RTX depth-guided GPU snapshot queued; "
+                        "async test only; no world compositing");
             }
         }
     }
@@ -441,6 +448,12 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
             }
         }
     }
+    if (probe_opt_in && logger)
+        logger(1, (std::string("OGL RTX developer probe configured: worker=") +
+            (probe_worker ? "1" : "0") +
+            " camera=" + (probe_camera_enabled ? "1" : "0") +
+            " depth_guided=" + (probe_depth_enabled ? "1" : "0") +
+            "; diagnostic only").c_str());
     std::string gpu = status.gpu_name[0] ? status.gpu_name : "none";
     logger(1, (std::string("OGL RTX capability: gpu=") + gpu +
         " acceleration=" + std::to_string(status.acceleration_structure) +
@@ -487,10 +500,15 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
                 latest_frame.camera_up[i] != frame->camera_up[i])
                 view_changed = true;
     if (view_changed) {
-        shadow_debug_valid = false;
-        last_shadow_debug = {};
         probe_view_dirty = true;
-        if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+        // The depth-guided preview is a frozen frame snapshot. Camera
+        // movement must not cancel GPU work in progress, or clear the
+        // previous 8-second debug tile. Neither is used for world shading.
+        if (!probe_depth_enabled) {
+            shadow_debug_valid = false;
+            last_shadow_debug = {};
+            if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+        }
     }
     // A depth tile belongs to exactly one submitted frame. No reuse after
     // camera motion, resize, new lighting or a later rendered frame.
@@ -540,12 +558,15 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     const bool first_batch = captured_geometry.empty();
     captured_geometry.assign(triangles, triangles + count);
     ++geometry_revision;
-    last_shadow_debug = {};
-    shadow_debug_valid = false;
-    // Invalidate all earlier camera/mesh jobs; a new work item receives
-    // a *distinct* sequence number, independent of this mesh revision.
     probe_view_dirty = true;
-    if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+    if (!probe_depth_enabled) {
+        last_shadow_debug = {};
+        shadow_debug_valid = false;
+        if (probe_worker) probe_worker->invalidate(++probe_job_sequence);
+    }
+    // The depth-guided developer preview is bound to a frozen camera+depth
+    // frame. Geometry scans may change before Vulkan finishes; do not
+    // cancel an already queued snapshot unless the region actually changes.
     schedule_probe_on_viewer_thread();
     poll_probe_on_viewer_thread();
     // Log numbers only, never login data or private scene object names.
@@ -615,7 +636,9 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_shadow_debug(
 {
     if (!output || output->struct_size != sizeof(ogl_rtx_shadow_debug) ||
         output->version != OGL_RTX_SHADOW_DEBUG_VERSION ||
-        !shadow_debug_valid || last_shadow_debug.geometry_revision != geometry_revision)
+        !shadow_debug_valid ||
+        (!probe_depth_enabled &&
+         last_shadow_debug.geometry_revision != geometry_revision))
         return 0;
     *output = last_shadow_debug;
     return 1;
