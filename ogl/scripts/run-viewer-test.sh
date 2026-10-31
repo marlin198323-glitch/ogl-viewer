@@ -25,7 +25,8 @@ chmod 700 "$SAFE_WRAPPER"
 
 # The app's Linux directory code reads the uppercased APP_NAME + _x64 key.
 # This keeps all Firestorm-based test settings/cache out of ~/.firestorm_x64.
-export FIRESTORM_X64_USER_DIR="$PROFILE"
+export OGL_X64_USER_DIR="$PROFILE"
+export FIRESTORM_X64_USER_DIR="$PROFILE" # compatibility with the prior test binary
 export __GL_THREADED_OPTIMIZATIONS=1
 
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then

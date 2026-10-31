@@ -32,7 +32,8 @@
 class LLUUID;
 
 // <FS:Ansariel> Centralize definition of application name
-const std::string APP_NAME = "Firestorm";
+// OGL fork: the product identity is separate from upstream Firestorm.
+const std::string APP_NAME = "OGL";
 
 static constexpr F32 REGION_WIDTH_METERS = 256.f;
 static constexpr S32 REGION_WIDTH_UNITS = 256;

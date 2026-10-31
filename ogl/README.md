@@ -1,8 +1,10 @@
 # OGL Viewer – Firestorm fork
 
-This folder contains OGL-specific extensions kept separate from the upstream
-Firestorm source. The viewer core is still the unmodified official Firestorm
-7.2.5 release baseline until an OpenSim Linux build has passed.
+This folder contains OGL-specific extensions based on the official upstream
+Firestorm 7.2.5 release. A functional OpenSim Firestorm baseline was already
+compiled and GUI-launched on Linux Mint. The next OGL branding iteration now
+modifies product identity, welcome page, icons and interactive HTTPS login
+validation; these changes require a fresh compiled runtime acceptance.
 
 - Upstream: https://github.com/FirestormViewer/phoenix-firestorm
 - Fork: https://github.com/marlin198323-glitch/ogl-viewer

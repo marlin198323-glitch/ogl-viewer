@@ -1,0 +1,65 @@
+# OGL branding and login-safety integration
+
+**Scope:** A genuine Firestorm 7.2.5 OpenSim fork with OGL test branding.
+This is the development branch, not a production-ready OGL release.
+
+## Implemented in source
+
+- Application identity: `APP_NAME = "OGL"`. Display name in the default
+  localization: `OGL Viewer`; development channel: `OGL Viewer Development`.
+- User profile isolation on Linux:
+  `OGL_X64_USER_DIR=~/.local/share/ogl-firestorm-test`.
+- Original OpenGenesisLINK icon reused from the existing local
+  `nexverse-viewer/assets/branding` directory. The older project is untouched.
+  The icon is installed in the modern login panel and Linux icon resources.
+- Welcome content: `https://stadt-nexverse.de/service/welcome`.
+  This is a web-page background, **not** a substitute for the grid login URI.
+- Interactive login UI rejects a grid if **any** advertised authentication
+  URL lacks an HTTPS scheme/authority or if no login URI is available.
+  A localized German/English modal explains the restriction.
+- Existing upstream Firestorm/Second Life copyright and third-party
+  acknowledgments are retained. The executable may retain upstream internal
+  code names and still includes upstream Firestorm features.
+
+## Important network prerequisite
+
+The currently advertised Stadt NexVerse login endpoint is
+`http://hg.stadt-nexverse.de:80/`. HTTPS on that hostname previously
+failed. Until a valid HTTPS login service has been configured and tested,
+**do not attempt real account login**. The UI guard covers the standard
+login-button route; independently audit other auto-login or command-line
+routes before declaring all paths secure.
+
+## Local Linux test
+
+```sh
+cd "$HOME/Schreibtisch/OGL-Viewer/ogl-firestorm"
+bash ogl/scripts/build-test.sh
+bash ogl/scripts/run-viewer-test.sh
+```
+
+Rebuilding recompiles C++ only when necessary, then stages resources and
+installs a local desktop shortcut. To build and open in one command, use:
+
+```sh
+bash ogl/scripts/build-test.sh --run
+```
+
+## Verification checklist
+
+1. CMake reports `Compiling with OpenSim support` and
+   `VIEWER_CHANNEL:STRING=OGL Viewer Development`.
+2. C++ executable links, viewer manifest copies skins and Linux libraries.
+3. Desktop window title uses OGL branding; the login panel displays the
+   original OpenGenesisLINK logo and NexVerse welcome.
+4. Verify English and German layouts, small and large screen widths,
+   all fonts, CEF rendering and closing behavior.
+5. Confirm separate settings/cache/log paths.
+6. Verify the HTTP grid login is rejected **without actual passwords**.
+7. Repeat network tests only after HTTPS endpoint is validated.
+8. Only after login: check sky, sun, textures, mesh, avatar appearance,
+   camera, animation, teleports, and asset-cache measurements.
+
+The OGL module ABI proof of concept is still standalone; a production
+module loader is not wired into Firestorm. Native modules are not
+sandboxed. Do not load untrusted modules.

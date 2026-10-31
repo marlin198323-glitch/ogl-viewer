@@ -480,7 +480,9 @@ void FSPanelLogin::showLoginWidgets()
         LLMediaCtrl* web_browser = sInstance->getChild<LLMediaCtrl>("login_html");
 
         // *TODO: Append all the usual login parameters, like first_login=Y etc.
-        std::string splash_screen_url = LLGridManager::getInstance()->getLoginPage();
+        std::string splash_screen_url = APP_NAME == "OGL"
+            ? "https://stadt-nexverse.de/service/welcome"
+            : LLGridManager::getInstance()->getLoginPage();
         web_browser->navigateTo( splash_screen_url, HTTP_CONTENT_TEXT_HTML );
         LLUICtrl* username_combo = sInstance->getChild<LLUICtrl>("username_combo");
         username_combo->setFocus(true);
@@ -878,7 +880,11 @@ void FSPanelLogin::loadLoginPage()
 {
     if (!sInstance) return;
 
-    LLURI login_page = LLURI(LLGridManager::getInstance()->getLoginPage());
+    // OGL: maintain the NexVerse welcome background while changing grids.
+    // This URL is display-only; authentication still uses the chosen grid.
+    LLURI login_page = LLURI(APP_NAME == "OGL"
+        ? "https://stadt-nexverse.de/service/welcome"
+        : LLGridManager::getInstance()->getLoginPage());
     LLSD params(login_page.queryMap());
 
     LL_DEBUGS("AppInit") << "login_page: " << login_page << LL_ENDL;
@@ -1010,6 +1016,31 @@ void FSPanelLogin::onClickConnect(void *)
             args["GRID"] = ex.name();
             LLNotificationsUtil::add("InvalidGrid", args);
             return;
+        }
+
+        // OGL security gate: never send credentials to an unencrypted grid.
+        // The grid may publish multiple fallback URIs; require HTTPS for all.
+        if (APP_NAME == "OGL")
+        {
+            std::vector<std::string> login_uris;
+            LLGridManager::getInstance()->getLoginURIs(login_uris);
+            bool secure_login = !login_uris.empty();
+            for (const std::string& uri : login_uris)
+            {
+                LLURI parsed(uri);
+                if (parsed.scheme() != "https" || parsed.authority().empty())
+                {
+                    secure_login = false;
+                    break;
+                }
+            }
+            if (!secure_login)
+            {
+                LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                    "MESSAGE", LLTrans::getString("OGLInsecureGridLogin")));
+                LL_WARNS("OGL") << "Blocked login: grid does not provide HTTPS login URIs." << LL_ENDL;
+                return;
+            }
         }
 
         // The start location SLURL has already been sent to LLStartUp::setStartSLURL

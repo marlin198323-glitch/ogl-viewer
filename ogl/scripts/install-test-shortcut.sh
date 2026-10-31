@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LAUNCH="$ROOT/ogl/scripts/run-viewer-test.sh"
-ICON="$ROOT/indra/newview/res/firestorm_icon.png"
+ICON="$ROOT/indra/newview/skins/default/textures/windows/login_ogl_logo.png"
 APP_DIR="$HOME/.local/share/applications"
 DESKTOP_DIR="$HOME/Schreibtisch"
 ENTRY="$APP_DIR/ogl-firestorm-test.desktop"

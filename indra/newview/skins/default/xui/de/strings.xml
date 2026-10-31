@@ -4,6 +4,8 @@
      For example, the strings used in avatar chat bubbles, and strings
      that are returned from one component and may appear in many places-->
 <strings>
+  <string name="OGLInsecureGridLogin">Dieses Grid bietet keine sichere HTTPS-Anmeldeadresse an. Zum Schutz deines Kontos sendet der OGL Viewer keine Passwörter über eine unverschlüsselte Verbindung.</string>
+
 	<string name="SECOND_LIFE_GRID">
 		Second Life-Grid:
 	</string>
