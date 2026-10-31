@@ -28,6 +28,15 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     float near_clip_m, float far_clip_m,
     const float* sun_direction);
 
+// World renderer input handshake: verifies the Vulkan tile's exact
+// source camera/geometry and returns aggregate validated pixels. It does NOT
+// composite or upscale this incomplete 8x8 sample into the world.
+bool ogl_rtx_world_shadow_source_ready(unsigned width,unsigned height,
+    const float* eye,const float* forward,const float* right,
+    const float* up,float fov,float aspect,float near_clip,float far_clip,
+    const float* sun,unsigned* matched,unsigned* occluded,
+    std::uint64_t* sequence);
+
 // Developer-only 8x8 GPU ray-hit mask. Returns false without changing the
 // caller's output if no matching, current scene sample exists. NOT pixels
 // for the world's OpenGL framebuffer, and not enabled for public users.

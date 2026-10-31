@@ -110,6 +110,13 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX Vulkan geometry coverage gap:",source)
         self.assertIn("RTX completed depth-match history",source)
 
+    def test_world_shadow_bridge_is_explicitly_not_rendering(self):
+        source=script.read_text()
+        self.assertIn("RTX world-shadow bridge:",source)
+        self.assertIn("world-shadow input eligible: sample=",source)
+        self.assertIn("not composited; still 8x8",source)
+        self.assertIn('Ray-traced world rendering:',source)
+
     def test_gpu_source_scan_resolves_older_revision(self):
         text = (
             "OGL RTX scene selection: exact_ray_anchors=30 "

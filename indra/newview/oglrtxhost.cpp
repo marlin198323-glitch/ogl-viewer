@@ -2,6 +2,7 @@
 #include "oglrtxhost.h"
 #include "llglheaders.h"
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
+#include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h"
 
 #if LL_LINUX || LL_WINDOWS
 #include <cstring>
@@ -60,6 +61,8 @@ using ogl_rtx_triangles_fn = uint32_t (*)();
 ogl_rtx_triangles_fn rtx_received_triangles = nullptr;
 using ogl_rtx_copy_shadow_debug_fn = int (*)(ogl_rtx_shadow_debug*);
 ogl_rtx_copy_shadow_debug_fn rtx_copy_shadow_debug = nullptr;
+using ogl_rtx_copy_world_shadow_fn = int (*)(ogl_rtx_world_shadow_sample*);
+ogl_rtx_copy_world_shadow_fn rtx_copy_world_shadow = nullptr;
 using ogl_rtx_submit_depth_fn = int (*)(const ogl_rtx_depth_debug*);
 ogl_rtx_submit_depth_fn rtx_submit_depth = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
@@ -119,6 +122,8 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_received_triangles"));
     rtx_copy_shadow_debug = reinterpret_cast<ogl_rtx_copy_shadow_debug_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_copy_shadow_debug"));
+    rtx_copy_world_shadow = reinterpret_cast<ogl_rtx_copy_world_shadow_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_rtx_copy_world_shadow_sample"));
     rtx_submit_depth = reinterpret_cast<ogl_rtx_submit_depth_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_depth_debug"));
 
@@ -159,6 +164,7 @@ void ogl_shutdown_rtx_module() {
     rtx_forget_object = nullptr;
     rtx_received_triangles = nullptr;
     rtx_copy_shadow_debug = nullptr;
+    rtx_copy_world_shadow = nullptr;
     rtx_submit_depth = nullptr;
 #endif
 }
@@ -245,6 +251,55 @@ void ogl_rtx_forget_local_object(const std::uint8_t* uuid)
 {
 #if LL_LINUX || LL_WINDOWS
     if (rtx_forget_object && uuid) rtx_forget_object(uuid);
+#endif
+}
+
+// Separate GPU->world bridge. This reports an eligible *input*, never
+// enables shadow compositing: CURRENT per-pixel GL depth and opaque material
+// must still be checked by a real full-resolution compositor.
+bool ogl_rtx_world_shadow_source_ready(unsigned width,unsigned height,
+    const float* eye,const float* forward,const float* right,
+    const float* up,float fov,float aspect,float near_clip,float far_clip,
+    const float* sun,unsigned* matched,unsigned* occluded,
+    std::uint64_t* sequence)
+{
+#if LL_LINUX || LL_WINDOWS
+    if (!rtx_hardware_ready || !rtx_copy_world_shadow ||
+        !eye || !forward || !right || !up || !sun ||
+        !matched || !occluded || !sequence) return false;
+    ogl_rtx_frame_state current{};
+    current.struct_size=sizeof(current);
+    current.frame_version=OGL_RTX_FRAME_VERSION;
+    current.width=width;
+    current.height=height;
+    for (unsigned i=0;i<3;++i) {
+        current.camera_position[i]=eye[i];
+        current.camera_forward[i]=forward[i];
+        current.camera_right[i]=right[i];
+        current.camera_up[i]=up[i];
+        current.sun_direction[i]=sun[i];
+    }
+    current.vertical_fov_radians=fov;
+    current.aspect_ratio=aspect;
+    current.near_clip_m=near_clip;
+    current.far_clip_m=far_clip;
+    ogl_rtx_world_shadow_sample tile{};
+    tile.struct_size=sizeof(tile);
+    tile.version=OGL_RTX_WORLD_SHADOW_VERSION;
+    if (rtx_copy_world_shadow(&tile)!=1 ||
+        !ogl::valid_world_shadow_sample(
+            tile,tile.geometry_revision,current))
+        return false;
+    // Do NOT invent a high-res shadow map by stretching these 64 samples.
+    *matched=tile.matched_surface_pixels;
+    *occluded=tile.occluded_pixels;
+    *sequence=tile.sample_sequence;
+    return true;
+#else
+    (void)width;(void)height;(void)eye;(void)forward;(void)right;
+    (void)up;(void)fov;(void)aspect;(void)near_clip;(void)far_clip;
+    (void)sun;(void)matched;(void)occluded;(void)sequence;
+    return false;
 #endif
 }
 

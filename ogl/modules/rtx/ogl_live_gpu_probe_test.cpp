@@ -40,10 +40,12 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_gpu_probe_successes"));
     auto copy_debug = reinterpret_cast<int(*)(ogl_rtx_shadow_debug*)>(
         dlsym(library, "ogl_rtx_copy_shadow_debug"));
+    auto copy_world = reinterpret_cast<int(*)(ogl_rtx_world_shadow_sample*)>(
+        dlsym(library,"ogl_rtx_copy_world_shadow_sample"));
     auto submit_depth = reinterpret_cast<int(*)(const ogl_rtx_depth_debug*)>(
         dlsym(library, "ogl_rtx_submit_depth_debug"));
     assert(start && stop && status && frame && submit && attempts &&
-           successes && copy_debug && submit_depth);
+           successes && copy_debug && copy_world && submit_depth);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, test_log};
     assert(start(&host) == 0);
     assert(attempts() == 0 && successes() == 0);
@@ -54,6 +56,10 @@ int main(int argc, char** argv) {
     debug.version = 999;
     assert(copy_debug(&debug) == 0); // reject incompatible ABI
     debug.version = OGL_RTX_SHADOW_DEBUG_VERSION;
+    ogl_rtx_world_shadow_sample world{};
+    world.struct_size=sizeof(world);
+    world.version=OGL_RTX_WORLD_SHADOW_VERSION;
+    assert(copy_world(&world)==0); // no GPU/depth output on startup
 
     ogl_rtx_frame_state state{};
     state.struct_size = sizeof(state);
@@ -115,6 +121,9 @@ int main(int argc, char** argv) {
             for (auto pixel:debug.surface_mask) assert(pixel==0);
             assert(debug.sample_sequence > 0);
             assert(debug.geometry_revision==1); // captured before mesh scan
+            // Old frozen HUD diagnostic intentionally survives camera/mesh
+            // movement. The WORLD source must NEVER accept that same tile.
+            assert(copy_world(&world)==0);
             const uint64_t original_sample_sequence = debug.sample_sequence;
             // New depth input must invalidate old shadow mask before GPU
             // finishes the next pass, despite unchanged camera and mesh.
@@ -134,8 +143,31 @@ int main(int argc, char** argv) {
             assert(debug.occluded<=debug.surface_pixels);
             assert(debug.geometry_revision==2);
             assert(debug.sample_sequence > original_sample_sequence);
+            assert(copy_world(&world)==1);
+            assert(world.struct_size==sizeof(world));
+            assert(world.version==OGL_RTX_WORLD_SHADOW_VERSION);
+            assert(world.geometry_revision==2);
+            assert(world.sample_sequence==debug.sample_sequence);
+            assert(world.capture_frame.width==state.width);
+            assert(world.capture_frame.height==state.height);
+            assert(world.capture_frame.camera_position[0]==
+                   state.camera_position[0]);
+            assert(world.occluded_pixels<=world.matched_surface_pixels);
+            uint32_t matched=0,shadow=0;
+            for (unsigned i=0;i<64;++i) {
+                assert(world.valid_mask[i]<=1);
+                assert(world.occlusion_mask[i]<=world.valid_mask[i]);
+                matched+=world.valid_mask[i];
+                shadow+=world.occlusion_mask[i];
+            }
+            assert(matched==world.matched_surface_pixels);
+            assert(shadow==world.occluded_pixels);
+            world.version=999; // strict world ABI version
+            assert(copy_world(&world)==0);
+            world.version=OGL_RTX_WORLD_SHADOW_VERSION;
             assert(submit(nullptr,0)==1); // genuine region transition
             assert(copy_debug(&debug)==0);
+            assert(copy_world(&world)==0);
             stop();
             dlclose(library);
             std::puts("PASS: depth-guided GPU jobs use valid aligned grids; update without mesh changes");

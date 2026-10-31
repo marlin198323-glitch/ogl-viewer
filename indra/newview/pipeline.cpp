@@ -9455,6 +9455,33 @@ void LLPipeline::renderDeferredLighting()
                 camera->getView(), camera->getAspect(),
                 camera->getNear(), camera->getFar(), sun.mV);
 
+            // World-pass phase 1: the immutable GPU ray-query data is now
+            // available separately from the HUD probe. It is eligible only
+            // for the *exact* capture pose and geometry. We cannot shade
+            // the actual framebuffer before per-pixel live depth + material
+            // checks and a denser GPU result exist; never upsample 8x8.
+            static std::uint64_t ogl_last_world_source_sequence=0;
+            unsigned ogl_world_matched=0,ogl_world_shadowed=0;
+            std::uint64_t ogl_world_sequence=0;
+            if (ogl_rtx_world_shadow_source_ready(
+                viewport.getWidth(),viewport.getHeight(),
+                camera->getOrigin().mV,camera->getAtAxis().mV,
+                right.mV,camera->getUpAxis().mV,
+                camera->getView(),camera->getAspect(),
+                camera->getNear(),camera->getFar(),sun.mV,
+                &ogl_world_matched,&ogl_world_shadowed,
+                &ogl_world_sequence) &&
+                ogl_world_sequence!=ogl_last_world_source_sequence) {
+                ogl_last_world_source_sequence=ogl_world_sequence;
+                LL_INFOS("OGLRTX")
+                    << "OGL RTX world-shadow input eligible: sample="
+                    << ogl_world_sequence << " matched="
+                    << ogl_world_matched << " shadowed="
+                    << ogl_world_shadowed
+                    << " (not composited; dense/live depth pending)"
+                    << LL_ENDL;
+            }
+
             // A scan window with no qualifying volume is NOT a teleport.
             // Only a genuine OpenSim region ID change clears the ray scene.
             // The world scanner intentionally skips many object types, so

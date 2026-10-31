@@ -298,6 +298,17 @@ def report():
                     surface, hits, matches=map(int,stats[offset:offset+3])
                     print(f"RTX CPU depth range {label}: {matches}/{surface} "
                           f"matched, {hits}/{surface} ray hits")
+        world_sources=re.findall(
+            r"OGL RTX world-shadow input eligible: sample=(\d+) "
+            r"matched=(\d+) shadowed=(\d+)",text)
+        if world_sources:
+            seq,matched,occluded=world_sources[-1]
+            print(f"RTX world-shadow bridge: latest eligible immutable GPU "
+                  f"tile #{seq}; {occluded}/{matched} confirmed sun-shadow "
+                  "pixels (not composited; still 8x8)")
+        else:
+            print("RTX world-shadow bridge: no current camera/geometry "
+                  "matched GPU source observed in this log")
         developer = re.findall(
             r"OGL RTX developer probe configured: worker=(\d) "
             r"camera=(\d) depth_guided=(\d)", text)

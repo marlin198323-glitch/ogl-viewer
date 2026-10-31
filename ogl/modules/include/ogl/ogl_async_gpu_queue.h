@@ -51,6 +51,12 @@ public:
         uint32_t background_pixels = 0;
         std::array<uint8_t, 64> shadow_mask{};
         std::array<uint8_t, 64> surface_mask{};
+        // Immutable, depth-validated GPU input for future world rendering.
+        // Not the latest (possibly different) view after async execution.
+        ogl_rtx_frame_state capture_frame{};
+        std::array<float,64> capture_depth{};
+        std::array<uint8_t,64> depth_match_mask{};
+        bool has_depth_grid = false;
         uint32_t gpu_device_creations = 0;
         uint32_t blas_builds = 0;
         uint32_t blas_refits = 0;

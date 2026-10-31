@@ -1,4 +1,5 @@
 #include "ogl/ogl_rtx_api.h"
+#include "ogl/ogl_world_shadow_policy.h"
 #include "ogl/ogl_scene_validation.h"
 #include "ogl/ogl_camera_validation.h"
 #include "ogl/ogl_depth_validation.h"
@@ -119,6 +120,8 @@ std::vector<ogl_rtx_triangle> captured_geometry;
 uint64_t geometry_revision = 0;
 ogl_rtx_shadow_debug last_shadow_debug{};
 bool shadow_debug_valid = false;
+ogl_rtx_world_shadow_sample last_world_shadow{};
+bool world_shadow_valid = false;
 ogl_rtx_depth_debug last_depth_debug{};
 ogl::DepthStats last_depth_stats{};
 bool depth_debug_valid = false;
@@ -266,6 +269,37 @@ void poll_probe_on_viewer_thread() {
                   std::begin(fresh.surface_mask));
         last_shadow_debug = fresh; // publisher is the viewer main thread only
         shadow_debug_valid = true;
+        world_shadow_valid = false;
+        last_world_shadow = {};
+        if (probe_depth_enabled && outcome.has_depth_grid &&
+            outcome.geometry_revision == geometry_revision &&
+            ogl::same_rt_frame(outcome.capture_frame,latest_frame)) {
+            ogl_rtx_world_shadow_sample ready{};
+            ready.struct_size=sizeof(ready);
+            ready.version=OGL_RTX_WORLD_SHADOW_VERSION;
+            ready.geometry_revision=outcome.geometry_revision;
+            ready.sample_sequence=outcome.revision;
+            ready.capture_frame=outcome.capture_frame;
+            ready.matched_surface_pixels=outcome.primary_depth_matches;
+            ready.occluded_pixels=outcome.occluded;
+            std::copy(outcome.depth_match_mask.begin(),
+                      outcome.depth_match_mask.end(),
+                      std::begin(ready.valid_mask));
+            std::copy(outcome.shadow_mask.begin(),
+                      outcome.shadow_mask.end(),
+                      std::begin(ready.occlusion_mask));
+            std::copy(outcome.capture_depth.begin(),
+                      outcome.capture_depth.end(),
+                      std::begin(ready.capture_depth));
+            if (ogl::valid_world_shadow_sample(
+                ready,geometry_revision,latest_frame)) {
+                last_world_shadow=ready;
+                world_shadow_valid=true;
+                if (logger) logger(1,
+                    "OGL RTX world-shadow source synchronized and depth-matched;"
+                    " GPU pixels still NOT composited");
+            }
+        }
         if (logger)
             logger(1, (std::string("OGL RTX GPU probe: triangles=") +
                 std::to_string(outcome.triangle_count) + " rays=" +
@@ -356,6 +390,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     geometry_revision = 0;
     last_shadow_debug = {};
     shadow_debug_valid = false;
+    last_world_shadow = {};
+    world_shadow_valid = false;
     last_depth_debug = {};
     last_depth_stats = {};
     depth_debug_valid = false;
@@ -412,8 +448,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 native.struct_size = sizeof(native);
                 native.version = OGL_GPU_PROBE_VERSION;
                 int rc = 1;
+                ogl_rtx_frame_state frame{};
                 if (probe_camera_enabled && probe_camera_run) {
-                    ogl_rtx_frame_state frame{};
                     frame.struct_size = sizeof(frame);
                     frame.frame_version = OGL_RTX_FRAME_VERSION;
                     frame.width = job.viewport_width;
@@ -458,6 +494,18 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 result.primary_farther = native.primary_farther;
                 result.surface_pixels = job.surface_pixels;
                 result.background_pixels = job.background_pixels;
+                result.has_depth_grid=job.has_depth_grid;
+                if (job.has_depth_grid) {
+                    result.capture_frame=frame;
+                    result.capture_depth=job.depth_grid;
+                    std::copy(std::begin(native.depth_match_mask),
+                              std::end(native.depth_match_mask),
+                              result.depth_match_mask.begin());
+                    for (unsigned i=0;i<64;++i)
+                        if (native.shadow_mask[i] &&
+                            native.depth_match_mask[i]!=1u)
+                            result.return_code=1; // no unverified shadows
+                }
                 if (job.has_depth_grid) {
                     for (unsigned i=0; i<64; ++i) {
                         float distance=0.f;
@@ -512,6 +560,8 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     captured_geometry.clear();
     last_shadow_debug = {};
     shadow_debug_valid = false;
+    last_world_shadow = {};
+    world_shadow_valid = false;
     last_depth_debug = {};
     last_depth_stats = {};
     depth_debug_valid = false;
@@ -541,6 +591,10 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
                 latest_frame.camera_up[i] != frame->camera_up[i])
                 view_changed = true;
     if (view_changed) {
+        // Even if a frozen GPU debug job is allowed to finish, never feed
+        // a stale camera to an actual world compositor.
+        last_world_shadow={};
+        world_shadow_valid=false;
         probe_view_dirty = true;
         // The depth-guided preview is a frozen frame snapshot. Camera
         // movement must not cancel GPU work in progress, or clear the
@@ -578,6 +632,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
     if (!status.hardware_ready || count > OGL_RTX_MAX_SCENE_TRIANGLES ||
         (count && !triangles)) return 0;
     if (!count) {
+        last_world_shadow={};
+        world_shadow_valid=false;
         // A region change invalidates per-UUID metadata even if no aggregate
         // GPU triangle snapshot was available yet.
         tracked_objects.clear();
@@ -602,6 +658,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(
         return 1; // avoid rebuilding BLAS for unchanged scene samples
     const bool first_batch = captured_geometry.empty();
     captured_geometry.assign(triangles, triangles + count);
+    last_world_shadow={};
+    world_shadow_valid=false;
     ++geometry_revision;
     probe_view_dirty = true;
     if (!probe_depth_enabled) {
@@ -766,6 +824,8 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
         // when the camera, sun and mesh revision are unchanged.
         shadow_debug_valid = false;
         last_shadow_debug = {};
+        last_world_shadow = {};
+        world_shadow_valid = false;
         probe_view_dirty = true;
         probe_worker->invalidate(++probe_job_sequence);
         schedule_probe_on_viewer_thread();
@@ -780,6 +840,19 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(
         output->version != OGL_RTX_DEPTH_DEBUG_VERSION || !depth_debug_valid)
         return 0;
     *output = last_depth_debug;
+    return 1;
+}
+
+extern "C" OGL_MODULE_EXPORT int ogl_rtx_copy_world_shadow_sample(
+    ogl_rtx_world_shadow_sample* output)
+{
+    if (!output || output->struct_size!=sizeof(*output) ||
+        output->version!=OGL_RTX_WORLD_SHADOW_VERSION ||
+        !world_shadow_valid || !probe_depth_enabled ||
+        !ogl::valid_world_shadow_sample(
+            last_world_shadow,geometry_revision,latest_frame))
+        return 0;
+    *output=last_world_shadow;
     return 1;
 }
 

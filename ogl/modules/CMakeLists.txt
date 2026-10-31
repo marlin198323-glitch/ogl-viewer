@@ -305,6 +305,13 @@ target_include_directories(ogl_scene_ray_visibility_test PRIVATE include)
 target_compile_features(ogl_scene_ray_visibility_test PRIVATE cxx_std_17)
 add_test(NAME ogl_exact_camera_ray_geometry_selection COMMAND ogl_scene_ray_visibility_test)
 
+# GPU->world shadow input must reject stale camera, scene and depth,
+# independently of the future OpenGL compositor.
+add_executable(ogl_world_shadow_policy_test ../tests/test_world_shadow_policy.cpp)
+target_include_directories(ogl_world_shadow_policy_test PRIVATE include)
+target_compile_features(ogl_world_shadow_policy_test PRIVATE cxx_std_17)
+add_test(NAME ogl_world_shadow_frame_policy COMMAND ogl_world_shadow_policy_test)
+
 # Pure C++ geometry validation for both the OpenGL collector and Vulkan.
 add_executable(ogl_scene_validation_test ../tests/test_scene_validation.cpp)
 target_include_directories(ogl_scene_validation_test PRIVATE include)

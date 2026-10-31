@@ -119,6 +119,30 @@ typedef struct ogl_rtx_shadow_debug {
 } ogl_rtx_shadow_debug;
 OGL_MODULE_EXPORT int ogl_rtx_copy_shadow_debug(ogl_rtx_shadow_debug *output);
 
+/* Initial GPU-to-world shadow *input* contract. This is a validated
+ * immutable Vulkan ray-query tile, NOT a composited full-resolution image.
+ * A renderer must compare capture_pose and capture_depth against CURRENT
+ * camera and framebuffer before using any bit; moving avatars/transparency
+ * and frames not present in the AS must still be handled. Fail closed.
+ * Separate ABI from historical 8x8 HUD diagnostics.
+ */
+#define OGL_RTX_WORLD_SHADOW_VERSION 1u
+typedef struct ogl_rtx_world_shadow_sample {
+    uint32_t struct_size;
+    uint32_t version;
+    uint64_t geometry_revision;
+    uint64_t sample_sequence;
+    ogl_rtx_frame_state capture_frame;
+    uint32_t matched_surface_pixels;
+    uint32_t occluded_pixels;
+    uint8_t valid_mask[64];       /* Vulkan primary matches OpenGL depth */
+    uint8_t occlusion_mask[64];   /* shadow ray hit, only if valid */
+    float capture_depth[64];     /* GL normalized depth at capture time */
+} ogl_rtx_world_shadow_sample;
+/* No result on absent, obsolete, incomplete or invalid GPU frames. */
+OGL_MODULE_EXPORT int ogl_rtx_copy_world_shadow_sample(
+    ogl_rtx_world_shadow_sample* output);
+
 /* OpenGL deferred depth, WHOLE-VIEWPORT 8x8 NEAREST SAMPLE GRID.
  * Pixel (x,y) corresponds to camera ray UV ((x+.5)/8,(y+.5)/8).
  * OpenGL origin is bottom-left, matching the diagnostic Vulkan shader.
