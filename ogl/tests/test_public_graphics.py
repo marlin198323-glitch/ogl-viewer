@@ -331,6 +331,17 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("ogl_depth_reconstruction_and_coverage", cmake)
         self.assertIn("Perspective GL z encoding", test)
 
+    def test_primary_rays_agree_with_opengl_depth_in_vulkan(self):
+        shader=(ROOT / "ogl/modules/rtx/shaders/depth_guided_sun.comp").read_text()
+        gpu=(ROOT / "ogl/modules/rtx/vulkan_blas_smoke.cpp").read_text()
+        module=(ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn("uint primaryHit[64]",shader)
+        self.assertIn("uint depthMatch[64]",shader)
+        self.assertIn("rayQueryGetIntersectionTEXT(primary,true)",shader)
+        self.assertIn("const uint32_t output_sections = depth_64 ? 3u : 1u",gpu)
+        self.assertIn("primary_hits=",module)
+        self.assertIn("depth_matches=",module)
+
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('No suitable Vulkan ray tracing GPU found; OpenGL fallback.', module)

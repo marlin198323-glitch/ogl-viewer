@@ -113,6 +113,25 @@ def report():
                 visible, background = completed_surface[-1]
                 print(f"RTX completed GPU sample coverage: {visible}/64 "
                       f"reconstructed surfaces, {background}/64 sky/background")
+                primary = re.findall(
+                    r"OGL RTX GPU probe: [^\n]*surface_samples=\d+ "
+                    r"background_samples=\d+ primary_hits=(\d+) "
+                    r"depth_matches=(\d+)", text)
+                if primary:
+                    primary_hits, matched = map(int, primary[-1])
+                    surfaces = int(visible)
+                    print(f"RTX primary-ray geometry coverage: "
+                          f"{primary_hits}/{surfaces} surface samples hit "
+                          f"the incomplete Vulkan scene")
+                    print(f"RTX OpenGL/Vulkan depth agreement: "
+                          f"{matched}/{surfaces} surface samples "
+                          "(within 2% or 0.25 m)")
+                    if surfaces > 0 and primary_hits == 0:
+                        print("RTX diagnostic: no primary ray hits; check "
+                              "incomplete mesh capture and coordinate transforms.")
+                    elif surfaces > 0 and matched == 0:
+                        print("RTX diagnostic: no matching GL depth; check "
+                              "projection and occluding foreground geometry.")
                 print("Only reconstructed surfaces are eligible for shadows; "
                       "0/64 hits does not by itself indicate a GPU error.")
         elif ("OGL RTX GPU scene probe failed;" in text or

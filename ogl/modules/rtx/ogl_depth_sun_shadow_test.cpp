@@ -69,12 +69,15 @@ int main(int argc, char** argv) {
     };
     const auto no_blocker=run();
     assert(no_blocker.occluded==0);
+    assert(no_blocker.primary_hits==64 && no_blocker.primary_depth_matches==64);
     const auto cached=run();
     assert(cached.cache_hits==1 && cached.blas_builds==1);
     quad(scene,-0.4f,-0.4f,0.4f,0.4f,0.5f);
     const auto shadow=run();
     std::printf("DEPTH GUIDED SHADOW: %u/64 hits\n",shadow.occluded);
     assert(shadow.occluded>0 && shadow.occluded<64);
+    assert(shadow.primary_hits==64);
+    assert(shadow.primary_depth_matches<shadow.primary_hits);
     assert(shadow.blas_builds==2);
     // Sparse sky/transparent areas: a test pixel with depth=1 may never
     // claim shadow, while opaque neighbouring samples still run ray queries.
@@ -91,6 +94,7 @@ int main(int argc, char** argv) {
     depth.fill(1.f);
     const auto background=run();
     assert(background.occluded==0 && background.blas_builds==2);
+    assert(background.primary_hits==0 && background.primary_depth_matches==0);
     // A depth change with the exact same mesh and camera must invalidate
     // the GPU result cache without rebuilding the BLAS.
     depth.fill(depth_of_plane);

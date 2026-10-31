@@ -50,6 +50,13 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn('OGL RTX depth coverage: surface=', source)
         self.assertIn('not automatically against 64 valid surfaces', source)
 
+    def test_primary_ray_geometry_report(self):
+        source = script.read_text()
+        self.assertIn("RTX primary-ray geometry coverage:",source)
+        self.assertIn("RTX OpenGL/Vulkan depth agreement:",source)
+        self.assertIn("primary_hits=",source)
+        self.assertIn("depth_matches=",source)
+
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(
             "username=private\n"
