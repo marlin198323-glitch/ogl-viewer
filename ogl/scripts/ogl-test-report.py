@@ -44,6 +44,16 @@ def report():
         print("Warning entries:", len(re.findall(r"\bWARNING\b", text)))
         print("Login screen ready:", "STATE_LOGIN_WAIT" in text)
         print("Viewer stopped cleanly:", "cleanup : Goodbye!" in text)
+        rtx_lines = re.findall(
+            r"OGLRTX[^\n]*GPU [^\n]*hardware_ready=(\d+) rendering_active=(\d+)",
+            text
+        )
+        if rtx_lines:
+            ready, active = rtx_lines[-1]
+            print("RTX Vulkan hardware:", "supported" if ready == "1" else "not supported")
+            print("Ray-traced world rendering:", "active" if active == "1" else "not implemented")
+        else:
+            print("RTX module status: not reported")
     else:
         print("Viewer log: not yet created")
     print("Application data size:", disk_size(PROFILE))

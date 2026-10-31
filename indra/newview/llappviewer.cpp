@@ -27,6 +27,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llappviewer.h"
+#include "oglrtxhost.h" // OGL: optional trusted Vulkan RTX capability module
 
 // Viewer includes
 #include "llversioninfo.h"
@@ -1478,6 +1479,8 @@ bool LLAppViewer::init()
         gDirUtilp->deleteDirAndContents(gDirUtilp->getDumpLogsDirPath());
     }
 #endif
+    // OGL: hardware RTX inspection only; OpenGL remains the actual renderer.
+    ogl_init_rtx_module();
     LL_PROFILER_FRAME_END;
     return true;
 }
@@ -2006,6 +2009,7 @@ void LLAppViewer::flushLFSIO()
 
 bool LLAppViewer::cleanup()
 {
+    ogl_shutdown_rtx_module();
 #if LL_VELOPACK
     // Apply any pending Velopack update before shutdown
     if (velopack_is_update_pending())

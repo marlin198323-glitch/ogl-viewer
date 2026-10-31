@@ -13,10 +13,12 @@ validation; these changes require a fresh compiled runtime acceptance.
 - First target: a working, repeatable Linux OpenSim build before branding.
 - Grid connection must be confirmed against the actual login endpoint.
 
-The `modules/` directory is an **experimental OGL ABI prototype**. It is not
-loaded by Firestorm and is not a production plugin system. Only run
-modules from trusted developers: a native shared library executes arbitrary
-code in the viewer process.
+The `modules/` directory defines an experimental OGL native C ABI. The
+first bundled NVIDIA RTX capability module is now loaded by the real Linux
+OGL Viewer at startup and safely unloaded on shutdown. This only reports
+Vulkan ray-tracing hardware support; it **does not render RTX effects yet**.
+Other arbitrary native modules are not loaded. Native code is not sandboxed.
+See [RTX_ROADMAP.md](RTX_ROADMAP.md) for implementation and release gates.
 
 Build the self-contained module handshake test:
 

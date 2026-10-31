@@ -23,6 +23,18 @@ cmake -S indra -B build-linux-x86_64 \
 cmake --build build-linux-x86_64 --target firestorm-bin --parallel 6
 cmake --build build-linux-x86_64 --target copy_l_viewer_manifest --parallel 5
 
+# Build the optional NVIDIA RTX capability module without changing the core
+# OpenGL viewer. The Vulkan headers are an external, local toolchain dependency.
+MODULE_BUILD="$BASE/.build-ogl-modules"
+VULKAN_HEADERS="$BASE/.vulkan-sdk-local/headers/include"
+cmake -S ogl/modules -B "$MODULE_BUILD" -G Ninja \
+  "-DOGL_VULKAN_HEADER_DIR=$VULKAN_HEADERS"
+cmake --build "$MODULE_BUILD" --parallel 4
+if [ -f "$MODULE_BUILD/ogl_rtx.so" ]; then
+  install -m 755 "$MODULE_BUILD/ogl_rtx.so" \
+    "$ROOT/build-linux-x86_64/newview/packaged/lib/ogl_rtx.so"
+fi
+
 # To avoid stale login textures on incremental CMake builds, regenerate the
 # manifest when this OGL-specific branding source is newer than the copied one.
 BRAND_SRC="$ROOT/indra/newview/skins/default/textures/windows/login_ogl_logo.png"

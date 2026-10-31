@@ -13,7 +13,7 @@
 - OGL logo in login skin and Linux desktop resources; staged source
   and destination SHA-256 checks match.
 - Linux Mint X11 start: window title
-  `OGL Viewer Development 7.2.5.6`, login screen reached
+  `OGL Viewer Development 7.2.5.8`, login screen reached
   `STATE_LOGIN_WAIT`.
 - Linux OpenGL: NVIDIA RTX 4070 SUPER, OpenGL 4.6, driver 615.71.09.
 - CEF login background loads
@@ -21,7 +21,10 @@
 - Branded runtime writes `~/.local/share/ogl-firestorm-test/logs/OGL.log`.
 - Start log contained zero ERROR/FATAL messages at first check.
 - Static OGL branding/security tests: 6/6 passing.
-- Standalone OGL native module ABI test: 1/1 passing.
+- Standalone OGL module tests: 3/3 passing (RTX capability, missing-driver
+  fallback, basic ABI handshake). RTX module loaded by the actual viewer;
+  RTX 4070 SUPER reported hardware_ready=1 / rendering_active=0.
+  This is not an active ray-tracing renderer.
 - Legacy `nexverse-viewer` project was not overwritten or merged.
 
 ## Run on Linux Mint

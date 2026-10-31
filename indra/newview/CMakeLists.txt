@@ -91,6 +91,7 @@ set(viewer_SOURCE_FILES
     animationexplorer.cpp
     ao.cpp
     aoengine.cpp
+    oglrtxhost.cpp # OGL: optional trusted RTX capability module
     aoset.cpp
     chatbar_as_cmdline.cpp
     daeexport.cpp
@@ -957,6 +958,7 @@ set(viewer_HEADER_FILES
     animationexplorer.h
     ao.h
     aoengine.h
+    oglrtxhost.h
     aoset.h
     chatbar_as_cmdline.h
     daeexport.h
@@ -2303,6 +2305,7 @@ add_executable(${VIEWER_BINARY_NAME}
     MACOSX_BUNDLE
     ${viewer_SOURCE_FILES}
     )
+
 
 # add package files
 file(GLOB EVENT_HOST_SCRIPT_GLOB_LIST

@@ -18,9 +18,9 @@
 5. Implement isolated OGL branding, launcher and user-data separation. IN PROGRESS (OGL title/icon/welcome and isolated data PASS on Linux Mint; full custom UI and cross-platform branding OPEN).
 6. Verify full avatar wearables, appearance, attachments, animations. OPEN
 7. Measure texturing/mesh/cache/sky pipeline vs upstream on repeat visits. OPEN
-8. Integrate versioned OGL module API into the viewer safely. OPEN (standalone proof of concept only)
+8. Integrate versioned OGL module API into the viewer safely. IN PROGRESS (trusted RTX capability module loads in real OGL Linux viewer; future generic manager, trust controls and GPU rendering integration OPEN)
 9. Add OGL-specific UI, grid settings, optional plugins, updater, packaging. OPEN
-10. CI, compatibility, notices, regression/performance/security checks and release gates. IN PROGRESS (6/6 branding checks and 1/1 standalone module test PASS; CI/real-grid/production security OPEN)
+10. CI, compatibility, notices, regression/performance/security checks and release gates. IN PROGRESS (6/6 branding checks, 3/3 module tests and real OGL RTX detection PASS; CI/real-grid/production security OPEN)
 
 ## Non-goals / security boundaries
 - Never overwrite the legacy viewer, its running binary, cache or local changes.
