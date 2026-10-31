@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 project(ogl_module_prototype VERSION 0.1.0 LANGUAGES CXX)
 
-if(NOT UNIX)
-    message(FATAL_ERROR "The experimental OGL module probe currently supports Unix only")
+if(NOT UNIX AND NOT WIN32)
+    message(FATAL_ERROR "The OGL native module prototype supports Linux/Windows only")
 endif()
 
 add_library(ogl_hello_module SHARED examples/hello/hello_module.cpp)
@@ -10,12 +10,14 @@ target_include_directories(ogl_hello_module PRIVATE include)
 target_compile_features(ogl_hello_module PRIVATE cxx_std_17)
 set_target_properties(ogl_hello_module PROPERTIES PREFIX "" OUTPUT_NAME "ogl_hello")
 
-add_executable(ogl_module_probe tools/module_probe.cpp)
-target_include_directories(ogl_module_probe PRIVATE include)
-target_compile_features(ogl_module_probe PRIVATE cxx_std_17)
-target_link_libraries(ogl_module_probe PRIVATE ${CMAKE_DL_LIBS})
+if(UNIX)
+    add_executable(ogl_module_probe tools/module_probe.cpp)
+    target_include_directories(ogl_module_probe PRIVATE include)
+    target_compile_features(ogl_module_probe PRIVATE cxx_std_17)
+    target_link_libraries(ogl_module_probe PRIVATE ${CMAKE_DL_LIBS})
+endif()
 
-# Keep NVIDIA / Vulkan SDK optional: unsupported systems retain OpenGL.
+# Keep the Vulkan RT SDK optional: unsupported systems retain OpenGL.
 set(OGL_VULKAN_HEADER_DIR "" CACHE PATH "Vulkan SDK include directory")
 if(NOT OGL_VULKAN_HEADER_DIR)
     find_path(OGL_VULKAN_HEADER_DIR vulkan/vulkan.h)
@@ -24,11 +26,13 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
     add_library(ogl_rtx_module SHARED rtx/ogl_rtx_module.cpp)
     target_include_directories(ogl_rtx_module PRIVATE include "${OGL_VULKAN_HEADER_DIR}")
     target_compile_features(ogl_rtx_module PRIVATE cxx_std_17)
-    target_link_libraries(ogl_rtx_module PRIVATE ${CMAKE_DL_LIBS})
+    if(CMAKE_DL_LIBS)
+        target_link_libraries(ogl_rtx_module PRIVATE ${CMAKE_DL_LIBS})
+    endif()
     set_target_properties(ogl_rtx_module PROPERTIES PREFIX "" OUTPUT_NAME "ogl_rtx")
 
     # Vulkan RT logical-device test; skips gracefully on non-RTX PCs.
-    find_library(OGL_VULKAN_RUNTIME NAMES vulkan vulkan.so.1 libvulkan.so.1)
+    find_library(OGL_VULKAN_RUNTIME NAMES vulkan vulkan-1 vulkan.so.1 libvulkan.so.1)
     if(OGL_VULKAN_RUNTIME)
         add_executable(ogl_vulkan_rt_device_probe rtx/vulkan_device_probe.cpp)
         target_compile_features(ogl_vulkan_rt_device_probe PRIVATE cxx_std_17)
@@ -38,6 +42,7 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
         set_tests_properties(ogl_vulkan_rt_device PROPERTIES SKIP_RETURN_CODE 77)
     endif()
 
+    if(UNIX)
     # GPU hardware/frame-state ABI test. Does not assert actual rays rendered.
     add_executable(ogl_rtx_frame_bridge_test rtx/frame_bridge_test.cpp)
     target_include_directories(ogl_rtx_frame_bridge_test PRIVATE include)
@@ -56,15 +61,16 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
       COMMAND ${CMAKE_COMMAND} -E env VK_DRIVER_FILES=/nonexistent-ogl-vulkan-icd.json
               $<TARGET_FILE:ogl_module_probe> $<TARGET_FILE:ogl_rtx_module>
     )
+    endif() # Unix-only dlopen-based tests
 else()
     message(STATUS "OGL RTX disabled: Vulkan headers unavailable (OpenGL fallback).")
 endif()
 
 enable_testing()
-add_test(
-  NAME ogl_module_handshake
-  COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>
-)
+if(UNIX)
+    add_test(NAME ogl_module_handshake
+             COMMAND ogl_module_probe $<TARGET_FILE:ogl_hello_module>)
+endif()
 
 # Pure C++ HTTP login allowlist contract. It never opens the network.
 add_executable(ogl_grid_http_policy_test ../tests/test_grid_http_policy.cpp)

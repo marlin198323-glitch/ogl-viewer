@@ -2,13 +2,44 @@
 #include "oglrtxhost.h"
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
 
-#if LL_LINUX
-#include <dlfcn.h>
+#if LL_LINUX || LL_WINDOWS
 #include <cstring>
 #include <string>
+#if LL_WINDOWS
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#else
+#  include <dlfcn.h>
+#endif
 
 namespace {
-void *rtx_module_handle = nullptr;
+#if LL_WINDOWS
+using OGLModuleHandle = HMODULE;
+OGLModuleHandle ogl_load_module() {
+    // Explicit, trusted path next to the executable (no current-dir search).
+    wchar_t buffer[MAX_PATH]{};
+    const DWORD n = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    if (!n || n >= MAX_PATH) return nullptr;
+    std::wstring exe(buffer, n);
+    const auto slash = exe.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) return nullptr;
+    const std::wstring dll = exe.substr(0, slash + 1) + L"ogl_rtx.dll";
+    return LoadLibraryExW(dll.c_str(), nullptr,
+                          LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+}
+void* ogl_resolve_module(OGLModuleHandle module, const char* symbol) {
+    return reinterpret_cast<void*>(GetProcAddress(module, symbol));
+}
+void ogl_unload_module(OGLModuleHandle module) { FreeLibrary(module); }
+#else
+using OGLModuleHandle = void*;
+OGLModuleHandle ogl_load_module() { return dlopen("./lib/ogl_rtx.so", RTLD_NOW | RTLD_LOCAL); }
+void* ogl_resolve_module(OGLModuleHandle module, const char* symbol) {
+    return dlsym(module, symbol);
+}
+void ogl_unload_module(OGLModuleHandle module) { dlclose(module); }
+#endif
+OGLModuleHandle rtx_module_handle = nullptr;
 bool rtx_hardware_ready = false;
 bool rtx_rendering_enabled = false;
 using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
@@ -25,23 +56,23 @@ void host_log(int severity, const char *message) {
 #endif
 
 void ogl_init_rtx_module() {
-#if LL_LINUX
+#if LL_LINUX || LL_WINDOWS
     // Load only the bundled, trusted RTX module. Arbitrary paths and user-
     // supplied native modules are intentionally unsupported at this stage.
-    rtx_module_handle = dlopen("./lib/ogl_rtx.so", RTLD_NOW | RTLD_LOCAL);
+    rtx_module_handle = ogl_load_module();
     if (!rtx_module_handle) {
         LL_INFOS("OGLRTX") << "RTX capability module unavailable; keeping OpenGL."
                             << LL_ENDL;
         return;
     }
     auto info = reinterpret_cast<ogl_module_info_fn>(
-        dlsym(rtx_module_handle, "ogl_module_get_info"));
+        ogl_resolve_module(rtx_module_handle, "ogl_module_get_info"));
     auto start = reinterpret_cast<ogl_module_start_fn>(
-        dlsym(rtx_module_handle, "ogl_module_start"));
+        ogl_resolve_module(rtx_module_handle, "ogl_module_start"));
     rtx_stop = reinterpret_cast<ogl_module_stop_fn>(
-        dlsym(rtx_module_handle, "ogl_module_stop"));
+        ogl_resolve_module(rtx_module_handle, "ogl_module_stop"));
     auto get_status = reinterpret_cast<const ogl_rtx_status *(*)()>(
-        dlsym(rtx_module_handle, "ogl_rtx_get_status"));
+        ogl_resolve_module(rtx_module_handle, "ogl_rtx_get_status"));
 
     if (!info || !start || !rtx_stop || !get_status) {
         LL_WARNS("OGLRTX") << "RTX module ABI incomplete; keeping OpenGL." << LL_ENDL;
@@ -59,9 +90,9 @@ void ogl_init_rtx_module() {
     }
 
     rtx_submit_frame = reinterpret_cast<ogl_rtx_submit_frame_fn>(
-        dlsym(rtx_module_handle, "ogl_rtx_submit_frame"));
+        ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_frame"));
     rtx_submit_geometry = reinterpret_cast<ogl_rtx_submit_geometry_fn>(
-        dlsym(rtx_module_handle, "ogl_rtx_submit_geometry"));
+        ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
 
     const ogl_host_api api{sizeof(ogl_host_api), OGL_MODULE_ABI_VERSION, host_log};
     if (start(&api) != 0) {
@@ -84,10 +115,10 @@ void ogl_init_rtx_module() {
 }
 
 void ogl_shutdown_rtx_module() {
-#if LL_LINUX
+#if LL_LINUX || LL_WINDOWS
     if (rtx_module_handle) {
         if (rtx_stop) rtx_stop();
-        dlclose(rtx_module_handle);
+        ogl_unload_module(rtx_module_handle);
     }
     rtx_stop = nullptr;
     rtx_module_handle = nullptr;
@@ -99,7 +130,7 @@ void ogl_shutdown_rtx_module() {
 }
 
 bool ogl_rtx_hardware_supported() {
-#if LL_LINUX
+#if LL_LINUX || LL_WINDOWS
     return rtx_hardware_ready;
 #else
     return false;
@@ -107,7 +138,7 @@ bool ogl_rtx_hardware_supported() {
 }
 
 bool ogl_rtx_rendering_active() {
-#if LL_LINUX
+#if LL_LINUX || LL_WINDOWS
     return rtx_rendering_enabled;
 #else
     return false;
@@ -117,7 +148,7 @@ bool ogl_rtx_rendering_active() {
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
     const float* sun_direction) {
-#if LL_LINUX
+#if LL_LINUX || LL_WINDOWS
     if (!rtx_submit_frame || !rtx_hardware_ready ||
         !camera_position || !camera_forward || !sun_direction) return;
     ogl_rtx_frame_state frame{};
@@ -135,7 +166,7 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
 }
 
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
-#if LL_LINUX
+#if LL_LINUX || LL_WINDOWS
     if (!rtx_submit_geometry || !rtx_hardware_ready ||
         count > OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangle_xyz)) return;
     // Geometry data layout is 9 tightly packed floats per triangle.

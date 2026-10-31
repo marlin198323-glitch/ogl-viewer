@@ -46,3 +46,13 @@ The public Stadt NexVerse login currently uses HTTP. OGL permits exactly
 that grid URI only after an explicit, temporary warning confirmation.
 Automatic HTTP login without approval is blocked. HTTP does **not** encrypt
 credentials; use a separate test account when possible.
+
+## Öffentliche Grafikauslieferung
+
+Der OGL Viewer ist nicht an den Rechner eines Entwicklers gebunden:
+passende Vulkan-RT-GPUs werden nach unterstützten Funktionen statt nach
+Grafikkartenmarken geprüft. Das optionale, allgemeine Qualitätsprofil
+„NexVerse Cinematic“ liegt im Viewerpaket und wird bei Bedarf ohne
+Überschreiben persönlicher Einstellungen bereitgestellt. Die GPU-RT-
+Funktionen sind weiter in Entwicklung; es werden noch keine RTX-Pixel
+berechnet. [Kompatibilitätsmatrix](PUBLIC_GRAPHICS_COMPATIBILITY.md).

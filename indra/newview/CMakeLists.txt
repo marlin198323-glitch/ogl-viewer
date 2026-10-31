@@ -2306,6 +2306,30 @@ add_executable(${VIEWER_BINARY_NAME}
     ${viewer_SOURCE_FILES}
     )
 
+# OGL: build the optional Vulkan-RT capability plugin as part of every
+# supported viewer build, not in one developer's external working directory.
+# Vulkan SDK headers are optional; builds without RT still ship OpenGL.
+if(WIN32 OR (UNIX AND NOT APPLE))
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../ogl/modules"
+                     "${CMAKE_CURRENT_BINARY_DIR}/ogl-modules" EXCLUDE_FROM_ALL)
+    if(TARGET ogl_rtx_module)
+        if(WIN32)
+            set(OGL_RTX_OUTPUT_DIR "$<TARGET_FILE_DIR:${VIEWER_BINARY_NAME}>")
+            set(OGL_RTX_OUTPUT_FILE "${OGL_RTX_OUTPUT_DIR}/ogl_rtx.dll")
+        else()
+            set(OGL_RTX_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/packaged/lib")
+            set(OGL_RTX_OUTPUT_FILE "${OGL_RTX_OUTPUT_DIR}/ogl_rtx.so")
+        endif()
+        add_custom_target(ogl_rtx_stage
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${OGL_RTX_OUTPUT_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:ogl_rtx_module>" "${OGL_RTX_OUTPUT_FILE}"
+            DEPENDS ogl_rtx_module VERBATIM)
+        add_dependencies(${VIEWER_BINARY_NAME} ogl_rtx_stage)
+    endif()
+endif()
+
+
 
 # add package files
 file(GLOB EVENT_HOST_SCRIPT_GLOB_LIST

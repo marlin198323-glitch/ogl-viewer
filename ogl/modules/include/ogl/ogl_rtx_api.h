@@ -18,7 +18,7 @@ typedef struct ogl_rtx_status {
     uint32_t struct_size;
     uint32_t status_version;
     uint32_t api_version;
-    uint32_t nvidia_gpu;
+    uint32_t vulkan_gpu; /* vendor-neutral Vulkan physical-device found */
     uint32_t acceleration_structure;
     uint32_t ray_query;
     uint32_t ray_tracing_pipeline;

@@ -229,9 +229,9 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
             if (ogl_rtx_rendering_active())
                 graphics->setText(LLStringExplicit("RTX-Rendering aktiv"));
             else if (ogl_rtx_hardware_supported())
-                graphics->setText(LLStringExplicit("RTX bereit | Raytracing noch aus"));
+                graphics->setText(LLStringExplicit("Vulkan RT bereit | Effekte aus"));
             else
-                graphics->setText(LLStringExplicit("OpenGL aktiv | RTX nicht verfügbar"));
+                graphics->setText(LLStringExplicit("OpenGL aktiv | kein Vulkan RT"));
         }
     }
 

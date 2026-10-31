@@ -1,6 +1,11 @@
 #include "ogl/ogl_rtx_api.h"
 #include <vulkan/vulkan.h>
-#include <dlfcn.h>
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#else
+#  include <dlfcn.h>
+#endif
 #include <cstdio>
 #include <cmath>
 #include <algorithm>
@@ -9,10 +14,28 @@
 #include <vector>
 
 namespace {
+#if defined(_WIN32)
+using VulkanLibrary = HMODULE;
+VulkanLibrary open_vulkan_loader() {
+    // Only load from the Windows system library directory.
+    return LoadLibraryExW(L"vulkan-1.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+}
+void* lookup_vulkan_symbol(VulkanLibrary library, const char* symbol) {
+    return reinterpret_cast<void*>(GetProcAddress(library, symbol));
+}
+void close_vulkan_loader(VulkanLibrary library) { FreeLibrary(library); }
+#else
+using VulkanLibrary = void*;
+VulkanLibrary open_vulkan_loader() { return dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL); }
+void* lookup_vulkan_symbol(VulkanLibrary library, const char* symbol) {
+    return dlsym(library, symbol);
+}
+void close_vulkan_loader(VulkanLibrary library) { dlclose(library); }
+#endif
 ogl_rtx_status status{sizeof(ogl_rtx_status), OGL_RTX_STATUS_VERSION};
 const ogl_module_info info{
     sizeof(ogl_module_info), OGL_MODULE_ABI_VERSION,
-    "de.nexverse.ogl.rtx", "OGL RTX Capability", "0.1.0"
+    "de.nexverse.ogl.rtx", "OGL Vulkan RT Capability", "0.2.0"
 };
 ogl_log_fn logger = nullptr;
 ogl_rtx_frame_state latest_frame{};
@@ -26,15 +49,15 @@ void detect() {
     status.struct_size = sizeof(status);
     status.status_version = OGL_RTX_STATUS_VERSION;
 
-    void *library = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
+    VulkanLibrary library = open_vulkan_loader();
     if (!library) { report("Vulkan loader absent; OpenGL fallback."); return; }
 
     const auto get_proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-        dlsym(library, "vkGetInstanceProcAddr"));
-    if (!get_proc) { report("Vulkan loader symbol unavailable."); dlclose(library); return; }
+        lookup_vulkan_symbol(library, "vkGetInstanceProcAddr"));
+    if (!get_proc) { report("Vulkan loader symbol unavailable."); close_vulkan_loader(library); return; }
     const auto create = reinterpret_cast<PFN_vkCreateInstance>(
         get_proc(VK_NULL_HANDLE, "vkCreateInstance"));
-    if (!create) { report("Vulkan instance creation unavailable."); dlclose(library); return; }
+    if (!create) { report("Vulkan instance creation unavailable."); close_vulkan_loader(library); return; }
 
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "OGL RTX capability";
@@ -45,7 +68,7 @@ void detect() {
     VkInstance instance = VK_NULL_HANDLE;
     if (create(&init, nullptr, &instance) != VK_SUCCESS || !instance) {
         report("Vulkan 1.2 initialization failed.");
-        dlclose(library);
+        close_vulkan_loader(library);
         return;
     }
 
@@ -67,57 +90,70 @@ void detect() {
         if (enumerate(instance, &count, nullptr) == VK_SUCCESS && count) {
             std::vector<VkPhysicalDevice> devices(count);
             if (enumerate(instance, &count, devices.data()) == VK_SUCCESS) {
-                for (uint32_t i = 0; i < count; ++i) {
-                    VkPhysicalDeviceProperties gpu{};
-                    props(devices[i], &gpu);
-                    if (gpu.vendorID != 0x10DE) continue; // NVIDIA target
-                    status.nvidia_gpu = 1;
-                    status.api_version = gpu.apiVersion;
-                    std::snprintf(status.gpu_name, sizeof(status.gpu_name), "%s", gpu.deviceName);
-                    uint32_t ext_count = 0;
-                    if (extensions(devices[i], nullptr, &ext_count, nullptr) != VK_SUCCESS)
-                        continue;
-                    std::vector<VkExtensionProperties> exts(ext_count);
-                    if (extensions(devices[i], nullptr, &ext_count, exts.data()) != VK_SUCCESS)
-                        continue;
-                    std::set<std::string> names;
-                    for (const auto &ext : exts) names.insert(ext.extensionName);
-                    bool accel_ext = names.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
-                    bool query_ext = names.count(VK_KHR_RAY_QUERY_EXTENSION_NAME);
-                    bool ray_ext = names.count(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
-                    bool deferred_ext = names.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-                    if (!accel_ext || !deferred_ext || (!query_ext && !ray_ext)) {
-                        report("RTX Vulkan extensions incomplete; OpenGL fallback.");
-                        continue;
-                    }
-                    VkPhysicalDeviceAccelerationStructureFeaturesKHR accel{
-                        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
-                    VkPhysicalDeviceRayQueryFeaturesKHR query{
-                        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
-                    VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray{
-                        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
-                    VkPhysicalDeviceFeatures2 root{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-                    root.pNext = &accel;
-                    accel.pNext = &query;
-                    query.pNext = &ray;
-                    features(devices[i], &root);
-                    status.acceleration_structure = accel.accelerationStructure == VK_TRUE;
-                    status.ray_query = query_ext && query.rayQuery == VK_TRUE;
-                    status.ray_tracing_pipeline = ray_ext && ray.rayTracingPipeline == VK_TRUE;
-                    status.hardware_ready = status.acceleration_structure &&
-                        (status.ray_query || status.ray_tracing_pipeline);
-                    if (status.hardware_ready) {
-                        report("RTX Vulkan supported; camera/sun frame interface available, no BLAS/TLAS renderer.");
+                // Prefer a capable discrete device when several adapters
+                // are present. Never select hardware by vendor/brand name.
+                for (unsigned preference = 0; preference < 2 && !status.hardware_ready; ++preference) {
+                    for (uint32_t i = 0; i < count; ++i) {
+                        VkPhysicalDeviceProperties gpu{};
+                        props(devices[i], &gpu);
+                        const bool discrete = gpu.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+                        if ((preference == 0) != discrete) continue;
+                        status.vulkan_gpu = 1;
+                        uint32_t ext_count = 0;
+                        if (extensions(devices[i], nullptr, &ext_count, nullptr) != VK_SUCCESS)
+                            continue;
+                        std::vector<VkExtensionProperties> exts(ext_count);
+                        if (extensions(devices[i], nullptr, &ext_count, exts.data()) != VK_SUCCESS)
+                            continue;
+                        std::set<std::string> names;
+                        for (const auto &ext : exts) names.insert(ext.extensionName);
+                        const bool accel_ext = names.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+                        const bool query_ext = names.count(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+                        const bool ray_ext = names.count(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+                        const bool deferred_ext = names.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+                        if (!accel_ext || !deferred_ext || (!query_ext && !ray_ext))
+                            continue;
+                        VkPhysicalDeviceAccelerationStructureFeaturesKHR accel{
+                            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
+                        VkPhysicalDeviceRayQueryFeaturesKHR query{
+                            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
+                        VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray{
+                            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
+                        VkPhysicalDeviceBufferDeviceAddressFeatures address{
+                            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES};
+                        VkPhysicalDeviceFeatures2 root{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+                        // Keep unsupported extension structs out of pNext.
+                        root.pNext = &address;
+                        address.pNext = &accel;
+                        if (query_ext) accel.pNext = &query;
+                        if (ray_ext) {
+                            if (query_ext) query.pNext = &ray;
+                            else accel.pNext = &ray;
+                        }
+                        features(devices[i], &root);
+                        const bool acceleration_ready = accel.accelerationStructure == VK_TRUE &&
+                                                         address.bufferDeviceAddress == VK_TRUE;
+                        const bool ray_query_ready = query_ext && query.rayQuery == VK_TRUE;
+                        const bool ray_pipeline_ready = ray_ext && ray.rayTracingPipeline == VK_TRUE;
+                        if (!acceleration_ready || (!ray_query_ready && !ray_pipeline_ready))
+                            continue;
+                        // Only publish the selected capable adapter's status.
+                        status.api_version = gpu.apiVersion;
+                        std::snprintf(status.gpu_name, sizeof(status.gpu_name), "%s", gpu.deviceName);
+                        status.acceleration_structure = 1;
+                        status.ray_query = ray_query_ready;
+                        status.ray_tracing_pipeline = ray_pipeline_ready;
+                        status.hardware_ready = 1;
+                        report("Vulkan RT supported; OpenGL active until RT renderer integration.");
                         break;
                     }
-                    report("RTX Vulkan features disabled; OpenGL fallback.");
                 }
             }
         }
-        if (!status.nvidia_gpu) report("No NVIDIA Vulkan GPU detected; OpenGL fallback.");
+        if (!status.hardware_ready) report("No suitable Vulkan ray tracing GPU found; OpenGL fallback.");
     }
     if (destroy) destroy(instance, nullptr);
-    dlclose(library);
+    close_vulkan_loader(library);
 }
 }
 

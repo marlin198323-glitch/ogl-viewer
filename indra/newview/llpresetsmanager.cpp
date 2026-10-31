@@ -39,6 +39,7 @@
 #include "llfeaturemanager.h"
 #include "llagentcamera.h"
 #include "llfile.h"
+#include "indra_constants.h" // OGL: universal built-in graphics preset
 #include "quickprefs.h"
 #include "llperfstats.h"
 
@@ -158,6 +159,22 @@ std::string LLPresetsManager::getPresetsDir(const std::string& subdirectory)
     // </FS:Ansariel>
     if (!gDirUtilp->fileExists(dest_path))
         LLFile::mkdir(dest_path);
+
+    // OGL: ship the same optional Cinematic preset to every supported user.
+    // Install only if missing. Existing custom presets and their current
+    // graphics settings are never changed or overwritten.
+    if (APP_NAME == "OGL" && subdirectory == PRESETS_GRAPHIC)
+    {
+        const std::string name = "NexVerse%20Cinematic.xml";
+        const std::string source = gDirUtilp->getExpandedFilename(
+            LL_PATH_APP_SETTINGS, "ogl", name);
+        const std::string target = gDirUtilp->add(dest_path, name);
+        if (!gDirUtilp->fileExists(target) && gDirUtilp->fileExists(source))
+        {
+            if (!LLFile::copy(source, target))
+                LL_WARNS("OGLGraphics") << "Could not install optional built-in graphics preset" << LL_ENDL;
+        }
+    }
 
     return dest_path;
 }

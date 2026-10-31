@@ -9,12 +9,19 @@ oder fehlender Weltgeometrie automatisch dieses Ergebnis erzeugen.
 
 ## Bereits möglich: OpenGL/PBR-Grafikprofil
 
-OGL liefert einen optionalen Generator für ein natives Firestorm-Grafikpreset:
-`ogl/scripts/install-cinematic-preset.py`.
+OGL enthält das native Grafikpreset jetzt **für alle Nutzer im installierbaren
+Viewerpaket**. Der Firestorm-Presetmanager bietet es beim ersten Öffnen
+von Grafikvoreinstellungen an, sofern es im Benutzerprofil noch nicht
+vorhanden ist. Seine Verwendung ist optional.
 
-Auf Linux Mint ist das Preset unter
-`~/.local/share/ogl-firestorm-test/user_settings/presets/graphic/NexVerse%20Cinematic.xml`
-installiert. Die bisher aktive Grafikkonfiguration wurde nicht verändert.
+Für den Entwicklungstest bleibt zusätzlich ein Generator vorhanden:
+`ogl/scripts/install-cinematic-preset.py`. Dieser ist **kein** notwendiger
+Installationsschritt für Endnutzer.
+
+Im Linux-Mint-Testprofil ist das Preset bereits installiert. Für alle
+künftigen Benutzer kommt es aus dem mitgelieferten
+`app_settings/ogl/NexVerse%20Cinematic.xml`. Bestehende Grafikprofile
+und die aktive Grafikkonfiguration werden nicht überschrieben.
 
 Das neue Profil schaltet 19 reguläre Firestorm-Grafikparameter in Richtung
 fotorealistischer Qualität: Schattenauflösung, SSAO, Screen-Space-Reflexionen,
@@ -26,7 +33,8 @@ Im Viewer über die **Grafikvoreinstellungen** das Profil
 Grafikvoreinstellung, z. B. **Default**. Bei ultrabreiter Auflösung
 können FPS und VRAM-Verbrauch erheblich steigen.
 
-Test auf anderen Linux-Mint-Rechnern mit diesem OGL-Profil:
+Nur für Entwickler, die das Preset außerhalb eines fertigen Viewerpakets
+testen möchten:
 
 ```bash
 cd "$HOME/Schreibtisch/OGL-Viewer/ogl-firestorm"
@@ -35,8 +43,12 @@ python3 ogl/scripts/install-cinematic-preset.py --install
 ```
 
 Der erste Aufruf ist nur ein Lesetest. Der zweite erstellt ausschließlich
-eine neue Grafikpreset-Datei. Bereits vorhandene Presets werden **nicht**
-überschrieben; keine Nutzer- oder Accountdaten werden in Git gespeichert.
+eine neue Grafikpreset-Datei. Endnutzer brauchen beide Befehle nicht.
+Bereits vorhandene Presets werden **nicht** überschrieben; keine
+Nutzer- oder Accountdaten werden in Git gespeichert.
+
+Details zur Hardware- und Plattform-Kompatibilität stehen unter
+[`PUBLIC_GRAPHICS_COMPATIBILITY.md`](PUBLIC_GRAPHICS_COMPATIBILITY.md).
 
 ## Für echte RTX-Grafik zusätzlich erforderlich
 

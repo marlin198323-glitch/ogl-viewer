@@ -93,6 +93,12 @@ class ViewerManifest(LLManifest,FSViewerManifest):
             self.path("xui")
         # </FS:Ansariel>
 
+        # OGL: distribute the same optional graphics preset on Linux/Windows.
+        # Copy into app_settings; the native preset manager installs it into
+        # each user's settings only if missing (never overwrites a custom file).
+        with self.prefix(src="app_settings/ogl", dst="app_settings/ogl"):
+            self.path("NexVerse%20Cinematic.xml")
+
         if self.is_packaging_viewer():
             with self.prefix(src_dst="app_settings"):
                 self.exclude("logcontrol.xml")
@@ -627,6 +633,10 @@ class Windows_x86_64_Manifest(ViewerManifest):
         if self.is_packaging_viewer():
             # Find firestorm-bin.exe in the 'configuration' dir, then rename it to the result of final_exe.
             self.path(src='%s/firestorm-bin.exe' % self.args['configuration'], dst=self.final_exe())
+            # OGL: optional GPU capability module shipped beside viewer.exe.
+            # Missing RT build support does not prevent an OpenGL-only installer.
+            self.path_optional(src='%s/ogl_rtx.dll' % self.args['configuration'],
+                               dst='ogl_rtx.dll')
 
             # <FS:Ansariel> Undo Github-Build stuff - I don't think we need this
             # GITHUB_OUTPUT = os.getenv('GITHUB_OUTPUT')
@@ -2453,6 +2463,10 @@ class Linux_x86_64_Manifest(LinuxManifest):
 
     def construct(self):
         super(Linux_x86_64_Manifest, self).construct()
+        if self.is_packaging_viewer():
+            self.path_optional(src=os.path.join(self.args['build'], 'packaged',
+                                                'lib', 'ogl_rtx.so'),
+                               dst='lib/ogl_rtx.so')
 
         pkgdir = os.path.join(self.args['build'], os.pardir, 'packages')
         relpkgdir = os.path.join(pkgdir, "lib", "release")

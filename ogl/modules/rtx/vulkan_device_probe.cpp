@@ -23,7 +23,7 @@ int main() {
             for (VkPhysicalDevice gpu : devices) {
                 VkPhysicalDeviceProperties props{};
                 vkGetPhysicalDeviceProperties(gpu, &props);
-                if (props.vendorID != 0x10de) continue;
+                // Any vendor with the required Vulkan RT device features.
 
                 uint32_t n = 0;
                 if (vkEnumerateDeviceExtensionProperties(gpu, nullptr, &n, nullptr) != VK_SUCCESS)
@@ -110,6 +110,6 @@ int main() {
         }
     }
     vkDestroyInstance(instance, nullptr);
-    if (exit_code == 77) std::puts("SKIP: NVIDIA ray query-capable Vulkan GPU unavailable");
+    if (exit_code == 77) std::puts("SKIP: Vulkan ray query-capable GPU unavailable");
     return exit_code;
 }

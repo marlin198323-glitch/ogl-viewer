@@ -1,0 +1,71 @@
+# OGL public compatibility gate: graphics controls and Vulkan RT module.
+# Small, cross-platform builds. Full Firestorm GUI builds/releases use their
+# separate workflows and are NOT implied by a green result here.
+name: OGL portable graphics
+
+on:
+  push:
+    branches: [ogl-develop]
+    paths:
+      - 'ogl/**'
+      - 'indra/newview/oglrtxhost.*'
+      - 'indra/newview/llpresetsmanager.cpp'
+      - 'indra/newview/viewer_manifest.py'
+      - 'indra/newview/app_settings/ogl/**'
+      - 'indra/newview/CMakeLists.txt'
+      - '.github/workflows/ogl-portable-graphics.yml'
+  pull_request:
+    paths:
+      - 'ogl/**'
+      - 'indra/newview/oglrtxhost.*'
+      - 'indra/newview/llpresetsmanager.cpp'
+      - 'indra/newview/viewer_manifest.py'
+      - 'indra/newview/app_settings/ogl/**'
+      - 'indra/newview/CMakeLists.txt'
+      - '.github/workflows/ogl-portable-graphics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-module:
+    name: Native graphics / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python source / distribution tests
+        run: python -m unittest discover -s ogl/tests -p "test_*.py" -q
+      - name: Linux Vulkan SDK
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev ninja-build
+      - name: Windows Vulkan headers (no proprietary SDK required)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git clone --depth 1 --branch v1.3.275 https://github.com/KhronosGroup/Vulkan-Headers.git .vulkan-ci
+      - name: Configure Linux
+        if: runner.os == 'Linux'
+        run: cmake -S ogl/modules -B build/ogl-graphics -G Ninja
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cmake -S ogl/modules -B build/ogl-graphics -DOGL_VULKAN_HEADER_DIR="$env:GITHUB_WORKSPACE/.vulkan-ci/include"
+      - name: Build portable OGL modules
+        run: cmake --build build/ogl-graphics --config Release --parallel 3
+      - name: Native ABI / GPU fallback tests
+        run: ctest --test-dir build/ogl-graphics -C Release --output-on-failure
+      - name: Check Linux Vulkan RT shared module
+        if: runner.os == 'Linux'
+        run: test -s build/ogl-graphics/ogl_rtx.so
+      - name: Check Windows Vulkan RT DLL
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dlls = Get-ChildItem -Path build/ogl-graphics -Filter ogl_rtx.dll -Recurse
+          if (-not $dlls) { throw "No Windows OGL Vulkan RT DLL built" }

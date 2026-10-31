@@ -67,7 +67,7 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertEqual(unpack("!II", data[16:24]), (299, 64))
         login_cpp = self.source("indra/newview/fspanellogin.cpp")
         self.assertIn('ogl_rtx_rendering_active()', login_cpp)
-        self.assertIn('Raytracing noch aus', login_cpp)
+        self.assertIn('Vulkan RT bereit | Effekte aus', login_cpp)
         self.assertIn('APP_NAME == "OGL" || !gSavedSettings.getBOOL', login_cpp)
 
     def test_rtx_world_frame_bridge_never_claims_live_rendering(self):

@@ -15,16 +15,26 @@ bash ogl/scripts/doctor.sh
 export PATH="$VENV/bin:$PATH"
 export AUTOBUILD_VARIABLES_FILE="$BASE/fs-build-variables/variables"
 
+# Optional Vulkan SDK headers: use an explicit path, a development copy, or
+# allow CMake to locate the system Vulkan-Headers package. GPU vendor is
+# never selected here; no Vulkan RT SDK means normal OpenGL-only build.
+CMAKE_RTX_ARGS=()
+if [ -n "${OGL_VULKAN_HEADER_DIR:-}" ] && [ -d "$OGL_VULKAN_HEADER_DIR/vulkan" ]; then
+  CMAKE_RTX_ARGS+=("-DOGL_VULKAN_HEADER_DIR:PATH=$OGL_VULKAN_HEADER_DIR")
+elif [ -d "$BASE/.vulkan-sdk-local/headers/include/vulkan" ]; then
+  CMAKE_RTX_ARGS+=("-DOGL_VULKAN_HEADER_DIR:PATH=$BASE/.vulkan-sdk-local/headers/include")
+fi
+
 # Explicit compiler tooling prevents AUTOBUILD_EXECUTABLE-NOTFOUND errors.
 cmake -S indra -B build-linux-x86_64 \
   "-DAUTOBUILD_EXECUTABLE:FILEPATH=$VENV/bin/autobuild" \
   "-DVIEWER_CHANNEL:STRING=OGL Viewer Development" \
-  "-DOPENSIM:BOOL=ON" "-DLL_TESTS:BOOL=OFF"
+  "-DOPENSIM:BOOL=ON" "-DLL_TESTS:BOOL=OFF" "${CMAKE_RTX_ARGS[@]}"
 cmake --build build-linux-x86_64 --target firestorm-bin --parallel 6
 cmake --build build-linux-x86_64 --target copy_l_viewer_manifest --parallel 5
 
-# Build the optional NVIDIA RTX capability module without changing the core
-# OpenGL viewer. The Vulkan headers are an external, local toolchain dependency.
+# Additional standalone capability/ABI tests for development: the optional
+# vendor-neutral RT module itself is now built and staged by Firestorm CMake.
 MODULE_BUILD="$BASE/.build-ogl-modules"
 VULKAN_HEADERS="$BASE/.vulkan-sdk-local/headers/include"
 cmake -S ogl/modules -B "$MODULE_BUILD" -G Ninja \
