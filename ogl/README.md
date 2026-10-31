@@ -60,6 +60,19 @@ remove declarative packages in a per-user directory, without touching
 viewer files. **The selection is not yet used by the Firestorm UI.**
 Details: [CPU and extension phase 2](CPU_AND_EXTENSION_SYSTEM_PHASE2.md).
 
+## Optional fast texture cache write deduplication
+
+The actual Firestorm fast texture cache now links the same
+portable scalar/SSE2/AVX2/NEON CPU comparison backend as the
+native module tests. An opt-in experiment can skip byte-identical
+fast-cache entries with OGL_FASTCACHE_SKIP_IDENTICAL=1; default
+is deliberately disabled because an extra disk read may cost
+more than the skipped write. The original cache format and
+behavior remain unchanged. The test report exposes aggregate
+counts but does not prove an end-to-end speedup.
+
+See [P37 Cache Test](CPU_FASTCACHE_OPT_IN_2026_11_01_P37.md).
+
 ## Dedicated Stadt NexVerse grid
 
 This OGL fork is pinned to Stadt NexVerse. The grid profile has one source

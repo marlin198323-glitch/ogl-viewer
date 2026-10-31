@@ -45,7 +45,9 @@ std::size_t count_changed_bytes_neon(const unsigned char*,const unsigned char*,s
 #endif
 
 const char* selected_buffer_backend() {
-    const CpuFeatures detected=detect_cpu_features();
+    // CPUID/XGETBV is invariant for this process on supported hosts; do
+    // not execute it for every 1KB cache entry.
+    static const CpuFeatures detected=detect_cpu_features();
     switch (select_cpu_path(detected)) {
 #ifdef OGL_WITH_AVX2
         case CpuPath::avx2:return "avx2";
@@ -64,7 +66,7 @@ const char* selected_buffer_backend() {
 std::size_t count_changed_bytes(const unsigned char* a,const unsigned char* b,
                                 std::size_t n) {
     if (!a || !b || n==0) return 0;
-    const CpuFeatures detected=detect_cpu_features();
+    static const CpuFeatures detected=detect_cpu_features();
     switch (select_cpu_path(detected)) {
 #ifdef OGL_WITH_AVX2
         case CpuPath::avx2:

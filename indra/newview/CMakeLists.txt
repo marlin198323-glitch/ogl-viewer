@@ -2300,6 +2300,10 @@ endif()
 
 list(APPEND viewer_SOURCE_FILES ${viewer_HEADER_FILES})
 
+# OGL: same CPU buffer sources and OS-safe dispatch as module tests.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../ogl/modules/cpu/ogl_cpu_buffer_targets.cmake")
+ogl_add_cpu_buffer_target(ogl_viewer_cpu_buffer)
+
 add_executable(${VIEWER_BINARY_NAME}
     WIN32
     MACOSX_BUNDLE
@@ -2673,6 +2677,7 @@ endif (WINDOWS)
 # dumped into the target binary and runtime lookup will find the most
 # modern version.
 
+target_link_libraries(${VIEWER_BINARY_NAME} ogl_viewer_cpu_buffer)
 target_link_libraries(${VIEWER_BINARY_NAME}
         llaudio
         llcharacter

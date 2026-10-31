@@ -119,8 +119,9 @@ class PortablePluginFoundationTests(unittest.TestCase):
         self.assertIn("CpuPath::scalar",header)
         self.assertIn("OGL_WITH_AVX2",dispatch)
         self.assertIn("OGL_WITH_NEON",dispatch)
-        self.assertIn("OGL_CPU_SINGLE_ARCH",cmake)
-        self.assertIn("OGL_HAVE_ARM_NEON_HEADER",cmake)
+        shared=(ROOT/"ogl/modules/cpu/ogl_cpu_buffer_targets.cmake").read_text()
+        self.assertIn("OGL_CPU_SINGLE_ARCH",shared)
+        self.assertIn("OGL_HAVE_ARM_NEON_HEADER",shared)
         self.assertIn("ogl_cpu_buffer_dispatch_correctness",cmake)
 
     def test_mac_ci_arm64_intel_windows_linux(self):

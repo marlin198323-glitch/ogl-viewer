@@ -34,6 +34,9 @@
 #include "llimagej2c.h" // for version control
 #include "lllfsthread.h"
 #include "llviewercontrol.h"
+#include "ogl/ogl_fastcache_compare.h" // OGL optional portable CPU fast-cache guard
+#include <atomic>
+#include <cstdlib>
 
 // Included to allow LLTextureCache::purgeTextures() to pause watchdog timeout
 #include "llappviewer.h"
@@ -2200,6 +2203,12 @@ bool LLTextureCache::writeToFastCache(LLUUID image_id, S32 id, LLPointer<LLImage
         }
     }
 
+    // Do not build the shared write buffer before acquiring its mutex:
+    // concurrent texture workers can otherwise overwrite each other's
+    // metadata/pixels. Keep the whole preparation and optional readback
+    // under the same lock as the final cache write.
+    LLMutexLock cache_lock(&mFastCacheMutex);
+
     //copy data
     memcpy(mFastCachePadBuffer, &w, sizeof(S32));
     memcpy(mFastCachePadBuffer + sizeof(S32), &h, sizeof(S32));
@@ -2214,21 +2223,51 @@ bool LLTextureCache::writeToFastCache(LLUUID image_id, S32 id, LLPointer<LLImage
     }
     S32 offset = id * TEXTURE_FAST_CACHE_ENTRY_SIZE;
 
+    openFastCache();
+
+    // This opt-in path adds an extra disk read and must not be enabled for
+    // every user until real-region benchmarks demonstrate a net advantage.
+    // It is never used for encrypted/login data, only small raw texture
+    // preview entries and requires a complete existing on-disk record.
+    static const bool skip_identical=[] {
+        const char* value=std::getenv("OGL_FASTCACHE_SKIP_IDENTICAL");
+        return value && value[0]=='1' && value[1]=='\0';
+    }();
+    static std::atomic<U64> compared{0}, avoided{0};
+    bool already_present=false;
+    if (skip_identical && copy_size>0 && mFastCachep)
     {
-        LLMutexLock lock(&mFastCacheMutex);
-
-        openFastCache();
-
+        U8 old_entry[TEXTURE_FAST_CACHE_ENTRY_SIZE];
         mFastCachep->seek(APR_SET, offset);
-
-        //no need to do this assertion check. When it fails, let it fail quietly.
-        //this failure could happen because other viewer removes the fast cache file when clearing cache.
-        //--> llassert_always(mFastCachep->write(mFastCachePadBuffer, TEXTURE_FAST_CACHE_ENTRY_SIZE) == TEXTURE_FAST_CACHE_ENTRY_SIZE);
-        mFastCachep->write(mFastCachePadBuffer, TEXTURE_FAST_CACHE_ENTRY_SIZE);
-
-        closeFastCache(true);
+        const S32 bytes=mFastCachep->read(old_entry, TEXTURE_FAST_CACHE_ENTRY_SIZE);
+        if (bytes==TEXTURE_FAST_CACHE_ENTRY_SIZE)
+        {
+            already_present=ogl::same_fastcache_entry(
+                old_entry,mFastCachePadBuffer,TEXTURE_FAST_CACHE_ENTRY_SIZE,
+                TEXTURE_FAST_CACHE_ENTRY_OVERHEAD,
+                static_cast<size_t>(copy_size));
+        }
+        const U64 checked=++compared;
+        if (already_present) ++avoided;
+        if (checked%128u==0u)
+        {
+            LL_INFOS("OGLCache") << "OGL fastcache identical-write check: "
+                << "checks=" << checked
+                << " skipped_writes=" << avoided.load()
+                << " comparison=libc_memcmp"
+                << " detected_cpu_backend=" << ogl::selected_buffer_backend()
+                << " (opt-in extra reads; performance not yet validated)"
+                << LL_ENDL;
+        }
     }
-
+    if (!already_present)
+    {
+        mFastCachep->seek(APR_SET, offset);
+        // Preserve Firestorm's original behavior when no matching entry
+        // exists, after the cache was deleted, or on an incomplete read.
+        mFastCachep->write(mFastCachePadBuffer, TEXTURE_FAST_CACHE_ENTRY_SIZE);
+    }
+    closeFastCache(true);
     return true;
 }
 

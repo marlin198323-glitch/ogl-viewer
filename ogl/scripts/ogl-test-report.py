@@ -130,6 +130,17 @@ def report():
             print(f"OpenSim/texture warning indicators: {http502} HTTP 502 "
                   f"log entries, {downrez} texture memory-downrez entries "
                   "(may include repeated reports for one incident)")
+        # Experimental CPU/cache acceleration is opt-in. Only report
+        # aggregate counters; never texture UUIDs or account information.
+        cache_events = re.findall(
+            r"OGL fastcache identical-write check: "
+            r"checks=(\d+) skipped_writes=(\d+) cpu_backend=(\w+)", text)
+        if cache_events:
+            checks,avoided,backend=cache_events[-1]
+            fraction=(100.0*int(avoided)/int(checks)) if int(checks) else 0.0
+            print(f"OGL fast texture cache: {avoided}/{checks} duplicate "
+                  f"writes skipped ({fraction:.1f}%), CPU {backend}; "
+                  "opt-in extra disk reads, not a measured speedup")
         print("Login screen ready:", "STATE_LOGIN_WAIT" in text)
         world_started = "STATE_STARTED" in text
         print("3D world entered in this log:", world_started)
