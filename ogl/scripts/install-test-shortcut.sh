@@ -19,8 +19,8 @@ cat > "$ENTRY" <<EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=OGL Viewer (Firestorm-Test)
-Comment=Isolierter OpenSim-Test des Firestorm-basierten OGL Viewers
+Name=OGL Viewer (Entwicklung)
+Comment=OpenSim-Entwicklungsversion von OGL Viewer
 Exec=$LAUNCH
 Icon=$ICON
 Terminal=false
@@ -30,12 +30,17 @@ EOF
 chmod 755 "$ENTRY"
 
 if [ -d "$DESKTOP_DIR" ]; then
-  cp "$ENTRY" "$DESKTOP_DIR/OGL-Firestorm-Test.desktop"
-  chmod 755 "$DESKTOP_DIR/OGL-Firestorm-Test.desktop"
+  cp "$ENTRY" "$DESKTOP_DIR/OGL-Viewer-Test.desktop"
+  chmod 755 "$DESKTOP_DIR/OGL-Viewer-Test.desktop"
+  # Migrate only our own previous shortcut; never delete an unrelated file.
+  OLD_ENTRY="$DESKTOP_DIR/OGL-Firestorm-Test.desktop"
+  if [ -f "$OLD_ENTRY" ] && grep -Fqx "Exec=$LAUNCH" "$OLD_ENTRY"; then
+    rm -f "$OLD_ENTRY"
+  fi
   if command -v gio >/dev/null 2>&1; then
-    gio set "$DESKTOP_DIR/OGL-Firestorm-Test.desktop" metadata::trusted true >/dev/null 2>&1 || :
+    gio set "$DESKTOP_DIR/OGL-Viewer-Test.desktop" metadata::trusted true >/dev/null 2>&1 || :
   fi
 fi
 
 echo "Menu entry: $ENTRY"
-echo "Desktop shortcut: $DESKTOP_DIR/OGL-Firestorm-Test.desktop"
+echo "Desktop shortcut: $DESKTOP_DIR/OGL-Viewer-Test.desktop"

@@ -35,7 +35,7 @@ if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
 fi
 
 LOG="$STATE/launch-$(date +%Y%m%d-%H%M%S).log"
-printf 'OGL Firestorm baseline test, log: %s\n' "$LOG"
+printf 'OGL Viewer development test, log: %s\n' "$LOG"
 printf 'Profile: %s\n' "$PROFILE"
 cd "$STAGE"
 exec "$SAFE_WRAPPER" "$@" >>"$LOG" 2>&1

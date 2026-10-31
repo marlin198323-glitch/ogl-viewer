@@ -1,6 +1,8 @@
 # OGL branding and login-safety integration
 
 **Scope:** A genuine Firestorm 7.2.5 OpenSim fork with OGL test branding.
+The branded Linux Mint build and graphical startup are verified (2026-10-31):
+OGL Viewer Development 7.2.5.6; NexVerse HTTPS welcome; OpenGL 4.6.
 This is the development branch, not a production-ready OGL release.
 
 ## Implemented in source

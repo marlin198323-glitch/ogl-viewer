@@ -1,54 +1,61 @@
-# OGL Firestorm Linux Mint test status – 2026-10-31
+# OGL Firestorm Fork – verified Linux Mint state (2026-10-31)
 
-## VERIFIED: Firestorm-based OGL test viewer runs on the user's PC
+## Passed
 
-- Genuine GitHub Firestorm fork: `marlin198323-glitch/ogl-viewer`, branch `ogl-develop`.
-- Release baseline: Firestorm 7.2.5 (`Firestorm_7.2.5`, base SHA `4ac201fdc561`).
-- Built on Linux Mint 22.3 with GCC 13.3, 6 parallel jobs.
-- OpenSim CMake configuration PASS: `-DOPENSIM:BOOL=ON`,
-  `-DVIEWER_CHANNEL:STRING=Firestorm-PrivateOGL`.
-- Full `firestorm-bin` compiled and linked: 1223/1223 steps, exit code 0.
-- Runtime staging `copy_l_viewer_manifest` PASS, exit code 0.
-- Actual Linux X11 GUI startup PASS: visible window
-  `Firestorm-PrivateOGL 7.2.5.263032345` at 1024x738.
-- Startup logs reached `STATE_LOGIN_WAIT`; fonts and media CEF plugin
-  initialized; no ERROR/FATAL lines found in the initial window log.
-- Local C ABI module example CTest passed 1/1, but module loader is **not**
-  connected to the Firestorm viewer yet.
-- User's older `nexverse-viewer` checkout with uncommitted work was not edited.
+- Official Firestorm release baseline: `Firestorm_7.2.5`,
+  base commit `4ac201fdc561`; fork `marlin198323-glitch/ogl-viewer`,
+  development branch `ogl-develop`.
+- OGL branding implementation committed as `5e66e2df`.
+- CMake OpenSim configuration: `OPENSIM:BOOL=ON`.
+- Branded channel: `OGL Viewer Development`.
+- Full OGL recompile/link: 824/824 Ninja steps, exit 0.
+- Linux manifest resource staging: exit 0.
+- OGL logo in login skin and Linux desktop resources; staged source
+  and destination SHA-256 checks match.
+- Linux Mint X11 start: window title
+  `OGL Viewer Development 7.2.5.6`, login screen reached
+  `STATE_LOGIN_WAIT`.
+- Linux OpenGL: NVIDIA RTX 4070 SUPER, OpenGL 4.6, driver 615.71.09.
+- CEF login background loads
+  `https://stadt-nexverse.de/service/welcome`.
+- Branded runtime writes `~/.local/share/ogl-firestorm-test/logs/OGL.log`.
+- Start log contained zero ERROR/FATAL messages at first check.
+- Static OGL branding/security tests: 6/6 passing.
+- Standalone OGL native module ABI test: 1/1 passing.
+- Legacy `nexverse-viewer` project was not overwritten or merged.
 
-## User launch
+## Run on Linux Mint
 
-- Linux Mint desktop icon: `~/Schreibtisch/OGL-Firestorm-Test.desktop`
-- Menu: `OGL Viewer (Firestorm-Test)`
-- Shell: `bash ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/run-viewer-test.sh`
-- Isolated settings/cache: `~/.local/share/ogl-firestorm-test`
-- Launcher logs: `~/.local/state/ogl-firestorm-test/launch-*.log`
-- Build log: `~/Schreibtisch/OGL-Viewer/.ogl-firestorm-full-build.log`
-- Packaging log: `~/Schreibtisch/OGL-Viewer/.ogl-firestorm-stage.log`
+- Desktop shortcut: `~/Schreibtisch/OGL-Viewer-Test.desktop`.
+- App menu: `OGL Viewer (Entwicklung)`.
+- Command: `bash ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/run-viewer-test.sh`.
+- Rebuild and test: `bash ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/build-test.sh --run`.
+- Read-only local report: `python3 ~/Schreibtisch/OGL-Viewer/ogl-firestorm/ogl/scripts/ogl-test-report.py`.
 
-## Important limitations before grid/in-world testing
+Build and staging logs:
+`~/Schreibtisch/OGL-Viewer/.ogl-branding-build.log` and
+`~/Schreibtisch/OGL-Viewer/.ogl-branding-stage.log`.
+Launch log:
+`~/.local/state/ogl-firestorm-test/launch-*.log`.
 
-- This is a Firestorm-based OGL **engineering test**, not fully branded
-  OGL. Firestorm logo, menus and welcome content remain on the baseline.
-- The viewer still lacks the production OGL integrated module loader.
-- Public `http://hg.stadt-nexverse.de/get_grid_info` advertised
-  `http://hg.stadt-nexverse.de:80/` as the grid login endpoint.
-  Do **not** enter real credentials until HTTPS is available and validated.
-- A visible login window does **not** verify any authenticated Grid session,
-  region rendering, avatar appearance, texture completeness, teleport or voice.
-- The launcher filters desktop protocol-registration calls out of a staged
-  copy of the original runtime wrapper and uses a private user directory.
-  Upstream source files remain unchanged.
-- Source copyright, licensing and third-party notices must remain intact.
+## Open acceptance gates
 
-## Repeat after a code change
+1. Actual password authentication was **not** tested. The grid advertises
+   `http://hg.stadt-nexverse.de:80/` as its login endpoint and
+   `https://hg.stadt-nexverse.de` was not available at the last check.
+   OGL's interactive login button now rejects grids without HTTPS
+   login URIs. A real-grid HTTPS deployment and controlled login test
+   are still required.
+2. Avatar wearables, attachments, mesh completeness, sky, sun,
+   animations, teleport, chat/voice and world rendering require a
+   verified in-world OpenSim session. Do not call these accepted.
+3. The modular C ABI handshake runs independently; Firestorm does
+   not yet load in-viewer OGL modules.
+4. Design is early OGL branding, not a fully reworked responsive
+   OGL UI. Fonts, ultra-wide scaling and input ergonomics still
+   need manual UI acceptance.
+5. Production installers, source/license redistribution review,
+   multi-platform CI and updater are not released.
 
-```bash
-cd "$HOME/Schreibtisch/OGL-Viewer/ogl-firestorm"
-cmake --build build-linux-x86_64 --target firestorm-bin --parallel 6
-cmake --build build-linux-x86_64 --target copy_l_viewer_manifest --parallel 5
-bash ogl/scripts/run-viewer-test.sh
-```
-
-The current live test window can be closed normally before repeating startup.
+The initial authenticated viewer must never be represented as
+production-ready until these gates pass.
