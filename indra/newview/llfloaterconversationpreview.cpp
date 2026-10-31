@@ -278,13 +278,20 @@ void LLFloaterConversationPreview::showHistory()
         }
 
         LLSD chat_args;
+        // Preview uses the same real-avatar message rows as live local,
+        // private and group chat; existing historical sender IDs and
+        // timestamp strings are preserved (no invented time or profile).
+        const bool ogl_cards = gSavedSettings.getBOOL("OGLModernConversationCards");
+        chat_args["ogl_message_cards"] = ogl_cards;
         chat_args["use_plain_text_chat_history"] =
-                        gSavedSettings.getBOOL("PlainTextChatHistory");
+            ogl_cards ? false : gSavedSettings.getBOOL("PlainTextChatHistory");
         // <FS:CR>
         //chat_args["show_time"] = gSavedSettings.getBOOL("IMShowTime");
-        chat_args["show_time"] = gSavedSettings.getBOOL("FSShowTimestampsTranscripts");
+        chat_args["show_time"] =
+            ogl_cards || gSavedSettings.getBOOL("FSShowTimestampsTranscripts");
         // </FS:CR>
-        chat_args["show_names_for_p2p_conv"] = gSavedSettings.getBOOL("IMShowNamesForP2PConv");
+        chat_args["show_names_for_p2p_conv"] =
+            ogl_cards || gSavedSettings.getBOOL("IMShowNamesForP2PConv");
         chat_args["conversation_log"] = true;   // <FS:CR> Don't dim the history in conversation log
 
         mChatHistory->appendMessage(chat,chat_args);

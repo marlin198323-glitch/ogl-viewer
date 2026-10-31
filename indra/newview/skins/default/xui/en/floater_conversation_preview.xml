@@ -2,16 +2,19 @@
 <floater
  legacy_header_height="18"
  can_resize="true"
+ background_visible="true"
+ bg_alpha_color="OGLChatCanvas"
+ bg_opaque_color="OGLChatCanvas"
  help_topic="conversation_preview"
- height="387"
+ height="595"
  layout="topleft"
- min_height="243"
- min_width="234"
+ min_height="335"
+ min_width="360"
  name="preview_conversation"
  positioning="centered"
  save_rect="true"
  title="Conversation:"
- width="400">
+ width="720">
     <floater.string
      name="Title">
         Conversation: [NAME]
@@ -20,13 +23,19 @@
      font="SansSerifSmall"
      follows="all"
      visible="true"
-     height="330"
+     height="535"
      name="chat_history"
+     left_text_pad="53"
+     right_text_pad="12"
+     left_widget_pad="3"
+     top_header_pad="7"
+     bottom_header_pad="4"
+     bg_readonly_color="OGLChatCanvas"
      parse_highlights="true"
      parse_urls="true"
      left="0"
      top_pad="25"
-     width="395">
+     width="715">
     </fs_chat_history>
     <text
      follows="bottom|right"

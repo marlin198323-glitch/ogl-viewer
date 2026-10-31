@@ -362,7 +362,12 @@ void LLFloaterIMNearbyChatScreenChannel::addChat(LLSD& chat)
         {
             LLFloaterIMNearbyChatToastPanel* panel = dynamic_cast<LLFloaterIMNearbyChatToastPanel*>(toast->getPanel());
 
-            if (panel && panel->messageID() == fromID && panel->getFromName() == from && panel->canAddText())
+            // Every modern chat message gets its own portrait, name and
+            // timestamp, including consecutive lines from one resident.
+            // Legacy mode keeps the original toast grouping policy.
+            if (!gSavedSettings.getBOOL("OGLModernConversationCards") &&
+                panel && panel->messageID() == fromID &&
+                panel->getFromName() == from && panel->canAddText())
             {
                 panel->addMessage(chat);
                 // <FS:Ansariel> Zi Ree's customizable nearby chat toast width

@@ -116,6 +116,89 @@ class NexVerseChatLayoutTests(unittest.TestCase):
         self.assertIsNotNone(translated)
         self.assertIn("Avatar",translated.get("label"))
 
+    def test_nearby_and_muted_nearby_use_same_avatar_message_cards(self):
+        cpp=(SOURCE/"fsfloaternearbychat.cpp").read_text()
+        self.assertIn('gSavedSettings.getBOOL("OGLModernConversationCards")',cpp)
+        self.assertIn('chat_args["ogl_message_cards"] = ogl_cards;',cpp)
+        self.assertIn('mChatHistoryMuted->appendMessage(chat, chat_args',cpp)
+        self.assertIn('mChatHistory->appendMessage(chat, chat_args',cpp)
+        self.assertIn('ogl_cards || gSavedSettings.getBOOL("FSShowTimestampsNearbyChat")',cpp)
+        root=xui("floater_fs_nearby_chat.xml")
+        self.assertEqual(root.get("bg_opaque_color"),"OGLChatCanvas")
+        self.assertGreaterEqual(int(root.get("width")),600)
+        self.assertGreaterEqual(int(root.get("height")),540)
+        for name in ("chat_history","chat_history_muted"):
+            history=root.find(".//fs_chat_history[@name='%s']" % name)
+            self.assertIsNotNone(history)
+            self.assertGreaterEqual(int(history.get("left_text_pad")),48)
+            self.assertEqual(history.get("bg_readonly_color"),"OGLChatCanvas")
+        self.assertIsNotNone(root.find(".//chat_editor[@name='chat_box']"))
+        self.assertIsNotNone(root.find(".//button[@name='send_chat']"))
+        self.assertIsNotNone(root.find(".//combo_box[@name='chat_type']"))
+        self.assertIsNotNone(root.find(".//spinner[@name='ChatChannel']"))
+
+    def test_saved_conversation_preview_has_consistent_metadata(self):
+        code=(SOURCE/"llfloaterconversationpreview.cpp").read_text()
+        self.assertIn('chat_args["ogl_message_cards"] = ogl_cards;',code)
+        self.assertIn('chat_args["show_time"] =',code)
+        self.assertIn('mChatHistory->appendMessage(chat,chat_args);',code)
+        self.assertIn('chat.mFromID = from_id;',code)
+        self.assertIn('chat.mTimeStr = time;',code)
+        root=xui("floater_conversation_preview.xml")
+        self.assertGreaterEqual(int(root.get("width")),700)
+        history=root.find(".//fs_chat_history[@name='chat_history']")
+        self.assertEqual(history.get("bg_readonly_color"),"OGLChatCanvas")
+        self.assertGreaterEqual(int(history.get("left_text_pad")),48)
+        self.assertIsNotNone(root.find(".//button[@name='search_btn']"))
+        self.assertIsNotNone(root.find(".//button[@name='open_external_btn']"))
+
+    def test_shared_avatar_header_spacing_and_real_system_icons(self):
+        widget=xui("widgets/fs_chat_history.xml")
+        self.assertGreaterEqual(int(widget.get("left_text_pad")),48)
+        self.assertEqual(widget.get("message_header"),"panel_chat_header.xml")
+        source=(SOURCE/"fschathistory.cpp").read_text()
+        self.assertIn('icon->setValue(chat.mFromID);',source)
+        self.assertIn('icon->setValue(LLSD("OBJECT_Icon"));',source)
+        self.assertIn('icon->setValue(LLSD("SL_Logo"));',source)
+        self.assertIn('icon->setValue(LLSD("Unknown_Icon"));',source)
+
+    def test_toast_uses_sender_and_real_arrival_time_above_body(self):
+        toast=(SOURCE/"llchatitemscontainerctrl.cpp").read_text()
+        handler=(SOURCE/"llfloaterimnearbychathandler.cpp").read_text()
+        self.assertIn("static std::string oglToastArrivalTime()",toast)
+        self.assertIn('gSavedSettings.getBOOL("OGLModernConversationCards")',toast)
+        self.assertIn('fromName + "   " + oglToastArrivalTime() + "\\n"',toast)
+        self.assertIn("mMsgText->appendText(str_sender, false",toast)
+        self.assertIn("mMsgText->appendText(messageText, false",toast)
+        self.assertIn('icon->setValue(mFromID)',toast)
+        self.assertIn('icon->setValue(LLSD("Unknown_Icon"))',toast)
+        self.assertIn("!gSavedSettings.getBOOL(\"OGLModernConversationCards\")",handler)
+        x=xui("panel_chat_item.xml")
+        image=x.find(".//avatar_icon[@name='avatar_icon']")
+        self.assertGreaterEqual(int(image.get("width")),30)
+        self.assertIsNotNone(x.find(".//text_chat[@name='msg_text']"))
+
+    def test_conversation_log_lists_real_contact_and_time_not_fake_message(self):
+        source=(SOURCE/"llconversationloglistitem.cpp").read_text()
+        self.assertIn('avatar_icon->setValue(mConversation->getParticipantID());',source)
+        self.assertIn('group_icon->setValue(mConversation->getSessionID());',source)
+        self.assertIn('mConversationDate->setValue(mConversation->getTimestamp());',source)
+        x=xui("panel_conversation_log_list_item.xml")
+        self.assertGreaterEqual(int(x.get("height")),32)
+        self.assertEqual(
+            x.find(".//text[@name='date_time']").get("text_color"),
+            "OGLChatTimestamp")
+        self.assertIsNotNone(x.find(".//text[@name='conversation_name']"))
+        self.assertIsNone(x.find(".//text[@name='fake_message_preview']"))
+
+    def test_reversible_cards_setting_affects_live_and_history(self):
+        for cpp in ("fsfloaterim.cpp","fsfloaternearbychat.cpp",
+                    "llfloaterconversationpreview.cpp",
+                    "llchatitemscontainerctrl.cpp",
+                    "llfloaterimnearbychathandler.cpp"):
+            self.assertIn("OGLModernConversationCards",
+                          (SOURCE/cpp).read_text())
+
     def test_localized_german_inheritance_and_no_duplicate_files(self):
         self.assertEqual(xui("floater_fs_im_session.xml").get("name"),"panel_im")
         de=ET.parse(SKIN/"xui/de/floater_fs_im_session.xml").getroot()
