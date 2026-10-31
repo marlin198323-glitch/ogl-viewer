@@ -86,7 +86,7 @@ OGL_MODULE_EXPORT uint32_t ogl_rtx_copy_geometry(ogl_rtx_triangle *dest,
  * Read only from the same main/render thread as the frame bridge.
  * A region or mesh update invalidates the previous debug mask.
  */
-#define OGL_RTX_SHADOW_DEBUG_VERSION 2u
+#define OGL_RTX_SHADOW_DEBUG_VERSION 3u
 #define OGL_RTX_SHADOW_DEBUG_PIXELS 64u
 typedef struct ogl_rtx_shadow_debug {
     uint32_t struct_size;
@@ -96,7 +96,10 @@ typedef struct ogl_rtx_shadow_debug {
     uint32_t width;
     uint32_t height;
     uint32_t occluded;
-    uint8_t pixels[OGL_RTX_SHADOW_DEBUG_PIXELS]; /* row-major, 0 or 1 */
+    uint32_t surface_pixels;
+    uint32_t background_pixels;
+    uint8_t pixels[OGL_RTX_SHADOW_DEBUG_PIXELS]; /* 1 = shadow */
+    uint8_t surface_mask[OGL_RTX_SHADOW_DEBUG_PIXELS]; /* 1 = non-sky */
 } ogl_rtx_shadow_debug;
 OGL_MODULE_EXPORT int ogl_rtx_copy_shadow_debug(ogl_rtx_shadow_debug *output);
 

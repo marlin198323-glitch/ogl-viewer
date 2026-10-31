@@ -164,7 +164,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("capacity < OGL_RTX_SHADOW_DEBUG_PIXELS", host)
         self.assertIn("if (hit_count != debug.occluded) return false;", host)
         self.assertIn("ogl_rtx_copy_shadow_debug(", module)
-        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 2u", api)
+        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 3u", api)
         self.assertIn("uint8_t pixels[OGL_RTX_SHADOW_DEBUG_PIXELS]", api)
 
     def test_camera_rayquery_path_is_perspective_and_optional(self):
@@ -271,9 +271,16 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("rtx_received_triangles() == 0", host)
         self.assertIn("bool ogl_rtx_copy_debug_shadow_mask(", host)
         self.assertIn("bool ogl_rtx_copy_debug_shadow_sample(", host)
-        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 2u", api)
+        self.assertIn("#define OGL_RTX_SHADOW_DEBUG_VERSION 3u", api)
         self.assertIn("uint64_t sample_sequence", api)
         self.assertIn("fresh.sample_sequence = outcome.revision;", module)
+        self.assertIn("fresh.surface_pixels = outcome.surface_pixels", module)
+        self.assertIn("fresh.background_pixels = outcome.background_pixels", module)
+        self.assertIn("fresh.surface_mask", module)
+        self.assertIn("surface_mask.data()", ui)
+        self.assertIn("surface_count", ui)
+        self.assertIn("background_count", ui)
+        self.assertIn("Grey = sky/background", ui)
         self.assertIn("rendering_active=0", module)
 
     def test_live_rtx_depth_snapshot_survives_rotating_scene_scan(self):
@@ -306,6 +313,23 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("ogl_terrain_patch_geometry", cmake)
         self.assertIn("radius_cells = 10", terrain)
         self.assertIn("out.size() + 2 > triangle_budget", terrain)
+
+    def test_depth_coverage_and_gl_projection_are_tested_portably(self):
+        diag = (ROOT / "ogl/modules/include/ogl/ogl_depth_diagnostics.h").read_text()
+        module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        cmake = (ROOT / "ogl/modules/CMakeLists.txt").read_text()
+        test = (ROOT / "ogl/tests/test_depth_diagnostics.cpp").read_text()
+        self.assertIn("gl_depth_to_view_distance", diag)
+        self.assertIn("summarize_depth_grid", diag)
+        self.assertIn("fresh.background_pixels", diag)
+        self.assertIn("OGL RTX depth coverage: surface=", module)
+        self.assertIn("surface_samples=", module)
+        self.assertIn("background_samples=", module)
+        queue = (ROOT / "ogl/modules/include/ogl/ogl_async_gpu_queue.h").read_text()
+        self.assertIn("uint32_t surface_pixels", queue)
+        self.assertIn("uint32_t background_pixels", queue)
+        self.assertIn("ogl_depth_reconstruction_and_coverage", cmake)
+        self.assertIn("Perspective GL z encoding", test)
 
     def test_no_rt_hardware_preserves_opengl_fallback(self):
         module = (ROOT / "ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

@@ -111,6 +111,8 @@ int main(int argc, char** argv) {
             assert(attempts()==1 && successes()==1);
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_debug(&debug)==1 && debug.occluded==0);
+            assert(debug.surface_pixels==0 && debug.background_pixels==64);
+            for (auto pixel:debug.surface_mask) assert(pixel==0);
             assert(debug.sample_sequence > 0);
             assert(debug.geometry_revision==1); // captured before mesh scan
             const uint64_t original_sample_sequence = debug.sample_sequence;
@@ -127,6 +129,9 @@ int main(int argc, char** argv) {
             assert(attempts()==2 && successes()==2);
             for (unsigned i=0;i<30;++i) assert(frame(&state)==1);
             assert(copy_debug(&debug)==1);
+            assert(debug.surface_pixels==64 && debug.background_pixels==0);
+            for (auto pixel:debug.surface_mask) assert(pixel==1);
+            assert(debug.occluded<=debug.surface_pixels);
             assert(debug.geometry_revision==2);
             assert(debug.sample_sequence > original_sample_sequence);
             assert(submit(nullptr,0)==1); // genuine region transition

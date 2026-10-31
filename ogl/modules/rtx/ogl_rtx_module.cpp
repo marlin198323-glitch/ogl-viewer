@@ -2,6 +2,7 @@
 #include "ogl/ogl_scene_validation.h"
 #include "ogl/ogl_camera_validation.h"
 #include "ogl/ogl_depth_validation.h"
+#include "ogl/ogl_depth_diagnostics.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_async_gpu_queue.h"
 #include <vulkan/vulkan.h>
@@ -116,6 +117,7 @@ uint64_t geometry_revision = 0;
 ogl_rtx_shadow_debug last_shadow_debug{};
 bool shadow_debug_valid = false;
 ogl_rtx_depth_debug last_depth_debug{};
+ogl::DepthStats last_depth_stats{};
 bool depth_debug_valid = false;
 void report(std::string message) {
     std::snprintf(status.message, sizeof(status.message), "%s", message.c_str());
@@ -253,8 +255,12 @@ void poll_probe_on_viewer_thread() {
         fresh.width = 8;
         fresh.height = 8;
         fresh.occluded = outcome.occluded;
+        fresh.surface_pixels = outcome.surface_pixels;
+        fresh.background_pixels = outcome.background_pixels;
         std::copy(outcome.shadow_mask.begin(), outcome.shadow_mask.end(),
                   std::begin(fresh.pixels));
+        std::copy(outcome.surface_mask.begin(), outcome.surface_mask.end(),
+                  std::begin(fresh.surface_mask));
         last_shadow_debug = fresh; // publisher is the viewer main thread only
         shadow_debug_valid = true;
         if (logger)
@@ -266,6 +272,10 @@ void poll_probe_on_viewer_thread() {
                 std::to_string(outcome.gpu_device_creations) + " blas_builds=" +
                 std::to_string(outcome.blas_builds) + " cache_hits=" +
                 std::to_string(outcome.cache_hits) +
+                (probe_depth_enabled ?
+                    " surface_samples=" + std::to_string(outcome.surface_pixels) +
+                    " background_samples=" + std::to_string(outcome.background_pixels) : "") +
+                " worker_wall_ms=" + std::to_string(outcome.wall_ms) +
                 "; ASYNC DIAGNOSTIC ONLY no shadow compositing").c_str());
     } else if (logger) {
         logger(1, "OGL RTX async GPU probe failed; disabled until next start; OpenGL active");
@@ -304,6 +314,8 @@ void schedule_probe_on_viewer_thread() {
                           std::end(last_depth_debug.normalized_depth),
                           job.depth_grid.begin());
                 job.has_depth_grid = true;
+                job.surface_pixels = last_depth_stats.surface_pixels;
+                job.background_pixels = last_depth_stats.background_pixels;
             }
             if (probe_worker->enqueue(std::move(job))) {
                 probe_last_time = now;
@@ -335,6 +347,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     last_shadow_debug = {};
     shadow_debug_valid = false;
     last_depth_debug = {};
+    last_depth_stats = {};
     depth_debug_valid = false;
     probe_worker.reset(); // join before unloading Vulkan function pointers
     gpu_probe_cleanup();
@@ -429,6 +442,17 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
                 result.triangle_count = native.triangle_count;
                 result.ray_count = native.ray_count;
                 result.occluded = native.occluded;
+                result.surface_pixels = job.surface_pixels;
+                result.background_pixels = job.background_pixels;
+                if (job.has_depth_grid) {
+                    for (unsigned i=0; i<64; ++i) {
+                        float distance=0.f;
+                        result.surface_mask[i] =
+                            ogl::gl_depth_to_view_distance(
+                                job.depth_grid[i],job.near_clip_m,
+                                job.far_clip_m,distance) ? 1u : 0u;
+                    }
+                }
                 if (native.mask_width != 8 || native.mask_height != 8) {
                     result.return_code = 1;
                 } else {
@@ -473,6 +497,7 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     last_shadow_debug = {};
     shadow_debug_valid = false;
     last_depth_debug = {};
+    last_depth_stats = {};
     depth_debug_valid = false;
     logger = nullptr;
 }
@@ -513,6 +538,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_frame(const ogl_rtx_frame_state 
     // A depth tile belongs to exactly one submitted frame. No reuse after
     // camera motion, resize, new lighting or a later rendered frame.
     last_depth_debug = {};
+    last_depth_stats = {};
     depth_debug_valid = false;
     latest_frame = *frame;
     ++received_frames;
@@ -607,8 +633,24 @@ extern "C" OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(
                                sample->grid_width, sample->grid_height,
                                sample->normalized_depth))
         return 0;
+    ogl::DepthStats surface_stats{};
+    if (!ogl::summarize_depth_grid(sample->normalized_depth,
+            sample->viewport_width,sample->viewport_height,
+            latest_frame.near_clip_m,latest_frame.far_clip_m,
+            surface_stats))
+        return 0;
     last_depth_debug = *sample; // bounded copy, no GPU or file I/O
+    last_depth_stats = surface_stats;
     depth_debug_valid = true;
+    if (logger && probe_depth_enabled) {
+        // Anonymized per-8x8-grid health metrics; no raw pixels or world IDs.
+        logger(1, (std::string("OGL RTX depth coverage: surface=") +
+            std::to_string(surface_stats.surface_pixels) +
+            " background=" + std::to_string(surface_stats.background_pixels) +
+            " view_m_min=" + std::to_string(surface_stats.view_distance_min) +
+            " view_m_max=" + std::to_string(surface_stats.view_distance_max) +
+            "; diagnostic only").c_str());
+    }
     if (probe_depth_enabled && probe_worker) {
         // A newer valid depth grid supersedes the prior GPU result, even
         // when the camera, sun and mesh revision are unchanged.

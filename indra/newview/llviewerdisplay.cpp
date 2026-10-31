@@ -1918,10 +1918,14 @@ static void ogl_draw_rtx_shadow_debug_preview()
         return;
 
     std::array<std::uint8_t, 64> mask{};
+    std::array<std::uint8_t, 64> surface_mask{};
     std::uint64_t geometry_revision = 0;
     std::uint64_t sample_sequence = 0;
+    std::uint32_t surface_count = 0, background_count = 0;
     if (!ogl_rtx_copy_debug_shadow_sample(mask.data(), mask.size(),
-                                           &geometry_revision, &sample_sequence) ||
+                                           &geometry_revision, &sample_sequence,
+                                           surface_mask.data(),
+                                           &surface_count, &background_count) ||
         sample_sequence == 0)
         return;
 
@@ -1939,7 +1943,7 @@ static void ogl_draw_rtx_shadow_debug_preview()
 
     const S32 width = gViewerWindow->getWindowWidthScaled();
     const S32 height = gViewerWindow->getWindowHeightScaled();
-    if (width < 230 || height < 220)
+    if (width < 230 || height < 260)
         return;
     constexpr S32 cell = 15;
     const S32 left = width - 168;
@@ -1953,14 +1957,17 @@ static void ogl_draw_rtx_shadow_debug_preview()
     // Bind Firestorm's own white image, not an unbound sampler.
     gGL.getTexUnit(0)->bind(LLViewerFetchedTexture::sWhiteImagep, true);
 
-    gl_rect_2d(left-10, top+5, left+132, top-171,
+    gl_rect_2d(left-10, top+5, left+132, top-205,
                LLColor4(0.06f, 0.09f, 0.15f, 0.96f));
     for (unsigned y=0; y<8; ++y) {
         for (unsigned x=0; x<8; ++x) {
             const S32 x0 = left + S32(x)*cell;
-            const S32 y1 = top-38-S32(7-y)*cell;
-            // Red = occluded sunray. Teal = no occluder.
-            const LLColor4 color = mask[y*8+x] ?
+            const S32 y1 = top-45-S32(7-y)*cell;
+            // Grey = sky/background, teal = lit surface, red = shadow.
+            const unsigned cell_index = y*8+x;
+            const LLColor4 color = !surface_mask[cell_index] ?
+                LLColor4(0.28f,0.31f,0.36f,1.f) :
+                mask[cell_index] ?
                 LLColor4(0.95f,0.29f,0.22f,1.f) :
                 LLColor4(0.08f,0.48f,0.48f,1.f);
             gl_rect_2d(x0, y1, x0+cell-2, y1-cell+2, color);
@@ -1969,7 +1976,14 @@ static void ogl_draw_rtx_shadow_debug_preview()
     LLFontGL::getFontSansSerifSmall()->renderUTF8(
         "RTX DEBUG / 8x8", 0, left, top-12, LLColor4::white);
     LLFontGL::getFontSansSerifSmall()->renderUTF8(
-        "NOT WORLD SHADOWS", 0, left, top-156,
+        std::to_string(surface_count) + " surf / " +
+        std::to_string(background_count) + " sky",
+        0, left, top-30, LLColor4::white);
+    LLFontGL::getFontSansSerifSmall()->renderUTF8(
+        "RED shadow / TEAL lit", 0, left, top-180,
+        LLColor4(0.75f,0.91f,0.94f,1.f));
+    LLFontGL::getFontSansSerifSmall()->renderUTF8(
+        "NOT WORLD SHADOWS", 0, left, top-195,
         LLColor4(0.96f,0.77f,0.43f,1.f));
     gGL.getTexUnit(0)->unbind(LLTexUnit::TT_TEXTURE);
     gUIProgram.unbind();

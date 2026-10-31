@@ -502,3 +502,39 @@ Sonnenlicht-Renderpass mit ausreichender Bildauflösung, korrekten
 Materialien und G-Puffer-Daten einspeisen. Die Beschriftung
 `NOT WORLD SHADOWS` wird nicht entfernt, bevor das tatsächlich
 umgesetzt und im Viewer bildlich abgenommen ist.
+
+
+## 31.10.2026 – vierzehnte RTX-10er-Runde: Live-Depth-Coverage
+
+- Neue Live-Auswertung nach 8.192 Dreiecken und 3440×1390-
+  Tiefenabfrage. Das laufende OpenSim-Log enthielt Schattenhits
+  `2/64`, `0/64`, `5/64`, `0/64`; der letzte Nullwert
+  allein beweist keinen Vulkan-Defekt.
+- Reine C++-Depth-Diagnostik trennt tatsächlich sichtbare
+  Oberflächen und Himmel/Hintergrund, berechnet aus Near/Far
+  eine perspektivische ungefähre Sichtentfernung.
+- Testfälle für 64 Himmel-/64 Oberflächen-Pixel, gemischte
+  Pixel und standardisierte GL-Depth-Roundtrips auf Near/Far;
+  auf allen Plattformen ohne Vulkan testbar.
+- Echte GPU-Schatten-Proben führen jetzt ihre Oberflächen-
+  und Himmel-Zählwerte im **identischen immutable Worker-Job**;
+  keine Vermischung zwischen verschiedenen Kameraframes.
+- Vulkan-GPU-Regression für gemischtes 8×8-Sky-/Oberflächenraster.
+- Neues Debug-ABI v3 trägt zusätzlich pixelweise Oberflächenmaske.
+  8×8-UI zeigt **Grau: Hintergrund, Türkis: beleuchtete
+  Oberfläche, Rot: Verschattung**, plus `surf / sky`.
+  `NOT WORLD SHADOWS` bleibt ausdrücklich erhalten.
+- Der lokale Report unterscheidet jetzt abgeschlossenen GPU-
+  Oberflächen-Snapshot und aktuelle Depth-Abdeckung.
+- Firestorms Weltlicht-Einbaupunkt bestätigt:
+  `renderDeferredLighting()`/`gDeferredSunProgram` schreibt
+  `deferredLight` vor `gDeferredSoftenProgram` und
+  `renderFinalize()` – kein dunkler Farbfilter im Final-Pass.
+- Vollständiger Linux-Viewer, plattformneutrale Tests,
+  GPU-Ray-Query-Abnahmen und Fallback.
+- [`RTX_10_BLOCKS_2026_10_31_P14.md`](RTX_10_BLOCKS_2026_10_31_P14.md).
+
+**Keine sichtbaren RTX-Weltschatten:** Es fehlen die vollaufgelöste
+Schattenprojektion, vollständige dynamische OpenSim-Geometrie,
+GPU-/GL-Synchronisation sowie korrektes Sonnenlicht-Compositing.
+`rendering_active=0` bleibt zutreffend.

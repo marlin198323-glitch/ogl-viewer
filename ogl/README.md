@@ -169,3 +169,13 @@ auf der Vulkan-GPU geprüft werden. Die rote/türkise Anzeige
 `NOT WORLD SHADOWS` bleibt **korrekt**, denn eine
 hochaufgelöste Integration in den Sonnenlicht-Renderer fehlt
 weiterhin. [Technischer Bericht](RTX_10_BLOCKS_2026_10_31_P13.md).
+
+
+Die **vierzehnte RTX-10er-Runde** unterscheidet bei der
+8×8-Vulkan-Diagnose gültige OpenGL-Oberflächen und
+Himmel/Hintergrund. Neue Tiefen- und GPU-Tests verhindern, dass
+ein Nullwert fälschlich als Grafikfehler ausgegeben wird. In der
+Debug-Vorschau erscheinen Himmel grau, unverschattete Flächen
+türkis und verschattete Flächen rot – weiterhin ausdrücklich
+**NOT WORLD SHADOWS**.
+[Abnahme und Entwicklungsgrenzen](RTX_10_BLOCKS_2026_10_31_P14.md).

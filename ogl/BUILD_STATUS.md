@@ -316,3 +316,16 @@ Fehlerberichte eingefügt werden.
 - Vollständiger Linux-Viewer erfolgreich gebaut, die RTX-UI bleibt
   ausschließlich eine diagnostische 8×8-Vorschau.
 - [`RTX_10_BLOCKS_2026_10_31_P13.md`](RTX_10_BLOCKS_2026_10_31_P13.md).
+
+
+## 31.10.2026 – GPU-Abdeckung und Oberfläche-vs.-Himmel-Diagnose
+
+- Vulkans Shadow-Hits jetzt nach tatsächlich per OpenGL-Depth
+  rekonstruierten Oberflächen-/Sky-Punkten nachvollziehbar.
+- GPU-Worker-/UI-Metadaten enthalten unveränderliche
+  Oberflächenmaske plus Counts passend zu ihrer GPU-Berechnung.
+- `ogl_depth_diagnostics.h` und native Depth-Perspektiventests
+  ohne Grafikkarte; GPU-Test auch für gemischten Sky.
+- In-Viewer-Preview: Grau/Türkis/Rot und `surf / sky`-Zählung,
+  weiter **NOT WORLD SHADOWS**.
+- [`RTX_10_BLOCKS_2026_10_31_P14.md`](RTX_10_BLOCKS_2026_10_31_P14.md).

@@ -31,7 +31,9 @@ bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
 // UI diagnostics may use the sequence to expire or refresh old samples.
 bool ogl_rtx_copy_debug_shadow_sample(std::uint8_t* pixels,
     std::size_t capacity, std::uint64_t* geometry_revision,
-    std::uint64_t* sample_sequence);
+    std::uint64_t* sample_sequence,
+    std::uint8_t* surface_mask, std::uint32_t* surfaces,
+    std::uint32_t* background);
 
 // Optional whole-view 8x8 NEAREST depth grid from the REAL deferred OpenGL
 // depth texture. GPU-only downsample, single synchronous readback/minute with

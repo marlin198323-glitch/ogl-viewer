@@ -208,7 +208,9 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 // The GPU module remains a black box; no OpenGL/Vulkan calls here.
 bool ogl_rtx_copy_debug_shadow_sample(std::uint8_t* pixels,
     std::size_t capacity, std::uint64_t* geometry_revision,
-    std::uint64_t* sample_sequence)
+    std::uint64_t* sample_sequence,
+    std::uint8_t* surface_mask, std::uint32_t* surfaces,
+    std::uint32_t* background)
 {
 #if LL_LINUX || LL_WINDOWS
     if (!rtx_module_handle || !rtx_hardware_ready ||
@@ -227,15 +229,31 @@ bool ogl_rtx_copy_debug_shadow_sample(std::uint8_t* pixels,
         hit_count += pixel;
     }
     if (hit_count != debug.occluded) return false;
+    unsigned surface_count = 0;
+    for (unsigned i=0; i<OGL_RTX_SHADOW_DEBUG_PIXELS; ++i) {
+        if (debug.surface_mask[i] > 1) return false;
+        surface_count += debug.surface_mask[i];
+        if (debug.surface_pixels+debug.background_pixels==64 &&
+            debug.pixels[i] && !debug.surface_mask[i]) return false;
+    }
+    if (debug.surface_pixels+debug.background_pixels==64 &&
+        surface_count!=debug.surface_pixels) return false;
     std::memcpy(pixels, debug.pixels, OGL_RTX_SHADOW_DEBUG_PIXELS);
+    if (surface_mask)
+        std::memcpy(surface_mask, debug.surface_mask, OGL_RTX_SHADOW_DEBUG_PIXELS);
     if (geometry_revision) *geometry_revision = debug.geometry_revision;
     if (sample_sequence) *sample_sequence = debug.sample_sequence;
+    if (surfaces) *surfaces = debug.surface_pixels;
+    if (background) *background = debug.background_pixels;
     return true;
 #else
     (void)pixels;
     (void)capacity;
     (void)geometry_revision;
     (void)sample_sequence;
+    (void)surface_mask;
+    (void)surfaces;
+    (void)background;
     return false;
 #endif
 }
@@ -244,7 +262,7 @@ bool ogl_rtx_copy_debug_shadow_mask(std::uint8_t* pixels,
     std::size_t capacity, std::uint64_t* geometry_revision)
 {
     return ogl_rtx_copy_debug_shadow_sample(
-        pixels, capacity, geometry_revision, nullptr);
+        pixels, capacity, geometry_revision, nullptr, nullptr, nullptr, nullptr);
 }
 
 

@@ -32,6 +32,8 @@ public:
         float far_clip_m = 0.f;
         std::array<float,64> depth_grid{};
         bool has_depth_grid = false;
+        uint32_t surface_pixels = 0;
+        uint32_t background_pixels = 0;
         uint32_t viewport_width = 0;
         uint32_t viewport_height = 0;
     };
@@ -41,7 +43,10 @@ public:
         uint32_t triangle_count = 0;
         uint32_t ray_count = 0;
         uint32_t occluded = 0;
+        uint32_t surface_pixels = 0;
+        uint32_t background_pixels = 0;
         std::array<uint8_t, 64> shadow_mask{};
+        std::array<uint8_t, 64> surface_mask{};
         uint32_t gpu_device_creations = 0;
         uint32_t blas_builds = 0;
         uint32_t cache_hits = 0;

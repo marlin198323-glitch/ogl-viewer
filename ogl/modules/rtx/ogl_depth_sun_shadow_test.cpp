@@ -76,6 +76,17 @@ int main(int argc, char** argv) {
     std::printf("DEPTH GUIDED SHADOW: %u/64 hits\n",shadow.occluded);
     assert(shadow.occluded>0 && shadow.occluded<64);
     assert(shadow.blas_builds==2);
+    // Sparse sky/transparent areas: a test pixel with depth=1 may never
+    // claim shadow, while opaque neighbouring samples still run ray queries.
+    // This is essential when OpenSim's viewport includes sky.
+    depth.fill(depth_of_plane);
+    depth[0] = 1.f;
+    depth[16] = 1.f;
+    depth[28] = 1.f;
+    const auto mixed=run();
+    assert(mixed.shadow_mask[0]==0 && mixed.shadow_mask[16]==0 &&
+           mixed.shadow_mask[28]==0);
+    assert(mixed.occluded<=shadow.occluded && mixed.blas_builds==2);
     // GL background depth must never be marked as a world shadow.
     depth.fill(1.f);
     const auto background=run();

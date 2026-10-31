@@ -85,6 +85,7 @@ Multi-GPU-Kopplung.
 - [x] Bounded Entwickler-Szenensnapshot bis 8.192 Dreiecke inklusive grobem Terrain einbinden
 - [ ] Vollständige dynamische OpenSim-Geometrie mit echten Terrain-Patches, Avataren, Materialsicherheit und Updates erfassen
 - [x] Abgesicherten 8×8-Vulkan-Ergebnis-Preview als klar gekennzeichnetes Entwickler-UI hinzufügen
+- [x] Himmel/Oberflächen getrennt klassifizieren und GPU-Messwerte zum exakt gleichen Kamera-Snapshot zuordnen
 - [ ] Bildschirmfüllende Ray-Query-Schattenmaske in OpenGL einfügen
 - [ ] Performance-/Stabilitäts- und Abnahmetests bei verschiedenen Auflösungen
 - [ ] Installer, automatische Updates und Signaturen für Endnutzer

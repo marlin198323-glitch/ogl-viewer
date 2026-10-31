@@ -44,6 +44,12 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertNotIn('Depth samples are NOT yet fed', source)
         self.assertIn('developer probe configured: worker=', source)
 
+    def test_depth_coverage_report_separates_sky_from_surfaces(self):
+        source = script.read_text()
+        self.assertIn('RTX last depth-grid coverage:', source)
+        self.assertIn('OGL RTX depth coverage: surface=', source)
+        self.assertIn('not automatically against 64 valid surfaces', source)
+
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(
             "username=private\n"

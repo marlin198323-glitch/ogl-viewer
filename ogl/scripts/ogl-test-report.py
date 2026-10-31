@@ -106,6 +106,15 @@ def report():
             print("RTX GPU shadow probe: 8x8 validated debug mask"
                   " (not a rendered shadow map)")
             print("RTX GPU diagnostic is NOT visual raytracing in the world.")
+            completed_surface = re.findall(
+                r"OGL RTX GPU probe: [^\n]*surface_samples=(\d+) "
+                r"background_samples=(\d+)", text)
+            if completed_surface:
+                visible, background = completed_surface[-1]
+                print(f"RTX completed GPU sample coverage: {visible}/64 "
+                      f"reconstructed surfaces, {background}/64 sky/background")
+                print("Only reconstructed surfaces are eligible for shadows; "
+                      "0/64 hits does not by itself indicate a GPU error.")
         elif ("OGL RTX GPU scene probe failed;" in text or
               "OGL RTX async GPU probe failed;" in text):
             print("RTX GPU diagnostic: failed; OpenGL fallback active")
@@ -133,6 +142,20 @@ def report():
         else:
             print("OpenGL deferred depth readback: not observed "
                   "(requires logged-in world and OGL_RTX_DEPTH_PROBE=1)")
+        coverage = re.findall(
+            r"OGL RTX depth coverage: surface=(\d+) background=(\d+) "
+            r"view_m_min=([0-9.]+) view_m_max=([0-9.]+)", text)
+        if coverage:
+            surface, background, near_m, far_m = coverage[-1]
+            print(f"RTX last depth-grid coverage: {surface}/64 visible "
+                  f"surface samples; {background}/64 background/sky")
+            print(f"RTX reconstructed view depths: {near_m}–{far_m} m "
+                  "(perspective assumption; no world-shadow validation)")
+            if probes:
+                print("RTX shadow hits must be interpreted against surface "
+                      "coverage, not automatically against 64 valid surfaces.")
+        elif samples:
+            print("RTX depth-grid coverage: not recorded by this build.")
         if rtx_lines:
             ready, active = rtx_lines[-1]
             print("RTX Vulkan hardware:", "supported" if ready == "1" else "not supported")

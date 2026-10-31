@@ -241,6 +241,14 @@ target_compile_features(ogl_camera_frame_validation_test PRIVATE cxx_std_17)
 add_test(NAME ogl_camera_frame_validation
     COMMAND ogl_camera_frame_validation_test)
 
+# CPU reconstruction agrees with the depth-guided Vulkan shader and
+# explains zero-shadow results by separating background from surfaces.
+add_executable(ogl_depth_diagnostics_test ../tests/test_depth_diagnostics.cpp)
+target_include_directories(ogl_depth_diagnostics_test PRIVATE include)
+target_compile_features(ogl_depth_diagnostics_test PRIVATE cxx_std_17)
+add_test(NAME ogl_depth_reconstruction_and_coverage
+    COMMAND ogl_depth_diagnostics_test)
+
 # Full-view deferred depth grid validation needs no GPU or GL driver.
 add_executable(ogl_depth_grid_validation_test ../tests/test_depth_grid_validation.cpp)
 target_include_directories(ogl_depth_grid_validation_test PRIVATE include)
