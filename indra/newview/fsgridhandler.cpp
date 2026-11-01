@@ -203,11 +203,14 @@ void LLGridManager::initGrids()
 
     if (APP_NAME == "OGL")
     {
-        // Always select the bundled grid, even after a previous installation
-        // selected something else. Never use unknown command-line grid values.
-        setGridChoice(OGLNexVerseGrid::kKey);
+        // Restore only the previously chosen built-in beta or the default
+        // public NexVerse grid. Never honor external/command-line grids.
+        const std::string last_grid = gSavedSettings.getString("CurrentGrid");
+        const std::string selected = OGLNexVerseGrid::isBetaGrid(last_grid) ?
+            OGLNexVerseGrid::kBetaKey : OGLNexVerseGrid::kKey;
+        setGridChoice(selected);
         mStartupGrid.clear();
-        LL_INFOS("OGLGrid") << "Using fixed Stadt NexVerse OpenSim grid" << LL_ENDL;
+        LL_INFOS("OGLGrid") << "Selected pinned NexVerse grid: " << selected << LL_ENDL;
     }
     else if (!mCommandLineDone)
     {
@@ -244,6 +247,22 @@ void LLGridManager::initSystemGrids()
         mGridList[grid_key][GRID_LOGIN_IDENTIFIER_TYPES] = LLSD::emptyArray();
         mGridList[grid_key][GRID_LOGIN_IDENTIFIER_TYPES].append(CRED_IDENTIFIER_TYPE_AGENT);
         mGridList[grid_key][GRID_LOGIN_IDENTIFIER_TYPES].append(CRED_IDENTIFIER_TYPE_ACCOUNT);
+
+        // A second, fixed entry in the same dropdown. This HTTPS website is
+        // NOT a verified OpenSim login endpoint: credential submission to it
+        // is blocked independently in FSPanelLogin and LLStartUp.
+        const std::string beta_key = OGLNexVerseGrid::kBetaKey;
+        addSystemGrid(OGLNexVerseGrid::kBetaName, beta_key,
+                      OGLNexVerseGrid::kBetaName,
+                      OGLNexVerseGrid::kBetaLoginURI, "",
+                      OGLNexVerseGrid::kWelcomeURI);
+        mGridList[beta_key][GRID_REGISTER_NEW_ACCOUNT] = OGLNexVerseGrid::kBetaWebsite;
+        mGridList[beta_key][GRID_FORGOT_PASSWORD] = OGLNexVerseGrid::kBetaWebsite;
+        mGridList[beta_key][GRID_HELP] = OGLNexVerseGrid::kBetaWebsite;
+        mGridList[beta_key][GRID_ABOUT] = OGLNexVerseGrid::kBetaWebsite;
+        mGridList[beta_key][GRID_LOGIN_IDENTIFIER_TYPES] = LLSD::emptyArray();
+        mGridList[beta_key][GRID_LOGIN_IDENTIFIER_TYPES].append(CRED_IDENTIFIER_TYPE_AGENT);
+        mGridList[beta_key][GRID_LOGIN_IDENTIFIER_TYPES].append(CRED_IDENTIFIER_TYPE_ACCOUNT);
         return;
     }
     addSystemGrid(LLTrans::getString("LoadingData"), "", "", "", "", DEFAULT_LOGIN_PAGE);
@@ -547,12 +566,16 @@ void LLGridManager::addGrid(const std::string& loginuri)
 /// if they're not populated yet.
 void LLGridManager::addGrid(GridEntry* grid_entry, AddState state)
 {
-    // Defense in depth: a dedicated OGL build never registers other grids.
-    if (APP_NAME == "OGL" && grid_entry &&
-        grid_entry->grid.has(GRID_VALUE) &&
-        grid_entry->grid[GRID_VALUE].asString() != OGLNexVerseGrid::kKey)
+    // Defense in depth: only the two compiled-in system profiles may
+    // appear in OGL. Ignore external grid updates/re-fetches even if they
+    // claim the same hostname; those must never overwrite pinned URLs.
+    if (APP_NAME == "OGL" &&
+        (state != SYSTEM || !grid_entry ||
+         !grid_entry->grid.has(GRID_VALUE) ||
+         (grid_entry->grid[GRID_VALUE].asString() != OGLNexVerseGrid::kKey &&
+          grid_entry->grid[GRID_VALUE].asString() != OGLNexVerseGrid::kBetaKey)))
     {
-        LL_WARNS("OGLGrid") << "Rejected unrelated grid registration" << LL_ENDL;
+        LL_WARNS("OGLGrid") << "Rejected unrelated grid registration or override" << LL_ENDL;
         delete grid_entry;
         return;
     }
@@ -1016,10 +1039,9 @@ std::string LLGridManager::getGridLabel(const std::string& grid)
 
 void LLGridManager::setGridChoice(const std::string& grid)
 {
-    if (APP_NAME == "OGL" &&
-        grid != OGLNexVerseGrid::kKey && grid != OGLNexVerseGrid::kName)
+    if (APP_NAME == "OGL" && !OGLNexVerseGrid::isFixedGrid(grid))
     {
-        LL_WARNS("OGLGrid") << "Rejected grid switch outside Stadt NexVerse" << LL_ENDL;
+        LL_WARNS("OGLGrid") << "Rejected grid switch outside the two pinned NexVerse grids" << LL_ENDL;
         return;
     }
     if (grid.empty() || LLLoginInstance::getInstance()->authSuccess())
@@ -1089,7 +1111,7 @@ void LLGridManager::setGridChoice(const std::string& grid)
     else
     {
         LL_DEBUGS("GridManager") << "setting grid choice: " << grid << LL_ENDL;
-        mGrid = grid; // AW: don't set mGrid anywhere else
+        mGrid = (APP_NAME == "OGL") ? grid_name : grid; // Normalize pinned OGL labels to keys
         getGridData(mConnectedGrid);
         gSavedSettings.setString("CurrentGrid", grid);
         LLTrans::setDefaultArg("CURRENT_GRID", getGridLabel()); //<FS:AW make CURRENT_GRID a default substitution>
