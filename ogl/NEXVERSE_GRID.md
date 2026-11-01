@@ -1,59 +1,74 @@
-# Stadt NexVerse – festes Grid-Profil im OGL Viewer
+# Stadt NexVerse – zwei fest eingebaute Grids im OGL Viewer
 
-Stand: 31.10.2026 | Branch: `ogl-develop`
+Stand: 01.11.2026 | Branch: `ogl-develop`
 
-## Feste Werte
+## Feste Auswahl im Login
 
-Die Werte sind zentral in `indra/newview/oglnexversegrid.h` hinterlegt.
+Die Grid-Profile sind zentral in `indra/newview/oglnexversegrid.h` definiert.
+Der OGL-Viewer zeigt genau diese beiden Einträge an:
 
-| Eigenschaft | Wert |
-|---|---|
-| Name | Stadt NexVerse |
-| Grid-Schlüssel | hg.stadt-nexverse.de:80 |
-| OpenSim-Login | http://hg.stadt-nexverse.de:80/ |
-| Welcome | https://stadt-nexverse.de/service/welcome |
-| Stadtportal | https://stadt-nexverse.de/ |
-| Hypergrid-Basis | hop://hg.stadt-nexverse.de:80/ |
+| Auswahl | Interner Schlüssel | Adresse | Anmeldung |
+|---|---|---|---|
+| Stadt NexVerse | `hg.stadt-nexverse.de:80` | `http://hg.stadt-nexverse.de:80/` | Bisheriger OpenSim-Login mit ausdrücklicher HTTP-Zustimmung |
+| Stadt NexVerse Beta | `beta.stadt-nexverse.de` | `https://beta.stadt-nexverse.de/` | **Noch gesperrt – Protokoll und TLS nicht verifiziert** |
 
-Die HTTP-Login-URI entspricht der öffentlichen GridInfo-Ausgabe des
-Stadt-NexVerse-OpenSim-Servers. Port 443 ist derzeit nicht erreichbar.
-Die vorhandenen Services auf dem Server wurden nicht verändert.
+Die bestehende Welcome-Seite `https://stadt-nexverse.de/service/welcome`
+bleibt erhalten. Der zuletzt gewählte Beta-Eintrag kann beim nächsten Start
+wieder ausgewählt sein; unbekannte oder fremde Grids werden verworfen. Bei einer
+frischen Installation bleibt **Stadt NexVerse** der Standard.
 
-## HTTP-Login – ausdrücklich vom Betreiber gewünscht
+## Sicherheit beim Beta-Login
 
-- Einzige HTTP-Ausnahme: der **exakte** hinterlegte Grid-Schlüssel und
-  die **einzige** URI `http://hg.stadt-nexverse.de:80/`.
-- Beim ersten manuellen Login zeigt OGL einen deutschen oder englischen
-  Hinweis zur unverschlüsselten Übertragung mit drei Möglichkeiten:
-  „Einmal anmelden“, „Für dieses Grid merken“ und „Abbrechen“.
-- Nur „Für dieses Grid merken“ speichert die ausdrückliche Zustimmung
-  als exakte, öffentliche URI im normalen Viewer-Einstellungsprofil.
-  Der Hinweis wird bei folgenden Starts für diese unveränderte URI
-  nicht erneut angezeigt. „Einmal anmelden“ erlaubt nur den laufenden Prozess.
-- Die Speicherung lässt sich jederzeit über die Debug-Einstellung
-  OGLRememberPinnedHTTPLoginURI auf einen leeren Wert zurücksetzen.
-  Wenn sich die Login-Adresse ändert, gilt die Zustimmung nicht mehr.
-  Das Abschalten der wiederholten Frage verschlüsselt keine Verbindung.
-- Das Authentifizierungsverfahren überprüft unmittelbar vor
-  `LLLoginInstance::connect()` erneut die Zieladresse und Zustimmung.
-  Ohne zuvor ausdrücklich gespeicherte Zustimmung bleiben automatische
-  HTTP-Logins blockiert.
-- Unbekannte oder zusätzliche HTTP-Adressen werden nicht erlaubt.
-  Andere Grids bleiben in diesem OGL-Fork nicht auswählbar.
-- Auch beim eigentlichen Verbindungsaufbau wird dieselbe feste URI
-  erneut geprüft; andere HTTP-Grids bleiben gesperrt.
-- Die bisherigen Funktionen zum Speichern von Benutzername/Passwort
-  sind unverändert; HTTP schützt die Übertragung jedoch **nicht**.
-  Zugangsdaten oder wiederverwendbare Authentifizierungswerte können
-  auf dem Netzwerkweg mitgelesen oder manipuliert werden.
-  Deshalb möglichst mit einem separaten Testkonto prüfen.
+Die Beta-Adresse wurde am 01.11.2026 von einem separaten Rechner über HTTPS
+geprüft. Die TLS-Prüfung wurde abgelehnt, weil der Zertifikatsname nicht zum
+Hostnamen `beta.stadt-nexverse.de` passt. Ein OpenSim-kompatibler Login-Endpunkt
+bzw. das geplante separate Beta-Protokoll ist ebenfalls noch nicht bestätigt.
 
-Das ist eine bewusste Kompatibilitätsausnahme für Stadt NexVerse.
-Sie macht HTTP nicht sicher und ersetzt kein HTTPS. Optional sind
-unter `ogl/server/` weiterhin geprüfte Vorlagen für eine spätere
-HTTPS-Umstellung vorhanden.
+Deshalb gilt ausdrücklich:
 
-## Testen auf Linux Mint
+- Beta ist **auswählbar**, aber der Viewer überträgt dort **keine** Zugangsdaten.
+- Bei einem Login-Versuch erscheint ein lokalisierter Hinweis (DE/EN).
+- Zusätzlich blockiert `LLStartUp` unmittelbar vor
+  `LLLoginInstance::connect()`, auch beim automatischen Login.
+- Ein HTTPS-URL-Schema allein ist **kein** Beleg für ein gültiges
+  Zertifikat oder ein passendes OpenSim-Authentifizierungsprotokoll.
+- Erst nach Zertifikatskorrektur, dokumentiertem Login-Vertrag und
+  eigenem Protokolladapter wird die Beta-Anmeldung gesondert freigegeben.
+- Die Beta-URL darf niemals als unbestätigter XML-RPC-Endpunkt verwendet werden.
+
+## Bestehender öffentlicher OpenSim-Login
+
+Der Eintrag **Stadt NexVerse** funktioniert weiterhin nach der bisherigen
+festen HTTP-Ausnahmeregel:
+
+- Einzige zugelassene HTTP-Adresse: `http://hg.stadt-nexverse.de:80/`.
+- Vor dem Login ausdrücklicher Hinweis mit „Einmal anmelden“,
+  „Für dieses Grid merken“ und „Abbrechen“.
+- Nur die explizit bestätigte exakte Adresse darf gespeichert werden;
+  eine Änderung der Login-URI übernimmt niemals die HTTP-Freigabe.
+- Diese HTTP-Verbindung ist weiterhin unverschlüsselt.
+  Für eine spätere HTTPS-Umstellung sind getrennte Arbeiten notwendig.
+
+OpenSim-Zugangsdaten und gespeicherte Benutzer sind über den jeweiligen
+Grid-Schlüssel voneinander getrennt.
+
+## Technische Umsetzung
+
+- `oglnexversegrid.h`: beide festen Identitäten und URL-Konstanten.
+- `fsgridhandler.cpp`: Registrierung nur der beiden Systemgrids,
+  fremde und nachträglich überschreibende Grid-Definitionen werden verworfen.
+- `fspanellogin.cpp`: Grid-Dropdown aktiviert und immer sichtbar;
+  der Beta-Verbindungsversuch endet vor dem Lesen der Login-Felder.
+- `llstartup.cpp`: zweite Sicherung unmittelbar vor der Anmeldung.
+- `skins/default/xui/{de,en}/strings.xml`: lokalisierte Erklärung.
+- `ogl/tests/test_nexverse_grid.py`: Regressionstests ohne Zugangsdaten.
+
+Alle Änderungen liegen in gemeinsamem C++- und XUI-Code für Linux, Windows und
+macOS; es gibt keine CPU- oder GPU-spezifische Sonderbehandlung.
+
+## Lokaler Test auf Linux Mint
+
+Nach neuer Build- und Paketierung:
 
 ```bash
 cd "/home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm"
@@ -61,16 +76,12 @@ bash ogl/scripts/build-test.sh
 bash ogl/scripts/run-viewer-test.sh
 ```
 
-Oder auf dem Schreibtisch `OGL-Viewer-Test.desktop` starten.
-Den Login selbst muss der Benutzer im Viewer bestätigen und testen;
-keine Passwörter in Chatnachrichten oder Debugausgaben übertragen.
+Im Login-Dropdown sollten **Stadt NexVerse** und **Stadt NexVerse Beta**
+erscheinen. Die Auswahl soll den zuletzt gewählten Eintrag speichern.
+Die Beta-Auswahl darf **nicht** bis zum eigentlichen Netzwerk-Login gelangen.
 
-## Abnahmestand
-
-- OGL-Fenster, feste Grid-Vorauswahl, Welcome-Seite und RTX-Erkennung:
-  lokal bereits geprüft.
-- HTTP-Freigabe und Bestätigungsdialog: implementiert; Build- und
-  automatisierte Tests bestanden.
-- Manueller Login über HTTP und tatsächliche Welt-/Avatar-Darstellung:
-  noch durch den Benutzer abzunehmen.
-- Raytracing-Schatten, Reflexionen und GI: noch nicht implementiert.
+**Abnahmestand:** Die Änderung wurde auf GitHub umgesetzt.
+Der Linux-Mint-PC war beim Bearbeiten nicht mit Desktop Commander verbunden.
+Deshalb sind lokale Kompilierung, Viewer-Paketierung und visuelle Abnahme
+noch nicht bestätigt. Die GitHub-CI prüft die plattformübergreifenden
+Modul-/Python-Verträge getrennt von einem vollständigen Viewer-Build.
