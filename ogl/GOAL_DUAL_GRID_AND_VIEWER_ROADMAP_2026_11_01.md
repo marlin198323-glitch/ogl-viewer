@@ -272,7 +272,13 @@ sprachübergreifende NexVerse-Menüverlinkung und
 Bereinigung der verbliebenen L$-/SL-Commerce-
 Overlays (`7a3919a8`, 20/20 technische
 Prüfpositionen, 178 Python-/41 native Tests,
-DE-/PT-GUI-Negativläufe grün).
+DE-/PT-GUI-Negativläufe grün);
+bestehende Toolbar/Chatbar modernisiert,
+OGL-Toolbox 820×520 skalierbar und
+tote Voice-/Chatbar-Overlays beseitigt
+(`192bd10d`, 20/20 Prüfpositionen,
+182 Python-/41 native Tests,
+DE-/EN-GUI-Smoketests erfolgreich).
 Die komplette In-World-Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 

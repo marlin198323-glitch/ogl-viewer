@@ -22,9 +22,9 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; letzter P02-
-Vorarbeits-Code-Commit `7a3919a8`: NexVerse-Menü-Routing in
-13 Sprachen abgesichert, 20/20 geprüfte Arbeitspositionen,
-178 Python-/41 native Tests und DE-/PT-GUI-Negativläufe grün.
+Vorarbeits-Code-Commit `192bd10d`: kompakte Toolbar, skalierbare
+OGL-Werkzeugleistenkonfiguration, tote Chat-Overlays entfernt,
+20/20 Prüfblöcke, 182 Python-/41 native Tests, DE-/EN-GUI grün.
 P02 formal 0/20; Hauptgrid-Live-Login-/Plattformgates noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate

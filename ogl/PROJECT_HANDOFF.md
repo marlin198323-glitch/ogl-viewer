@@ -33,14 +33,14 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen;
-P02-Vorarbeit `7a3919a8`: alte L$-/SL-Commerce-Menüs in allen
-13 Sprachen entfernt, NexVerse-Konto-/Marketplace-/News-/Issue-
-Callbacks gegen Überlagerungen abgesichert, alte portugiesische
-Second-Life-Account-URLs beseitigt; 20/20 QA-Blöcke bestanden,
-178 Python- und 41 native Tests samt echten DE-/PT-GUI-Starts.
-P02 formal 0/20. Hauptgrid-Live-Login,
-Passwortpersistenz, In-World-Shutdown und vollständige
-Windows-/macOS-Viewer-Builds noch offen).
+P02-Vorarbeit `192bd10d`: OGL-Toolbar und Chatbar EN/DE modernisiert,
+alte Voice-/Chatbar-Overlays DE/PT/ZH bereinigt,
+Toybox auf 820×520 verkleinert und skalierbar,
+20/20 technische Blöcke, 182 Python-/41 native Tests
+sowie DE-/EN-GUI-Smoketests grün. P02 formal 0/20.
+Hauptgrid-Live-Login, Passwortpersistenz,
+In-World-Shutdown und vollständige Windows-/macOS-
+Viewer-Builds noch offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

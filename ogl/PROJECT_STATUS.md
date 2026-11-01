@@ -32,6 +32,93 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – kompakte Toolbar und Chatbar (20 Prüfblöcke)
+
+**Code-Commit:** `192bd10d` (`ogl-develop`).
+**20/20 einzeln verifizierte Entwicklungs-/Prüfpositionen bestanden.**
+P01 bleibt **18/20 formale Phasenblöcke**, P02 bleibt
+**0/20 formale Phasenblöcke** bis zur In-World-Abnahme.
+
+**Implementiert – ausschließlich bestehende Quelldateien:**
+- Untere OGL-Chatbar in bestehender
+  `skins/default/xui/en/panel_toolbar_view.xml`:
+  klarer „Local Chat“-Text, korrekte Strg+H-
+  Hilfe, 104-Pixel-Button; die vorhandene
+  `Floater.Toggle/fs_nearby_chat`-Funktion,
+  der `fs_nearby_chat_voice_monitor`, die
+  Rechtschreibprüfung und die Toolbar-Position
+  bleiben unangetastet. Deutsch auf „Lokaler
+  Chat“ mit Strg+H-Tooltip angepasst.
+- Veraltete `nearby_voice_monitor`- und
+  `open_chat_bar_button_panel`-Elemente
+  in den vorhandenen DE-/PT-/ZH-XUI-Overlays
+  entfernt. Sie besitzen keinen entsprechenden
+  Eintrag mehr in der aktuellen
+  EN-Basis und dürfen nicht als tote bzw.
+  doppelte UI-Kontrollen nachgeladen werden.
+- Werkzeugleisten-Konfigurationsfenster
+  `floater_toybox.xml` auf 820×520 statt
+  975×575 Pixel gesetzt, größenveränderbar
+  mit Mindestmaß 610×440 und gespeicherter
+  Fensterposition; innere Toolbar-/
+  Footer-Anker passend verschoben. Die
+  vorhandenen „Leeren“, „Standards
+  wiederherstellen“ und LockToolbars-
+  Funktionen samt ihren Callbacks bewahrt.
+  OGL-Fenstertitel EN/DE angepasst.
+- Horizontale und vertikale
+  Werkzeugleisten-Kontextmenüs in EN/DE
+  auf „Customize toolbar...“ bzw.
+  „Werkzeugleiste anpassen...“ umbenannt,
+  ursprüngliche Alignment-/Layout-/
+  Sperr-Callbacks nicht verändert. Vier
+  neue Regressionstests der bestehenden
+  `ogl/tests/test_branding_contract.py`.
+  **Keine neuen Projektdateien angelegt.**
+
+**20 geprüfte Blöcke:** 01 Branch/Remote-Sync,
+02 Dateiregel; 03 11 XUI-Dateien valide;
+04 EN-Chatbar; 05 DE-Chatbar;
+06 Nahchat-Callback; 07 Voice und Spellcheck;
+08 DE keine toten Widgets;
+09 PT keine toten Widgets;
+10 ZH keine toten Widgets;
+11 kompakter Toybox-Dialog;
+12 Größenanpassung/Mindestgrößen;
+13 Drag&Drop-Toolbar weiter verfügbar;
+14 Reset-/Leeren-Aktionen und Sperre;
+15 deutsche Beschriftung/Lock-Preference;
+16 DE/EN Kontextmenüs;
+17 Orientierung und Layoutfunktionen;
+18 alle 11 XUI-Dateien bytegleich gestaged;
+19 Linux-Vollviewer-Build, Python-/native Tests;
+20 deutsche und englische GUI-Smoketests.
+**20/20 bestanden.**
+
+**Nachweise:** Vollständiger Linux-Mint-
+Viewer-Build mit `bash ogl/scripts/build-test.sh`
+grün, **182/182 Python-Tests und
+41/41 native CTests**. Isolierte
+1280×720-Xvfb-Starts mit
+`--set Language de` und `en`:
+`ogl-viewer`-Fensterklasse, `STATE_LOGIN_WAIT`,
+kein `STATE_LOGIN_AUTH_INIT`, Strg+Q,
+**Exit-Code 0**. 11 geänderte XUI-Dateien
+bytegleich im Viewer-Staging. Toolbars/
+Toybox wurden **noch nicht in einer
+authentifizierten 3D-Welt geklickt**
+(kein autorisierter Hauptgrid-Login).
+Die Alt-/Duplikatprüfung fand nur bereits
+getrackte `_v2`-/`script_copy`-Ressourcen;
+ohne Abhängigkeitsbeleg nichts gelöscht.
+
+**Operativer Wiedereinstieg:** P01 Block 19/20.
+Autorisierter Hauptgrid-Live-Login,
+Passwortpersistenz, In-World-Shutdown
+und vollständige Windows-/macOS-Viewer-
+Build-/GUI-Nachweise bleiben Blocker.
+Keine manuelle Zwischenabnahme.
+
 ## P02 unabhängige Vorarbeit – Sprachübergreifende NexVerse-Routen
 
 **Code-Commit:** `7a3919a8` (`ogl-develop`).
