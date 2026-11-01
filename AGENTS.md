@@ -30,7 +30,10 @@ in bestehenden XUI-Dateien durch
 NexVerse-Ziele ersetzt; 20/20 technische
 Prüfblöcke, 198 Python-/41 native Tests
 sowie Hauptgrid-/Beta-GUI-Negativläufe
-bestanden. P02 formal 0/20;
+bestanden. CI-Nachfix `0fb7b3d0`
+explizites UTF-8 für Windows-Tests;
+portable Grafikmatrix 6/6 grün
+(Lauf 41338813171). P02 formal 0/20;
 autorisierter Live-Login/
 Plattform-Viewer-Builds noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.

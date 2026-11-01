@@ -40,7 +40,11 @@ abgesichert, alte Login-XUI-Fallback-
 URLs auf NexVerse umgestellt. 20/20
 QA-Positionen; 198 Python-/41 native
 Tests und Hauptgrid-/Beta-GUI-Smokes
-erfolgreich. P02 formal 0/20.
+erfolgreich. CI-Korrektur `0fb7b3d0`
+(UTF-8 unter Windows), portable
+Grafikmatrix 6/6 grün
+(GitHub-Lauf 41338813171).
+P02 formal 0/20.
 Noch offen: autorisierter Hauptgrid-
 Live-Login, Passwortpersistenz,
 In-World-Shutdown und vollständige

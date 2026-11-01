@@ -32,6 +32,43 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## CI-Nachprüfung – sechs portable Grafikplattformen grün
+
+Nach dem Code- und Dokumentations-Push
+`a8951b29`/`61b076e8` zeigte die
+portable Grafikmatrix auf Windows
+x64 und ARM64 einen Python-
+`UnicodeDecodeError` im neuen
+Login-XUI-Regressionsvertrag.
+Die Ursache war ein `Path.read_text()`
+ohne explizite Zeichenkodierung unter
+Windows-CP1252; Linux-/macOS-Tests
+waren bereits erfolgreich.
+In der **bestehenden**
+`ogl/tests/test_branding_contract.py`
+ist nun `encoding="utf-8"` explizit
+gesetzt (Fix-Commit `0fb7b3d0`).
+Kein Viewer-Code und keine Login-
+Funktion mussten dafür geändert werden.
+
+**Bestätigter Nachweis:** GitHub Actions
+`ogl-portable-graphics.yml`,
+Lauf `41338813171`,
+`0fb7b3d0`: **6/6 Jobs erfolgreich**
+(Ubuntu x64/ARM64,
+Windows x64/ARM64,
+macOS Intel/ARM64).
+Alle 198 Python-Verträge bestanden;
+Linux-Vollviewer- und 41 native Tests
+blieben unverändert grün.
+**Wichtig:** Die portable
+Grafikmodulmatrix ersetzt weiterhin
+keine vollständigen Windows-/macOS-
+Viewer-Builds, signierten Releases
+oder In-World-UI-Abnahmen.
+Die formalen Stände bleiben
+**P01 18/20, P02 0/20**.
+
 ## P01 Block 19 – Alte Modusbestätigungen und Login-URLs abgesichert (20 Blöcke)
 
 **Code-Commit:** `a8951b29` auf `ogl-develop`.

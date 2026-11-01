@@ -218,7 +218,15 @@ keine Phoenix-/Second-Life-Fallback-
 URLs mehr. 20/20 QA-Positionen,
 198 Python-/41 native Tests,
 Hauptgrid-/Beta-GUI-Negativtests
-bestanden. Davor:
+bestanden. CI-Nachfix `0fb7b3d0`:
+UTF-8-Decoding in Windows-Python-
+Quellextrakttest explizit gemacht;
+portable Grafikmodule auf 6/6
+Linux-/Windows-/macOS-Matrixjobs
+erfolgreich (Lauf 41338813171).
+Dies ist kein vollständiger
+Windows-/macOS-Viewer-Build.
+Davor:
 `f2630c0e`:
 Mehrfach geöffnete HTTP-Warnungen
 können nur beim neuesten Dialog
