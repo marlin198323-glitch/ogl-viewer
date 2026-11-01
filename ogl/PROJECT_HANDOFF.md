@@ -33,17 +33,17 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18
-abgeschlossen; `02af8ad4`: untrusted Legacy-Grid-
-Status-HTTP im OGL-Pfad gesperrt, fremde Grid-
-und Legacy-News-Optionen in 13 Lokalisierungen
-deaktiviert, sichtbare Firestorm-Bezeichnungen
-in sechs Präferenzgruppen auf OGL umgestellt,
-20/20 technische Checks, 191 Python-
-und 41 native Tests samt DE-/ES-GUI bestanden.
-P02 formal 0/20. Weiter blockiert:
-autorisierter Hauptgrid-Live-Login,
-Passwortpersistenz, In-World-Shutdown,
-vollständige Windows-/macOS-Viewer-Builds).
+abgeschlossen; `f2630c0e`: eine monotone
+Dialoggeneration verhindert wiederholte
+und überholte HTTP-Warnungszustimmungen;
+Toolbar-Reset nur noch nach bestätigtem
+Moduswechsel. 20/20 Prüfschritte,
+194 Python-/41 native Tests sowie
+Hauptgrid-/Beta-GUI-Negativläufe grün.
+P02 formal 0/20. Noch offen: autorisierter
+Hauptgrid-Live-Login, Passwortpersistenz,
+In-World-Shutdown, vollständige
+Windows-/macOS-Viewer-Build- und GUI-Tests).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

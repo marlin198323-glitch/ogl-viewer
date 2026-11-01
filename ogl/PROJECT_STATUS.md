@@ -32,6 +32,106 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – Einmalige HTTP-Warnungen und sichere Moduswechsel
+
+**Code-Commit:** `f2630c0e` auf `ogl-develop`.
+**20/20 unabhängige Entwicklungs-/Prüfpositionen bestanden.**
+Diese sind **nicht** 20 zusätzlich abgeschlossene
+Phasenblöcke: **P01 bleibt formal 18/20**,
+**P02 0/20**.
+
+**In bestehenden Dateien implementiert:**
+
+- `indra/newview/fspanellogin.cpp`:
+  Neben der Formularrevision erzwingt
+  `sOGLHTTPWarningSequence` nun eine
+  monoton fortgeschriebene Dialoggeneration.
+  Ein erneuter Klick auf „Anmelden“
+  verdrängt ältere offene HTTP-
+  Einwilligungsdialoge, selbst wenn Konto,
+  Grid und Passwortformular unverändert
+  sind. Nur der neueste Dialog darf eine
+  Freigabe erteilen. Bei Zustimmung wird
+  die Dialoggeneration **vor** dem
+  persistenten Speichern bzw. der
+  einmaligen HTTP-Freigabe verbraucht;
+  ein wiederholter Callback kann
+  die Freigabe nicht erneut verwenden.
+  Weiterhin geprüft werden exakte URI-Pins,
+  Konto, Grid, Formrevision und explizite
+  Zustimmung. Keine Passwörter werden
+  in Dialog-Callbacks erfasst.
+- Der bestehende Moduswechsel hatte
+  `ResetToolbarSettings=true` schon
+  **beim Öffnen** der Bestätigung gesetzt.
+  Der Reset liegt nun ausschließlich in
+  `onModeChangeConfirm`, `case 0`,
+  nach tatsächlich bestätigtem Wechsel
+  und nur bei aktivierter Einstellung
+  `FSToolbarsResetOnModeChange`. Abbruch
+  stellt den alten Modus wieder her,
+  ohne die Werkzeugleisten zurückzusetzen.
+  Die vorhandenen Preset-Dateien und
+  Einstellungen bleiben erhalten.
+- Drei weitere Regressionstests in
+  `ogl/tests/test_nexverse_grid.py`,
+  dazu zwei vorhandene Tests auf
+  neue Callback-Capture-Signatur angepasst.
+  **Keine neuen Projektdateien**;
+  alte `_v2`-/`script_copy`-Ressourcen
+  nur auf Abhängigkeiten inventarisiert,
+  nicht blind gelöscht.
+
+**20 bestandene Prüfschritte:** 01 Arbeitsbranch,
+02 Remote-Synchronität, 03 keine neuen
+Dateien; 04 getrennte Dialoggeneration;
+05 erneute Warnung supersediert ältere;
+06 Callback-Capture ohne Passwörter;
+07 Generationsvergleich; 08 Formprüfung;
+09 Kontoprüfung; 10 Gridprüfung;
+11 exakte Login-URI-Pins;
+12 Ablehnung vor Auth-Freigabe;
+13 Dialoggeneration wird vor Nutzung
+verbraucht; 14 nur explizites „Merken“
+persistiert Zustimmung; 15 Abbruch
+erteilt keine HTTP-Freigabe;
+16 Moduswechsel ohne Vorab-Reset;
+17 bestätigter Wechsel setzt Toolbar
+nur bei aktivierter Option zurück;
+18 abgebrochener Wechsel stellt
+Modus ohne Reset wieder her;
+19 Linux-Vollbuild und Python-/native Tests;
+20 isolierte Hauptgrid-/Beta-GUI-Negativtests.
+**20/20 grün.**
+
+**Nachweise:** `bash ogl/scripts/build-test.sh`
+vollständig erfolgreich, **194/194 Python-
+Tests und 41/41 native CTests**. Zwei
+echte isolierte 1280×720-Xvfb-
+Voranmeldeläufe mit **synthetischen**
+Zugangsdaten: HTTP-Warnablauf angesteuert,
+Beta-Anmeldung serverseitig im Viewer
+geblockt, beide ohne
+`STATE_LOGIN_AUTH_INIT`, beide mit
+Strg+Q und **Exit-Code 0**.
+Ein interaktiver Mehrfachwarnungs-
+Replaytest und ein visueller
+Moduswechsel-Abbruchtest in der
+angemeldeten Welt stehen noch aus;
+Quelltext-/Regressionsnachweise sind
+keine vollständige End-to-End-Abnahme.
+Unveränderte OpenGL-Fallback-Pfade.
+
+**P01 bleibt blockiert durch** autorisierten
+Hauptgrid-Live-Login, echte
+Passwortwiederherstellung, In-World-
+Shutdown und vollständige Windows-/
+macOS-Viewer-Build-/GUI-Nachweise.
+Die portable Grafikmodul-CI ersetzt
+diese nicht. **Nächster Einstieg:
+P01 Block 19/20.** Keine manuelle
+Zwischenabnahme erforderlich.
+
 ## P01 Block 19 – OGL-Datenschutz und konsistente Einstellungen (20 Prüfblöcke)
 
 **Code-Commit `02af8ad4` (`ogl-develop`): 20/20 technische

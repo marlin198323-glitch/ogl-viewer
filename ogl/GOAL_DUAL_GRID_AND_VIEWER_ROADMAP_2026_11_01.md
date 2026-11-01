@@ -208,7 +208,17 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Sicherheits-Code-Commit `02af8ad4`:
+Letzter P01-Code-Commit `f2630c0e`:
+Mehrfach geöffnete HTTP-Warnungen
+können nur beim neuesten Dialog
+einmalig zur Freigabe führen;
+Toolbar-Reset erfolgt erst nach
+bestätigtem Moduswechsel.
+20/20 technische Prüfschritte,
+194 Python-/41 native Tests,
+Hauptgrid-/Beta-GUI-Negativläufe grün.
+Davor:
+`02af8ad4`:
 OGL blockiert den alten Phoenix-/Second-
 Life-Gridstatus-HTTP-Abruf auch bei
 aktivierter migrierter Profileinstellung;
@@ -305,7 +315,12 @@ sechs Präferenzgruppen in allen vorhandenen
 Sprachen rebranded (`02af8ad4`),
 interne Funktionen, Rechte und rechtliche
 Credits bleiben erhalten.
-Die komplette In-World-Visual-/Funktionsabnahme fehlt.
+Unabhängige Korrektur am Toolbar-Preset:
+Abbruch des Moduswechsel-Dialogs
+ändert die Werkzeuge nicht mehr
+(`f2630c0e`, im P01-Linux-Vollbuild
+geprüft). Die komplette In-World-
+Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

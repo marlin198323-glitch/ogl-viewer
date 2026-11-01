@@ -22,13 +22,13 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; Code-Commit
-`02af8ad4`: OGL ruft kein altes Phoenix-/SL-Statusfeed ab,
-die fremde Gridauswahl und Legacy-Statusoption sind in
-den Einstellungen verborgen, sichtbare Firestorm-
-Einstellungen lokalisiert auf OGL umgestellt;
-20/20 technische Prüfpositionen, 191 Python-
-und 41 native Tests, DE-/ES-GUI-Starts grün.
-P02 formal 0/20; P01-Live-Login und
+`f2630c0e`: nur noch die neueste HTTP-Warnung
+gibt einmalig das exakt gepinnte Grid frei,
+Toolbar-Reset erfolgt erst nach bestätigtem
+Moduswechsel. 20/20 technische Prüfpunkte,
+194 Python-/41 native Tests, Hauptgrid-
+und Beta-GUI-Negativtests bestanden.
+P02 formal 0/20; P01-Live-Login/
 Plattform-Viewer-Builds noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
