@@ -110,6 +110,54 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertLess(callback.index('if (credential.isNull())'),
                         callback.index('gSecAPIHandler->deleteCredential(credential)'))
 
+    def test_credential_restoration_rejects_cross_grid_or_unpinned_secret(self):
+        start = self.panel.index('void FSPanelLogin::setFields(')
+        end = self.panel.index('void FSPanelLogin::getFields(', start)
+        code = self.panel[start:end]
+        self.assertIn('OGLNexVerseGrid::isFixedGrid(name.substr(separator + 1))', code)
+        self.assertIn('name.substr(separator + 1) != LLGridManager::getInstance()->getGrid()', code)
+        self.assertIn('Ignored credential from non-current grid.', code)
+        self.assertLess(code.index('Ignored credential from non-current grid.'),
+                        code.index('identifier = credential->getIdentifier()'))
+        self.assertIn('sInstance->clearLoginFieldsForGridChange()', code)
+        self.assertLess(code.index('Ignored credential from non-current grid.'),
+                        code.index('sCredentialSet = true'))
+        self.assertIn('return;', code[code.index('Ignored credential from non-current grid.'):
+                                      code.index('identifier = credential->getIdentifier()')])
+
+    def test_editing_saved_username_clears_password_before_connect(self):
+        start = self.panel.index('void FSPanelLogin::onUsernameTextChanged()')
+        end = self.panel.index('void FSPanelLogin::onModeChange(', start)
+        body = self.panel[start:end]
+        self.assertIn('current_name != mPreviousUsername && mPasswordLength != 0', body)
+        self.assertIn('getChild<LLLineEditor>("password_edit")->clear()', body)
+        self.assertIn('sPassword.clear()', body)
+        self.assertIn('mPasswordLength = 0;', body)
+        self.assertIn('mPasswordModified = false;', body)
+        self.assertIn('getChild<LLButton>("remove_user_btn")->setEnabled(false)', body)
+        self.assertLess(body.index('password_edit")->clear()'), body.index('updateLoginButtons()'))
+        selected = self.panel[
+            self.panel.index('void FSPanelLogin::onSelectUser()'):
+            self.panel.index('void FSPanelLogin::updateServerCombo()')]
+        self.assertIn('APP_NAME == "OGL" || !sInstance->mPasswordModified', selected)
+        self.assertIn('Rejected saved account from unlisted grid.', selected)
+        self.assertLess(selected.index('Rejected saved account from unlisted grid.'),
+                        selected.index('sInstance->clearLoginFieldsForGridChange();'))
+
+    def test_grid_change_does_not_automatically_restore_target_password(self):
+        start = self.panel.index('void FSPanelLogin::updateServer()')
+        end = self.panel.index('void FSPanelLogin::updateLoginButtons()', start)
+        method = self.panel[start:end]
+        self.assertIn('APP_NAME != "OGL" && !sInstance->areCredentialFieldsDirty()', method)
+        self.assertLess(method.index('APP_NAME != "OGL"'),
+                        method.index('gSecAPIHandler->loadCredential(credentialName())'))
+        self.assertIn('updateServerCombo();', method)
+        self.assertIn('loadLoginPage();', method)
+        self.assertIn('setMaxTextChars(', method)
+        # Previously a clean login form could silently refill the password
+        # right after clearLoginFieldsForGridChange().
+        self.assertNotIn('if(!sInstance->areCredentialFieldsDirty())', method)
+
     def test_saved_cross_grid_account_never_loads_secret_before_switch(self):
         start = self.panel.index('void FSPanelLogin::onSelectUser()')
         end = self.panel.index('void FSPanelLogin::updateServerCombo()', start)
@@ -223,6 +271,21 @@ class StadtNexVerseGridTests(unittest.TestCase):
                        if e.get('name') == 'OGLUnexpectedGridEndpoint']
             self.assertEqual(len(matches), 1)
             self.assertGreater(len((matches[0].text or '').strip()), 60)
+
+    def test_privacy_and_teleport_changes_invalidate_old_http_consent(self):
+        source = self.panel
+        start = source.index('getChild<LLUICtrl>("remember_username_check")->setCommitCallback(')
+        end = source.index('mPreviousUsername = username_combo->getValue().asString();', start)
+        form = source[start:end]
+        self.assertIn('++sOGLLoginFormRevision;', form)
+        self.assertIn('getChild<LLUICtrl>("remember_check")->setCommitCallback(', form)
+        self.assertGreaterEqual(form.count('++sOGLLoginFormRevision;'), 2)
+        start = source.index('void FSPanelLogin::onLocationSLURL()')
+        end = source.index('/////////////////////////////', start)
+        self.assertIn('++sOGLLoginFormRevision; // changing destination', source[start:end])
+        connect = source[source.index('void FSPanelLogin::onClickConnect(void *)'):
+                         source.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertIn('sOGLLoginFormRevision != consent_revision', connect)
 
     def test_password_edits_invalidate_pending_http_consent_without_capturing_secret(self):
         panel = self.panel

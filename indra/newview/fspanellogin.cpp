@@ -362,6 +362,7 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
         getChild<LLUICtrl>("remember_username_check")->setCommitCallback(
             [](LLUICtrl* control, const LLSD&)
             {
+                ++sOGLLoginFormRevision;
                 // Opting out must also disable implicit password persistence.
                 // Do not erase secure-store credentials: users can still
                 // remove individual saved accounts using the delete button.
@@ -373,6 +374,13 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
                     if (FSPanelLogin::sInstance)
                         FSPanelLogin::sInstance->getChild<LLUICtrl>("remember_check")->setValue(false);
                 }
+            });
+        // A password-saving preference change also invalidates any
+        // outstanding permission dialog for the previous login form.
+        getChild<LLUICtrl>("remember_check")->setCommitCallback(
+            [](LLUICtrl*, const LLSD&)
+            {
+                ++sOGLLoginFormRevision;
             });
     }
     mPreviousUsername = username_combo->getValue().asString();
@@ -587,17 +595,34 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
         LL_WARNS() << "Attempted setFields with no login view shown" << LL_ENDL;
         return;
     }
-    if (sInstance->mInitialized)
-    {
-        sCredentialSet = true;
-    }
     if (credential.isNull())
     {
         LL_WARNS("Credentials") << "No stored credential available for login fields." << LL_ENDL;
         return;
     }
     if (APP_NAME == "OGL")
+    {
+        // Startup and secure-store callbacks must obey the same isolation
+        // rules as user-initiated account selection. Never display a saved
+        // password for a different world, even if a migrated credential was
+        // requested by a legacy login preference.
+        const std::string name = credential->getCredentialName();
+        const size_t separator = name.rfind('@');
+        if (separator == std::string::npos ||
+            !OGLNexVerseGrid::isFixedGrid(name.substr(separator + 1)) ||
+            name.substr(separator + 1) != LLGridManager::getInstance()->getGrid())
+        {
+            LL_WARNS("OGLGrid") << "Ignored credential from non-current grid." << LL_ENDL;
+            sInstance->clearLoginFieldsForGridChange();
+            return;
+        }
         ++sOGLLoginFormRevision; // loading saved credentials changes the form
+    }
+    // A rejected credential must never mark the login as initialized.
+    if (sInstance->mInitialized)
+    {
+        sCredentialSet = true;
+    }
     // The credential object's stream representation can contain secrets.
     // Never write it, a plaintext password or authentication hash to logs.
     LL_DEBUGS("Credentials") << "Restoring login fields from credential store." << LL_ENDL;
@@ -1442,9 +1467,11 @@ void FSPanelLogin::updateServer()
     {
         try
         {
-            // if they've selected another grid, we should load the credentials
-            // for that grid and set them to the UI.
-            if(!sInstance->areCredentialFieldsDirty())
+            // Never silently restore a credential from the target world in
+            // OGL after a grid switch: the user must explicitly choose the
+            // account again. Keep upstream automatic restoration for builds
+            // that use the legacy multi-grid login panel.
+            if (APP_NAME != "OGL" && !sInstance->areCredentialFieldsDirty())
             {
                 LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(credentialName());
                 sInstance->setFields(credential);
@@ -1582,6 +1609,8 @@ void FSPanelLogin::onSelectServer()
 
 void FSPanelLogin::onLocationSLURL()
 {
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision; // changing destination invalidates consent
     LLComboBox* location_combo = getChild<LLComboBox>("start_location_combo");
     std::string location = location_combo->getValue().asString();
     LL_DEBUGS("AppInit")<<location<<LL_ENDL;
@@ -1839,10 +1868,17 @@ void FSPanelLogin::onSelectUser()
     if (combo_val.isUndefined())
     {
         // Previously unknown username was entered
-        if (!sInstance->mPasswordModified)
+        if (APP_NAME == "OGL" || !sInstance->mPasswordModified)
         {
-            // Clear password unless manually entered
+            // A typed identity is never entitled to reuse a masked password
+            // from a previously selected saved account.
             sInstance->getChild<LLLineEditor>("password_edit")->clear();
+            if (APP_NAME == "OGL")
+            {
+                sPassword.clear();
+                sInstance->mPasswordLength = 0;
+                sInstance->mPasswordModified = false;
+            }
         }
         sInstance->addFavoritesToStartLocation();
         sInstance->mPreviousUsername = combo->getValue().asString();
@@ -1861,6 +1897,7 @@ void FSPanelLogin::onSelectUser()
             !OGLNexVerseGrid::isFixedGrid(cred_name.substr(separator + 1)))
         {
             LL_WARNS("OGLGrid") << "Rejected saved account from unlisted grid." << LL_ENDL;
+            sInstance->clearLoginFieldsForGridChange();
             return;
         }
     }
@@ -2033,7 +2070,22 @@ bool FSPanelLogin::getShowFavorites()
 void FSPanelLogin::onUsernameTextChanged()
 {
     if (APP_NAME == "OGL")
+    {
         ++sOGLLoginFormRevision;
+        // Clearing the secret on focus loss is too late: pressing Enter
+        // immediately after editing a saved username could submit the old
+        // account's masked password against the new identity.
+        const std::string current_name =
+            getChild<LLUICtrl>("username_combo")->getValue().asString();
+        if (current_name != mPreviousUsername && mPasswordLength != 0)
+        {
+            getChild<LLLineEditor>("password_edit")->clear();
+            sPassword.clear();
+            mPasswordLength = 0;
+            mPasswordModified = false;
+            getChild<LLButton>("remove_user_btn")->setEnabled(false);
+        }
+    }
     mUsernameLength = getChild<LLUICtrl>("username_combo")->getValue().asString().length();
     updateLoginButtons();
 }
