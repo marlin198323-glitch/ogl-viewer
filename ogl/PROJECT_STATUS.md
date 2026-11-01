@@ -8,9 +8,9 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Nächster Block:** `/goal P01 Block 18/20` – identifizierte
-Login-Altbestandteile nur nach nachvollziehbarer Nutzungs-/Lizenz-
-und Regressionprüfung bereinigen. **Keine manuelle Abnahme erforderlich.**
+**Nächster Block:** `/goal P01 Block 19/20` – vollständige
+Login-/Kontopersistenz- und Mehrplattform-Regression nachweisen,
+ohne die Beta-Sperre aufzuheben. **Keine manuelle Abnahme erforderlich.**
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -18,7 +18,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
-| P01 – Branding und modernes Login | aktiv | 17/20 | Block 18: abhängige Login-Altteile bereinigen |
+| P01 – Branding und modernes Login | aktiv | 18/20 | Block 19: Live-Login und Plattformregression |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
@@ -88,7 +88,7 @@ sind noch im vollständigen Branding-Audit zu prüfen.
 Verifizierte XML-/Branding-Tests plus vollständiger Linux-
 Build: **121 Python, 41 native Tests**, alles bestanden.
 
-**Noch offen:** Blöcke 18–20, besonders Altbestand-/Lizenzprüfung, Live-Login auf
+**Noch offen:** Blöcke 19–20, insbesondere bestätigter Live-Login auf
 720p–4K/HiDPI, Speichern und Wiederherstellen der Zugangsdaten,
 sichtbarer Gridwechsel, bestätigtes öffentliches Grid-Login,
 vollständiger sichtbarer OGL-Rebranding-Audit, UI-/Sicherheitsregression
@@ -96,12 +96,14 @@ und relevante Windows-/macOS-CI. Ein lokaler Modul-/Linux-Build
 ist kein Beleg für plattformübergreifende Installer. **P01 bleibt
 aktiv**, kein Phasenabschluss und noch kein Übergang nach P02.
 
-**Nächster Arbeitsschritt:** `/goal P01 Block 18/20` –
-alte Login-/Grid-Builder-/Mode-Komponenten und Skin-Overrides
-nutzungs-/lizenzsicher abbauen oder ausdrücklich als
-Kompatibilitätsbestand dokumentieren. Anschließend Block 19
-inklusive Grid-Login, Windows/macOS-Nachweisen (soweit
-verfügbar) und Block 20. P02 erst nach echtem P01-Gate starten.
+**Nächster Arbeitsschritt:** `/goal P01 Block 19/20` –
+erfolgreiche Anmeldung am Hauptgrid, gespeicherte Accounts/
+Passwortpersistenz und regulären Viewer-Shutdown nur mit
+autorisiertem Testkonto und isoliertem Profil prüfen.
+Windows/macOS-Build-/GUI-Nachweise soweit real verfügbar
+beschaffen. Negativprüfung des Beta-Grids bereits bestanden;
+Beta-Login bleibt bis bestätigtem TLS und Protokoll gesperrt.
+Block 20 erst nach tatsächlich erfülltem Abschluss-Gate.
 
 ## P01 – weitere /goal-Runde: Blöcke 7–8/20
 
@@ -302,6 +304,61 @@ keine manuelle Nutzerabnahme.
 Nutzer-Abnahmegate. Block 19 darf ohne realen
 Login-/Plattformnachweis nicht als vollständig
 bestanden gelten.
+
+## P01 – /goal-Runde: Block 18/20
+
+**Code-Commit:** `450163aa` (`ogl-develop`).
+**Sequenzieller Stand: 18/20, P01 weiter aktiv.**
+
+- **Altes OGL-Login entfernt, nicht nur versteckt:**
+  Aus **12 vorhandenen** `panel_fs_nui_login.xml`-
+  Ressourcen (Standard-EN plus 9 Sprach-Overrides sowie
+  StarLight und StarLightCUI) wurden die unnötige
+  Firestorm/Phoenix-Modusauswahl `mode_selection`,
+  `mode_combo` und der alte Grid-Builder-Link
+  `grid_builder_text` direkt entfernt.
+  Das behält die moderne OGL-Anmeldemaske, Welcome-Seite,
+  zwei feste Grid-Werte, Kontofelder und Passwortschalter.
+  Im C++-Login werden alte Mode-/Grid-Builder-Callbacks
+  nur noch für den **Nicht-OGL-Kompatibilitätszweig**
+  registriert; OGL erzeugt keine Dummy-Widgets.
+- **Abhängigkeit/Lizenz:** Die bestehenden
+  `panel_fs_login.xml`-Altmasken bleiben erhalten,
+  weil `FSPanelLogin` sie im anderen Produktpfad
+  weiterhin lädt. Die alten `onModeChange`- und
+  Grid-Builder-Callbacks bleiben für genau diesen Pfad.
+  Rechtlich erforderliche Originalquellen/Copyrights
+  und belegte Theme-Assets werden nicht blind gelöscht.
+  Die bereits vorhandenen `client_list_v2.xml` und
+  `cycle_object_animations_v2.lsl` sowie
+  `script_copy.png` sind keine neuen Ersatzdateien.
+- **Verifikation:** Realer vollständiger Linux-Build
+  und Staging erfolgreich, **130/130 Python-Tests**,
+  **41/41 native CTest**, `git diff --check` grün.
+  Xvfb 1280×720: **Standard, StarLight und StarLightCUI**
+  sichtbar gestartet (je 1024×680 bei +128,+20),
+  jeweils `STATE_LOGIN_WAIT` und **0 Dummy-Widgets**.
+  Screenshots geprüft; keine alte Modusauswahl sichtbar.
+  Die Smoke-Läufe liefen absichtlich in Timeout (124).
+- **Block-19-Negativprüfung (vorbereitend):** Im
+  echten OGL-Viewer **Stadt NexVerse Beta**
+  ausgewählt, synthetischen Benutzernamen und
+  Kunstpasswort eingegeben und Login ausgelöst.
+  Eine deutschsprachige Sperrbenachrichtigung erschien;
+  das Log bestätigt exakt
+  `Blocked beta authentication: protocol and TLS not verified.`
+  Keine echten Zugangsdaten verwendet. Diese Prüfung
+  belegt **nicht** Hauptgrid-Anmeldung oder gespeicherte
+  Credentials nach einem erfolgreichen Login.
+- **Noch offen:** Testkonto-/Live-Login und tatsächliche
+  Konto-/Passwortpersistenz am Hauptgrid, reguläres
+  Schließen nach Login, Windows- und macOS-Build-/GUI-
+  Nachweise; `Block 19` ist daher **nicht**
+  vollständig abgeschlossen. P02 und P01 Block 20
+  bleiben ausstehend.
+
+**Weiter:** `/goal P01 Block 19/20`, ohne manuelle
+Zwischenabnahme, aber mit echten technischen Prüfgates.
 
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle
