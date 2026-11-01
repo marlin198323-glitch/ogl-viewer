@@ -6,7 +6,44 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
-## Stand der /goal-Phasen
+## Aktiver /goal-Ausführungsstand (maßgeblich)
+
+**Nächster Block:** `/goal P01 Block 1/20` – Branding
+und moderner Login. **Keine manuelle Abnahme erforderlich.**
+Nach technischer Fertigstellung einer Phase sofort
+Abschlussmeldung mit Commit/Tests und, soweit im laufenden
+Arbeitsauftrag möglich, direkter Start der Folgephase.
+Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
+
+| Phase | Status | Fortschritt | Nächster Schritt |
+| --- | --- | --- | --- |
+| P01 – Branding und modernes Login | bereit | 0/20 | Block 1 beginnen |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
+| P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
+| P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
+| P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
+| P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
+| P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
+| P08 – Beta-Protokoll und getrennte NexVerse-Anmeldung | offen | 0/20 | nach Abschluss der Vorphase |
+| P09 – Abgesicherter Plugin-Manager | offen | 0/20 | nach Abschluss der Vorphase |
+| P10 – Automatisierte signierte GitHub-Releases | offen | 0/20 | nach Abschluss der Vorphase |
+| P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
+| P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
+| P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+**Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
+Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle
+Vulkan-/CPU-Module sind zu übernehmen. Diese Bestände bedeuten
+nicht, dass ganze operative Phasen P01–P13 erledigt wären.
+
+**Abschluss-Gate je Phase:** 20/20 nachweisbar bearbeitet,
+relevante Tests/Builds/CI grün, unverzichtbare externe
+Sicherheits- oder Zugriffsgates eingehalten, Änderungen nach
+`ogl-develop` gepusht, Statusdatei aktualisiert. Keine
+Benutzerabnahme als automatische Pausensperre. Unerreichbare
+Live-Services bleiben transparent blockiert, nicht „grün“.
+
+## Historischer Fachphasenstand A–I (Referenz)
 
 | Phase | Stand | Nächster überprüfbarer Schritt |
 | --- | --- | --- |

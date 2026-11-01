@@ -28,6 +28,32 @@ ist die verbindliche Projektquelle. Die Dateien werden in neuen
 Chats nicht ohne Repositoryzugriff oder ausdrücklichen Hinweis
 automatisch geladen.
 
+## Automatischer /goal-Phasenlauf
+
+**Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
+Nicht mehr frei zwischen den alten Fachkapiteln A–I
+wechseln. Aktueller Einstieg: **P01, Block 1/20**.
+Den letzten tatsächlich erledigten Block und Commit immer
+in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
+
+Bei `/goal` die aktive Phase in 20 Blöcken durchziehen,
+betroffene Tests und Builds ausführen, nach erfolgreicher
+technischer Prüfung auf `ogl-develop` pushen.
+Unmittelbar mit `/goal Pxx abgeschlossen | 20/20 |
+Tests ... | GitHub ...` informieren und ohne Rückfrage
+die Folgephase während der aktiven Unterhaltung bearbeiten,
+sofern keine echten Blocker entgegenstehen.
+
+**Kein manueller Abnahmestopp zwischen Phasen.** Fehlen
+Zertifikate, API-Verträge, Signaturen, Serverrechte oder
+Live-Testergebnisse, dies klar als Blocker führen und
+soweit möglich unabhängige Arbeiten fortführen.
+Kein Anspruch auf Arbeit im Hintergrund zwischen Chats.
+
+Nur bestehende Projektdateien direkt überarbeiten,
+ohne neue Dateien oder redundante Kopien; zu jedem
+20er-Block veraltete Pfade und Code kontrollieren.
+
 ## Arbeitsregeln
 
 - Nur ogl-viewer auf Branch ogl-develop bearbeiten, nicht das ältere
@@ -80,7 +106,10 @@ Nutze den Linux-Mint-Commander jam-MS-7D28 und
 /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm.
 Lies zuerst AGENTS.md, ogl/PROJECT_HANDOFF.md,
 ogl/PROJECT_STATUS.md und die /goal-Roadmaps.
-Arbeite immer 20 Entwicklungsblöcke pro Phase ab.
+Beginne mit der im Projektstatus markierten operativen
+/goal-Phase P01–P13 und arbeite alle 20 Blöcke ab.
+Nach erfolgreichem technischem Gate Abschluss melden und
+ohne manuelle Abnahme zur nächsten Phase wechseln.
 Bestehende Dateien am bisherigen Pfad ändern;
 keine neuen Projektdateien oder Duplikate ohne Freigabe.
 Zu jeder Runde Altbestand prüfen und sicher bereinigen.

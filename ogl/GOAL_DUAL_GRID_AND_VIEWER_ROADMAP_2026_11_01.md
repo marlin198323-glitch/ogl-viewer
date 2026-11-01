@@ -127,7 +127,508 @@ GitHub-Repository und die genannten Dateien öffnen.
 - Jede /goal-Phase in 20 einzeln überprüfbaren Blöcken.
 - Keine unbestätigten Protokolle oder unbekannten Server für Zugangsdaten.
 
-## Phase A – zwei feste NexVerse-Login-Profile (20 Blöcke)
+## Operativer /goal-Phasenlauf – verbindliche Ausführungsreihenfolge
+
+Diese Reihenfolge **ersetzt** die bislang alphabetisch gegliederten
+Fachphasen A–I als Arbeitsablauf. Die Fachphasen bleiben darunter
+als technische Referenz erhalten; bei Widersprüchen hat dieser
+operative Phasenlauf Vorrang.
+
+**Ausführung ohne manuelle Zwischenabnahme:**
+- Kommando `/goal` heißt: an der im Projektstatus dokumentierten
+  nächsten offenen Phase/Blocknummer fortfahren, in 20er-Blöcken
+  implementieren, testen, auf `origin/ogl-develop` veröffentlichen.
+- Eine Phase ist **nur fertig**, wenn ihre technischen Abnahmekriterien
+  bestanden sind. Dazu gehören betroffene Unit-/Integrationstests,
+  notwendige Linux-Viewer-Builds und die passende Plattform-CI.
+  Werterfassung oder sichtbare UI-Smoketests automatisieren, soweit
+  möglich; keine obligatorische manuelle Benutzerfreigabe zwischen
+  Phasen. Eine noch nicht überprüfte Live-Funktion bleibt ehrlich
+  **offen**, nicht künstlich „bestanden“.
+- Beim Abschluss sofort mitteilen:
+  `/goal Pxx abgeschlossen | 20/20 | Tests: ... | GitHub: <SHA>`
+  sowie `Nächste Phase: Pyy`. Während derselben aktiven
+  Bearbeitung ohne Rückfrage mit Pyy fortfahren, sofern technisch
+  ausführbar und keine sicherheitsrelevanten Freigaben fehlen.
+- **Keine unbeaufsichtigte Hintergrundfortsetzung behaupten**:
+  Außerhalb einer aktiven Unterhaltung wird nicht selbstständig
+  weiterentwickelt. Bei Chatende schreibt der Assistent den
+  genauen nächsten Block in `ogl/PROJECT_STATUS.md`. In einem
+  neuen Chat reicht `/goal` plus Zugriff auf das Repository.
+- Bei einem echten Blocker (z. B. unzugängliches Backend,
+  fehlender Signaturschlüssel, defekte CI oder fehlendes
+  Protokoll) die betroffene Phase als **blockiert** melden,
+  Ursache dokumentieren und ausschließlich unabhängige
+  bereits geplante Arbeiten fortsetzen. Niemals Sicherheits-
+  gates umgehen, ungetestete Builds als fertig deklarieren
+  oder blind auf Produktivsystemen veröffentlichen.
+- **Dateiregel:** Vorhandene Projektdateien am bestehenden Pfad
+  ändern. Keine neuen Dateien, Duplikate, .bak/_neu/_v2
+  oder parallele Implementierungen ohne ausdrückliche
+  Zustimmung. Wenn eine neue Quelldatei unvermeidbar wäre,
+  als Blocker kennzeichnen, statt die Vorgabe heimlich
+  aufzuheben. CI-Releases außerhalb des Quellbaums sind erlaubt.
+  Pro Phase Altbestand prüfen und nach Abhängigkeits-,
+  Lizenz- und Regressionstests gezielt bereinigen.
+- Phasen auf Linux Mint erarbeiten, aber Code/Distribution
+  auf Linux, Windows, macOS und x64/ARM64 abstimmen.
+  Das öffentliche OpenSim-Grid darf nicht durch Beta-
+  Experimente oder Vulkan-Änderungen ausfallen.
+- Externe NexVerse-Server-/Portal-Repositories sind eigene
+  Änderungen: tatsächliches Zielrepository und erforderliche
+  Zugriffsberechtigungen vor Schreibzugriff verifizieren.
+  Ohne passende Berechtigung wird die Integration als
+  blockiert markiert und kein fremdes Repository vermutet.
+
+### Phasenübersicht – 13 mal 20 Entwicklungsblöcke
+
+| Phase | Reihenfolge | Schwerpunkt | Status |
+| --- | --- | --- | --- |
+| P01 | 1 | Branding und modernes Login | **Bereit** |
+| P02 | 2 | OGL-Navigation, Fenster, Chat und Avatare | **Geplant** |
+| P03 | 3 | Theme-System und sichere Designinstallation | **Geplant** |
+| P04 | 4 | Renderer-Abstraktion und OpenGL-Fallback | **Geplant** |
+| P05 | 5 | Vulkan als vollständige auswählbare 3D-Engine | **Geplant** |
+| P06 | 6 | Vulkan-Raytracing und Grafikqualität | **Geplant** |
+| P07 | 7 | CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | **Geplant** |
+| P08 | 8 | Beta-Protokoll und getrennte NexVerse-Anmeldung | **Geplant** |
+| P09 | 9 | Abgesicherter Plugin-Manager | **Geplant** |
+| P10 | 10 | Automatisierte signierte GitHub-Releases | **Geplant** |
+| P11 | 11 | Clientseitiger Pflicht-Updater und Update-UI | **Geplant** |
+| P12 | 12 | Serverseitige Mindestversion für beide Grids | **Geplant** |
+| P13 | 13 | Portal-Releases, End-to-End-QA und Dauerbereinigung | **Geplant** |
+
+**Aktive nächste Phase:** P01, Block 1/20. Die früheren
+Teilstände (zwei feste Grids, OGL-Farbthemen,
+SIMD-/RT-Diagnose) sind keine automatische Freigabe
+der neuen operativen Phasen. Fertiggestellte Bestandteile
+bei jeder Phase übernehmen und nicht erneut implementieren.
+
+### /goal P01 – Branding und modernes Login
+
+**Status:** bereit; noch 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
+
+1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.
+2. Login-Zustand und die zwei fest eingebauten Grid-Profile abgleichen.
+3. Veraltete Firestorm-Beschriftungen und sichtbares Branding erfassen.
+4. Einheitliche OGL-Farb- und Typografie-Tokens in bestehenden Dateien festlegen.
+5. Originale Welcome-Hintergrundfunktion beibehalten.
+6. Login-Kopfbereich kompakt gestalten.
+7. Benutzer- und Passwortfelder proportional, lesbar und DPI-tauglich machen.
+8. Grid-Auswahl Stadt NexVerse und Stadt NexVerse Beta optisch integrieren.
+9. Passwortspeicherung und Benutzerkonto-Auswahl ohne Regression erhalten.
+10. Einwilligungen und Fehlermeldungen sicher und verständlich anzeigen.
+11. Anzeige 'Vulkan RT bereit' aus dem Login entfernen.
+12. Anzeige 'Effekt aus' aus dem Login entfernen.
+13. RT-/GPU-Diagnosedaten ausschließlich in Einstellungen oder Logs belassen.
+14. Schaltflächen und Tastatur-Fokuszustände vereinheitlichen.
+15. DE-/EN-Texte der vorhandenen Login-Oberfläche prüfen.
+16. Skalierung 720p bis 4K und High-DPI per Layouttests absichern.
+17. Alte ungenutzte Login-Komponenten und Ressourcen identifizieren.
+18. Nur nach Nutzungs-/Lizenzprüfung alte Login-Reste direkt entfernen.
+19. Python-/native Tests, realen Linux-Viewer-Build und Grid-Login-Regression prüfen.
+20. Änderungen pushen, Status/Commit dokumentieren und P02 direkt starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
+
+1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.
+2. Einheitliche OGL-Navigationshierarchie definieren.
+3. Bestehende Hauptnavigation ohne parallele Template-Dateien umbauen.
+4. Untermenüs und Toolbar-Struktur konsistent gestalten.
+5. Fenster-Titel, Icons und Schaltflächen zu OGL/NexVerse vereinheitlichen.
+6. Unnötiges sichtbares Firestorm-Branding entfernen.
+7. Allgemeine Fenstergrößen- und DPI-Regeln zusammenführen.
+8. Lokalen Chat mit modernem Nachrichtendesign abgleichen.
+9. IM-Chat mit demselben Nachrichtenschema abgleichen.
+10. Gruppenchat mit demselben Nachrichtenschema abgleichen.
+11. Runde echte Avatarporträts statt quadratischer Vorschaubilder verwenden.
+12. Avatarname und Uhrzeit über dem Nachrichtentext ausgeben.
+13. Nachrichtenbereich und Eingabefeld responsive machen.
+14. Kontaktliste und Sitzungsanzeige funktional konsolidieren.
+15. Avatar-/Profil-Privatsphäre und OpenSim-Rechte wahren.
+16. Voice-/Chat-Funktionen und Kontextmenüs unverändert bedienbar halten.
+17. DE-/EN-Text- und Tastaturbedienung prüfen.
+18. Verwaiste Menüs, XUI-Elemente und doppelte Referenzen bereinigen.
+19. Vollviewer-Tests, Vergleichsansichten und Performance-Regression prüfen.
+20. Commit, Status und Ergebnisse melden; P03 ohne Nutzerabnahme starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P03 – Theme-System und sichere Designinstallation
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Optionale Designs bei OGL-Standard.
+
+1. Vorhandenes OGL-Designpanel und Theme-CLI inventarisieren.
+2. OGL/NexVerse als sichtbaren Standard statt Firestorm-Altstil definieren.
+3. Den reversiblen kompatiblen Fallback technisch erhalten.
+4. Theme-Manifest und Versionsvertrag prüfen.
+5. Farb- und Textur-Tokens zentralisieren.
+6. Layout- und Template-Zuordnung ohne Duplikate entwerfen.
+7. Native Dateiauswahl für .ogltheme in bestehende UI einbauen.
+8. ZIP-Pfadtraversal-, Symlink-, Größen- und Formatprüfung absichern.
+9. Paketauthentizität und erforderliche Berechtigungen festlegen.
+10. Atomische Installation im Benutzerprofil sicherstellen.
+11. Installierte Pakete im Viewer auflisten.
+12. Pakete vor Aktivierung visuell vorschauen.
+13. Theme-Änderungen und Neustarterfordernis verständlich machen.
+14. Theme aktivieren und OGL-Standard wiederherstellen.
+15. Theme-Pakete gefahrlos deaktivieren/entfernen.
+16. Sprache, HiDPI und Chat-/Menü-Kompatibilität prüfen.
+17. Manipulierte Themes und Updatefehler per Testpaketen abweisen.
+18. Nicht verwendete Skin-Overrides und Theme-Duplikate bereinigen.
+19. Linux-Build sowie portable Theme-Sicherheitstests ausführen.
+20. GitHub/Status aktualisieren und P04 direkt beginnen.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P04 – Renderer-Abstraktion und OpenGL-Fallback
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Saubere Backend-Auswahl und Baseline.
+
+1. OpenGL-Renderpfad und Vulkan-Diagnosemodule vollständig inventarisieren.
+2. Gemeinsame Render-Backend-Funktionen und Grenzen spezifizieren.
+3. Bestehende Schnittstellen erweitern statt doppelte Renderer-Dateien erstellen.
+4. Renderer-Lebenszyklus und Thread-/Ressourcenbesitz definieren.
+5. Grafikgeräte und API-Funktionsumfang plattformneutral ermitteln.
+6. GPU-Speicherbudget, Treiber und Fehlerzustände erfassen.
+7. OpenGL als Standard/Kompatibilitätsmodus festlegen.
+8. Neue Engine-Auswahl in vorhandene Grafikeinstellungen aufnehmen.
+9. Vulkan nur bei geeigneter CPU/GPU/Treiber-Kombination anbieten.
+10. Gewählte und letzte erfolgreiche Engine getrennt sichern.
+11. Enginewechsel mit kontrolliertem Neustart vorsehen.
+12. Bei Vulkan-Startfehler automatisch auf OpenGL zurückfallen.
+13. OpenGL-Einstellungswerte und Nutzerdaten erhalten.
+14. Logging für Backend-Auswahl ohne störende Login-Debugtexte einbauen.
+15. Headless-/Mock-Tests für Rendererentscheidung ergänzen.
+16. Alte Treiber, Intel/AMD/NVIDIA und ARM-Kompatibilität berücksichtigen.
+17. Renderer-Abstraktion auf Linux mit echtem Viewer kompilieren.
+18. Windows-/macOS-Modul-CI und Fehlerfälle prüfen.
+19. Ungebrauchte Grafikdiagnose-Hooks nach Abhängigkeitsprüfung bereinigen.
+20. Änderungen veröffentlichen und P05 direkt starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P05 – Vulkan als vollständige auswählbare 3D-Engine
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Welt-Rendering statt Diagnose.
+
+1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
+2. Window-Surface und Swapchain für Desktopbetrieb anbinden.
+3. Frame-Lifecycle, Synchronisation und Resize kontrollieren.
+4. Vertex-/Indexbuffer-Verwaltung mit Scene-ABI verknüpfen.
+5. Terrain- und Landoberflächen im Vulkan-Backend darstellen.
+6. Mesh- und Objektgeometrie portieren.
+7. Textur-Uploads und Caching anbinden.
+8. Alpha/Blend-/Transparenzregeln übernehmen.
+9. Material-/PBR-Shaderpfade portieren.
+10. Licht, Sonne, Himmel und Wetter abbilden.
+11. Avatar-/Attachment-Geometrie übernehmen.
+12. Partikel- und Wasser-Darstellung integrieren.
+13. HUDs, Labels und Text-Overlays rendern.
+14. UI-Compositing und Eingaben erhalten.
+15. Kamera, Auswahl, Teleport und Regionwechsel testen.
+16. GPU-Memory-/Descriptor-/Pipelinefehler abfangen.
+17. Treiber-/OS-Ausfälle kontrolliert auf OpenGL zurückführen.
+18. Vergleichsbilder Vulkan/OpenGL für reale OpenSim-Szenen prüfen.
+19. Linux-Viewer-Build, portable Tests, FPS/VRAM-Messungen durchführen.
+20. Stabilen Stand veröffentlichen, Status melden, P06 starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P06 – Vulkan-Raytracing und Grafikqualität
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Optionale Effekte auf kompatibler GPU.
+
+1. Raytracing-Prototyp und bisherige GPU-Diagnosen inventarisieren.
+2. Ray-Query/RT-Pipeline-Fähigkeiten zur Laufzeit erkennen.
+3. Keine Markenbindung an NVIDIA/AMD/Intel erzwingen.
+4. RT nur innerhalb einer funktionierenden Vulkan-Engine aktivieren.
+5. Nicht-RT-fähige GPUs mit normalem Vulkan rendern lassen.
+6. BLAS/TLAS-Szenenaktualisierung und Lebenszyklen absichern.
+7. Statische/dynamische Mesh-Änderungen berücksichtigen.
+8. Raytraced-Schatten aus realer Weltgeometrie erzeugen.
+9. Sonnen-/Himmelslicht in Beleuchtung einbinden.
+10. Reflexionen nur bei tragbarer GPU-Last ergänzen.
+11. Temporale Stabilität/Anti-Aliasing und Denoser prüfen.
+12. Grafikeffekte in die bestehenden Einstellungen integrieren.
+13. Ungeeignete RT-Optionen automatisch deaktivieren.
+14. GPU-Last-/VRAM-/FPS-Profile dokumentieren.
+15. OpenGL-Welt und Vulkan ohne RT unverändert nutzbar lassen.
+16. RTX-/Diagnosetexte aus dem Login fernhalten.
+17. Renderfehler, Teleport, Regionwechsel und GPU-Reset prüfen.
+18. Veraltete Debug-Proben nur nach Regressionstest bereinigen.
+19. Linux- und Cross-OS-Tests sowie echte Szenenvergleiche durchführen.
+20. Ergebnisse veröffentlichen und P07 starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Nachweisbare Performanceverbesserung.
+
+1. CPU- und GPU-Metriken und vorhandene Cachepfade inventarisieren.
+2. Reproduzierbare OpenSim-Testszenen und Messwerte festlegen.
+3. Skalaren CPU-Fallback absichern.
+4. SSE2-Pfad für x86-64 prüfen.
+5. AVX2-Pfad nur bei CPU- und OS-Unterstützung aktivieren.
+6. ARM64-NEON-Pfad separat prüfen.
+7. CPU-Benchmarks gegen systemoptimierte Vergleichsfunktionen messen.
+8. Textur-Netzwerk-/Decode-/Cache-Latenzen instrumentieren.
+9. Mesh-Laden und Geometry-Cache messen.
+10. Avatar-Baking/Attachments und Appearance-Pipeline messen.
+11. Unnötige Cache-Neuberechnungen identifizieren.
+12. Cache-Prefetch und Wiederverwendung sicher optimieren.
+13. CPU-/GPU-Upload-Stau und Frame-Stottern messen.
+14. RAM-/VRAM-Budgets und Cache-Obergrenzen definieren.
+15. Fehlerhafte Texturen/Meshes und Offline-Fälle berücksichtigen.
+16. Alte Systeme mit OpenGL und begrenztem Arbeitsspeicher testen.
+17. Keine nicht gemessenen FPS-/Ladezeitversprechen machen.
+18. Unwirksame/duplizierte Optimierungspfade entfernen.
+19. Regressionen und Performance-Vergleichswerte dokumentieren.
+20. GitHub/Status aktualisieren und P08 starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P08 – Beta-Protokoll und getrennte NexVerse-Anmeldung
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Sichere zweite Verbindung.
+
+1. Bestehenden öffentlichen OpenSim-Login auf Regression prüfen.
+2. Beta-TLS-Zertifikat und Hostnamen korrekt verifizieren.
+3. Beta-Login-API/Protokollvertrag vom Backend feststellen.
+4. Auth-Adapter ohne fremde Passwortweiterleitung abgrenzen.
+5. Manuelle und automatische Login-Gates einheitlich machen.
+6. Credentials und Tokens je Grid getrennt speichern.
+7. Beta-Session-Aufbau und Ablauf implementieren.
+8. Timeout, Retry, Reconnect und Logout absichern.
+9. Netzwerk-/EventQueue-/Capabilities-Unterschiede erfassen.
+10. Avatar-/Benutzeridentität pro Grid zuordnen.
+11. Regionenverbindung und Standortdaten adaptieren.
+12. Teleport/Regionswechsel nur bei bestätigter API anbieten.
+13. Chat-/IM-Fähigkeiten anhand des Beta-Protokolls anbinden.
+14. Inventar- und Medienoperationen nach Capability trennen.
+15. Protokollfehler verständlich und ohne Geheimnislecks darstellen.
+16. Unbekannte Grids/Redirects/TLS-Bypass sperren.
+17. Beta/öffentliches Grid parallel mit unabhängigen Tests prüfen.
+18. Ungenutzte Altadapter und doppelte Netzwerkpfade bereinigen.
+19. Build/CI und servergestützte Integrationstests durchführen.
+20. Freigabe melden und P09 starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P09 – Abgesicherter Plugin-Manager
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Versionierte Erweiterungen ohne unsichere Fremd-DLL.
+
+1. Vorhandene Modul-ABI und Registry inventarisieren.
+2. Plugin-API-Versionierung und Kompatibilitätsregeln festlegen.
+3. Funktions-/Berechtigungsmanifest spezifizieren.
+4. Plugin-Paketformat und Plattform-Asset-Varianten prüfen.
+5. Authentizität und Signaturschlüsselmodell entwickeln.
+6. Rechtevergabe und Widerruf in UI abbilden.
+7. Plugins ohne Root-/Adminrechte installieren.
+8. Codeausführung nach Möglichkeit in getrennten Prozessen isolieren.
+9. IPC- und Capability-Grenzen festlegen.
+10. Plugin-Lebenszyklus Start/Stop/Update absichern.
+11. API-Fehler und Hänger ohne Viewer-Absturz behandeln.
+12. Plugin-Konfiguration getrennt vom Viewer bewahren.
+13. Plugin-Updates und Rückrollbarkeit unterstützen.
+14. Sicheres Entfernen und Datenbereinigung implementieren.
+15. UI-Anzeige installierter Plugins und Berechtigungen erstellen.
+16. Linux-/Windows-/macOS-Abweichungen abstrahieren.
+17. Malware-/Pfad-/Signatur-Negativtests durchführen.
+18. Nicht mehr gebrauchte Modulprototypen nach Tests bereinigen.
+19. Vollviewer- und CI-Tests mit erlaubten Testplugins ausführen.
+20. Commit/Status aktualisieren und P10 beginnen.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P10 – Automatisierte signierte GitHub-Releases
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Nachweisbar verfügbare Installer.
+
+1. GitHub-Actions-, Release- und Paket-Skripte inventarisieren.
+2. Versionsnummer/Tag/Stable-/Beta-Kanal festlegen.
+3. Release-Gates durch Build-, Unit- und Integrationstests definieren.
+4. Linux-x86-64-Viewer-Paket reproduzierbar erstellen.
+5. Linux-ARM64-Viewer-Paket kompatibel bauen.
+6. Windows-x64-Paket und Starttest integrieren.
+7. Windows-ARM64-Paket und Starttest integrieren.
+8. macOS-Intel-Paket und Starttest integrieren.
+9. macOS-Apple-Silicon-Paket und Starttest integrieren.
+10. Code-Signing/Notarisierung und Secret-Verwaltung absichern.
+11. Build-Metadaten und eindeutige Dateinamen vereinheitlichen.
+12. SHA-256/Signatur/Release-Manifest erzeugen.
+13. Nightly/Beta gegen stabile Releases abgrenzen.
+14. Automatisches GitHub-Release nur nach grünen Freigabegates.
+15. Fehlerhafte Artefakte dürfen nicht als Stable veröffentlicht werden.
+16. README und offizielle Downloadadressen pro OS/CPU verifizieren.
+17. Release-API und Upload-Rate-Limits berücksichtigen.
+18. Veraltete doppelte CI-/Paketierungsdateien bereinigen.
+19. Downloads auf mehreren Plattformen installieren/starten.
+20. Release und Status veröffentlichen; P11 starten.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P11 – Clientseitiger Pflicht-Updater und Update-UI
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Vor Login aktuelle freigegebene Version.
+
+1. Vorhandenen Velopack-Code und OGL-Login-Gates inventarisieren.
+2. Einheitliche Release-/Mindestversions-Schnittstelle implementieren.
+3. Vertrauenswürdiges signiertes Update-Manifest abrufen.
+4. HTTPS/Zertifikat/Timeout/Rate-Limit sicher prüfen.
+5. OS-/Architektur-/Channel-kompatibles Release auswählen.
+6. Versionsnummern numerisch und downgrade-sicher vergleichen.
+7. Pflicht- und optionale Updates unterscheiden.
+8. Prüfung vor allen manuellen und Auto-Login-Pfaden einbauen.
+9. Pflichtupdate-Dialog mit Versions- und Änderungsinformationen.
+10. Abbrechen sperrt Login statt nur Dialog zu schließen.
+11. Downloadfortschritt, Wiederholung und Fehler anzeigen.
+12. Hashes/Signaturen der Pakete vor Installation prüfen.
+13. Installation mit Erhalt von Profil/Cache/Themes/Plugins durchführen.
+14. Windows-Updater gegen signierte Pakete testen.
+15. macOS-Updater gegen signierte/notarisierte Pakete testen.
+16. Linux-Updatepfad mit Benutzerrechten implementieren.
+17. Neustart und Wiederaufnahme der Anmeldung prüfen.
+18. Offline- und fehlerhafte Manifestfälle fail-closed behandeln.
+19. Umgehungsversuche der Client-Updateprüfung testen.
+20. CI/GitHub/Status aktualisieren und P12 beginnen.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P12 – Serverseitige Mindestversion für beide Grids
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Sperre darf nicht clientseitig umgangen werden.
+
+1. Öffentlichen OpenSim-Login-Service und Beta-Backend-Zugriffe festlegen.
+2. Getrennte Minimum-Version-Policies je Grid spezifizieren.
+3. Update-required-Fehlervertrag für beide Protokolle definieren.
+4. Server überprüft Version vor Ausgabe einer Welt-Session.
+5. Versionierung des Clients nicht blind als unverfälschbar behandeln.
+6. Vertrauens-/Attestierungsgrenzen und Bypassrisiken dokumentieren.
+7. Stabile und Beta-Mindestversion getrennt konfigurieren.
+8. Serverantwort enthält nur vertrauenswürdige Updateinformationen.
+9. Öffentlichen OpenSim-Gateway-Adapter implementieren.
+10. Beta-Authentifizierungsdienst nach demselben Vertrag anbinden.
+11. Timeouts und Update-Service-Ausfälle absichern.
+12. Alte Viewer-Version ohne aktive Welt-Session zurückweisen.
+13. Aktuelle freigegebene Version durchlassen.
+14. Manipulierte Versionsheader und unbekannte Clients testen.
+15. Session-Revalidierung für bereits eingeloggte Clients definieren.
+16. Server-Logs und datensparsame Prüfmetriken ergänzen.
+17. Client und Server mit einer vollständigen Testmatrix verbinden.
+18. Alte doppelte Gate-/Policy-Verzweigungen bereinigen.
+19. Zugriff und Zuständigkeit anderer Backend-Repositories dokumentieren.
+20. Serverseitigen Teststand melden und P13 beginnen.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### /goal P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung
+
+**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Technischer Zielzustand:** Portal, Viewer und Server konsistent.
+
+1. Portal-Repository/Deployment-/Berechtigungen verifizieren.
+2. Offizielle GitHub-Releases-API als einzige Releasequelle anbinden.
+3. Backend-Cache und GitHub-API-Rate-Limit-Behandlung implementieren.
+4. Stable- und Beta-Releases korrekt trennen.
+5. OS/CPU-Assets im Portal passend anzeigen.
+6. Download-URLs und Releasesignaturen serverseitig überprüfen.
+7. Releaseversion und Änderungsinformationen verständlich darstellen.
+8. Portal-API-Fallback bei GitHub-Ausfall kontrollieren.
+9. Update-Link vom Viewer zum passenden Release prüfen.
+10. Öffentlichen OpenSim-Login end-to-end testen.
+11. Beta-Login mit gültigem Protokoll end-to-end testen.
+12. Pflichtupdate: veralteter Viewer verweigert und aktualisiert.
+13. Pflichtupdate: aktueller Viewer wieder zugelassen.
+14. OpenGL-Standard auf älterer Hardware prüfen.
+15. Vulkan-Engine und optionales RT unabhängig prüfen.
+16. Linux x64/ARM64 installieren und echten Start testen.
+17. Windows x64/ARM64 installieren und echten Start testen.
+18. macOS Intel/Apple Silicon installieren und echten Start testen.
+19. Altbestände/duplizierte Templates/CI-/Assets mit Tests bereinigen.
+20. Release-/Portal-/Projektstatus veröffentlichen, nächsten Zyklus planen.
+
+**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
+bereits nachweislich vorhanden geprüft, relevante Tests
+und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
+sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+### Fortschrittsformat in PROJECT_STATUS.md
+
+Für jede Phase `P01` bis `P13` führen:
+`offen | aktiv | blockiert | fertig`, `x/20`, letzten
+geprüften Commit, Testnachweise, offene Abhängigkeiten und
+`Nächster Schritt: Pxx Block yy`. Technisch vorhandene
+Alt-Funktionen können nach Verifikation direkt als erledigte
+Blöcke zählen; bloßes Vorhandensein eines Mockups genügt nicht.
+
+**Bei /goal-Abschlussmeldungen keine Rückfrage „weiter?“,
+keine Pausen zur Freigabe und keine manuelle Phasenabnahme.**
+Nur nicht auflösbare technische oder rechtliche Blocker
+oder ausdrücklich notwendige Zugriffsrechte nennen.
+
+## Fachliche Referenzphasen A–I (keine aktive Ausführungsreihenfolge)
+
+Die folgenden älteren Phasenkapitel liefern Kontext und technische
+Teilspezifikationen; operativ gilt ausschließlich P01–P13 oben.
+Bereits implementierte Teile werden in den zugehörigen P-Phasen
+verifiziert und wiederverwendet.
+
+### Referenz Phase A – zwei feste NexVerse-Login-Profile (20 Blöcke)
 
 1. Erledigt: öffentliches NexVerse-OpenSim-Grid beibehalten.
 2. Erledigt: Beta-Schlüssel und HTTPS-Website fest definieren.
@@ -155,7 +656,7 @@ https://beta.stadt-nexverse.de passt am 01.11.2026 nicht zur Domain.
 Ein kompatibles Beta-Anmeldeprotokoll wurde nicht verifiziert.
 Die Beta ist daher ausschließlich auswählbar; Login bleibt blockiert.
 
-## Phase B – separates Beta-Protokoll (je 20 Blöcke)
+### Referenz Phase B – separates Beta-Protokoll (je 20 Blöcke)
 
 Zertifikat und dokumentierten Auth-Vertrag verifizieren; modularen
 OpenSim-/Beta-Loginadapter implementieren; Zugangsdaten,
@@ -163,7 +664,7 @@ Sessions und Tokens sauber isolieren. Region, Avatar, Inventar,
 Chat, Teleport und Fehlerverhalten erst nach Protokollabnahme
 über adapterbasierte APIs anschließen.
 
-## Phase C – Designs, Templates und Chat
+### Referenz Phase C – Designs, Templates und Chat
 
 Bestehenden OGL-Designs-Reiter ausbauen, native sichere ZIP-Installation,
 Live-Vorschau und Rücksetzung auf das **OGL-Standarddesign** ermöglichen.
@@ -174,12 +675,12 @@ einheitlich mit rundem Avatarbild, Namen, Uhrzeit und Text darstellen.
 Multi-DPI und kleine/große Auflösungen testbar gestalten.
 Detaillierte, auf 20 Blöcke aufteilbare UI-Abnahmen: Phase H.
 
-## Phase D – abgesicherter Plugin-Manager
+### Referenz Phase D – abgesicherter Plugin-Manager
 
 Manifest, Capabilities, Signaturen, Sandbox, API-Version, Benutzer-
 freigabe, Update und Widerruf. Keine ungeprüften DLL/SO/DYLIB laden.
 
-## Phase E – CPU/GPU, Cache, Grafik und Releases
+### Referenz Phase E – CPU/GPU, Cache, Grafik und Releases
 
 Portable CPU-Wege scalar/SSE2/AVX2/ARM64-NEON, Grafikfähigkeiten
 dynamisch erkennen und alte Hardware über OpenGL absichern.
@@ -189,7 +690,7 @@ auswählbare Grafik-Engine** wird gesondert in Phase G entwickelt.
 Linux-, Windows- und macOS-Builds einschließlich x64 und ARM64
 separat bauen, signieren und testen.
 
-## Phase F – verpflichtender Viewer-Updater
+### Referenz Phase F – verpflichtender Viewer-Updater
 
 Die verbindliche Mindestversion muss vor dem Login geprüft werden.
 Der Viewer bietet Pflichtupdates an, der NexVerse-Server lehnt
@@ -200,7 +701,7 @@ GOAL_MANDATORY_VIEWER_UPDATER.md.
 
 **Status: geplant, nicht implementiert.**
 
-## Phase G – auswählbare Grafik-Engines OpenGL und Vulkan (20 Blöcke)
+### Referenz Phase G – auswählbare Grafik-Engines OpenGL und Vulkan (20 Blöcke)
 
 **Status: geplant, kein produktiver Vulkan-Welt-Renderer vorhanden.**
 
@@ -232,7 +733,7 @@ RT-fähige GPU ist keine Voraussetzung für allgemeines Vulkan.
 Keine Behauptung eines vollständigen Vulkan-Renderers allein
 auf Grundlage der bisherigen Raytracing-/Diagnosemodule.
 
-## Phase H – OGL/NexVerse-Branding, Navigation und Login (20 Blöcke)
+### Referenz Phase H – OGL/NexVerse-Branding, Navigation und Login (20 Blöcke)
 
 **Status: geplant; vorhandene Chat-/Login-Arbeiten sind Teilstände.**
 
@@ -262,7 +763,7 @@ Firestorm-Marken in der regulären Viewer-Oberfläche. Copyright-
 und Lizenzpflichten werden trotzdem eingehalten; OpenGL-Fallback
 und beide festen Grid-Profile bleiben funktionsfähig.
 
-## Phase I – GitHub-Releases, Portal-Anbindung, Quellbaumbereinigung (20 Blöcke)
+### Referenz Phase I – GitHub-Releases, Portal-Anbindung, Quellbaumbereinigung (20 Blöcke)
 
 **Status: geplant; Phase F bleibt für die Login-Sperre zuständig.**
 

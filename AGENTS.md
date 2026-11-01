@@ -20,6 +20,22 @@ Commits und uncommitted changes prüfen. Keine .env,
 Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
+**Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
+sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 1/20,
+danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
+Alte Phasen A–I sind fachliche Referenzen, keine separate
+Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten
+bearbeiten, betroffene Tests/Builds/CI prüfen, direkt auf
+origin/ogl-develop pushen, Status/Commit erfassen und
+den Abschluss sichtbar melden. **Keine manuelle Nutzerabnahme
+als Phasengate; nach erfolgreichen Checks ohne Rückfrage
+mit der nächsten Phase fortfahren, solange die Unterhaltung
+aktiv ist und keine echten Abhängigkeiten blockieren.**
+Bei Chatende den nächsten Block dokumentieren; keine
+asynchrone Fortsetzung ohne aktive Aufgabe versprechen.
+Server-/Portal-Schreibzugriffe nur auf verifizierte
+Repositories und mit tatsächlichen Berechtigungen.
+
 Jede /goal-Phase in 20 überprüfbare Entwicklungsblöcke
 gliedern. Nie fehlende Tests als erfolgreich ausgeben.
 Code und UI für Linux/Windows/macOS und AMD/Intel-x64/
