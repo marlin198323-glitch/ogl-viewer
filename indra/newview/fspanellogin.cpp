@@ -98,6 +98,9 @@ static U64 sOGLLoginFormRevision = 0;
 // At most the newest outstanding HTTP warning can authorize a login.
 // Superseded or replayed confirmations must never initiate authentication.
 static U64 sOGLHTTPWarningSequence = 0;
+// A mode preset confirmation must never outlive a newer mode selection.
+// Unlike the persisted preset, this counter is ephemeral and contains no secrets.
+static U64 sOGLModeConfirmationSequence = 0;
 // A saved-account deletion must be authorized for the exact current form.
 // A second confirmation supersedes an earlier one; a confirmed request
 // cannot be replayed after the protected credential is deleted.
@@ -2198,12 +2201,38 @@ void FSPanelLogin::onModeChange(const LLSD& original_value, const LLSD& new_valu
     // declining a mode change must leave the active layout untouched.
     if (original_value.asString() != new_value.asString())
     {
-        LLNotificationsUtil::add("ModeChange", LLSD(), LLSD(), boost::bind(&FSPanelLogin::onModeChangeConfirm, this, original_value, new_value, _1, _2));
+        LLSD payload;
+        if (APP_NAME == "OGL")
+        {
+            // This form may issue another mode prompt before the first
+            // confirmation is answered. Older prompts must be inert.
+            payload["OGLModeConfirmationSequence"] =
+                std::to_string(++sOGLModeConfirmationSequence);
+        }
+        LLNotificationsUtil::add("ModeChange", LLSD(), payload,
+            boost::bind(&FSPanelLogin::onModeChangeConfirm,
+                this, original_value, new_value, _1, _2));
     }
 }
 
 void FSPanelLogin::onModeChangeConfirm(const LLSD& original_value, const LLSD& new_value, const LLSD& notification, const LLSD& response)
 {
+    if (APP_NAME == "OGL")
+    {
+        // A delayed dialog must not revert another selection or restart
+        // with the wrong preset. Check before *any* settings/UI mutation.
+        if (notification["payload"]["OGLModeConfirmationSequence"].asString() !=
+                std::to_string(sOGLModeConfirmationSequence) ||
+            !sInstance ||
+            sInstance->getChild<LLUICtrl>("mode_combo")->getValue().asString() != new_value.asString() ||
+            gSavedSettings.getString("SessionSettingsFile") != original_value.asString())
+        {
+            LL_WARNS("OGL") << "Ignored stale mode-change confirmation." << LL_ENDL;
+            return;
+        }
+        // No second invocation of this callback may apply the same choice.
+        ++sOGLModeConfirmationSequence;
+    }
     S32 option = LLNotificationsUtil::getSelectedOption(notification, response);
     switch (option)
     {

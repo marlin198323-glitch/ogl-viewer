@@ -12,14 +12,14 @@
     width="1024">
   <panel.string
      name="real_url" translate="false">
-     https://phoenixviewer.com/app/loginV3/
+     https://stadt-nexverse.de/service/welcome
   </panel.string>
   <string name="reg_in_client_url" translate="false">
-    http://secondlife.eniac15.lindenlab.com/reg-in-client/
+    https://stadt-nexverse.de/
   </string>
   <panel.string
       name="forgot_password_url">
-    http://secondlife.com/account/request.php
+    https://stadt-nexverse.de/
   </panel.string>
   <string name="ServerComboTooltip">
     An existing grid or a grid URI

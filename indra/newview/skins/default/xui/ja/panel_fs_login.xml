@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <panel name="panel_login">
-	<panel.string name="forgot_password_url">https://secondlife.com/my/account/request.php?lang=ja-JP</panel.string>
+	<panel.string name="forgot_password_url">https://stadt-nexverse.de/</panel.string>
 	<string name="ServerComboTooltip">
 		既存のグリッドまたはＵＲＩ
 	</string>

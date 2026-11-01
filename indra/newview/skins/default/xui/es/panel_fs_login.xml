@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <panel name="panel_login">
 	<panel.string name="forgot_password_url">
-		https://secondlife.com/my/account/request.php?lang=es-ES
+		https://stadt-nexverse.de/
 	</panel.string>
 	<layout_stack name="login_widgets">
 		<layout_panel name="login">

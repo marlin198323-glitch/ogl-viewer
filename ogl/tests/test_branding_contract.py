@@ -566,6 +566,42 @@ class OGLBrandingContract(unittest.TestCase):
         # though the OGL startup always uses the canonical new login.
         self.assertTrue((ROOT / 'indra/newview/skins/default/xui/en/panel_fs_login.xml').is_file())
 
+    def test_all_legacy_login_fallback_urls_remain_first_party(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        paths = sorted(base.glob('*/panel_fs_login.xml'))
+        self.assertEqual(len(paths), 13)
+        expected = {
+            'real_url': 'https://stadt-nexverse.de/service/welcome',
+            'reg_in_client_url': 'https://stadt-nexverse.de/',
+            'create_account_url': 'https://stadt-nexverse.de/',
+            'forgot_password_url': 'https://stadt-nexverse.de/',
+        }
+        seen = {name: 0 for name in expected}
+        for path in paths:
+            root = ET.parse(path).getroot()
+            for entry in root.iter():
+                key = entry.get('name')
+                if key in expected:
+                    seen[key] += 1
+                    self.assertEqual((entry.text or '').strip(), expected[key],
+                                     (path, key))
+            text = path.read_text()
+            for obsolete in ('phoenixviewer.com/app/loginV3/',
+                             'secondlife.eniac15.lindenlab.com/reg-in-client/',
+                             'secondlife.com/account/request.php',
+                             'accounts.secondlife.com/forgot_password/',
+                             'secondlife.com/my/account/request.php',
+                             'de.secondlife.com/registration/'):
+                self.assertNotIn(obsolete, text, str(path))
+        self.assertTrue(all(count > 0 for count in seen.values()), seen)
+        # Visible OGL login retains its own modern layout and official URL.
+        active = ET.parse(base / 'en/panel_fs_nui_login.xml').getroot()
+        self.assertTrue(any(e.get('name') == 'ui_stack' for e in active.iter()))
+        self.assertTrue(any(e.get('name') == 'mode_combo'
+                            for e in ET.parse(base / 'en/panel_fs_login.xml').iter()))
+        self.assertIn('if (APP_NAME != "OGL")',
+                      self.source('indra/newview/fspanellogin.cpp'))
+
     def test_fixed_grid_selector_and_saved_account_callbacks(self):
         xui = ROOT / "indra/newview/skins/default/xui"
         login = ET.parse(xui / "en/panel_fs_nui_login.xml").getroot()

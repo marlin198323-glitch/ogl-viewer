@@ -446,6 +446,50 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertNotIn('ResetToolbarSettings',callback[decline:])
         self.assertIn('setValue(original_value)',callback[decline:])
 
+    def test_mode_change_dialog_generations_are_monotonic(self):
+        panel=self.panel
+        begin=panel.index('void FSPanelLogin::onModeChange(')
+        end=panel.index('void FSPanelLogin::onModeChangeConfirm(',begin)
+        maker=panel[begin:end]
+        self.assertIn('static U64 sOGLModeConfirmationSequence = 0;', panel)
+        self.assertIn('if (original_value.asString() != new_value.asString())', maker)
+        self.assertIn('if (APP_NAME == "OGL")',maker)
+        self.assertIn('payload["OGLModeConfirmationSequence"]',maker)
+        self.assertIn('std::to_string(++sOGLModeConfirmationSequence)',maker)
+        self.assertIn('LLNotificationsUtil::add("ModeChange", LLSD(), payload,',maker)
+        self.assertNotIn('ResetToolbarSettings',maker)
+
+    def test_outdated_mode_confirmation_cannot_modify_settings(self):
+        panel=self.panel
+        begin=panel.index('void FSPanelLogin::onModeChangeConfirm(')
+        callback=panel[begin:]
+        for check in ('notification["payload"]["OGLModeConfirmationSequence"].asString()',
+                      'std::to_string(sOGLModeConfirmationSequence)',
+                      '!sInstance',
+                      'getChild<LLUICtrl>("mode_combo")->getValue().asString() != new_value.asString()',
+                      'gSavedSettings.getString("SessionSettingsFile") != original_value.asString()',
+                      'Ignored stale mode-change confirmation.'):
+            self.assertIn(check,callback)
+        self.assertLess(callback.index('Ignored stale mode-change confirmation.'),
+                        callback.index('ResetToolbarSettings", true'))
+        self.assertLess(callback.index('Ignored stale mode-change confirmation.'),
+                        callback.index('getControl("SessionSettingsFile")->set(new_value)'))
+        self.assertLess(callback.index('Ignored stale mode-change confirmation.'),
+                        callback.index('getChild<LLUICtrl>("mode_combo")->setValue(original_value)'))
+
+    def test_mode_confirmation_is_consumed_before_accept_or_decline(self):
+        body=self.panel[self.panel.index('void FSPanelLogin::onModeChangeConfirm('):]
+        self.assertIn('++sOGLModeConfirmationSequence;',body)
+        self.assertLess(body.index('++sOGLModeConfirmationSequence;'),
+                        body.index('getSelectedOption(notification, response)'))
+        self.assertLess(body.index('++sOGLModeConfirmationSequence;'),
+                        body.index('switch (option)'))
+        self.assertLess(body.index('getSelectedOption(notification, response)'),
+                        body.index('case 0:'))
+        self.assertIn('if (gSavedSettings.getBOOL("FSToolbarsResetOnModeChange"))',body)
+        self.assertIn('getChild<LLUICtrl>("mode_combo")->setValue(original_value)',body)
+        self.assertNotIn('ResetToolbarSettings', body[body.index('case 1:'):])
+
     def test_privacy_and_teleport_changes_invalidate_old_http_consent(self):
         source = self.panel
         start = source.index('getChild<LLUICtrl>("remember_username_check")->setCommitCallback(')
