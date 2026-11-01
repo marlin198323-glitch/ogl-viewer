@@ -257,7 +257,14 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Status:** formal geplant; 0/20 Phasenblöcke abgeschlossen,
+weil P01 noch echte End-to-End-Blocker hat. Unabhängige Vorarbeit
+bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
+runden Avatarbildern und besseren Eingaben (`b654c299`,
+20/20 technische Prüfpositionen, 167 Python/41 native Tests);
+NexVerse-Portal-/Marktplatznavigation statt SL-Commerce
+(`17ab85cf`, 20/20 Prüfpositionen, 170 Python/41 native Tests).
+Die komplette In-World-Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

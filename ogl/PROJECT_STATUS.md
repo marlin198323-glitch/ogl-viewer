@@ -32,6 +32,106 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – neue NexVerse-Navigation (20 Blöcke)
+
+**Code-Commit:** `17ab85cf` auf `ogl-develop`.
+**20/20 nachvollziehbare Entwicklungs-/Prüfpositionen bestanden.**
+P01 bleibt formell **18/20**; P02 bleibt **0/20**,
+weil der authentifizierte Welt-/Chat-Funktionstest
+und der P01-Abschluss noch fehlen. Dies ist ein
+getesteter Teilumbau, keine vollständig abgenommene
+P02-Phase.
+
+**Implementierung:** In den bestehenden
+`skins/default/xui/{en,de}/menu_viewer.xml`
+haben „Konto“ und „Marketplace listings“
+nun funktionsfähige `Advanced.ShowURL`-
+Callbacks zur über HTTPS (HTTP 200,
+Zertifikatsprüfung OK) verifizierten
+`https://stadt-nexverse.de/` bzw.
+`https://marketplace.stadt-nexverse.de/`.
+Unpassende Second-Life-Menüfunktionen für
+L$-Kauf, Second-Life-Membership,
+SL-Marketplace, LindenXchange und die
+SL-Community-Links sind aus den EN- und
+DE-Menüs entfernt. Menüs „Communicate“,
+„World“, „Help“ und die Einträge
+„Nearby Chat“, „Conversations“ erhielten
+einheitliche verständliche Beschriftungen
+in EN/DE, **ohne** stabile Callback-Namen,
+Shortcuts oder die Chat-/IM-Floater zu
+verändern. Vorhandene
+`ogl/tests/test_branding_contract.py`
+um drei konkrete Navigationstests ergänzt.
+
+**20 geprüfte Positionen:** 01 EN Bürgerportal,
+02 DE Bürgerportal, 03 EN Marketplace,
+04 DE Marketplace, 05 L$-Kauf entfernt,
+06 SL Membership entfernt, 07 SL-Marketplace
+entfernt, 08 LindenXchange entfernt,
+09 SL Community entfernt (jeweils EN/DE),
+10 EN Chat/Contacts, 11 DE Chat/Kontakte,
+12 EN Local Chat, 13 DE Lokaler Chat,
+14 EN Messages, 15 DE Nachrichten,
+16 EN/DE Welt entdecken, 17 EN/DE Hilfe,
+18 Shortcuts/Callbacks unverändert,
+19 beide Menüs bytegleich gestaged,
+20 Linux-Vollbuild und Python-/Native-Tests.
+**20/20 bestanden.**
+
+**Nachweise:** Linux-Mint-Vollviewer erfolgreich
+via `bash ogl/scripts/build-test.sh`,
+**170/170 Python-Tests und 41/41 native CTests**.
+Sämtliche betroffene EN-/DE-Menü-XUI sind
+valide und bytegleich im staged Viewer.
+Ein echter GUI-Testlauf auf isoliertem
+1280×720-Xvfb-Profil: OGL-Fensterklasse,
+Anmeldemaske erreichbar, kein
+`STATE_LOGIN_AUTH_INIT`, Strg+Q,
+Exit-Code 0. Die neuen In-World-Menüs
+konnten ohne autorisierte Anmeldung nicht
+per Mausklick in einer 3D-Welt getestet werden.
+
+## P02 unabhängige Vorarbeit – Chat und Konversationsfenster (20 Blöcke)
+
+**Code-Commit:** `b654c299`.
+**20/20 getrennte Chat-UI-Entwicklungs- und
+Prüfpositionen bestanden.** Fünf bestehende
+EN-XUI-Dateien aktualisiert: runde Avatar-
+Porträts 26 px, kompakter 34-px-Chatkopf
+mit Namens-/Zeitspalten, Nachrichtentext
+mit Theme-Farbe und Abstand, skalierbare
+Nahchat- und IM-/Gruppenchatfenster,
+lesbare Eingabefelder und breitere
+Sitzungstabs. Vorhandene Profilsymbole,
+Zeitstempel, Chatkanäle, Voice-/Sende-
+Buttons, User-Preferences und Avatar-
+Privacy-Pfade nicht entfernt. Die
+bestehenden Tests
+`test_nexverse_chat_layout.py` wurden
+nach der neuen XUI-Größe angepasst;
+fünf zusätzliche Regressionstests in
+`test_branding_contract.py`. Keine
+neuen Quelldateien.
+
+**Nachweise:** Vollständiger Linux-Build,
+**167/167 Python-Tests, 41/41 native CTests**.
+Alle fünf Chat-XUI-Dateien bytegleich im
+Viewer-Staging. Echter GUI-Voranmeldetest
+mit separatem Testprofil und Exit-Code 0.
+In-World-Chat/Voice-Liveprüfung
+noch ausstehend; alte `_v2`-/
+`script_copy`-Ressourcen nur inventarisiert.
+
+**Operativer Wiedereinstieg: P01 Block 19/20.**
+Dort bleiben autorisierter Hauptgrid-Login,
+Passwortpersistenz nach erfolgreichem Login,
+In-World-Shutdown und vollständige
+Windows-/macOS-Viewer-Build-/GUI-Tests
+offen. Weitere unabhängige P02-Arbeiten
+sind möglich, formaler P02-Start erst nach
+echtem P01-Abschluss.
+
 ## P01 Block 19 – /goal-Durchlauf: Nutzerlinks und Login-Protokollhygiene
 
 **Code-Commit:** `224ced81` (`ogl-develop`).

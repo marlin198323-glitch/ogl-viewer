@@ -32,7 +32,13 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `224ced81`, 20/20 Link-/Lokalisierungs-/Loginprotokoll-Prüfungen grün. 13 Support-/Download-/Registrierungslokalisierungen auf offizielle NexVerse-/OGL-Ziele bereinigt; OGL-Loginfehler protokolliert keine gesamte Serverantwort. 162 Python-, 41 native Tests sowie Hauptgrid-/Beta-GUI-Negativtests grün. Kein autorisierter Hauptgrid-Live-Login, keine gespeicherte Anmeldung/3D-Exit-Abnahme oder vollständige Windows-/macOS-Viewer-Builds).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen;
+P02-Vorarbeiten `b654c299` Chatlayout und `17ab85cf`
+NexVerse-Menüs umgesetzt und jeweils mit 20/20 geprüften
+Einzelpositionen bestätigt; letzter Vollbuild 170 Python-
+und 41 native Tests. P02 formal 0/20. Hauptgrid-Live-Login,
+Passwortpersistenz, In-World-Shutdown und vollständige
+Windows-/macOS-Viewer-Builds noch offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 
