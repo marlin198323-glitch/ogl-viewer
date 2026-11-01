@@ -8,8 +8,9 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Nächster Block:** `/goal P01 Block 9/20` – gespeicherte Konten und
-Passwörter ohne Regression prüfen. **Keine manuelle Abnahme erforderlich.**
+**Nächster Block:** `/goal P01 Block 16/20` – Login-Layout bei
+150–200 % UI-Skalierung, 720p–4K und HiDPI reparieren/prüfen.
+**Keine manuelle Abnahme erforderlich.**
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -17,7 +18,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
-| P01 – Branding und modernes Login | aktiv | 8/20 | Block 9: Kontospeicherung prüfen |
+| P01 – Branding und modernes Login | aktiv | 15/20 | Block 16: HiDPI-Login-Clipping beheben |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
@@ -87,7 +88,7 @@ sind noch im vollständigen Branding-Audit zu prüfen.
 Verifizierte XML-/Branding-Tests plus vollständiger Linux-
 Build: **121 Python, 41 native Tests**, alles bestanden.
 
-**Noch offen:** Blöcke 9–20 inklusive weiterer GUI-Prüfung auf
+**Noch offen:** Blöcke 16–20 inklusive HiDPI-Layoutkorrektur auf
 720p–4K/HiDPI, Speichern und Wiederherstellen der Zugangsdaten,
 sichtbarer Gridwechsel, bestätigtes öffentliches Grid-Login,
 vollständiger sichtbarer OGL-Rebranding-Audit, UI-/Sicherheitsregression
@@ -95,10 +96,12 @@ und relevante Windows-/macOS-CI. Ein lokaler Modul-/Linux-Build
 ist kein Beleg für plattformübergreifende Installer. **P01 bleibt
 aktiv**, kein Phasenabschluss und noch kein Übergang nach P02.
 
-**Nächster Arbeitsschritt:** `/goal P01 Block 9/20` –
-Gespeicherte Konten/Passwörter mit isolierten Testprofilen und
-negativen Fällen prüfen. Danach 10–20 vollständig absichern;
-P02 erst nach Abschluss-Gate starten.
+**Nächster Arbeitsschritt:** `/goal P01 Block 16/20` –
+HiDPI-Laufzeittest bei 150 % ergab Abschneiden der rechten
+Loginfelder. Responsive XUI/Startfenstergröße so korrigieren,
+dass das Login bei Windows/macOS-System-DPI und Linux-UI-Skalierung
+vollständig sichtbar ist; anschließend Blöcke 17–20 weiter
+bearbeiten und P02 erst nach echtem P01-Abschluss-Gate starten.
 
 ## P01 – weitere /goal-Runde: Blöcke 7–8/20
 
@@ -158,6 +161,81 @@ P02 erst nach Abschluss-Gate starten.
 **Weiter:** `/goal P01 Block 9/20`. Ohne
 manuelles Phasengate, aber fehlende echte Funktionen
 oder externe Abhängigkeiten dürfen nicht als bestanden gelten.
+
+## P01 – /goal-Runde: Blöcke 9–15/20
+
+**Code-Commit:** `07015f23` (Branch `ogl-develop`).
+**Sequenzieller Fortschritt: 15/20, P01 weiterhin aktiv.**
+
+- **Block 9 – Konto-/Passwortspeicherung:** Die vorhandene
+  Speicherung über `gSecAPIHandler->saveCredential` nach erfolgreichem
+  Login und die Kontoauswahl über `listCredentials/loadCredential`
+  unverändert erhalten. OGL zeigt keine gespeicherten Konten fremder
+  Grids mehr an und akzeptiert keine unbekannten Gridwerte aus dem
+  Account-Picker. Beim Wechsel zwischen den beiden gepinnten Grids
+  werden Benutzername, eingegebener Passworttext, Passwortstatus und
+  Anmeldebutton zurückgesetzt. Der gespeicherte Zielgrid-Account
+  bleibt separat auswählbar. Gespeicherte Konten werden nur über
+  die tatsächlich ausgewählte Identität mit Bestätigung gelöscht;
+  ein gelöschtes Konto hinterlässt kein aktives Passwortfeld.
+  Fehler bei Benutzernamen unmittelbar vor `@` korrigiert.
+  **GUI-Test nur mit künstlichen Eingaben**: beide Felder zunächst
+  gefüllt, dann Beta ausgewählt, beide Felder wieder leer, Login
+  deaktiviert. **Keine** echte Kontopersistenz über einen
+  erfolgreichen Netzlogin verifiziert; bleibt Teil von Block 19.
+- **Block 10 – Einwilligung/Fehler:** HTTP ohne TLS weiterhin nur
+  für exakt gepinnte Stadt-NexVerse-URI nach bewusster Zustimmung;
+  Beta bleibt gesperrt. Bei der HTTP-Warnung ist die Standardaktion
+  jetzt **Abbrechen**, nicht mehr Einwilligen. Die Option
+  „Für diese Sitzung“ bezeichnet korrekt eine Sitzungseinwilligung,
+  die zweite Option speichert eine an die genaue Adresse gebundene
+  Zustimmung. DE-/EN-Dialoge, Bestätigung zum Kontolöschen und
+  Beta-Meldung verständlicher formuliert. Im isolierten X11-Viewer
+  erschien der echte HTTP-Warndialog vor einer Netzwerkverbindung;
+  keine Einwilligung erteilt, keine echten Zugangsdaten benutzt.
+- **Blöcke 11–13 – GPU-/RT-Loginbereinigung:** Die früher
+  entfernten Statusanzeigen „Vulkan RT bereit“ und „Effekt aus“
+  sowie die Login-RT-Hardwareabfrage bleiben laut Tests
+  vollständig aus Login-XUI/C++ entfernt. Welt-RT-Prototyp
+  weiterhin ausdrücklich **kein** vollwertiger Vulkan-Renderer;
+  Grafik-/Logdiagnosen sind nicht Loginstatus.
+- **Block 14 – Buttons/Tastatur:** Passwort-Auge, beide
+  Speichern-Checkboxen und das feste Grid-Dropdown bestehen
+  Fokus-/Positionsverträge; der echte Viewer ließ synthetische
+  Username-/Passwort-Eingaben zu. Kritische modale Aktionen
+  Einwilligung und Kontolöschen haben „Abbrechen“ als Default.
+- **Block 15 – DE-/EN-Lokalisierung:** Die initial im echten
+  DE-Viewer noch **englischen HTTP-Schaltflächen** wurden
+  entdeckt. Ursache war ein nicht benanntes `form` in den
+  vorhandenen XUI-Dialogen; nach Änderung auf `form name="form"`
+  zeigte ein erneuter Screenshot **alle drei Schaltflächen auf
+  Deutsch**. Englische und deutsche Texte/Indexreihenfolge per
+  Regressionstests geprüft.
+- **Block 16 begonnen, nicht abgeschlossen:** Xvfb 1280×720
+  und 3840×2160 mit Standard-UI waren zuvor geometrisch
+  geprüft. Der zusätzliche Test `1920×1080 -dpi 192`
+  mit `--set UIScaleFactor 1.5` startete, zeigte aber eine
+  **rechts abgeschnittene Loginleiste**: darunter fallen
+  Startort und Login-CTA. Das vorhandene Loginlayout benötigt
+  noch echte Breiten-/DPI-Anpassung. Kein HiDPI-Gate bestanden.
+- **Verifikation:** Vollständiger lokaler Linux-Viewer-Build
+  und Staging erfolgreich, **128/128 Python-Tests** und
+  **41/41 native CTest** bestanden; `git diff --check`
+  erfolgreich. Xvfb-Interaktion mit ausschließlich synthetischen
+  Daten, HTTP-Modal- und DE-Button-Screenshot überprüft.
+  Die GUI-Läufe wurden per Timeout beendet: **kein**
+  bestätigter sauberer Shutdown, keine Grid-Live-Anmeldung,
+  keine Windows-/macOS-Installer-Abnahme.
+- **Altbestands-Audit:** Keine neuen Projektdateien angelegt.
+  Tracked `client_list_v2.xml` und LSL-Testressourcen
+  mit `_v2` als bestehender Upstream-Bestand erneut
+  gefunden und **nicht ohne Nutzungs- und Lizenzbeweis
+  entfernt**. Zwei bestehende StarLight-Overlays aus der
+  vorigen Runde bleiben als OGL-Inhalt aktiv.
+
+**Weiter:** `/goal P01 Block 16/20`; P02 noch nicht
+freigegeben. Phasengates sind technische Prüfungen,
+keine manuelle Nutzerabnahme.
 
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle

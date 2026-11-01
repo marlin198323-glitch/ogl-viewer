@@ -184,7 +184,7 @@ operative Phasenlauf Vorrang.
 
 | Phase | Reihenfolge | Schwerpunkt | Status |
 | --- | --- | --- | --- |
-| P01 | 1 | Branding und modernes Login | **Aktiv – 8/20** |
+| P01 | 1 | Branding und modernes Login | **Aktiv – 15/20** |
 | P02 | 2 | OGL-Navigation, Fenster, Chat und Avatare | **Geplant** |
 | P03 | 3 | Theme-System und sichere Designinstallation | **Geplant** |
 | P04 | 4 | Renderer-Abstraktion und OpenGL-Fallback | **Geplant** |
@@ -198,7 +198,7 @@ operative Phasenlauf Vorrang.
 | P12 | 12 | Serverseitige Mindestversion für beide Grids | **Geplant** |
 | P13 | 13 | Portal-Releases, End-to-End-QA und Dauerbereinigung | **Geplant** |
 
-**Aktive nächste Phase:** P01, Block 9/20. Die früheren
+**Aktive nächste Phase:** P01, Block 16/20. Die früheren
 Teilstände (zwei feste Grids, OGL-Farbthemen,
 SIMD-/RT-Diagnose) sind keine automatische Freigabe
 der neuen operativen Phasen. Fertiggestellte Bestandteile
@@ -206,8 +206,8 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 ### /goal P01 – Branding und modernes Login
 
-**Status:** aktiv; Blöcke 1–8/20 geprüft (Commits `9c29aba6`, `459ba13b`);
-folgend Block 9. Vorarbeiten zu späteren Blöcken siehe PROJECT_STATUS.md.
+**Status:** aktiv; Blöcke 1–15/20 geprüft (zuletzt `07015f23`);
+folgend Block 16: HiDPI-Überlauf bei 150 % korrigieren. Vorarbeiten zu späteren Blöcken siehe PROJECT_STATUS.md.
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.
