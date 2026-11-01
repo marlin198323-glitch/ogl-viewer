@@ -208,7 +208,19 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Sicherheits-Code-Commit `6e7c5e8c`:
+Letzter P01-Sicherheits-Code-Commit `02af8ad4`:
+OGL blockiert den alten Phoenix-/Second-
+Life-Gridstatus-HTTP-Abruf auch bei
+aktivierter migrierter Profileinstellung;
+Optionen für Fremdgrids und Legacy-
+Newsabruf sind in den lokalisierten
+Einstellungen ausgeblendet,
+OGL-/Classic-Modus und weitere
+sichtbare Präferenztexte bereinigt.
+20/20 Prüfschritte, 191 Python-
+und 41 native Tests, DE-/ES-GUI-Smokes
+bestanden. Davor:
+`6e7c5e8c`:
 Löschbestätigungen gespeicherter Konten sind
 an Konto, Grid, Loginform und einmalige
 Dialoggeneration gebunden; 20/20 technische
@@ -288,9 +300,11 @@ tote Voice-/Chatbar-Overlays beseitigt
 182 Python-/41 native Tests,
 DE-/EN-GUI-Smoketests erfolgreich);
 Such- und Einstellungsfenster ohne sichtbare
-Firestorm-Titel (`6e7c5e8c`), interne
-Funktionen, Rechte und rechtliche Credits
-bleiben erhalten.
+Firestorm-Titel (`6e7c5e8c`), zusätzliche
+sechs Präferenzgruppen in allen vorhandenen
+Sprachen rebranded (`02af8ad4`),
+interne Funktionen, Rechte und rechtliche
+Credits bleiben erhalten.
 Die komplette In-World-Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 

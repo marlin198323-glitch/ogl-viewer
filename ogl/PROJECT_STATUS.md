@@ -32,6 +32,104 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – OGL-Datenschutz und konsistente Einstellungen (20 Prüfblöcke)
+
+**Code-Commit `02af8ad4` (`ogl-develop`): 20/20 technische
+Entwicklungs-/Prüfpositionen bestanden.** Die formalen
+P01-Phasenblöcke bleiben **18/20**; P02 bleibt **0/20**.
+Die eigentlichen Abnahmeblocker sind noch nicht erfüllt.
+
+**In bestehenden Dateien umgesetzt:**
+
+- `indra/newview/llstartup.cpp`: Ein bereits
+  gespeichertes `AutoQueryGridStatus=true`
+  kann im OGL Viewer nach dem Login **keinen**
+  zusätzlichen Abruf an das alte
+  Phoenix-/Second-Life-Statusfeed auslösen.
+  Der HTTP-Call steht nun hinter
+  `APP_NAME != "OGL"` und bleibt für
+  andere Upstream-Kanäle unverändert.
+  Wichtig: Dies ist eine direkt im
+  Quelltext abgesicherte Sperre; kein
+  tatsächlicher autorisierter Live-Login.
+- Vorhandene `panel_preferences_advanced.xml`
+  und `panel_preferences_alerts.xml`
+  in allen 13 vorhandenen Sprachverzeichnissen:
+  die Altoption für beliebige weitere
+  Login-Grids bzw. das externe Statusfeed
+  ist ausgeblendet und deaktiviert.
+  Genau zwei feste Grids bleiben weiter
+  im OGL-Login angezeigt.
+- Sechs Gruppen von bestehenden
+  Einstellungs-XUI-Dateien:
+  UI, Chat, Sound, Benachrichtigungen,
+  Advanced und Grafik. Sichtbare Titel,
+  Labels und Tooltips mit „Firestorm“
+  auf OGL umgestellt, ohne Konfigurations-
+  Namen, Event-Callbacks, technische
+  Lizenzhinweise oder Einstellungen
+  umzubenennen. Englische und spanische
+  Modus-Overlays zeigen „OGL“ und
+  „Classic“, die bisherigen
+  `settings_firestorm.xml` und
+  `settings_phoenix.xml` bleiben
+  kompatibel.
+- Fünf neue Regressionsprüfungen in
+  vorhandenen Python-Testdateien;
+  keine neuen Projektdateien. Die
+  inventarisierten Altdateien mit
+  `_v2`/`script_copy` wurden mangels
+  geprüfter Nutzungsabhängigkeiten
+  nicht gelöscht.
+
+**20 bestandene Prüfschritte:** 01 Branch/
+GitHub synchron; 02 keine neuen Dateien;
+03 zwei feste Grids; 04 Sperre des
+Legacy-Statusabrufs im OGL-Pfad;
+05 Nicht-OGL-Abwärtskompatibilität;
+06 Fremdgrid-Einstellung in 13 Sprachen
+versteckt; 07 Legacy-News-Schalter in
+13 Sprachen deaktiviert; 08 UI-Texte;
+09 Chat-Texte; 10 Sound-Texte;
+11 Benachrichtigungstexte;
+12 Advanced-Texte; 13 Grafikeinstellungen;
+14 englischer OGL-/Classic-Modus;
+15 spanischer OGL-/Classic-Modus;
+16 interne Presetdateien unverändert;
+17 alle aktualisierten XUI-Dateien
+bytegleich im Buildpaket;
+18 vollständiger Linux-Viewer-Build
+und 191 Python-/41 native Tests;
+19 GUI-Lauf Deutsch; 20 GUI-Lauf
+Spanisch. **20/20 bestanden.**
+
+**Verifikation:** `bash ogl/scripts/build-test.sh`
+erfolgreich, vollständig gestagter
+Linux-Mint-Viewer mit **191/191 Python-
+Tests und 41/41 nativen CTests**.
+Echte isolierte 1280×720-Xvfb-
+Login-Starts auf Deutsch und Spanisch,
+kein `STATE_LOGIN_AUTH_INIT`,
+regulärer Strg+Q-Exit-Code **0**.
+Die Sperre des Legacy-Netzwerkabrufs
+ist durch Quelltext-/Regressionsprüfungen
+nachgewiesen; es wurde kein
+authentifizierter In-World-Datenverkehr
+simuliert. Das OpenGL-Fallback wurde
+nicht verändert. Portable
+GitHub-Grafikmodule sind keine
+vollständigen Windows-/macOS-Viewer.
+
+**Noch offen für formalen P01-Abschluss:**
+autorisierter Hauptgrid-Live-Login,
+Passwortwiederherstellung nach Login,
+In-World-Shutdown und vollständige
+Windows-/macOS-Viewer-Build- und
+GUI-Nachweise. Nächster
+`/goal`-Einstieg bleibt **P01 Block 19/20**;
+unabhängige P02-Vorarbeit möglich,
+keine manuelle Zwischenabnahme.
+
 ## P01 Block 19 und unabhängige P02-Vorarbeit – Kontolöschschutz/Branding
 
 **Code-Commit `6e7c5e8c` (`ogl-develop`): 20/20 überprüfte

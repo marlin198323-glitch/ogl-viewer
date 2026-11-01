@@ -33,15 +33,17 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18
-abgeschlossen; Code-Commit `6e7c5e8c`: Löschdialoge
-gespeicherter Konten an Konto/Grid/Formrevision/Einmalgeneration
-gebunden, OGL-Einstellungen und NexVerse-Suche sichtseitig
-umbenannt, 20/20 QA-Blöcke, 186 Python-/41 native Tests,
-DE-/EN-GUI-Smokes bestanden. Kein echter Secure-Store-
-Löschdialog und kein autorisierter Hauptgrid-Live-Login
-getestet. P02 formal 0/20; Passwortpersistenz,
-In-World-Shutdown und vollständige Windows-/macOS-
-Viewer-Builds weiter offen).
+abgeschlossen; `02af8ad4`: untrusted Legacy-Grid-
+Status-HTTP im OGL-Pfad gesperrt, fremde Grid-
+und Legacy-News-Optionen in 13 Lokalisierungen
+deaktiviert, sichtbare Firestorm-Bezeichnungen
+in sechs Präferenzgruppen auf OGL umgestellt,
+20/20 technische Checks, 191 Python-
+und 41 native Tests samt DE-/ES-GUI bestanden.
+P02 formal 0/20. Weiter blockiert:
+autorisierter Hauptgrid-Live-Login,
+Passwortpersistenz, In-World-Shutdown,
+vollständige Windows-/macOS-Viewer-Builds).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

@@ -22,12 +22,14 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; Code-Commit
-`6e7c5e8c`: alte Credential-Löschdialoge können nach Konto-/
-Gridwechsel keine gespeicherten Zugänge mehr löschen;
-sichtbare Einstellungen/Suche OGL/NexVerse gebrandet.
-20/20 technische Prüfblöcke, 186 Python-/41 native Tests
-und DE-/EN-GUI-Smoketests. P02 formal 0/20, Live-Login-
-/Plattformgates weiter offen),
+`02af8ad4`: OGL ruft kein altes Phoenix-/SL-Statusfeed ab,
+die fremde Gridauswahl und Legacy-Statusoption sind in
+den Einstellungen verborgen, sichtbare Firestorm-
+Einstellungen lokalisiert auf OGL umgestellt;
+20/20 technische Prüfpositionen, 191 Python-
+und 41 native Tests, DE-/ES-GUI-Starts grün.
+P02 formal 0/20; P01-Live-Login und
+Plattform-Viewer-Builds noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten
