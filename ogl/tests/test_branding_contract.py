@@ -36,9 +36,9 @@ class OGLBrandingContract(unittest.TestCase):
     def test_nexverse_background_and_https_auth_guard(self):
         source = self.source("indra/newview/fspanellogin.cpp")
         self.assertIn("OGLNexVerseGrid::kWelcomeURI", source)
-        self.assertIn('parsed.scheme() != "https"', source)
+        self.assertIn('Blocked unpinned grid login endpoint.', source)
         self.assertIn("getLoginURIs(login_uris)", source)
-        self.assertIn("OGLInsecureGridLogin", source)
+        self.assertIn("OGLUnexpectedGridEndpoint", source)
         self.assertIn("OGLHTTPLoginWarning", source)
         self.assertIn("OGLNexVerseGrid::isExactPinnedHTTPLogin", source)
         self.assertIn("User approved HTTP login for pinned Stadt NexVerse", source)

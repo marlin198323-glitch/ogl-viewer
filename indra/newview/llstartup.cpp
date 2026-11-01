@@ -1806,23 +1806,25 @@ bool idle_startup()
             }
             std::vector<std::string> uris;
             LLGridManager::getInstance()->getLoginURIs(uris);
-            bool all_https = !uris.empty();
-            for (const auto& uri : uris)
+            // This is the final network boundary: no arbitrary HTTPS
+            // endpoint may impersonate the pinned Stadt NexVerse grid.
+            if (!OGLNexVerseGrid::isExactPinnedHTTPLogin(
+                    LLGridManager::getInstance()->getGrid(), uris))
             {
-                const LLURI parsed(uri);
-                if (parsed.scheme() != "https" || parsed.authority().empty())
-                {
-                    all_https = false;
-                    break;
-                }
+                LL_WARNS("OGLGrid") << "Rejected login: unpinned grid endpoint." << LL_ENDL;
+                gSavedSettings.setBOOL("AutoLogin", false);
+                transition_back_to_login_panel("");
+                LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                    "MESSAGE", LLTrans::getString("OGLUnexpectedGridEndpoint")));
+                return false;
             }
             const bool consented_pinned_http =
                 OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
                     LLGridManager::getInstance()->getGrid(), uris,
                     gSavedSettings.getString("OGLRememberPinnedHTTPLoginURI"));
-            if (!all_https && !consented_pinned_http)
+            if (!consented_pinned_http)
             {
-                LL_WARNS("OGLGrid") << "Rejected login: HTTPS or explicit fixed-grid HTTP consent required."
+                LL_WARNS("OGLGrid") << "Rejected login: explicit fixed-grid HTTP consent required."
                                     << LL_ENDL;
                 transition_back_to_login_panel("");
                 LLNotificationsUtil::add("GenericAlert", LLSD().with(

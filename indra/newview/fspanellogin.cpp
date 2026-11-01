@@ -1139,48 +1139,53 @@ void FSPanelLogin::onClickConnect(void *)
             return;
         }
 
-        // OGL: only allow the fixed Stadt NexVerse HTTP endpoint. A user
-        // may explicitly remember approval of this exact URI, instead of
-        // acknowledging the same transport warning at every viewer start.
-        // HTTPS remains preferred and unknown HTTP destinations are blocked.
+        // OGL: trust only the exact configured OpenSim login service.
+        // Merely switching the stored grid URI to another HTTPS host
+        // must never bypass endpoint pinning. A future verified HTTPS
+        // endpoint requires explicit pinning and a reviewed migration.
         if (APP_NAME == "OGL")
         {
             std::vector<std::string> login_uris;
             LLGridManager::getInstance()->getLoginURIs(login_uris);
-            bool secure_login = !login_uris.empty();
-            for (const std::string& uri : login_uris)
+            if (!OGLNexVerseGrid::isExactPinnedHTTPLogin(
+                    LLGridManager::getInstance()->getGrid(), login_uris))
             {
-                const LLURI parsed(uri);
-                if (parsed.scheme() != "https" || parsed.authority().empty())
-                {
-                    secure_login = false;
-                    break;
-                }
+                LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                    "MESSAGE", LLTrans::getString("OGLUnexpectedGridEndpoint")));
+                LL_WARNS("OGLGrid") << "Blocked unpinned grid login endpoint." << LL_ENDL;
+                return;
             }
-            if (!secure_login)
             {
-                const bool pinned_http = OGLNexVerseGrid::isExactPinnedHTTPLogin(
-                    LLGridManager::getInstance()->getGrid(), login_uris);
-                if (!pinned_http)
-                {
-                    LLNotificationsUtil::add("GenericAlert", LLSD().with(
-                        "MESSAGE", LLTrans::getString("OGLInsecureGridLogin")));
-                    LL_WARNS("OGL") << "Rejected unexpected insecure grid endpoint." << LL_ENDL;
-                    return;
-                }
                 const std::string remembered_uri =
                     gSavedSettings.getString("OGLRememberPinnedHTTPLoginURI");
                 if (!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
                         LLGridManager::getInstance()->getGrid(),
                         login_uris, remembered_uri))
                 {
+                    const std::string consent_grid =
+                        LLGridManager::getInstance()->getGrid();
+                    const std::string consent_account =
+                        sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString();
                     LLNotificationsUtil::add("OGLHTTPLoginWarning", LLSD(), LLSD(),
-                        [](const LLSD& notification, const LLSD& response)
+                        [consent_grid, consent_account](const LLSD& notification, const LLSD& response)
                         {
                             const S32 option = LLNotificationsUtil::getSelectedOption(
                                 notification, response);
                             if (option == 0 || option == 1)
                             {
+                                // Delayed dialogs must not grant permission after
+                                // the login form, grid or endpoint has changed.
+                                std::vector<std::string> current_uris;
+                                LLGridManager::getInstance()->getLoginURIs(current_uris);
+                                if (!sInstance ||
+                                    LLGridManager::getInstance()->getGrid() != consent_grid ||
+                                    sInstance->getChild<LLComboBox>("server_combo")->getSelectedValue().asString() != consent_grid ||
+                                    sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString() != consent_account ||
+                                    !OGLNexVerseGrid::isExactPinnedHTTPLogin(consent_grid, current_uris))
+                                {
+                                    LL_WARNS("OGLGrid") << "Ignored stale HTTP login approval." << LL_ENDL;
+                                    return;
+                                }
                                 // Only the dedicated "Remember" button writes
                                 // a persistent preference. "Once" never does.
                                 if (option == 1)

@@ -6,6 +6,7 @@
 <strings>
   <string name="OGLBetaLoginUnavailable">Stadt NexVerse Beta is not ready for sign-in yet. We are checking its secure connection and sign-in service. No username or password was sent.</string>
   <string name="OGLGridChangedReenterCredentials">You selected a different world. For your security, please enter your username and password again.</string>
+  <string name="OGLUnexpectedGridEndpoint">This login address is not the verified Stadt NexVerse grid endpoint. No credentials were sent. Restore the official grid settings.</string>
   <string name="OGLInsecureGridLogin">This grid login address is not approved. For Stadt NexVerse, manually confirm the HTTP warning before logging in; other insecure servers are blocked.</string>
 
 

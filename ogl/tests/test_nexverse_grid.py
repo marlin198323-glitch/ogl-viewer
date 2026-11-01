@@ -147,9 +147,52 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('OGLRememberPinnedHTTPLoginURI', self.panel)
         self.assertIn('option == 0 || option == 1', self.panel)
         self.assertIn('if (option == 1)', self.panel)
-        self.assertIn('Rejected login: HTTPS or explicit fixed-grid HTTP consent required', self.startup)
-        self.assertLess(self.startup.index('Rejected login: HTTPS or explicit fixed-grid HTTP consent required'),
+        self.assertIn('Rejected login: explicit fixed-grid HTTP consent required', self.startup)
+        self.assertLess(self.startup.index('Rejected login: explicit fixed-grid HTTP consent required'),
                         self.startup.index('login->connect(gUserCredential)'))
+
+    def test_https_login_endpoint_is_not_trusted_solely_because_of_tls(self):
+        panel = self.panel[
+            self.panel.index('void FSPanelLogin::onClickConnect(void *)'):
+            self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        startup = self.startup[
+            self.startup.index('Blocked beta authentication: no verified protocol/TLS adapter.'):
+            self.startup.index('login->connect(gUserCredential)')]
+        self.assertIn('isExactPinnedHTTPLogin(', panel)
+        self.assertIn('Blocked unpinned grid login endpoint.', panel)
+        self.assertIn('isExactPinnedHTTPLogin(', startup)
+        self.assertIn('Rejected login: unpinned grid endpoint.', startup)
+        self.assertIn('gSavedSettings.setBOOL("AutoLogin", false)', startup)
+        self.assertNotIn('bool all_https', startup)
+        self.assertNotIn('bool secure_login', panel)
+        self.assertLess(startup.index('Rejected login: unpinned grid endpoint.'),
+                        startup.index('consented_pinned_http'))
+        self.assertLess(panel.index('Blocked unpinned grid login endpoint.'),
+                        panel.index('OGLHTTPLoginWarning'))
+        self.assertIn('OGLUnexpectedGridEndpoint', panel)
+        self.assertIn('OGLUnexpectedGridEndpoint', startup)
+
+    def test_delayed_http_approval_cannot_outlive_account_or_grid_change(self):
+        panel = self.panel[
+            self.panel.index('void FSPanelLogin::onClickConnect(void *)'):
+            self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertIn('const std::string consent_grid =', panel)
+        self.assertIn('const std::string consent_account =', panel)
+        self.assertIn('[consent_grid, consent_account]', panel)
+        self.assertIn('Ignored stale HTTP login approval.', panel)
+        self.assertIn('sInstance->getChild<LLComboBox>("server_combo")->getSelectedValue().asString() != consent_grid', panel)
+        self.assertIn('getValue().asString() != consent_account', panel)
+        self.assertIn('isExactPinnedHTTPLogin(consent_grid, current_uris)', panel)
+        self.assertLess(panel.index('Ignored stale HTTP login approval.'),
+                        panel.index('gHTTPLoginApprovedThisSession = true'))
+        self.assertLess(panel.index('Ignored stale HTTP login approval.'),
+                        panel.index('gSavedSettings.setString('))
+        for lang in ('en', 'de'):
+            tree = ET.parse(ROOT / f'indra/newview/skins/default/xui/{lang}/strings.xml')
+            matches = [e for e in tree.iter('string')
+                       if e.get('name') == 'OGLUnexpectedGridEndpoint']
+            self.assertEqual(len(matches), 1)
+            self.assertGreater(len((matches[0].text or '').strip()), 60)
 
     def test_beta_warning_and_http_consent_are_localized(self):
         for language in ("en", "de"):

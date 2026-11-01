@@ -15,6 +15,18 @@ int main() {
     assert(!isExactPinnedHTTPLogin(kKey, {kLoginURI, "http://evil.example/"}));
     assert(!isExactPinnedHTTPLogin(kKey, {"http://hg.stadt-nexverse.de/"}));
     assert(!isExactPinnedHTTPLogin(kKey, {"https://hg.stadt-nexverse.de/"}));
+    // Even perfectly formed TLS links are hostile unless the exact endpoint
+    // and its protocol have been approved by this viewer release.
+    assert(!isExactPinnedHTTPLogin(kKey, {"https://evil.example/"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {"https://hg.stadt-nexverse.de:443/"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {"https://hg.stadt-nexverse.de:80/"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {kLoginURI, "https://evil.example/"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {"http://hg.stadt-nexverse.de:80/#fragment"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {"http://HG.STADT-NEXVERSE.DE:80/"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {"http://hg.stadt-nexverse.de:80@evil.example/"}));
+    assert(!isExactPinnedHTTPLogin(kKey, {kLoginURI + std::string("login")}));
+    assert(!isExactPinnedHTTPLogin(OGLNexVerseGrid::kBetaKey, {kLoginURI}));
+
     assert(!OGLNexVerseGrid::gHTTPLoginApprovedThisSession);
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(

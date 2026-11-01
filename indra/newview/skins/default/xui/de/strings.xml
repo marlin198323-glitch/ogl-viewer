@@ -6,6 +6,7 @@
 <strings>
   <string name="OGLBetaLoginUnavailable">Stadt NexVerse Beta ist noch nicht für die Anmeldung freigegeben. Die sichere Verbindung und der Anmeldedienst werden geprüft. Es wurden keine Zugangsdaten übertragen.</string>
   <string name="OGLGridChangedReenterCredentials">Du hast eine andere Welt ausgewählt. Bitte gib zur Sicherheit deinen Benutzernamen und dein Passwort erneut ein.</string>
+  <string name="OGLUnexpectedGridEndpoint">Diese Loginadresse gehört nicht zum festgelegten Stadt-NexVerse-Grid. Es wurden keine Zugangsdaten übertragen. Bitte die offiziellen Grid-Einstellungen wiederherstellen.</string>
   <string name="OGLInsecureGridLogin">Diese Grid-Anmeldeadresse ist nicht freigegeben. Bei Stadt NexVerse musst du die HTTP-Warnung vor der Anmeldung bestätigen. Andere unsichere Server bleiben gesperrt.</string>
 
 	<string name="SECOND_LIFE_GRID">
