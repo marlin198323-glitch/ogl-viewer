@@ -32,6 +32,28 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## Nachprüfung – plattformübergreifende Grafikmodul-CI
+
+GitHub Actions `ogl-portable-graphics.yml`,
+**Lauf 41340630759**, HEAD
+`54d4cd7a`: **6/6 Plattformjobs
+erfolgreich**. Die plattformneutrale
+Credential-Policy im bereits vorhandenen
+Grid-HTTP-Nativtest und die insgesamt
+203 Python-Verträge bestanden auf
+Ubuntu x64 und ARM64, Windows x64
+und ARM64 sowie macOS Intel und
+Apple Silicon. Der lokale
+Linux-Vollviewer-Build mit
+41 nativen CTests bestand ebenfalls.
+
+**Abgrenzung:** Das ist eine portable
+Grafikmodul- und Quelltext-Testmatrix,
+keine vollständige Windows-/macOS-
+Viewer-Build-/GUI-Abnahme; die
+formalen P01/P02-Stände bleiben
+**18/20 und 0/20**.
+
 ## P01 Block 19 – gespeicherte Zugangsdaten an echte Kontoauswahl gebunden
 
 **Code-Commit:** `7ab16aaf` auf `ogl-develop`.

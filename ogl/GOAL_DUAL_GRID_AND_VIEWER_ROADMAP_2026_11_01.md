@@ -221,7 +221,11 @@ keine Secret-Wiederverwendung.
 16 native Positiv-/Negativtests,
 203 Python-/41 native Tests
 und Hauptgrid-/Beta-GUI-Smokes
-bestanden; 20/20 technische
+bestanden; portable Grafikmodul-
+CI 6/6 Linux/Windows/macOS
+(Lauf 41340630759), **keine**
+vollständigen OS-Viewer-Builds;
+20/20 technische
 Prüfpositionen, aber noch keine
 echte Passwortpersistenz-Abnahme.
 Davor:

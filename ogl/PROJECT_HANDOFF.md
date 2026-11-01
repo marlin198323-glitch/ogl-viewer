@@ -44,7 +44,9 @@ Maskierung scheitern geschlossen.
 16 native Prüffälle, 203 Python-
 und 41 CTests, Linux-Vollviewer
 und Hauptgrid-/Beta-GUI-Smokes
-erfolgreich; 20/20
+erfolgreich; portable Grafik-
+CI 6/6 auf Linux/Windows/macOS
+(Lauf 41340630759); 20/20
 Einzelprüfpositionen bestanden.
 P02 formal 0/20; echter
 Hauptgrid-Live-Login,
