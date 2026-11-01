@@ -1049,6 +1049,38 @@ void FSPanelLogin::onClickConnect(void *)
         LLComboBox* combo = sInstance->getChild<LLComboBox>("server_combo");
         LLSD combo_val = combo->getSelectedValue();
 
+        // Commit events are not guaranteed to have fired before a keyboard-
+        // activated login button. Never accept a crafted/unknown grid, and
+        // never send an entered password to a different selected world.
+        if (APP_NAME == "OGL")
+        {
+            if (combo_val.isUndefined() ||
+                !OGLNexVerseGrid::isFixedGrid(combo_val.asString()))
+            {
+                LL_WARNS("OGLGrid") << "Blocked unlisted grid in login request." << LL_ENDL;
+                combo->setSelectedByValue(LLGridManager::getInstance()->getGrid(), true);
+                return;
+            }
+            if (combo_val.asString() != LLGridManager::getInstance()->getGrid())
+            {
+                try
+                {
+                    LLGridManager::getInstance()->setGridChoice(combo_val.asString());
+                }
+                catch (LLInvalidGridName ex)
+                {
+                    LL_WARNS("OGLGrid") << "Blocked invalid grid on login request." << LL_ENDL;
+                    return;
+                }
+                sInstance->clearLoginFieldsForGridChange();
+                updateServer();
+                LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                    "MESSAGE", LLTrans::getString("OGLGridChangedReenterCredentials")));
+                LL_WARNS("OGLGrid") << "Grid switched before login; re-enter credentials." << LL_ENDL;
+                return;
+            }
+        }
+
         // the grid definitions may come from a user-supplied grids.xml, so they may not be good
         LL_DEBUGS("AppInit")<<"grid "<<combo_val.asString()<<LL_ENDL;
         try
@@ -1594,12 +1626,31 @@ void FSPanelLogin::onRemoveCallback(const LLSD& notification, const LLSD& respon
         if (option == 0)
         {
             std::string credName = notification["payload"]["CredName"].asString();
+            if (APP_NAME == "OGL")
+            {
+                const size_t sep = credName.rfind('@');
+                if (sep == std::string::npos ||
+                    !OGLNexVerseGrid::isFixedGrid(credName.substr(sep + 1)))
+                {
+                    LL_WARNS("OGLGrid") << "Refused removal of unlisted-grid credential." << LL_ENDL;
+                    return;
+                }
+            }
+
+            LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(credName);
+            if (credential.isNull())
+            {
+                // A credential can disappear between confirmation and action
+                // (e.g. stale dialog, migrated profile, another session).
+                LL_WARNS("Credentials") << "Saved login no longer exists." << LL_ENDL;
+                sInstance->clearLoginFieldsForGridChange();
+                return;
+            }
+
             if (credName == gSavedSettings.getString("UserLoginInfo"))
             {
                 gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
             }
-
-            LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(credName);
 
             if (size_t arobase = credName.find("@"); arobase != std::string::npos && arobase + 1 < credName.length() && arobase > 1)
             {
@@ -1705,6 +1756,14 @@ void FSPanelLogin::onSelectUser()
     }
 
     LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(cred_name);
+    if (credential.isNull())
+    {
+        // Previously listed, but no longer present in the protected store.
+        // Do not mark a missing account as selectable or keep a stale secret.
+        LL_WARNS("Credentials") << "Selected saved login was unavailable." << LL_ENDL;
+        sInstance->clearLoginFieldsForGridChange();
+        return;
+    }
     sInstance->setFields(credential);
     sInstance->mPasswordModified = false;
     sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(true);

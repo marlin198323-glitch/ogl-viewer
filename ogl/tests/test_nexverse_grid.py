@@ -71,6 +71,57 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('update_grid_help();', branch)
         self.assertIn('return;', branch)
 
+    def test_direct_login_button_rechecks_grid_before_any_credentials(self):
+        start = self.panel.index('void FSPanelLogin::onClickConnect(void *)')
+        end = self.panel.index('void FSPanelLogin::onClickNewAccount(void*)', start)
+        callback = self.panel[start:end]
+        for guard in ('combo_val.isUndefined()', 'OGLNexVerseGrid::isFixedGrid(combo_val.asString())',
+                      'Blocked unlisted grid in login request.',
+                      'combo_val.asString() != LLGridManager::getInstance()->getGrid()',
+                      'sInstance->clearLoginFieldsForGridChange()',
+                      'Grid switched before login; re-enter credentials.'):
+            self.assertIn(guard, callback)
+        secret_read = callback.index('std::string password =')
+        self.assertLess(callback.index('Blocked unlisted grid in login request.'), secret_read)
+        self.assertLess(callback.index('sInstance->clearLoginFieldsForGridChange()'), secret_read)
+        self.assertLess(callback.index('Blocked beta authentication:'), secret_read)
+        self.assertIn('OGLGridChangedReenterCredentials', callback)
+        for lang in ('en', 'de'):
+            strings = ET.parse(ROOT / f'indra/newview/skins/default/xui/{lang}/strings.xml')
+            matches = [n for n in strings.iter('string')
+                       if n.get('name') == 'OGLGridChangedReenterCredentials']
+            self.assertEqual(len(matches), 1)
+            self.assertGreater(len((matches[0].text or '').strip()), 30)
+
+    def test_confirmed_account_removal_cannot_delete_foreign_grid(self):
+        start = self.panel.index('void FSPanelLogin::onRemoveCallback(')
+        end = self.panel.index('void FSPanelLogin::onClickGridMgrHelp', start)
+        callback = self.panel[start:end]
+        for guard in ('if (option == 0)', 'OGLNexVerseGrid::isFixedGrid(credName.substr(sep + 1))',
+                      'Refused removal of unlisted-grid credential.',
+                      'if (credential.isNull())', 'Saved login no longer exists.'):
+            self.assertIn(guard, callback)
+        self.assertLess(callback.index('Refused removal of unlisted-grid credential.'),
+                        callback.index('gSecAPIHandler->loadCredential(credName)'))
+        self.assertLess(callback.index('if (credential.isNull())'),
+                        callback.index('credential->userID()'))
+        self.assertLess(callback.index('if (credential.isNull())'),
+                        callback.index('gSavedSettings.getControl("UserLoginInfo")->resetToDefault()'))
+        self.assertLess(callback.index('if (credential.isNull())'),
+                        callback.index('gSecAPIHandler->deleteCredential(credential)'))
+
+    def test_disappeared_saved_login_is_rejected_without_password(self):
+        start = self.panel.index('void FSPanelLogin::onSelectUser()')
+        end = self.panel.index('void FSPanelLogin::updateServerCombo()', start)
+        callback = self.panel[start:end]
+        self.assertIn('OGLNexVerseGrid::isFixedGrid(cred_name.substr(separator + 1))', callback)
+        self.assertIn('Selected saved login was unavailable.', callback)
+        self.assertIn('sInstance->clearLoginFieldsForGridChange()', callback)
+        self.assertLess(callback.index('if (credential.isNull())'),
+                        callback.index('sInstance->setFields(credential)'))
+        self.assertLess(callback.index('if (credential.isNull())'),
+                        callback.index('sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(true)'))
+
     def test_beta_credentials_never_sent_from_login_button(self):
         blocked = self.panel.index('Blocked beta authentication: protocol and TLS not verified.')
         credentials = self.panel.index('std::string username = sInstance->getChild<LLUICtrl>("username_combo")', blocked)
