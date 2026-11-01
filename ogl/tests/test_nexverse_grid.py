@@ -158,6 +158,40 @@ class StadtNexVerseGridTests(unittest.TestCase):
         # right after clearLoginFieldsForGridChange().
         self.assertNotIn('if(!sInstance->areCredentialFieldsDirty())', method)
 
+    def test_internal_location_link_rejects_invalid_coordinates(self):
+        start = self.panel.index('class LLLoginLocationAutoHandler')
+        end = self.panel.index('LLLoginLocationAutoHandler gLoginLocationAutoHandler;', start)
+        body = self.panel[start:end]
+        self.assertIn('#include <cmath>', self.panel)
+        self.assertEqual(body.count('Rejected invalid location coordinates.'), 2)
+        self.assertIn('LLStringUtil::convertToF32(tokens[1].asString(), xpos)', body)
+        self.assertIn('LLStringUtil::convertToF32(tokens[2].asString(), ypos)', body)
+        self.assertIn('LLStringUtil::convertToF32(tokens[3].asString(), zpos)', body)
+        self.assertIn('std::isfinite(xpos)', body)
+        self.assertIn('std::isfinite(ypos)', body)
+        self.assertIn('std::isfinite(zpos)', body)
+        self.assertNotIn('codec >> xpos;', body)
+        self.assertNotIn('codec >> ypos;', body)
+        self.assertNotIn('codec >> zpos;', body)
+
+    def test_embedded_location_link_does_not_silently_log_in(self):
+        start = self.panel.index('void FSPanelLogin::autologinToLocation(')
+        end = self.panel.index('void FSPanelLogin::closePanel()', start)
+        callback = self.panel[start:end]
+        ogl = callback[callback.index('if (APP_NAME == "OGL")'):
+                       callback.index('LL_DEBUGS("AppInit")')]
+        self.assertIn('slurl.getType() != LLSLURL::LOCATION', ogl)
+        self.assertIn('OGLNexVerseGrid::isFixedGrid(destination_grid)', ogl)
+        self.assertIn('LLStartUp::setStartSLURL(slurl)', ogl)
+        self.assertIn('++sOGLLoginFormRevision', ogl)
+        self.assertIn('manual login required', ogl)
+        self.assertNotIn('onClickConnect', ogl)
+        self.assertNotIn('mCallback', ogl)
+        self.assertIn('return;', ogl)
+        self.assertIn('onClickConnect(unused_parameter)', callback)
+        self.assertLess(callback.index('return;', callback.index('manual login required')),
+                        callback.index('onClickConnect(unused_parameter)'))
+
     def test_saved_cross_grid_account_never_loads_secret_before_switch(self):
         start = self.panel.index('void FSPanelLogin::onSelectUser()')
         end = self.panel.index('void FSPanelLogin::updateServerCombo()', start)

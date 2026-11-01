@@ -54,6 +54,17 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertNotIn('params["password"]', body)
         self.assertNotIn('params["username"]', body)
 
+    def test_prelogin_help_uses_official_nexverse_portal(self):
+        source = self.source('indra/newview/fspanellogin.cpp')
+        start = source.index('void FSPanelLogin::onClickHelp(')
+        end = source.index('void FSPanelLogin::onPassKey(', start)
+        method = source[start:end]
+        self.assertIn('if (APP_NAME == "OGL")', method)
+        self.assertIn('LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite)', method)
+        self.assertLess(method.index('LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite)'),
+                        method.index('LLViewerHelp::getInstance()'))
+        self.assertIn('return;', method[:method.index('LLViewerHelp::getInstance()')])
+
     def test_nexverse_background_and_https_auth_guard(self):
         source = self.source("indra/newview/fspanellogin.cpp")
         self.assertIn("OGLNexVerseGrid::kWelcomeURI", source)

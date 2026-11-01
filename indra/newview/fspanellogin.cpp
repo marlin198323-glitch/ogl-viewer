@@ -29,6 +29,8 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "fspanellogin.h"
+#include <cmath>
+
 #include "lllayoutstack.h"
 
 #include "indra_constants.h"        // for key and mask constants
@@ -135,14 +137,15 @@ public:
             if ( tokens.size() == 3 )
             {
                 // region and x/y specified - default z to 0
-                F32 xpos;
-                std::istringstream codec(tokens[1].asString());
-                codec >> xpos;
-
-                F32 ypos;
-                codec.clear();
-                codec.str(tokens[2].asString());
-                codec >> ypos;
+                F32 xpos = 0.0f;
+                F32 ypos = 0.0f;
+                if (!LLStringUtil::convertToF32(tokens[1].asString(), xpos) ||
+                    !LLStringUtil::convertToF32(tokens[2].asString(), ypos) ||
+                    !std::isfinite(xpos) || !std::isfinite(ypos))
+                {
+                    LL_WARNS("OGLGrid") << "Rejected invalid location coordinates." << LL_ENDL;
+                    return false;
+                }
 
                 const LLVector3 location(xpos, ypos, 0.0f);
                 LLSLURL slurl(region, location);
@@ -154,19 +157,17 @@ public:
             if ( tokens.size() == 4 )
             {
                 // region and x/y/z specified - ok
-                F32 xpos;
-                std::istringstream codec(tokens[1].asString());
-                codec >> xpos;
-
-                F32 ypos;
-                codec.clear();
-                codec.str(tokens[2].asString());
-                codec >> ypos;
-
-                F32 zpos;
-                codec.clear();
-                codec.str(tokens[3].asString());
-                codec >> zpos;
+                F32 xpos = 0.0f;
+                F32 ypos = 0.0f;
+                F32 zpos = 0.0f;
+                if (!LLStringUtil::convertToF32(tokens[1].asString(), xpos) ||
+                    !LLStringUtil::convertToF32(tokens[2].asString(), ypos) ||
+                    !LLStringUtil::convertToF32(tokens[3].asString(), zpos) ||
+                    !std::isfinite(xpos) || !std::isfinite(ypos) || !std::isfinite(zpos))
+                {
+                    LL_WARNS("OGLGrid") << "Rejected invalid location coordinates." << LL_ENDL;
+                    return false;
+                }
 
                 const LLVector3 location(xpos, ypos, zpos);
                 LLSLURL slurl(region, location);
@@ -958,6 +959,29 @@ void FSPanelLogin::setLocation(const LLSLURL& slurl)
 
 void FSPanelLogin::autologinToLocation(const LLSLURL& slurl)
 {
+    // A trusted in-viewer location link must not silently authorize a login.
+    // Preserve the destination but let the person initiate authentication
+    // through the OGL form and its pinned-endpoint/HTTP-consent checks.
+    if (APP_NAME == "OGL")
+    {
+        if (slurl.getType() != LLSLURL::LOCATION)
+        {
+            LL_WARNS("OGLGrid") << "Rejected non-spatial location-login action." << LL_ENDL;
+            return;
+        }
+        const std::string destination_grid =
+            LLGridManager::getInstance()->getGrid(slurl.getGrid());
+        if (!OGLNexVerseGrid::isFixedGrid(destination_grid))
+        {
+            LL_WARNS("OGLGrid") << "Rejected location-login for unlisted grid." << LL_ENDL;
+            return;
+        }
+        ++sOGLLoginFormRevision;
+        LLStartUp::setStartSLURL(slurl);
+        LL_INFOS("OGLGrid") << "Start location selected; manual login required." << LL_ENDL;
+        return;
+    }
+
     LL_DEBUGS("AppInit")<<"automatically logging into Location "<<slurl.asString()<<LL_ENDL;
     LLStartUp::setStartSLURL(slurl); // calls onUpdateStartSLURL, above
 
@@ -1437,6 +1461,13 @@ void FSPanelLogin::onClickHelp(void*)
 {
     if (sInstance)
     {
+        if (APP_NAME == "OGL")
+        {
+            // The legacy pre-login help resolver opens Second Life support.
+            // Keep OGL assistance within the official NexVerse portal.
+            LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite);
+            return;
+        }
         LLViewerHelp* vhelp = LLViewerHelp::getInstance();
         vhelp->showTopic(vhelp->preLoginTopic());
     }
