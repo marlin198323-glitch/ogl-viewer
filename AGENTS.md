@@ -21,11 +21,13 @@ Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
-sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; letzter P02-
-Vorarbeits-Code-Commit `192bd10d`: kompakte Toolbar, skalierbare
-OGL-Werkzeugleistenkonfiguration, tote Chat-Overlays entfernt,
-20/20 Prüfblöcke, 182 Python-/41 native Tests, DE-/EN-GUI grün.
-P02 formal 0/20; Hauptgrid-Live-Login-/Plattformgates noch offen),
+sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; Code-Commit
+`6e7c5e8c`: alte Credential-Löschdialoge können nach Konto-/
+Gridwechsel keine gespeicherten Zugänge mehr löschen;
+sichtbare Einstellungen/Suche OGL/NexVerse gebrandet.
+20/20 technische Prüfblöcke, 186 Python-/41 native Tests
+und DE-/EN-GUI-Smoketests. P02 formal 0/20, Live-Login-
+/Plattformgates weiter offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten

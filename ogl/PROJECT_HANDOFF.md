@@ -32,15 +32,16 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen;
-P02-Vorarbeit `192bd10d`: OGL-Toolbar und Chatbar EN/DE modernisiert,
-alte Voice-/Chatbar-Overlays DE/PT/ZH bereinigt,
-Toybox auf 820×520 verkleinert und skalierbar,
-20/20 technische Blöcke, 182 Python-/41 native Tests
-sowie DE-/EN-GUI-Smoketests grün. P02 formal 0/20.
-Hauptgrid-Live-Login, Passwortpersistenz,
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18
+abgeschlossen; Code-Commit `6e7c5e8c`: Löschdialoge
+gespeicherter Konten an Konto/Grid/Formrevision/Einmalgeneration
+gebunden, OGL-Einstellungen und NexVerse-Suche sichtseitig
+umbenannt, 20/20 QA-Blöcke, 186 Python-/41 native Tests,
+DE-/EN-GUI-Smokes bestanden. Kein echter Secure-Store-
+Löschdialog und kein autorisierter Hauptgrid-Live-Login
+getestet. P02 formal 0/20; Passwortpersistenz,
 In-World-Shutdown und vollständige Windows-/macOS-
-Viewer-Builds noch offen).
+Viewer-Builds weiter offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

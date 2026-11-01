@@ -208,7 +208,15 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter Code-Commit `224ced81`:
+Letzter P01-Sicherheits-Code-Commit `6e7c5e8c`:
+Löschbestätigungen gespeicherter Konten sind
+an Konto, Grid, Loginform und einmalige
+Dialoggeneration gebunden; 20/20 technische
+Prüfpositionen, 186 Python-/41 native Tests
+und DE-/EN-GUI-Smokes grün. Sichtbare
+Firestorm-Einstellungs-/Suchetitel durch
+OGL/NexVerse-Bezeichnungen ersetzt.
+Vorige Branding-Korrektur `224ced81`:
 Support-/Registrierungs-/Downloadlinks
 in 13 vorhandenen Sprachen auf NexVerse/
 OGL-GitHub ausgerichtet; keine vollständige
@@ -278,7 +286,11 @@ OGL-Toolbox 820×520 skalierbar und
 tote Voice-/Chatbar-Overlays beseitigt
 (`192bd10d`, 20/20 Prüfpositionen,
 182 Python-/41 native Tests,
-DE-/EN-GUI-Smoketests erfolgreich).
+DE-/EN-GUI-Smoketests erfolgreich);
+Such- und Einstellungsfenster ohne sichtbare
+Firestorm-Titel (`6e7c5e8c`), interne
+Funktionen, Rechte und rechtliche Credits
+bleiben erhalten.
 Die komplette In-World-Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 

@@ -32,6 +32,104 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 und unabhängige P02-Vorarbeit – Kontolöschschutz/Branding
+
+**Code-Commit `6e7c5e8c` (`ogl-develop`): 20/20 überprüfte
+technische Einzelpositionen bestanden.** Diese Prüfungen
+sind **nicht** 20 formale Phasenblöcke. P01 bleibt
+**18/20**, P02 formal **0/20**.
+
+**In vorhandenen Dateien implementiert:**
+- `fspanellogin.cpp`: Bestätigung zum Löschen
+  gespeicherter Anmeldungen an die aktuelle
+  Kontoauswahl, Grid-Zuordnung, Revision
+  der Loginmaske und einmalige Dialoggeneration
+  gebunden. Eine veraltete, mehrfach geöffnete
+  oder nach Grid-/Konto-/Formwechsel
+  bestätigte Anfrage kann den geschützten
+  Credential-Speicher **nicht mehr** erreichen.
+  Nach erfolgreicher Kontolöschung wird
+  die Formularrevision erhöht und eine
+  einmalige HTTP-Zustimmung ungültig.
+  Fehlende Secure-Store-Einträge bleiben
+  weiterhin durch Nullprüfung abgesichert.
+  Nicht-OGL-Zweige bleiben unangetastet.
+- In 13 vorhandenen `floater_preferences.xml`-
+  Dateien den sichtbaren „Firestorm“-Tab,
+  soweit dort explizit definiert, auf
+  „OGL Features“ (Deutsch „OGL Funktionen“)
+  umbenannt. Das interne Panel
+  `panel_preference_firestorm` und seine
+  Einstellungen und Callbacks bleiben erhalten.
+  Das bestehende EN-`panel_preferences_firestorm.xml`
+  nennt sich sichtbar „OGL Preferences“
+  und enthält keine irreführende
+  Firestorm-Zeichnungsdistanzbeschreibung.
+- Elf bestehende
+  `floater_fs_search.xml`-Fenstertitel
+  verwenden „NexVerse“ statt „Firestorm“.
+  Die internen Registrierungsnamen,
+  Suche-/Gruppen-/Personentabs und
+  erforderlichen Lizenztexte sind
+  unverändert geblieben.
+- Vier zusätzliche Regressionstests in
+  den bestehenden Dateien
+  `test_nexverse_grid.py` und
+  `test_branding_contract.py`, dazu
+  aktualisierte Formularrevisions-Erwartung.
+  **Keine neuen Projektdateien.**
+
+**20 nachweisbare Prüfpositionen:**
+01 Git-Branch/Remote; 02 Dateiregel;
+03 nur gespeichertes Konto; 04 Grid-Prüfung;
+05 Formrevision bei Löschanforderung;
+06 eindeutige Dialoggeneration;
+07 ausgewähltes Grid gebunden;
+08 unveränderte Kontoauswahl;
+09 unverändertes aktuelles Grid;
+10 exakte Dialog-Gridbindung;
+11 Formularrevision verglichen;
+12 Dialoggeneration verglichen;
+13 Ablehnung vor Credential-Lesezugriff;
+14 Freigabe vor Nutzung verbraucht;
+15 Nullprüfung vor MFA-/Credential-Löschung;
+16 HTTP-Freigabe nach Kontolöschung invalidiert;
+17 OGL-Einstellungstitel aller betroffenen
+13 Sprachen; 18 interne Einstellungen/Callbacks
+und Panelnamen weiter vorhanden;
+19 elf NexVerse-Suchfenstertitel;
+20 XUI-Staging, Linux-Vollbuild und DE-/EN-
+GUI-Smokes. **20/20 bestanden.**
+
+**Testnachweis:** `bash ogl/scripts/build-test.sh`
+erfolgreich; vollständiger Linux-Mint-Viewer
+gebaut, **186/186 Python-Tests und 41/41
+native CTests**. Alle 22 geänderten
+XUI-Dateien bytegleich im Build-Staging.
+Isolierte 1280×720-Xvfb-Starts in
+Deutsch/Englisch: Anmeldemaske bereit,
+`STATE_LOGIN_WAIT`, kein `STATE_LOGIN_AUTH_INIT`,
+Strg+Q mit **Exit-Code 0**. Englischer
+Negativtest zeigt HTTP-Risikodialog
+mit ausschließlich synthetischen Eingaben.
+**Nicht** Ende-zu-Ende getestet:
+tatsächliche Kontolöschung mit realem
+persistiertem Secure-Store-Konto,
+autorisiertem Login und UI-Klick in
+einer angemeldeten 3D-Welt.
+
+**P01 weiterhin blockiert durch:**
+autorisierter Hauptgrid-Live-Login,
+Wiederherstellung real gespeicherter
+Passwörter nach Anmeldung,
+In-World-Shutdown, vollständige
+Windows-/macOS-Viewer-Build- und
+Laufzeitnachweise. Die CI-Grafikmodulmatrix
+ist dafür kein Ersatz. Operativer
+Wiedereinstieg bleibt **P01 Block 19/20**,
+weitere unabhängige P02-Vorarbeiten erlaubt,
+keine manuelle Zwischenabnahme.
+
 ## P02 unabhängige Vorarbeit – kompakte Toolbar und Chatbar (20 Prüfblöcke)
 
 **Code-Commit:** `192bd10d` (`ogl-develop`).
