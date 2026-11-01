@@ -1182,6 +1182,16 @@ bool idle_startup()
         {
             gUserCredential = gLoginHandler.initializeLoginInfo();
         }
+        // The OGL privacy preference is authoritative even if a migrated
+        // profile or a startup login handler supplied old credentials.
+        // Avoid bypassing the login UI or silently re-enabling persistence.
+        if (APP_NAME == "OGL" && !gSavedSettings.getBOOL("FSRememberUsername"))
+        {
+            gSavedSettings.setBOOL("AutoLogin", false);
+            gSavedSettings.setBOOL("RememberPassword", false);
+            gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
+            gRememberPassword = false;
+        }
         // Previous initializeLoginInfo may have generated user credentials.  Re-check them.
         if (gUserCredential.isNull())
         {

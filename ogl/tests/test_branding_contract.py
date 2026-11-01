@@ -138,6 +138,35 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertNotIn("ogl_graphics_status", self.source(
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
 
+    def test_login_and_world_menus_remove_upstream_promotions(self):
+        removed = {
+            "Firestorm Blog", "Firestorm Primfeed", "Firestorm Flickr",
+            "Firestorm YouTube", "Firestorm Twitter", "Firestorm Plurk",
+            "Firestorm Wiki", "firestorm_support_group",
+            "Firestorm Classes Schedule", "Firestorm Events Calendar",
+        }
+        base = ROOT / "indra/newview/skins/default/xui"
+        paths = list(base.glob("*/menu_login.xml")) + list(base.glob("*/menu_viewer.xml"))
+        self.assertGreaterEqual(len(paths), 26)
+        for path in paths:
+            tree = ET.parse(path)
+            for node in tree.iter():
+                for visible in ("label", "tool_tip"):
+                    self.assertNotIn("firestorm", node.get(visible, "").lower(),
+                                     f"{path}:{node.get('name')}")
+                if node.tag == "menu_item_call":
+                    self.assertNotIn(node.get("name"), removed, str(path))
+        for menu in ("menu_viewer.xml", "menu_login.xml"):
+            en = ET.parse(base / "en" / menu).getroot()
+            self.assertTrue(any(e.get("name") == "NexVerse Portal"
+                                for e in en.iter("menu_item_call")))
+            self.assertTrue(any(e.get("name") == "About Second Life"
+                                for e in en.iter("menu_item_call")))
+            data = (base / "en" / menu).read_text()
+            self.assertIn("WebLaunchExternalTarget,https://stadt-nexverse.de/", data)
+            self.assertNotIn("wiki.firestormviewer.org", data)
+            self.assertNotIn("firestormviewer.org", data)
+
     def test_ogl_legacy_login_controls_removed_from_every_locale(self):
         paths = sorted((ROOT / 'indra/newview/skins').glob(
             '*/xui/*/panel_fs_nui_login.xml'))
@@ -368,6 +397,34 @@ class OGLBrandingContract(unittest.TestCase):
         for prefix in ('retrieving username:', 'account: ', 'agent: '):
             self.assertIn(f'LL_INFOS("Credentials", "Authentication") << "{prefix}"', cpp)
         self.assertGreaterEqual(cpp.count('if (APP_NAME != "OGL")'), 3)
+
+    def test_ogl_remember_username_optout_disables_implicit_password_persistence(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        start = cpp.index('if (!gSavedSettings.getBOOL("FSRememberUsername"))')
+        end = cpp.index('mPreviousUsername = username_combo', start)
+        opts = cpp[start:end]
+        self.assertIn('gSavedSettings.getControl("UserLoginInfo")->resetToDefault()', opts)
+        self.assertIn('gSavedSettings.setBOOL("RememberPassword", false)', opts)
+        self.assertIn('gSavedSettings.setBOOL("AutoLogin", false)', opts)
+        self.assertIn('if (!control->getValue().asBoolean())', opts)
+        self.assertIn('getChild<LLUICtrl>("remember_check")->setValue(false)', opts)
+        self.assertNotIn('deleteCredential(', opts)
+        self.assertNotIn('clearCredentials(', opts)
+        self.assertNotIn('syncProtectedMap()', opts)
+
+    def test_ogl_optout_blocks_autologin_before_startup_connect(self):
+        startup = self.source('indra/newview/llstartup.cpp')
+        start = startup.index('The OGL privacy preference is authoritative')
+        stop = startup.index('else if (gSavedSettings.getBOOL("AutoLogin"))', start)
+        before_auto = startup[start:stop]
+        self.assertIn('APP_NAME == "OGL"', before_auto)
+        self.assertIn('!gSavedSettings.getBOOL("FSRememberUsername")', before_auto)
+        self.assertIn('gSavedSettings.setBOOL("AutoLogin", false)', before_auto)
+        self.assertIn('gSavedSettings.setBOOL("RememberPassword", false)', before_auto)
+        self.assertIn('gSavedSettings.getControl("UserLoginInfo")->resetToDefault()', before_auto)
+        self.assertIn('gRememberPassword = false', before_auto)
+        self.assertLess(start, startup.index('else if (gSavedSettings.getBOOL("AutoLogin"))', start))
+        self.assertIn('show_connect_box = true', before_auto)
 
     def test_saved_account_deletion_requires_explicit_confirmation(self):
         for language in ('en', 'de'):

@@ -350,15 +350,29 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
         // Migrated profiles might contain an obsolete last-login identifier
         // despite the user previously opting out of username persistence.
         if (!gSavedSettings.getBOOL("FSRememberUsername"))
+        {
+            // A migrated profile may retain an enabled password setting even
+            // though account persistence was explicitly turned off. Clear
+            // these preferences without deleting user-managed credentials.
             gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
+            gSavedSettings.setBOOL("RememberPassword", false);
+            gSavedSettings.setBOOL("AutoLogin", false);
+        }
 
         getChild<LLUICtrl>("remember_username_check")->setCommitCallback(
             [](LLUICtrl* control, const LLSD&)
             {
-                // Clear the last-login identifier immediately when the user
-                // opts out, even if they never click the Connect button.
+                // Opting out must also disable implicit password persistence.
+                // Do not erase secure-store credentials: users can still
+                // remove individual saved accounts using the delete button.
                 if (!control->getValue().asBoolean())
+                {
                     gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
+                    gSavedSettings.setBOOL("RememberPassword", false);
+                    gSavedSettings.setBOOL("AutoLogin", false);
+                    if (FSPanelLogin::sInstance)
+                        FSPanelLogin::sInstance->getChild<LLUICtrl>("remember_check")->setValue(false);
+                }
             });
     }
     mPreviousUsername = username_combo->getValue().asString();
