@@ -6,6 +6,13 @@ compiled and GUI-launched on Linux Mint. The next OGL branding iteration now
 modifies product identity, welcome page, icons and a pinned HTTP login
 consent flow; every other insecure login endpoint stays blocked.
 
+**Projekt-Einstieg:** Für jede /goal-Fortsetzung zuerst
+[verbindliche Arbeitsregeln und Gesamtroadmap](GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md),
+[aktuellen Projektstand](PROJECT_STATUS.md) und
+[Projektübergabe](PROJECT_HANDOFF.md) lesen.
+Der verbindliche [Pflicht-Updater-Plan](GOAL_MANDATORY_VIEWER_UPDATER.md)
+ist geplant, aber noch nicht implementiert.
+
 - Upstream: https://github.com/FirestormViewer/phoenix-firestorm
 - Fork: https://github.com/marlin198323-glitch/ogl-viewer
 - Development branch: `ogl-develop`

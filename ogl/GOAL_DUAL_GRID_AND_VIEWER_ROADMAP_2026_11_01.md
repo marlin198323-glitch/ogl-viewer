@@ -2,6 +2,64 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+## Verbindlicher Projektauftrag – bei jedem neuen Chat zuerst lesen
+
+**Kanonisches GitHub-Repository:** https://github.com/marlin198323-glitch/ogl-viewer
+**Arbeitsbranch:** ogl-develop
+**Linux-Mint-Rechner / Commander:** jam-MS-7D28
+**Projektverzeichnis:** /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm
+
+Dieser Auftrag gilt für sämtliche folgenden /goal-Phasen:
+
+1. **Richtiges Projekt:** Ausschließlich das Firestorm-Fork-Repository
+   marlin198323-glitch/ogl-viewer auf ogl-develop bearbeiten;
+   nicht das frühere, getrennte Repository nexverse-viewer.
+2. **Bestand schützen:** Zunächst git status, den letzten Commit,
+   die Projektübergabe und Roadmaps lesen. Keine fremden Änderungen,
+   lokale Nutzerdaten, Einstellungen oder Zugangsdaten überschreiben.
+3. **Arbeitsweise:** Über den Linux-Mint-Commander arbeiten.
+   Jede /goal-Phase in **20 konkreten Entwicklungsblöcken** planen
+   und tatsächlich abarbeiten. Teilweise fertige Phasen als
+   **in Arbeit** kennzeichnen, niemals vorschnell als abgeschlossen.
+4. **Direkt freigeben:** Implementierung testen, den echten Viewer
+   soweit relevant bauen, Testresultate dokumentieren und geprüfte
+   Änderungen direkt auf origin/ogl-develop veröffentlichen.
+   Plattformen, die noch nicht geprüft wurden, offen benennen.
+5. **Gemeinsamer Viewer:** Linux, Windows und macOS sowie
+   AMD/Intel x86-64 und ARM64 berücksichtigen. CPU-/GPU-Funktionen
+   zur Laufzeit erkennen; ältere Hardware muss weiterhin über einen
+   funktionsfähigen OpenGL-Standardpfad arbeiten können.
+6. **Grid-Auswahl:** Genau zwei fest eingebaute Ziele behalten:
+   Stadt NexVerse (bestehendes OpenSim) und
+   Stadt NexVerse Beta (https://beta.stadt-nexverse.de).
+   Die Beta darf erst nach verifizierter TLS- und
+   Protokollunterstützung Zugangsdaten übertragen.
+7. **Pflicht-Updater:** Eine neue, vom Server nicht mehr akzeptierte
+   Viewer-Version muss aktualisiert werden, **bevor** Zugang zu
+   einem der beiden Grids gewährt wird. Ablehnen/Abbrechen des
+   Updates darf keinen Server-Login ermöglichen. Die
+   Mindestversionsprüfung ist **auch serverseitig** durchzusetzen,
+   nicht nur im Viewer. Sie ist derzeit geplant, nicht fertig.
+8. **Design und Plugins:** Das originale Firestorm-Design bleibt
+   Standard; optionale Designs, Templates und Erweiterungen
+   müssen sicher und rücksetzbar sein.
+9. **Projektgedächtnis im Repository:** Nach jedem bearbeiteten
+   /goal-Block den Status in
+   [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
+   Beim Phasenabschluss Roadmap, Tests, offene Blocker und
+   GitHub-Commit aktualisieren. Diese Dokumente sind die
+   Übergabequelle für spätere Chats.
+
+**Lese-Reihenfolge für neue Chats / Entwicklungsassistenten:**
+AGENTS.md im Repo-Hauptverzeichnis →
+[PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) →
+[PROJECT_STATUS.md](PROJECT_STATUS.md) →
+dieser Projektplan → Detailpläne der aktiven Phase.
+
+Ein neuer Chat kann den Inhalt nicht allein wegen einer neuen
+Unterhaltung automatisch kennen; deshalb zuerst dieses
+GitHub-Repository und die genannten Dateien öffnen.
+
 ## Grundsätze
 
 - Ein Firestorm-basierter Quellcode für Linux, Windows und macOS.
