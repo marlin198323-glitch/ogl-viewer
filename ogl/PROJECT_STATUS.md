@@ -430,6 +430,89 @@ Zwischenabnahme, aber mit echten technischen Prüfgates.
 auf den fehlenden externen Ende-zu-Ende-Nachweisen.
 Block 20/P02 bleiben bis zum P01-Abschluss-Gate gesperrt.
 
+## P01 – /goal-Sammeldurchlauf: 20 technische Prüfblöcke auf einmal
+
+**Code-Commit:** `1e4a6d4a` (`ogl-develop`).
+**Ergebnis:** **20/20 zusätzliche, unabhängig bezeichnete
+Prüfblöcke bestanden**. Dies sind **QA-/Entwicklungsprüfungen
+innerhalb von P01 Block 19**, nicht die 20 Phasenblöcke
+P01-1–20. **Operativer Phasenstand bleibt ehrlich 18/20.**
+
+- **Bestehenden Quellbestand aktualisiert, ohne neue Projektdateien:**
+  `indra/newview/fsdata.cpp` lädt für OGL keine veralteten
+  Firestorm-/Phoenix-XML-Daten, Support-Agentenlisten oder
+  Script-/Clienttag-Feeds über unverschlüsseltes
+  `phoenixviewer.com` mehr. Bei gesperrten Downloads setzt
+  OGL die vom Startautomaten erwarteten Flags
+  `mFSDataDone` und `mAgentsDone`, damit kein
+  Wartezustand entsteht. Nicht-OGL-Kompatibilitätscode
+  und urheberrechtliche Hinweise bleiben erhalten.
+  `indra/newview/llviewermedia.cpp` meldet als
+  eingebetteten Browser-User-Agent jetzt `OGL skin`
+  statt `firestorm skin`; der `SecondLife/`-Präfix
+  bleibt für bestehende Web-/Media-Protokolle erhalten.
+  In vorhandener `ogl/tests/test_branding_contract.py`
+  Regressionstests dafür ergänzt.
+- **Laufzeitbeweis:** Neues isoliertes Linux-Xvfb-Profil
+  mit absichtlich gesetztem `ForceLoginURL` zu
+  `example.invalid` und `FSdataQAtest=true`.
+  Viewer-Fenster 1024×680 auf 1280×720 sichtbar,
+  NexVerse-Welcome-URL geladen, `STATE_LOGIN_WAIT`
+  erreicht, User-Agent
+  `SecondLife/7.2.5.95 (OGL Viewer Development; OGL skin)`
+  geloggt. `Skipped legacy Firestorm configuration downloads`
+  protokolliert. Im Log **keine Phoenix-Downloadversuche**
+  und **keine fremde Welcome-Navigation**. Strg+Q
+  führte direkt zu `requestQuit`, Viewer beendete
+  sich **regulär mit Exit-Code 0**.
+- **20 tatsächlich bestandene Prüfblöcke dieser Runde:**
+  01 korrekter Branch; 02 zwei feste Grids; 03 genau zwei
+  Grid-Dropdown-Zeilen; 04 keine freie Grid-Adresse;
+  05 Beta-GUI-Login-Sperre; 06 Beta-Autologin-Sperre;
+  07 nur exakt gepinnte HTTP-Ausnahme nach Einwilligung;
+  08 Abbrechen als Default; 09 Passwort-Reset beim
+  Gridwechsel; 10 kein vollständiges Credential-Log;
+  11 feste Welcome-URL; 12 keine Firestorm-Konfiguration;
+  13 keine fremde Agentenliste; 14 keine Phoenix-Netzabfrage;
+  15 OGL-Browser-Agent live; 16 echte NexVerse-Welcome-
+  Navigation; 17 kein fremder URL-Override; 18 Fenster
+  und Login-Wartezustand; 19 sauberer Voranmelde-Quit;
+  20 vollständiger lokaler Test-/Build-Gate.
+  Alle 20 wurden automatisiert anhand konkreter
+  C++-Quellen, XUI, Laufzeitlogs und Testergebnisse
+  geprüft; **keine** echte Passwortanmeldung vorgenommen.
+- **Ergebnisse:** Reales Linux-Mint-Binary und Staging
+  erfolgreich, **135/135 Python-Tests**, **41/41 native CTests**,
+  `git diff --check` erfolgreich. Die vorherige
+  OGL-Portable-Grafik-CI auf `754880b9` bestand
+  auf sechs Runnern (Linux x64/ARM, Windows x64/ARM,
+  macOS Intel/Apple Silicon), prüft dort jedoch
+  **nur portable Module**, nicht den ganzen Viewer.
+  Kein vollständiger Windows-/macOS-Installer nachgewiesen.
+- **Sichere Altbestandkontrolle:** Nur bestehende
+  Quelldateipfade verändert. Vorhandene
+  `client_list_v2.xml`-, LSL-`_v2`- und
+  `script_copy.png`-Ressourcen sind durch bloßen
+  Namen nicht als unbenutzt nachgewiesen und
+  wurden deshalb nicht gelöscht. Vollständige
+  Release-/Signing-Workflows mit vorhandener
+  Firestorm-Deploy-Stufe wurden **nicht**
+  unbeaufsichtigt gestartet oder veröffentlicht.
+- **Externe Blocker unverändert:** Erfolgreicher
+  autorisierter Hauptgrid-Login, Speicherung und
+  Wiederherstellung des Login-Secrets, Logout
+  nach Eintritt in die 3D-Welt sowie vollständige
+  Windows-/macOS-Viewer-Builds und Laufzeittests
+  fehlen. Diese notwendigen P01-Abschlussnachweise
+  können die 20 grünen Teilprüfungen **nicht**
+  ersetzen.
+
+**Nächster operativer Einstieg:** `/goal P01 Block 19/20`
+mit den fehlenden Ende-zu-Ende-Nachweisen;
+erst danach Block 20/P02 nach Abschluss-Gate.
+Alle 20 Prüfungen in einer Sitzung abgearbeitet,
+keine manuelle Zwischenabnahme eingeführt.
+
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle
 Vulkan-/CPU-Module sind zu übernehmen. Diese Bestände bedeuten

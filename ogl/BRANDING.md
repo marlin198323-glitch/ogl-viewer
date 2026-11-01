@@ -62,6 +62,16 @@ survived a viewer restart; this does not prove successful account
 login or stored-password restoration. Real main-grid and full
 Windows/macOS viewer tests remain pending.
 
+P01 block 19 also disables the OGL viewer's unrelated Phoenix/Firestorm
+configuration, agent, script and client-tag downloads while retaining
+startup completion flags and the non-OGL compatibility code. An isolated
+Linux Xvfb run verified that no phoenixviewer.com fetches occurred, the
+fixed NexVerse welcome loaded, the embedded user agent contained
+`OGL skin` rather than `firestorm skin`, and Ctrl+Q exited cleanly.
+The local gate was 135 Python tests and 41 native CTests. A separate
+20/20 security/build verification batch succeeded, but P01 remains
+18/20 pending a real authenticated grid login and full platform builds.
+
 ## HTTP login compatibility
 
 The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.

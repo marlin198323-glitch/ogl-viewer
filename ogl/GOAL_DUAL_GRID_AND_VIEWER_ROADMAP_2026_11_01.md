@@ -206,8 +206,10 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 ### /goal P01 – Branding und modernes Login
 
-**Status:** aktiv; Blöcke 1–18/20 geprüft; Block 19 teilweise
-abgearbeitet (Code-Commit `6ac3c63f`).
+**Status:** aktiv; Blöcke 1–18/20 geprüft; Block 19 weiter
+bearbeitet (Code-Commits `6ac3c63f`, `1e4a6d4a`; in der aktuellen
+Sammelrunde **20/20 technische Prüfblöcke**, nicht 20/20
+P01-Phasenblöcke, erfolgreich).
 Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
 festes Welcome, Voranmelde-Quit (Exit 0) und
 Checkbox-Einstellung nach Neustart lokal bestätigt.
