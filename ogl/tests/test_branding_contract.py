@@ -265,6 +265,79 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIsNotNone(english.find('.//menu[@name="Me"]'))
         self.assertIsNotNone(english.find('.//menu[@name="BuildTools"]'))
 
+    def test_ogl_world_menus_have_no_obsolete_linden_or_firestorm_entries(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        paths = sorted(base.glob('*/menu_viewer.xml'))
+        self.assertEqual(len(paths), 13)
+        obsolete = {'Events', 'Linden Home', 'Official Linden Blog',
+                    'Public Issue Tracker', 'Firestorm MoTD'}
+        for path in paths:
+            menu = ET.parse(path).getroot()
+            self.assertEqual(menu.tag, 'menu_bar')
+            self.assertFalse(obsolete & {e.get('name') for e in menu.iter()},
+                             str(path))
+            self.assertFalse(any('Firestorm' in e.get('label', '')
+                                 for e in menu.iter()), str(path))
+        # Keep the actual land and world functions on OpenSim.
+        english = ET.parse(base / 'en/menu_viewer.xml').getroot()
+        for name in ('Mini-Map', 'World Map', 'Buy Land',
+                     'About Second Life', 'Report Abuse', 'Script Library'):
+            self.assertTrue(any(e.get('name') == name for e in english.iter()),
+                            name)
+
+    def test_ogl_nexverse_news_uses_portal_instead_of_old_motd(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        for lang, label in (('en','NexVerse News'),
+                            ('de','NexVerse Nachrichten')):
+            root = ET.parse(base / lang / 'menu_viewer.xml').getroot()
+            news = [e for e in root.iter('menu_item_call')
+                    if e.get('name') == 'NexVerse News']
+            self.assertEqual(len(news), 1, lang)
+            self.assertEqual(news[0].get('label'), label)
+            callback = news[0].find('menu_item_call.on_click')
+            self.assertIsNotNone(callback)
+            self.assertEqual(callback.get('function'), 'Advanced.ShowURL')
+            self.assertEqual(callback.get('parameter'), 'https://stadt-nexverse.de/')
+            discover = next(e for e in root.iter('menu')
+                            if e.get('name') == 'Content')
+            self.assertEqual(discover.get('label'),
+                             'Discover' if lang == 'en' else 'Entdecken')
+
+    def test_ogl_issue_tracker_and_downloads_have_real_menu_actions(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        routes = {'Report Bug':
+                  'https://github.com/marlin198323-glitch/ogl-viewer/issues',
+                  'OGL Viewer Downloads':
+                  'https://github.com/marlin198323-glitch/ogl-viewer/releases'}
+        for lang in ('en','de'):
+            root = ET.parse(base / lang / 'menu_viewer.xml').getroot()
+            help_menu = next(e for e in root.iter('menu')
+                             if e.get('name') == 'Help')
+            for name, route in routes.items():
+                candidates = [e for e in help_menu.iter('menu_item_call')
+                              if e.get('name') == name]
+                self.assertEqual(len(candidates), 1, (lang,name))
+                on_click = candidates[0].find('menu_item_call.on_click')
+                self.assertIsNotNone(on_click)
+                self.assertEqual(on_click.get('function'), 'Advanced.ShowURL')
+                self.assertEqual(on_click.get('parameter'), route)
+            self.assertTrue(any(e.get('name') == 'NexVerse Portal'
+                                for e in help_menu.iter('menu_item_call')))
+            self.assertTrue(any(e.get('name') == 'About Second Life'
+                                for e in help_menu.iter('menu_item_call')))
+
+    def test_translated_script_library_remains_callable(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        for lang in ('en', 'de', 'pt'):
+            root = ET.parse(base / lang / 'menu_viewer.xml').getroot()
+            found = [e for e in root.iter() if e.get('name') == 'Script Library']
+            self.assertEqual(len(found), 1, lang)
+            self.assertEqual(found[0].tag, 'menu_item_call', lang)
+            if lang == 'en':
+                on_click = found[0].find('menu_item_call.on_click')
+                self.assertEqual(on_click.get('function'), 'PromptShowURL')
+                self.assertIn('LSL_Library', on_click.get('parameter'))
+
     def test_login_and_world_menus_remove_upstream_promotions(self):
         removed = {
             "Firestorm Blog", "Firestorm Primfeed", "Firestorm Flickr",

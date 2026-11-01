@@ -122,7 +122,6 @@
 		<menu_item_call label="Historique de téléportation" name="Teleport History"/>
 		<menu_item_check label="Lieux" name="Places"/>
 		<menu_item_call label="Destinations..." name="Destinations"/>
-		<menu_item_call label="Événements" name="Events"/>
 		<menu_item_check label="Mini-carte" name="Mini-Map"/>
 		<menu_item_check label="Carte du monde" name="World Map"/>
 		<menu_item_check label="Suivi des régions" name="Region Tracker"/>
@@ -134,7 +133,6 @@
 		<menu_item_call label="Définir le domicile ici" name="Set Home to Here"/>
 		<menu_item_call label="Acheter ce terrain" name="Buy Land"/>
 		<menu_item_call label="Mes terrains..." name="My Land"/>
-		<menu_item_call label="Ma maison (Linden Home)" name="Linden Home"/>
 		<menu label="Afficher" name="LandShow">
 			<menu_item_check label="Cacher les lignes d'interdiction" name="Hide Ban Lines"/>
 			<menu_item_check label="Lignes d'interdiction suite à une collision" name="Show Ban Lines On Collision"/>
@@ -282,7 +280,7 @@
 		<menu_item_call label="Taux de change du L$" name="LindenXchange"/>
 		<menu_item_call label="Bibliothèque de scripts" name="Script Library"/>
 		<menu_item_call label="Communauté SL (blogs, forums, nouvelles)" name="SL Community Pages"/>
-		<menu_item_call label="Message du jour" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 	</menu>
 	<menu label="Aide" name="Help">
 		<menu_item_check label="Affficher les conseils" name="Enable Hints"/>
@@ -686,10 +684,8 @@
 			<menu_item_call label="Tous les habits" name="All Clothes"/>
 		</menu>
 		<menu label="Aide" name="DeprecatedHelp">
-			<menu_item_call label="Blog officiel des Linden" name="Official Linden Blog"/>
 			<menu_item_call label="Portail d&apos;écriture de scripts" name="Scripting Portal"/>
 			<menu label="Signaler un bug" name="Bug Reporting">
-				<menu_item_call label="JIRA" name="Public Issue Tracker"/>
 				<menu_item_call label="Aide du JIRA" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Comment signaler des bugs" name="Bug Reporing 101"/>
 				<menu_item_call label="Problèmes de sécurité" name="Security Issues"/>

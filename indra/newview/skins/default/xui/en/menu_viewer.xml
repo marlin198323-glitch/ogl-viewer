@@ -1067,17 +1067,6 @@
              function="GridFeatureCheck"
              parameter="destination_guide"/>
         </menu_item_call>
-        <menu_item_call
-             label="Events"
-             name="Events"
-             shortcut="control|E">
-            <menu_item_call.on_click
-             function="Advanced.ShowURL"
-             parameter="https://secondlife.com/my/community/events"/>
-            <menu_item_call.on_visible
-             function="GridCheck"
-             parameter="secondlife"/>
-        </menu_item_call>
         <menu_item_check
              label="Mini-Map"
              name="Mini-Map"
@@ -1194,15 +1183,6 @@
                  parameter="land_holdings" />
         </menu_item_call>
 
-        <menu_item_call
-         label="My Linden Home..."
-         name="Linden Home">
-            <menu_item_call.on_visible
-             function="GridCheck"
-             parameter="secondlife"/>
-            <menu_item_call.on_click
-             function="World.LindenHome"/>
-        </menu_item_call>
         
         <menu
            create_jump_keys="true"
@@ -2535,7 +2515,7 @@
     
     <menu
     	create_jump_keys="true"
-    	label="Content"
+     label="Discover"
     	name="Content"
     	tear_off="true"
         visible="true">
@@ -2567,11 +2547,11 @@
        </menu_item_call>
        <menu_item_separator/>
        <menu_item_call
-             label="Message of the day"
-             name="Firestorm MoTD">
+             label="NexVerse News"
+             name="NexVerse News">
              <menu_item_call.on_click
-             function="Advanced.ToggleHUDInfo"
-             parameter="motd" />
+              function="Advanced.ShowURL"
+              parameter="https://stadt-nexverse.de/" />
        </menu_item_call>
       </menu>   
     
@@ -2614,6 +2594,14 @@
 	   
 
 
+
+        <menu_item_call
+         label="OGL Viewer Downloads"
+         name="OGL Viewer Downloads">
+            <menu_item_call.on_click
+             function="Advanced.ShowURL"
+             parameter="https://github.com/marlin198323-glitch/ogl-viewer/releases" />
+        </menu_item_call>
 
         <menu_item_check
          label="Guidebook"
@@ -2717,10 +2705,11 @@
                  function="ReportAbuse" />
             </menu_item_call>
         <menu_item_call
-             label="Report Problem"
+             label="Report an OGL Issue"
              name="Report Bug">
                 <menu_item_call.on_click
-                 function="Advanced.ReportBug"/>
+                 function="Advanced.ShowURL"
+                 parameter="https://github.com/marlin198323-glitch/ogl-viewer/issues"/>
             </menu_item_call>
 
         <menu_item_separator/>
@@ -6141,14 +6130,6 @@
          name="DeprecatedHelp"
          tear_off="true">
             <menu_item_call
-             label="Official Linden Blog"
-             name="Official Linden Blog">
-                <menu_item_call.on_click
-                 function="PromptShowURL"
-                 name="OfficialLindenBlog_url"
-                 parameter="WebLaunchSupportWiki,http://blog.secondlife.com/" />
-            </menu_item_call>
-            <menu_item_call
              label="Scripting Portal"
              name="Scripting Portal">
                 <menu_item_call.on_click
@@ -6161,14 +6142,6 @@
              label="Bug Reporting"
              name="Bug Reporting"
              tear_off="true">
-                <menu_item_call
-                 label="Public Issue Tracker"
-                 name="Public Issue Tracker">
-                    <menu_item_call.on_click
-                     function="PromptShowURL"
-                     name="PublicIssueTracker_url"
-                     parameter="WebLaunchPublicIssue,https://feedback.secondlife.com/" />
-                </menu_item_call>
                 <menu_item_call
                  label="Public Issue Tracker Help"
                  name="Publc Issue Tracker Help">

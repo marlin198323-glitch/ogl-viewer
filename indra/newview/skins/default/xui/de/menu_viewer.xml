@@ -122,7 +122,6 @@
 		<menu_item_call label="Teleport-Liste" name="Teleport History"/>
 		<menu_item_check label="Orte" name="Places"/>
 		<menu_item_call label="Ziele" name="Destinations"/>
-		<menu_item_call label="Events" name="Events"/>
 		<menu_item_check label="Minikarte" name="Mini-Map"/>
 		<menu_item_check label="Karte" name="World Map"/>
 		<menu_item_check label="Regions-Tracker" name="Region Tracker"/>
@@ -133,7 +132,6 @@
 		<menu_item_call label="Region/Grundbesitz" name="RegionEstate"/>
 		<menu_item_call label="Dieses Land kaufen" name="Buy Land"/>
 		<menu_item_call label="Mein Land" name="My Land"/>
-		<menu_item_call label="Mein Linden Home" name="Linden Home"/>
 		<menu label="Anzeigen" name="LandShow">
 			<menu_item_check label="Bannlinien nicht anzeigen" name="Hide Ban Lines"/>
 			<menu_item_check label="Bannlinien bei Kollision anzeigen" name="Show Ban Lines On Collision"/>
@@ -279,24 +277,31 @@
 		<menu_item_call label="Wiederholen" name="Redo"/>
 		<menu_item_call label="Lokaler Bitmap-Browser" name="Local Bitmap Browser"/>
 	</menu>
-	<menu label="Inhalt" name="Content">
+	<menu label="Entdecken" name="Content">
 		<menu_item_check label="Suchen" name="Search"/>
 
-		<menu_item_check label="Skript-Datenbank" name="Script Library"/>
+		<menu_item_call label="Skript-Datenbank" name="Script Library"/>
 
-		<menu_item_call label="Nachricht des Tages" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse Nachrichten" name="NexVerse News">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
 	</menu>
 	<menu label="Hilfe &amp; Support" name="Help">
 		<menu_item_check label="Hinweise aktivieren" name="Enable Hints"/>
 		<menu_item_call label="NexVerse Portal" name="NexVerse Portal"/>
 		<menu_item_call label="Fehlerbehebung" name="Troubleshooting"/>
+		<menu_item_call label="OGL Viewer herunterladen" name="OGL Viewer Downloads">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://github.com/marlin198323-glitch/ogl-viewer/releases"/>
+		</menu_item_call>
 		<menu_item_check label="Anweisungen..." name="How To"/>
 		<menu_item_call label="[CURRENT_GRID]-Hilfe" name="current_grid_help"/>
 		<menu_item_call label="Über [CURRENT_GRID]" name="current_grid_about"/>
 		<menu_item_call label="Whitelist-Unterstützung" name="whitelist_folders"/>
 		<menu_item_call label="Grid-Status prüfen" name="Grid Status"/>
 		<menu_item_call label="Missbrauch melden" name="Report Abuse"/>
-		<menu_item_call label="Problem melden" name="Report Bug"/>
+		<menu_item_call label="OGL-Fehler melden" name="Report Bug">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://github.com/marlin198323-glitch/ogl-viewer/issues"/>
+		</menu_item_call>
 		<menu_item_call label="Rempler, Stöße &amp; Schläge" name="Bumps, Pushes &amp;amp; Hits"/>
 		<menu_item_check label="Sysinfo-Button aktivieren" name="Enable Sysinfo Button"/>
 		<menu_item_call label="Info über [APP_NAME]" name="About Second Life"/>
@@ -739,10 +744,8 @@
 			<menu_item_call label="Alle Kleider" name="All Clothes"/>
 		</menu>
 		<menu label="Hilfe" name="DeprecatedHelp">
-			<menu_item_call label="Offizielles Linden-Blog" name="Official Linden Blog"/>
 			<menu_item_call label="Scripting-Portal" name="Scripting Portal"/>
 			<menu label="Fehlermeldungen" name="Bug Reporting">
-				<menu_item_call label="Allgemeiner Probleme-Tracker" name="Public Issue Tracker"/>
 				<menu_item_call label="Hilfe zum Allgemeinen Probleme-Tracker" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Fehlermeldungs-1x1" name="Bug Reporing 101"/>
 				<menu_item_call label="Sicherheitsprobleme" name="Security Issues"/>

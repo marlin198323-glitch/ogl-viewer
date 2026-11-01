@@ -125,7 +125,6 @@
 		<menu_item_call label="История телепортаций" name="Teleport History"/>
 		<menu_item_check label="Места" name="Places"/>
 		<menu_item_call label="Пункты" name="Destinations"/>
-		<menu_item_call label="События" name="Events"/>
 		<menu_item_check label="Мини карта" name="Mini-Map"/>
 		<menu_item_check label="Карта мира" name="World Map"/>
 		<menu_item_check label="Отслеживание региона" name="Region Tracker"/>
@@ -137,7 +136,6 @@
 		<menu_item_call label="Установить 'Дом' тут" name="Set Home to Here"/>
 		<menu_item_call label="Купить эту землю" name="Buy Land"/>
 		<menu_item_call label="Показать собственные земли" name="My Land"/>
-		<menu_item_call label="Мой Линден Дом..." name="Linden Home"/>
 		<menu label="Показать больше" name="LandShow">
 			<menu_item_check label="Скрыть Запрещающие линии" name="Hide Ban Lines"/>
 			<menu_item_check label="Показать Запрещающие линии при столкновении" name="Show Ban Lines On Collision"/>
@@ -323,7 +321,7 @@
 		<menu_item_call label="Торговые данные L$" name="LindenXchange"/>
 		<menu_item_call label="Библиотека скриптов" name="Script Library"/>
 		<menu_item_call label="SL Сообщество (блоги, форумы, новости)" name="SL Community Pages"/>
-		<menu_item_call label="Сообщение дня" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 	</menu>
 	<!-- Help Menu -->
 	<menu label="Помощь" name="Help">
@@ -765,15 +763,12 @@
 			<menu_item_call label="Всю одежду" name="All Clothes"/>
 		</menu>
 		<menu label="Помощь" name="DeprecatedHelp">
-			<menu_item_call label="Официальный блог Linden" name="Official Linden Blog"/>
 			<menu_item_call label="Портал скриптов" name="Scripting Portal"/>
 			<menu label="Сообщение об ошибке" name="Bug Reporting">
-				<menu_item_call label="Общедоступное средство отслеживания проблем" name="Public Issue Tracker"/>
 				<menu_item_call label="Помощь по общедоступному средству отслеживания проблем" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Сообщение об ошибке 101" name="Bug Reporing 101"/>
 				<menu_item_call label="Проблемы безопасности" name="Security Issues"/>
 				<menu_item_call label="QA Wiki" name="QA Wiki"/>
-				<menu_item_call label="Официальный блог Linden" name="Official Linden Blog"/>
 			</menu>
 		</menu>
 	</menu>

@@ -109,7 +109,6 @@
 		<menu_item_call label="Storico Teleport" name="Teleport History"/>
 		<menu_item_check label="Luoghi" name="Places"/>
 		<menu_item_call label="Destinazioni" name="Destinations"/>
-		<menu_item_call label="Eventi" name="Events"/>
 		<menu_item_check label="Minimappa" name="Mini-Map"/>
 		<menu_item_check label="Mappa" name="World Map"/>
 		<menu_item_check label="Traccia Regione" name="Region Tracker"/>
@@ -121,7 +120,6 @@
 		<menu_item_call label="Imposta qui la mia Home" name="Set Home to Here"/>
 		<menu_item_call label="Compra questo terreno" name="Buy Land"/>
 		<menu_item_call label="I Miei Terreni" name="My Land"/>
-		<menu_item_call label="La mia casa Linden" name="Linden Home"/>
 		<menu label="Mostra altro" name="LandShow">
 			<menu_item_check label="Nascondi linee di divieto" name="Hide Ban Lines" />
 			<menu_item_check label="Mostra linee di divieto alla collisione" name="Show Ban Lines On Collision" />
@@ -277,7 +275,7 @@
 		<menu_item_call label="SL Marketplace" name="SL Marketplace"/>
 		<menu_item_call label="Dati di mercato" name="LindenXchange"/>
 		<menu_item_call label="Libreria script" name="Script Library"/>
-		<menu_item_call label="Messaggio del giorno" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 	</menu>
 	<menu label="Aiuto" name="Help">
 		<menu_item_check label="Abilita i suggerimenti" name="Enable Hints"/>
@@ -693,10 +691,8 @@
 			<menu_item_call label="Tutto" name="All Clothes"/>
 		</menu>
 		<menu label="Aiuto" name="DeprecatedHelp">
-			<menu_item_call label="Blog ufficiale Linden" name="Official Linden Blog"/>
 			<menu_item_call label="Portale Scripting" name="Scripting Portal"/>
 			<menu label="Bug Reporting" name="Bug Reporting">
-				<menu_item_call label="Public Issue Tracker" name="Public Issue Tracker"/>
 				<menu_item_call label="Public Issue Tracker Help" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Bug Reporting 101" name="Bug Reporing 101"/>
 				<menu_item_call label="Problemi sicurezza" name="Security Issues"/>

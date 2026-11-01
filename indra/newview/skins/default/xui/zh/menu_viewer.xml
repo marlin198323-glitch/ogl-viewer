@@ -114,7 +114,6 @@
 		<menu_item_call label="瞬間傳送歷史" name="Teleport History" />
 		<menu_item_check label="地點" name="Places" />
 		<menu_item_call label="目的地…" name="Destinations" />
-		<menu_item_call label="活動" name="Events" />
 		<menu_item_check label="小地圖" name="Mini-Map" />
 		<menu_item_check label="世界地圖" name="World Map" />
 		<menu_item_check label="區域監測" name="Region Tracker" />
@@ -126,7 +125,6 @@
 		<menu_item_call label="把這裡設為我的家" name="Set Home to Here" />
 		<menu_item_call label="購買這塊土地" name="Buy Land" />
 		<menu_item_call label="我所擁有的土地…" name="My Land" />
-		<menu_item_call label="我的房子(Linden Home)" name="Linden Home" />
 		<menu label="顯示更多" name="LandShow">
 			<menu_item_check label="隱藏禁越線" name="Hide Ban Lines" />
 			<menu_item_check label="碰撞時顯示禁越線" name="Show Ban Lines On Collision" />
@@ -275,7 +273,7 @@
 		<menu_item_call label="L$ 匯率" name="LindenXchange" />
 		<menu_item_call label="指令碼庫" name="Script Library" />
 		<menu_item_call label="SL社群（部落格、論壇、新聞）" name="SL Community Pages" />
-		<menu_item_call label="今日訊息" name="Firestorm MoTD" />
+		<menu_item_call label="NexVerse News" name="NexVerse News" />
 	</menu>
 	<menu label="幫助" name="Help">
 		<menu_item_check label="啟用瀏覽器UI提示" name="Enable Hints" />
@@ -707,10 +705,8 @@
 			<menu_item_call label="全部服裝" name="All Clothes" />
 		</menu>
 		<menu label="幫助" name="DeprecatedHelp">
-			<menu_item_call label="林登官方Blog" name="Official Linden Blog" />
 			<menu_item_call label="指令碼門戶" name="Scripting Portal" />
 			<menu label="報告問題" name="Bug Reporting">
-				<menu_item_call label="問題意見反應（JIRA）" name="Public Issue Tracker" />
 				<menu_item_call label="問題意見反應（JIRA）幫助" name="Publc Issue Tracker Help" />
 				<menu_item_call label="報告錯誤 " name="Bug Reporing 101" />
 				<menu_item_call label="安全問題" name="Security Issues" />

@@ -122,7 +122,6 @@
 		<menu_item_call label="テレポート履歴" name="Teleport History"/>
 		<menu_item_check label="場所" name="Places"/>
 		<menu_item_call label="行き先…" name="Destinations"/>
-		<menu_item_call label="イベント" name="Events"/>
 		<menu_item_check label="ミニマップ" name="Mini-Map"/>
 		<menu_item_check label="ワールドマップ" name="World Map"/>
 		<menu_item_check label="リージョントラッカー" name="Region Tracker"/>
@@ -134,7 +133,6 @@
 		<menu_item_call label="現在地をホームとして設定" name="Set Home to Here"/>
 		<menu_item_call label="この土地を購入する" name="Buy Land"/>
 		<menu_item_call label="自分の土地" name="My Land"/>
-		<menu_item_call label="リンデンホーム…" name="Linden Home"/>
 		<menu label="表示" name="LandShow">
 			<menu_item_check label="バンラインを隠す" name="Hide Ban Lines"/>
 			<menu_item_check label="バンラインにぶつかったときに表示" name="Show Ban Lines On Collision"/>
@@ -289,7 +287,7 @@
 		<menu_item_call label="スクリプトライブラリ" name="Script Library"/>
 		<menu_item_call label="ＳＬコミュニティ（ブログ、フォーラム、ニュース）" name="SL Community Pages"/>
 		<!-- added Mar.15, 2015 -->
-		<menu_item_call label="本日のメッセージ" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 		<!-- added Mar.15, 2015 -->
 	</menu>
 	<menu label="ヘルプ" name="Help">
@@ -736,10 +734,8 @@
 			<menu_item_call label="すべての衣装" name="All Clothes"/>
 		</menu>
 		<menu label="ヘルプ" name="DeprecatedHelp">
-			<menu_item_call label="Linden公式ブログ" name="Official Linden Blog"/>
 			<menu_item_call label="スクリプトポータル" name="Scripting Portal"/>
 			<menu label="バグ報告" name="Bug Reporting">
-				<menu_item_call label="パブリック問題トラッカー" name="Public Issue Tracker"/>
 				<menu_item_call label="パブリック問題トラッカーヘルプ" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="バグ報告の基礎知識" name="Bug Reporing 101"/>
 				<menu_item_call label="セキュリティ問題" name="Security Issues"/>

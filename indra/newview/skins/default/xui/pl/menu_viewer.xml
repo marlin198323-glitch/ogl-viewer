@@ -113,7 +113,6 @@
 		<menu_item_call label="Historia teleportacji" name="Teleport History"/>
 		<menu_item_check label="Landmarki" name="Places"/>
 		<menu_item_call label="Cele podróży" name="Destinations"/>
-		<menu_item_call label="Wydarzenia" name="Events"/>
 		<menu_item_check label="Minimapa" name="Mini-Map"/>
 		<menu_item_check label="Mapa świata" name="World Map"/>
 		<menu_item_check label="Śledzenie regionów" name="Region Tracker"/>
@@ -125,7 +124,6 @@
 		<menu_item_call label="Ustaw Miejsce Startu tu, gdzie stoję" name="Set Home to Here"/>
 		<menu_item_call label="Kup działkę" name="Buy Land"/>
 		<menu_item_call label="Moje działki" name="My Land"/>
-		<menu_item_call label="Mój dom (Linden Home)" name="Linden Home" />
 		<menu label="Pokaż więcej" name="LandShow">
 			<menu_item_check label="Ukryj linie zakazu" name="Hide Ban Lines" />
 			<menu_item_check label="Linie zakazu przy kolizji" name="Show Ban Lines On Collision" />
@@ -288,7 +286,7 @@
 		<menu_item_call label="Dane z rynku L$" name="LindenXchange"/>
 		<menu_item_call label="Biblioteka skryptów" name="Script Library"/>
 		<menu_item_call label="Społeczność SL (blogi, fora, aktualności)" name="SL Community Pages"/>
-		<menu_item_call label="Wiadomość dnia" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 	</menu>
 	<menu label="Pomoc" name="Help">
 		<menu_item_check label="Włącz podpowiedzi" name="Enable Hints"/>
@@ -722,15 +720,12 @@
 			<menu_item_call label="Wszystkie ubrania" name="All Clothes"/>
 		</menu>
 		<menu label="Pomoc" name="DeprecatedHelp">
-			<menu_item_call label="Oficjalny blog Lindenów" name="Official Linden Blog"/>
 			<menu_item_call label="Portal dla skrypterów" name="Scripting Portal"/>
 			<menu label="Raportowanie błędów" name="Bug Reporting">
-				<menu_item_call label="Publiczny system śledzenia błędów" name="Public Issue Tracker"/>
 				<menu_item_call label="Pomoc publicznego systemu śledzenia błędów" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Raportowanie błędów 101" name="Bug Reporing 101"/>
 				<menu_item_call label="Problemy z bezpieczeństwem" name="Security Issues"/>
 				<menu_item_call label="Wiki kontroli jakości" name="QA Wiki"/>
-				<menu_item_call label="Oficjalny blog Lindenów" name="Official Linden Blog"/>
 			</menu>
 		</menu>
 	</menu>

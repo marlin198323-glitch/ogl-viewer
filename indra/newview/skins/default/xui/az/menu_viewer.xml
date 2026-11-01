@@ -128,7 +128,6 @@
 		<menu_item_call label="Teleportasiya tarixi" name="Teleport History"/>
 		<menu_item_check label="Yerlər" name="Places"/>
 		<menu_item_call label="Destinasiyalar" name="Destinations"/>
-		<menu_item_call label="Hadisələr" name="Events"/>
 		<menu_item_check label="Mini Xəritə" name="Mini-Map"/>
 		<menu_item_check label="Dünya xəritəsi" name="World Map"/>
 		<menu_item_check label="Region izləyici" name="Region Tracker"/>
@@ -139,7 +138,6 @@
 		<menu_item_call label="Ev kimi qeyd etmək" name="Set Home to Here"/>
 		<menu_item_call label="Bu torpağı almaq" name="Buy Land"/>
 		<menu_item_call label="Öz torpaqlarımı göstərmək" name="My Land"/>
-		<menu_item_call label="Mənim Linden Evim..." name="Linden Home"/>
 		<menu label="Daha çox göstərmək" name="LandShow">
 			<menu_item_check label="Qadağan xətləri" name="Ban Lines"/>
 			<menu_item_check label="Işıqlandırıcılar" name="beacons"/>
@@ -277,7 +275,7 @@
 		<menu_item_call label="SL Ticarət mərkəzi" name="SL Marketplace"/>
 		<menu_item_call label="LindenXchange" name="LindenXchange"/>
 		<menu_item_call label="Skript Kitabxanası" name="Script Library"/>
-		<menu_item_call label="NexVerse xəbərləri" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 	</menu>
 	<!-- Help Menu -->
 	<menu label="Kömək" name="Help">
@@ -675,15 +673,12 @@
 			<menu_item_call label="Bütün geyimlər" name="All Clothes"/>
 		</menu>
 		<menu label="Kömək" name="DeprecatedHelp">
-			<menu_item_call label="Linden rəsmi blogu" name="Official Linden Blog"/>
 			<menu_item_call label="Script portalı" name="Scripting Portal"/>
 			<menu label="Xəta bildirişi" name="Bug Reporting">
-				<menu_item_call label="Ümumi problem izləmə vasitəsi" name="Public Issue Tracker"/>
 				<menu_item_call label="Ümumi problem izləmə vasitəsinə kömək" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Xəta bildirişi 101" name="Bug Reporing 101"/>
 				<menu_item_call label="Təhlükəsizlik problemləri" name="Security Issues"/>
 				<menu_item_call label="QA Wiki" name="QA Wiki"/>
-				<menu_item_call label="Linden rəsmi blogu" name="Official Linden Blog"/>
 			</menu>
 		</menu>
 	</menu>

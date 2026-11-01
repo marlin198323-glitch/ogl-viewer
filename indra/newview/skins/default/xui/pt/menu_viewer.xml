@@ -123,7 +123,6 @@
 		<menu_item_call label="Histórico de teleportes" name="Teleport History"/>
 		<menu_item_check label="Lugares" name="Places"/>
 		<menu_item_call label="Destinos" name="Destinations"/>
-		<menu_item_call label="Eventos" name="Events"/>
 		<menu_item_check label="Minimapa" name="Mini-Map"/>
 		<menu_item_check label="Mapa" name="World Map"/>
 		<menu_item_check label="Rastreador de regiões" name="Region Tracker"/>
@@ -134,7 +133,6 @@
 		<menu_item_call label="Região/Terreno" name="RegionEstate"/>
 		<menu_item_call label="Comprar este terreno" name="Buy Land"/>
 		<menu_item_call label="Meu terreno" name="My Land"/>
-		<menu_item_call label="Minha Linden Home" name="Linden Home"/>
 		<menu label="Mostrar" name="LandShow">
 			<menu_item_check label="Não mostrar linhas de banimento" name="Hide Ban Lines"/>
 			<menu_item_check label="Mostrar linhas de banimento em colisão" name="Show Ban Lines On Collision"/>
@@ -283,9 +281,9 @@
 	<menu label="Conteúdo" name="Content">
 		<menu_item_check label="Buscar" name="Search"/>
 		<menu_item_check label="Cotações do mercado L$" name="LindenXchange"/>
-		<menu_item_check label="Biblioteca de scripts" name="Script Library"/>
+		<menu_item_call label="Biblioteca de scripts" name="Script Library"/>
 		<menu_item_call label="Comunidade SL (blogs, fóruns, notícias)" name="SL Community Pages"/>
-		<menu_item_call label="Mensagem do dia" name="Firestorm MoTD"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News"/>
 	</menu>
 	<menu label="Ajuda" name="Help">
 		<menu_item_check label="Ativar dicas" name="Enable Hints"/>
@@ -726,10 +724,8 @@
 			<menu_item_call label="Todas as roupas" name="All Clothes"/>
 		</menu>
 		<menu label="Ajuda" name="DeprecatedHelp">
-			<menu_item_call label="Blog oficial da Linden" name="Official Linden Blog"/>
 			<menu_item_call label="Portal de scripting" name="Scripting Portal"/>
 			<menu label="Relatórios de erro" name="Bug Reporting">
-				<menu_item_call label="Rastreador geral de problemas" name="Public Issue Tracker"/>
 				<menu_item_call label="Ajuda do rastreador geral de problemas" name="Publc Issue Tracker Help"/>
 				<menu_item_call label="Relatório de erro 101" name="Bug Reporing 101"/>
 				<menu_item_call label="Problemas de segurança" name="Security Issues"/>
