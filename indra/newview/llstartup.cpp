@@ -1785,6 +1785,18 @@ bool idle_startup()
         // unchanged URI. Other HTTP servers remain blocked.
         if (APP_NAME == "OGL")
         {
+            // Enforce at the real authentication boundary as well as the
+            // login button: auto-login, saved accounts and deep links must
+            // never send OpenSim credentials to the unverified Beta site.
+            if (OGLNexVerseGrid::isBetaGrid(LLGridManager::getInstance()->getGrid()))
+            {
+                LL_WARNS("OGLGrid") << "Blocked beta authentication: no verified protocol/TLS adapter." << LL_ENDL;
+                gSavedSettings.setBOOL("AutoLogin", false);
+                transition_back_to_login_panel("");
+                LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                    "MESSAGE", LLTrans::getString("OGLBetaLoginUnavailable")));
+                return false;
+            }
             std::vector<std::string> uris;
             LLGridManager::getInstance()->getLoginURIs(uris);
             bool all_https = !uris.empty();
