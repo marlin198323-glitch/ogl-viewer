@@ -32,18 +32,19 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18
-abgeschlossen; `f2630c0e`: eine monotone
-Dialoggeneration verhindert wiederholte
-und überholte HTTP-Warnungszustimmungen;
-Toolbar-Reset nur noch nach bestätigtem
-Moduswechsel. 20/20 Prüfschritte,
-194 Python-/41 native Tests sowie
-Hauptgrid-/Beta-GUI-Negativläufe grün.
-P02 formal 0/20. Noch offen: autorisierter
-Hauptgrid-Live-Login, Passwortpersistenz,
-In-World-Shutdown, vollständige
-Windows-/macOS-Viewer-Build- und GUI-Tests).
+wechseln. Aktueller Einstieg: **P01, Block 19/20**
+(Blöcke 1–18 abgeschlossen; Code `a8951b29`:
+Moduswechsel-Dialoge gegen veraltete,
+wiederholte oder fremde Bestätigungen
+abgesichert, alte Login-XUI-Fallback-
+URLs auf NexVerse umgestellt. 20/20
+QA-Positionen; 198 Python-/41 native
+Tests und Hauptgrid-/Beta-GUI-Smokes
+erfolgreich. P02 formal 0/20.
+Noch offen: autorisierter Hauptgrid-
+Live-Login, Passwortpersistenz,
+In-World-Shutdown und vollständige
+Windows-/macOS-Viewer-Build-/GUI-Tests).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

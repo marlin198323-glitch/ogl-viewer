@@ -208,7 +208,18 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Code-Commit `f2630c0e`:
+Letzter P01-Code-Commit `a8951b29`:
+Moduswechsel-Bestätigungen werden
+einmalig an Dialoggeneration, aktuelle
+Auswahl und unverändertes Original-
+Preset gebunden. Sieben vorhandene
+alte Login-XUI-Dateien enthalten
+keine Phoenix-/Second-Life-Fallback-
+URLs mehr. 20/20 QA-Positionen,
+198 Python-/41 native Tests,
+Hauptgrid-/Beta-GUI-Negativtests
+bestanden. Davor:
+`f2630c0e`:
 Mehrfach geöffnete HTTP-Warnungen
 können nur beim neuesten Dialog
 einmalig zur Freigabe führen;
@@ -318,7 +329,10 @@ Credits bleiben erhalten.
 Unabhängige Korrektur am Toolbar-Preset:
 Abbruch des Moduswechsel-Dialogs
 ändert die Werkzeuge nicht mehr
-(`f2630c0e`, im P01-Linux-Vollbuild
+(`f2630c0e`), veraltete
+Bestätigungen können weder die
+Presetdatei noch Toolbars ändern
+(`a8951b29`, im P01-Linux-Vollbuild
 geprüft). Die komplette In-World-
 Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.

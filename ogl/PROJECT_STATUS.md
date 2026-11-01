@@ -32,6 +32,120 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – Alte Modusbestätigungen und Login-URLs abgesichert (20 Blöcke)
+
+**Code-Commit:** `a8951b29` auf `ogl-develop`.
+**20/20 überprüfte Entwicklungs-/QA-Positionen bestanden.**
+Die formalen Phasenstände bleiben **P01 18/20**
+und **P02 0/20**, weil Live-Login und
+vollständige Windows-/macOS-Viewer-Tests
+weiterhin nicht verifiziert sind.
+
+**Implementierung ausschließlich in vorhandenen Dateien:**
+
+- `indra/newview/fspanellogin.cpp`:
+  Moduswechsel-Bestätigungen erhalten
+  eine monotone, nur im laufenden
+  Prozess gültige
+  `OGLModeConfirmationSequence`. Die
+  Callback prüft vor jeder UI-/Settings-
+  Änderung, dass das OGL-Loginpanel
+  noch existiert, die aktuelle
+  Modusauswahl dem angefragten
+  Preset entspricht, die bisherige
+  `SessionSettingsFile` nicht
+  zwischenzeitlich verändert wurde
+  und der Dialog die neueste Generation
+  besitzt. Die Freigabe wird vor
+  Verarbeitung verbraucht. Überholte,
+  wiederholte oder nach erneutem
+  Moduswechsel eingetroffene
+  Bestätigungen können weder einen
+  Neustart noch einen Toolbar-Reset
+  oder eine falsche Presetauswahl
+  auslösen. Nicht-OGL-Aufrufkonvention
+  und bestehende Presets bleiben
+  unverändert.
+- In sieben bereits vorhandenen
+  `panel_fs_login.xml`-Sprachdateien
+  die letzten direkten alten
+  Phoenix-/Second-Life-Ziele für
+  Welcome-/Registrierungs-/
+  Passwort-Hilfe ersetzt: verifizierte
+  NexVerse-Startseite
+  `https://stadt-nexverse.de/` und
+  `https://stadt-nexverse.de/service/welcome`.
+  Beide lieferten bei Prüfung gültiges
+  HTTPS und HTTP 200. Die kanonische
+  moderne OGL-Loginmaske blieb
+  unverändert; keine neue
+  alternative Login-UI angelegt.
+- Drei Tests für Modusbestätigungen
+  in `ogl/tests/test_nexverse_grid.py`,
+  ein Test für die 13 bestehenden
+  Login-XUI-Lokalisierungen in
+  `ogl/tests/test_branding_contract.py`
+  ergänzt. Originale Einrückungen,
+  interne Presetnamen und Lizenzen
+  unverändert. Alte getrackte
+  `_v2`-/`script_copy`-Dateien
+  auf Existenz geprüft, nicht ohne
+  Abhängigkeitsnachweis gelöscht.
+
+**20 bestandene QA-Blöcke:**
+01 Branch, 02 Upstream-Sync,
+03 keine neuen Projektdateien,
+04 zwei feste OGL-Grids,
+05 monotone Dialoggeneration,
+06 generationsgebundener Payload,
+07 Ablehnung veralteter Bestätigung,
+08 Null-Panel-Schutz,
+09 Auswahl/Preset-Bindung,
+10 Vergleich mit ursprünglicher
+SessionSettingsFile, 11 Einmalverbrauch,
+12 Abbruch ohne Änderung,
+13 bestätigter Toolbar-Reset
+nur gemäß Benutzerpräferenz,
+14 Nicht-OGL-Kompatibilität,
+15 13 valide alte Login-Overlays,
+16 ausschließlich NexVerse-URLs,
+17 keine alten Phoenix-/SL-Ziele,
+18 sieben Dateien bytegleich
+im Viewer-Staging,
+19 Linux-Vollbuild + Regressionstests,
+20 Hauptgrid-/Beta-GUI-Negativtests.
+**20/20 bestanden.**
+
+**Nachweise:** `bash ogl/scripts/build-test.sh`
+erfolgreich; vollständiger Linux-Mint-
+Viewer mit **198/198 Python-Tests**
+und **41/41 nativen CTests**.
+Zwei isolierte 1280×720-Xvfb-GUI-Läufe:
+Hauptgrid-HTTP-Warnung mit ausschließlich
+künstlichen Eingaben, sowie Beta-
+Anmeldesperre. `STATE_LOGIN_WAIT`,
+kein `STATE_LOGIN_AUTH_INIT`,
+beide sauber mit Strg+Q und
+**Exit-Code 0**. Die konkrete
+Interaktion mit mehrfachen
+Modusdialogen wurde durch
+Quelltext-Regressionstests, nicht durch
+einen visuellen End-to-End-Klicktest,
+geprüft. Kein authentifizierter
+Live-Login erfolgt.
+
+**Nächster operativer Einstieg:
+P01 Block 19/20.** Für den formalen
+Abschluss weiterhin offen:
+autorisierter Hauptgrid-Login,
+echte Passwortpersistenz,
+In-World-Shutdown sowie vollständige
+Windows-/macOS-Viewer-Builds und
+GUI-Laufzeitabnahmen.
+Keine manuelle Zwischenabnahme
+zwischen erfolgreichen Phasen nötig;
+unabhängige P02-Arbeiten zulässig.
+
 ## P01 Block 19 – Einmalige HTTP-Warnungen und sichere Moduswechsel
 
 **Code-Commit:** `f2630c0e` auf `ogl-develop`.

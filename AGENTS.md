@@ -21,14 +21,17 @@ Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
-sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; Code-Commit
-`f2630c0e`: nur noch die neueste HTTP-Warnung
-gibt einmalig das exakt gepinnte Grid frei,
-Toolbar-Reset erfolgt erst nach bestätigtem
-Moduswechsel. 20/20 technische Prüfpunkte,
-194 Python-/41 native Tests, Hauptgrid-
-und Beta-GUI-Negativtests bestanden.
-P02 formal 0/20; P01-Live-Login/
+sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
+Code-Commit `a8951b29`: veraltete
+Moduswechsel-Bestätigungen können keine
+Session-Presets oder Toolbars mehr ändern,
+alte Phoenix-/SL-Login-Fallback-URLs
+in bestehenden XUI-Dateien durch
+NexVerse-Ziele ersetzt; 20/20 technische
+Prüfblöcke, 198 Python-/41 native Tests
+sowie Hauptgrid-/Beta-GUI-Negativläufe
+bestanden. P02 formal 0/20;
+autorisierter Live-Login/
 Plattform-Viewer-Builds noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
