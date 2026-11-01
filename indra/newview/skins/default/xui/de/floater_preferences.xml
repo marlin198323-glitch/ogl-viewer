@@ -22,7 +22,7 @@
 		<panel label="Oberflächendesign" name="skins"/>
 		<panel label="OGL-Designs" name="ogl_themes"/>
 		<panel label="Absturzmeldungen" name="crashreports"/>
-		<panel label="Firestorm" name="firestorm"/>
+		<panel label="OGL Funktionen" name="firestorm"/>
 		<panel label="OpenSim" name="opensim"/>
 		<panel label="Sicherung" name="backup"/>
 	</tab_container>

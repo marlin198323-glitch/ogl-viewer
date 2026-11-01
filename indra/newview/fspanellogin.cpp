@@ -95,6 +95,10 @@ std::string FSPanelLogin::sPendingNewGridURI{};
 // Monotonic per-process edit revision, deliberately independent from the
 // panel lifetime. HTTP approval callbacks retain this number, never secrets.
 static U64 sOGLLoginFormRevision = 0;
+// A saved-account deletion must be authorized for the exact current form.
+// A second confirmation supersedes an earlier one; a confirmed request
+// cannot be replayed after the protected credential is deleted.
+static U64 sOGLRemovalConfirmationSequence = 0;
 
 // Helper for converting a user name into the canonical "Firstname Lastname" form.
 // For new accounts without a last name "Resident" is added as a last name.
@@ -1801,7 +1805,19 @@ void FSPanelLogin::onClickRemove(void*)
                 return;
             }
         }
-        LLNotificationsUtil::add("ConfirmRemoveCredential", LLSD().with("NAME", combo->getSelectedItemLabel()), LLSD().with("CredName", credName), boost::bind(&FSPanelLogin::onRemoveCallback, _1, _2));
+        LLSD payload = LLSD().with("CredName", credName);
+        if (APP_NAME == "OGL")
+        {
+            // Bind consent to account, form state and selected grid; never
+            // use an old dialog to delete an unrelated saved login.
+            ++sOGLRemovalConfirmationSequence;
+            payload["OGLFormRevision"] = std::to_string(sOGLLoginFormRevision);
+            payload["OGLConfirmationSequence"] = std::to_string(sOGLRemovalConfirmationSequence);
+            payload["OGLSelectedGrid"] = LLGridManager::getInstance()->getGrid();
+        }
+        LLNotificationsUtil::add("ConfirmRemoveCredential",
+            LLSD().with("NAME", combo->getSelectedItemLabel()), payload,
+            boost::bind(&FSPanelLogin::onRemoveCallback, _1, _2));
     }
 }
 
@@ -1823,6 +1839,23 @@ void FSPanelLogin::onRemoveCallback(const LLSD& notification, const LLSD& respon
                     LL_WARNS("OGLGrid") << "Refused removal of unlisted-grid credential." << LL_ENDL;
                     return;
                 }
+                LLComboBox* combo = sInstance->getChild<LLComboBox>("username_combo");
+                const LLSD selected = combo->getSelectedValue();
+                const LLSD& payload = notification["payload"];
+                const std::string current_grid = LLGridManager::getInstance()->getGrid();
+                if (selected.isUndefined() ||
+                    selected.asString() != credName ||
+                    current_grid != credName.substr(sep + 1) ||
+                    payload["OGLSelectedGrid"].asString() != current_grid ||
+                    payload["OGLFormRevision"].asString() != std::to_string(sOGLLoginFormRevision) ||
+                    payload["OGLConfirmationSequence"].asString() != std::to_string(sOGLRemovalConfirmationSequence))
+                {
+                    LL_WARNS("OGLGrid") << "Ignored stale saved-login deletion confirmation." << LL_ENDL;
+                    return;
+                }
+                // Use the approval once, even when the saved item disappears
+                // before secure-store access. A replay must be rejected.
+                ++sOGLRemovalConfirmationSequence;
             }
 
             LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(credName);
@@ -1869,6 +1902,8 @@ void FSPanelLogin::onRemoveCallback(const LLSD& notification, const LLSD& respon
                 sInstance->mPasswordLength = 0;
                 sInstance->mPasswordModified = false;
                 sPassword.clear();
+                ++sOGLLoginFormRevision;
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
                 sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(false);
                 sInstance->updateLoginButtons();
             }

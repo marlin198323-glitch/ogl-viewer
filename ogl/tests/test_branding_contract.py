@@ -11,6 +11,48 @@ class OGLBrandingContract(unittest.TestCase):
     def source(self, path):
         return (ROOT / path).read_text()
 
+    def test_ogl_preferences_tab_brand_without_changing_registered_callbacks(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        files = sorted(base.glob('*/floater_preferences.xml'))
+        self.assertEqual(len(files), 13)
+        changed = 0
+        for path in files:
+            root = ET.parse(path).getroot()
+            for tab in root.iter('panel'):
+                if tab.get('name') == 'firestorm':
+                    changed += 1
+                    self.assertEqual(tab.get('label'),
+                                     'OGL Funktionen' if path.parent.name == 'de'
+                                     else 'OGL Features')
+                    if path.parent.name == 'en':
+                        self.assertEqual(tab.get('class'),'panel_preference_firestorm')
+                        self.assertEqual(tab.get('filename'),
+                                         'panel_preferences_firestorm.xml')
+        self.assertGreaterEqual(changed, 9)
+        prefs = ET.parse(base / 'en/panel_preferences_firestorm.xml').getroot()
+        self.assertEqual(prefs.get('label'),'OGL Features')
+        tabs = next(e for e in prefs.iter('tab_container') if e.get('name')=='tabs')
+        self.assertEqual(tabs.get('label'),'OGL Preferences')
+        self.assertTrue(any(e.get('name')=='tab-extras' for e in prefs.iter()))
+        self.assertTrue(any(e.get('control_name')=='RestrainedLove' for e in prefs.iter()))
+        self.assertNotIn('If enabled, Firestorm will use a progressive draw distance',
+                         (base / 'en/panel_preferences_firestorm.xml').read_text())
+
+    def test_nexverse_search_title_all_locales_preserves_existing_tabs(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        files = sorted(base.glob('*/floater_fs_search.xml'))
+        self.assertEqual(len(files),11)
+        for path in files:
+            root = ET.parse(path).getroot()
+            title = root.get('title','')
+            self.assertIn('NexVerse',title,str(path))
+            self.assertNotIn('Firestorm',title,str(path))
+            self.assertEqual(root.get('name'),'floater_fs_search')
+        search = ET.parse(base / 'en/floater_fs_search.xml').getroot()
+        self.assertTrue(any(e.get('name')=='ls_tabs' for e in search.iter('tab_container')))
+        self.assertTrue(any(e.get('name')=='panel_ls_people' for e in search.iter()))
+        self.assertTrue(any(e.get('name')=='panel_ls_groups' for e in search.iter()))
+
     def test_source_brand_and_translations(self):
         self.assertIn('const std::string APP_NAME = "OGL";',
                       self.source("indra/llcommon/indra_constants.h"))

@@ -93,6 +93,39 @@ class StadtNexVerseGridTests(unittest.TestCase):
             self.assertEqual(len(matches), 1)
             self.assertGreater(len((matches[0].text or '').strip()), 30)
 
+    def test_saved_account_removal_dialog_is_bound_to_current_login_form(self):
+        begin = self.panel.index('void FSPanelLogin::onClickRemove(void*)')
+        end = self.panel.index('void FSPanelLogin::onRemoveCallback(', begin)
+        creator = self.panel[begin:end]
+        self.assertIn('selected_credential.isUndefined()', creator)
+        self.assertIn('OGLNexVerseGrid::isFixedGrid(', creator)
+        self.assertIn('++sOGLRemovalConfirmationSequence;', creator)
+        for key in ('OGLFormRevision', 'OGLConfirmationSequence',
+                    'OGLSelectedGrid', 'CredName'):
+            self.assertIn(key, creator)
+        self.assertLess(creator.index('OGLNexVerseGrid::isFixedGrid('),
+                        creator.index('ConfirmRemoveCredential'))
+
+    def test_stale_removal_cannot_touch_protected_credential_store(self):
+        start = self.panel.index('void FSPanelLogin::onRemoveCallback(')
+        end = self.panel.index('void FSPanelLogin::onClickGridMgrHelp', start)
+        method = self.panel[start:end]
+        for guard in ('selected.isUndefined()', 'selected.asString() != credName',
+                      'current_grid != credName.substr(sep + 1)',
+                      'payload["OGLSelectedGrid"].asString() != current_grid',
+                      'payload["OGLFormRevision"].asString() != std::to_string(sOGLLoginFormRevision)',
+                      'payload["OGLConfirmationSequence"].asString() != std::to_string(sOGLRemovalConfirmationSequence)',
+                      'Ignored stale saved-login deletion confirmation.'):
+            self.assertIn(guard,method)
+        self.assertLess(method.index('Ignored stale saved-login deletion confirmation.'),
+                        method.index('gSecAPIHandler->loadCredential(credName)'))
+        self.assertLess(method.index('++sOGLRemovalConfirmationSequence;'),
+                        method.index('gSecAPIHandler->loadCredential(credName)'))
+        self.assertLess(method.index('if (credential.isNull())'),
+                        method.index('gSecAPIHandler->deleteCredential(credential)'))
+        self.assertIn('++sOGLLoginFormRevision;',method)
+        self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();',method)
+
     def test_confirmed_account_removal_cannot_delete_foreign_grid(self):
         start = self.panel.index('void FSPanelLogin::onRemoveCallback(')
         end = self.panel.index('void FSPanelLogin::onClickGridMgrHelp', start)
@@ -243,7 +276,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
 
     def test_http_once_permission_expires_on_login_form_change(self):
         source = self.panel
-        self.assertEqual(source.count('++sOGLLoginFormRevision;'), 10)
+        self.assertEqual(source.count('++sOGLLoginFormRevision;'), 11)
         self.assertGreaterEqual(
             source.count('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();'), 12)
         for field in ('password edited', 'loading saved credentials',
