@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <notifications>
 <notification name="OGLHTTPLoginWarning" icon="alertmodal.tga" type="alertmodal">
-Stadt NexVerse currently uses unencrypted HTTP. Login credentials can be intercepted or modified in transit.
+Stadt NexVerse currently uses an unencrypted connection (HTTP). Your username and password may be intercepted. Only continue if you accept this risk.
 
-You can allow this login once or remember approval only for this exact grid login URI. Clear OGLRememberPinnedHTTPLoginURI in Debug Settings to revoke approval.
-    <form>
-      <button default="true" index="0" name="OGLHTTPConnectOnce" text="Connect once"/>
-      <button index="1" name="OGLHTTPRemember" text="Remember for this grid"/>
-      <button index="2" name="OGLHTTPCancel" text="Cancel"/>
+Continue for this session: approve this exact login address until the viewer closes. Remember approval: keep your decision for this exact address in future sessions. You can revoke saved approval in Debug Settings (OGLRememberPinnedHTTPLoginURI).
+    <form name="form">
+      <button index="0" name="OGLHTTPConnectOnce" text="This session"/>
+      <button index="1" name="OGLHTTPRemember" text="Remember approval"/>
+      <button default="true" index="2" name="OGLHTTPCancel" text="Cancel"/>
     </form>
   </notification>
 
@@ -14231,13 +14231,13 @@ Restore to Last Position is not allowed for no copy items to prevent possible co
    icon="alertmodal.tga"
    name="ConfirmRemoveCredential"
    type="alertmodal">
-Delete saved login for &lt;nolink&gt;[NAME]&lt;/nolink&gt;?
+Delete the saved sign-in for &lt;nolink&gt;[NAME]&lt;/nolink&gt;?
     <tag>confirm</tag>
     <form name="form">
       <button
        index="0"
        name="OK"
-       text="OK"/>
+       text="Delete sign-in"/>
       <button
        default="true"
        index="1"

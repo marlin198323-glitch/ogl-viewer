@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <notifications>
 <notification name="OGLHTTPLoginWarning" icon="alertmodal.tga" type="alertmodal">
-Stadt NexVerse verwendet zurzeit HTTP ohne Verschlüsselung. Anmeldedaten können während der Übertragung mitgelesen oder verändert werden.
+Stadt NexVerse nutzt derzeit eine unverschlüsselte Verbindung (HTTP). Benutzername und Kennwort können mitgelesen werden. Fahre nur fort, wenn du dieses Risiko akzeptierst.
 
-Du kannst dieses Grid einmalig zulassen oder deine Zustimmung für genau diese Login-Adresse speichern. Die Speicherung kann über OGLRememberPinnedHTTPLoginURI in den Debug-Einstellungen rückgängig gemacht werden.
-    <form>
-      <button default="true" index="0" name="OGLHTTPConnectOnce" text="Einmal anmelden"/>
-      <button index="1" name="OGLHTTPRemember" text="Für dieses Grid merken"/>
-      <button index="2" name="OGLHTTPCancel" text="Abbrechen"/>
+Für diese Sitzung: Zustimmung nur bis zum Schließen des Viewers. Zustimmung speichern: Entscheidung für genau diese Anmeldeadresse auch bei späteren Starts merken. Die Zustimmung kann in den Debug-Einstellungen (OGLRememberPinnedHTTPLoginURI) widerrufen werden.
+    <form name="form">
+      <button index="0" name="OGLHTTPConnectOnce" text="Für diese Sitzung"/>
+      <button index="1" name="OGLHTTPRemember" text="Zustimmung speichern"/>
+      <button default="true" index="2" name="OGLHTTPCancel" text="Abbrechen"/>
     </form>
   </notification>
 
@@ -5862,10 +5862,10 @@ Der Wert, der für das gleichzeitige Laden von Mesh-Objekten gesetzt wurde ([VAL
 		Die Option „Wiederherstellen an letzter Position“ ist nicht erlaubt für nicht-kopierbare Objekte, um einem möglichen Verlust vorzubeugen.
 	</notification>
 	<notification name="ConfirmRemoveCredential">
-		Gespeichertes Login für &lt;nolink&gt;[NAME]&lt;/nolink&gt; löschen?
+		Gespeicherte Anmeldung für &lt;nolink&gt;[NAME]&lt;/nolink&gt; löschen?
 		<form name="form">
-			<button name="OK" text="OK"/>
-			<button name="Cancel" text="Abbrechen"/>
+			<button name="OK" text="Anmeldung löschen"/>
+			<button name="Cancel" default="true" text="Abbrechen"/>
 		</form>
 	</notification>
 <!-- <FS:TS> FIRE-5453: Flickr upload support (from Exodus) -->

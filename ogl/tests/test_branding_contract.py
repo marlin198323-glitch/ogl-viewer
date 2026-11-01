@@ -168,6 +168,50 @@ class OGLBrandingContract(unittest.TestCase):
                 self.assertIn(required, names)
             self.assertNotIn("login_fs_logo", file.read_text())
 
+    def test_saved_account_isolation_and_removal_regression(self):
+        # No credentials are created or read by this test. Check that the
+        # real authentication callbacks retain their secure storage calls.
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        start = self.source("indra/newview/llstartup.cpp")
+        self.assertIn('gSecAPIHandler->loadCredential(credentialName())', cpp)
+        self.assertIn('gSecAPIHandler->loadCredential(cred_name)', cpp)
+        self.assertIn('gSecAPIHandler->deleteCredential(credential)', cpp)
+        self.assertIn('const LLSD selected_credential = combo->getSelectedValue()', cpp)
+        self.assertIn('Refused deletion of unlisted-grid credential.', cpp)
+        self.assertIn('A typed username is not a saved account.', cpp)
+        self.assertIn('gSecAPIHandler->saveCredential(gUserCredential, gRememberPassword)', start)
+        self.assertIn('if (gSavedSettings.getBOOL("FSRememberUsername"))', start)
+        self.assertIn('remember = sInstance->getChild<LLUICtrl>("remember_check")->getValue()', cpp)
+        self.assertIn('gSavedSettings.setBOOL("RememberPassword", gRememberPassword)', start)
+        self.assertIn('APP_NAME == "OGL" && !OGLNexVerseGrid::isFixedGrid(gridname)', cpp)
+        self.assertIn('Rejected saved account from unlisted grid.', cpp)
+        self.assertIn('APP_NAME == "OGL" || gSavedSettings.getBOOL("ForceShowGrid")', cpp)
+        self.assertIn('username_combo->setTextEntry(LLStringUtil::null)', cpp)
+        start_switch = cpp.index('LLGridManager::getInstance()->getGrid() != previous_grid')
+        switch = cpp[start_switch:cpp.index('/*\n     * Determine whether or not the value in the start_location_combo',start_switch)]
+        for term in ('getChild<LLLineEditor>("password_edit")->clear()',
+                     'mPasswordModified = false;', 'mPasswordLength = 0;',
+                     'mUsernameLength = 0;', 'sPassword.clear();',
+                     'addUsersToCombo(true)', 'updateLoginButtons()'):
+            self.assertIn(term, switch)
+        self.assertLess(switch.index('addUsersToCombo(true)'),
+                        switch.index('username_combo->setTextEntry(LLStringUtil::null)'))
+        # A non-separated @-username must not lose its last character.
+        self.assertIn('cname = cname.substr(0, arobase);', cpp)
+        self.assertIn('LLStringUtil::trim(cname);', cpp)
+
+    def test_saved_account_deletion_requires_explicit_confirmation(self):
+        for language in ('en', 'de'):
+            notices = ET.parse(ROOT / f'indra/newview/skins/default/xui/{language}/notifications.xml')
+            dialog = next(n for n in notices.iter('notification')
+                          if n.get('name') == 'ConfirmRemoveCredential')
+            buttons = dialog.find('form').findall('button')
+            self.assertEqual([b.get('name') for b in buttons], ['OK', 'Cancel'])
+            self.assertEqual([b.get('name') for b in buttons
+                              if b.get('default') == 'true'], ['Cancel'])
+            self.assertNotEqual(buttons[0].get('text'), 'OK')
+            self.assertTrue(buttons[1].get('text'))
+
     def test_grid_label_fits_and_no_forced_antivirus_modal(self):
         root = ET.parse(ROOT / "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml").getroot()
         controls = {n.get("name"): n for n in root.iter() if n.get("name")}

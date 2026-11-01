@@ -1316,6 +1316,7 @@ void FSPanelLogin::onSelectServer()
 
     LLComboBox* server_combo = getChild<LLComboBox>("server_combo");
     LLSD server_combo_val = server_combo->getSelectedValue();
+    const std::string previous_grid = LLGridManager::getInstance()->getGrid();
     if (APP_NAME == "OGL" &&
         (server_combo_val.isUndefined() ||
          !OGLNexVerseGrid::isFixedGrid(server_combo_val.asString())))
@@ -1344,6 +1345,27 @@ void FSPanelLogin::onSelectServer()
 #endif
     {
         LLGridManager::getInstance()->setGridChoice(server_combo_val.asString());
+    }
+
+    if (APP_NAME == "OGL" &&
+        LLGridManager::getInstance()->getGrid() != previous_grid)
+    {
+        // Never carry plaintext input or the fake saved-password filler from
+        // one world into the other. Re-select the account explicitly on the
+        // destination grid; its credential stays in the existing secure store.
+        LLComboBox* username_combo = getChild<LLComboBox>("username_combo");
+        getChild<LLLineEditor>("password_edit")->clear();
+        // Refresh account choices before blanking the field: removeall()
+        // may auto-select the previous UserLoginInfo fallback.
+        addUsersToCombo(true);
+        username_combo->setTextEntry(LLStringUtil::null);
+        mPreviousUsername.clear();
+        mUsernameLength = 0;
+        mPasswordLength = 0;
+        mPasswordModified = false;
+        sPassword.clear();
+        getChild<LLButton>("remove_user_btn")->setEnabled(false);
+        updateLoginButtons();
     }
 
     /*
@@ -1402,9 +1424,12 @@ std::string canonicalize_username(const std::string& name)
     std::string cname = name;
 
     size_t arobase = cname.find("@");
-    if (arobase > 0)
+    if (arobase != std::string::npos)
     {
-        cname = cname.substr(0, arobase - 1);
+        // The selected account label can contain " @ grid", but a typed
+        // username might be "user@grid" without a preceding space.
+        cname = cname.substr(0, arobase);
+        LLStringUtil::trim(cname);
     }
 
     // determine if the username is a first/last form or not.
@@ -1457,6 +1482,13 @@ void FSPanelLogin::addUsersToCombo(bool show_server)
             gridname = gridname.substr(arobase + 1, gridname.length() - arobase - 1);
             name = name.substr(0,arobase);
 
+            // Migrated profiles may contain credentials for arbitrary grids.
+            // Never offer unrelated stored identities in the OGL account picker.
+            if (APP_NAME == "OGL" && !OGLNexVerseGrid::isFixedGrid(gridname))
+            {
+                continue;
+            }
+
             const std::string grid_label = LLGridManager::getInstance()->getGridLabel(gridname);
 
             bool add_grid = false;
@@ -1499,7 +1531,22 @@ void FSPanelLogin::onClickRemove(void*)
     if (sInstance)
     {
         LLComboBox* combo = sInstance->getChild<LLComboBox>("username_combo");
-        std::string credName = combo->getValue().asString();
+        const LLSD selected_credential = combo->getSelectedValue();
+        if (selected_credential.isUndefined())
+        {
+            return; // A typed username is not a saved account.
+        }
+        const std::string credName = selected_credential.asString();
+        if (APP_NAME == "OGL")
+        {
+            const size_t separator = credName.rfind('@');
+            if (separator == std::string::npos ||
+                !OGLNexVerseGrid::isFixedGrid(credName.substr(separator + 1)))
+            {
+                LL_WARNS("OGLGrid") << "Refused deletion of unlisted-grid credential." << LL_ENDL;
+                return;
+            }
+        }
         LLNotificationsUtil::add("ConfirmRemoveCredential", LLSD().with("NAME", combo->getSelectedItemLabel()), LLSD().with("CredName", credName), boost::bind(&FSPanelLogin::onRemoveCallback, _1, _2));
     }
 }
@@ -1533,9 +1580,26 @@ void FSPanelLogin::onRemoveCallback(const LLSD& notification, const LLSD& respon
             }
 
             gSecAPIHandler->deleteCredential(credential);
-            sInstance->addUsersToCombo(gSavedSettings.getBOOL("ForceShowGrid"));
+            sInstance->addUsersToCombo(
+                APP_NAME == "OGL" || gSavedSettings.getBOOL("ForceShowGrid"));
 
-            if (!sInstance->getChild<LLComboBox>("username_combo")->selectFirstItem())
+            if (APP_NAME == "OGL")
+            {
+                // Do not leave the removed account's masked secret or a stale
+                // enabled login button in the form. Keep other saved users
+                // in the dropdown without automatically selecting one.
+                sInstance->getChild<LLComboBox>("username_combo")
+                    ->setTextEntry(LLStringUtil::null);
+                sInstance->getChild<LLLineEditor>("password_edit")->clear();
+                sInstance->mPreviousUsername.clear();
+                sInstance->mUsernameLength = 0;
+                sInstance->mPasswordLength = 0;
+                sInstance->mPasswordModified = false;
+                sPassword.clear();
+                sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(false);
+                sInstance->updateLoginButtons();
+            }
+            else if (!sInstance->getChild<LLComboBox>("username_combo")->selectFirstItem())
             {
                 sInstance->getChild<LLUICtrl>("username_combo")->clear();
                 sInstance->getChild<LLUICtrl>("password_edit")->clear();
@@ -1595,6 +1659,16 @@ void FSPanelLogin::onSelectUser()
 
     // Saved username was either selected or entered; continue...
     const std::string cred_name = combo_val.asString();
+    if (APP_NAME == "OGL")
+    {
+        const size_t separator = cred_name.rfind('@');
+        if (separator == std::string::npos ||
+            !OGLNexVerseGrid::isFixedGrid(cred_name.substr(separator + 1)))
+        {
+            LL_WARNS("OGLGrid") << "Rejected saved account from unlisted grid." << LL_ENDL;
+            return;
+        }
+    }
 
     LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(cred_name);
     sInstance->setFields(credential);

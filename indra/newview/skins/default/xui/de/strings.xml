@@ -4,7 +4,7 @@
      For example, the strings used in avatar chat bubbles, and strings
      that are returned from one component and may appear in many places-->
 <strings>
-  <string name="OGLBetaLoginUnavailable">Das Grid Stadt NexVerse Beta ist auswählbar, die Anmeldung ist aber noch nicht freigegeben. Zuerst müssen HTTPS-Zertifikat und Anmeldeprotokoll geprüft werden. Es wurden keine Zugangsdaten gesendet.</string>
+  <string name="OGLBetaLoginUnavailable">Stadt NexVerse Beta ist noch nicht für die Anmeldung freigegeben. Die sichere Verbindung und der Anmeldedienst werden geprüft. Es wurden keine Zugangsdaten übertragen.</string>
   <string name="OGLInsecureGridLogin">Diese Grid-Anmeldeadresse ist nicht freigegeben. Bei Stadt NexVerse musst du die HTTP-Warnung vor der Anmeldung bestätigen. Andere unsichere Server bleiben gesperrt.</string>
 
 	<string name="SECOND_LIFE_GRID">

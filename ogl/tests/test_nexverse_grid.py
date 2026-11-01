@@ -112,8 +112,16 @@ class StadtNexVerseGridTests(unittest.TestCase):
             matches = [e for e in notifications.iter('notification')
                        if e.get('name') == 'OGLHTTPLoginWarning']
             self.assertEqual(len(matches), 1)
+            self.assertEqual(matches[0].find('form').get('name'), 'form')
             buttons = list(matches[0].find('form').findall('button'))
             self.assertEqual([int(b.get('index')) for b in buttons], [0, 1, 2])
+            # Enter/Escape must not implicitly consent to sending credentials
+            # over plaintext HTTP. The only default is explicit cancellation.
+            self.assertEqual([b.get('name') for b in buttons
+                              if b.get('default') == 'true'], ['OGLHTTPCancel'])
+            self.assertIn('HTTP', matches[0].text or '')
+            self.assertIn('OGLRememberPinnedHTTPLoginURI', matches[0].text or '')
+            self.assertTrue(buttons[0].get('text') and buttons[1].get('text'))
 
     def test_consent_is_persistent_only_on_explicit_user_action(self):
         root = ET.parse(ROOT / 'indra/newview/app_settings/settings.xml').getroot()
