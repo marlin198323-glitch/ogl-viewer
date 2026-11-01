@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; jüngster Code-Commit `d9fca485`, 20/20 neue Sicherheits-/Grid-Login-Teilprüfungen einschließlich echter Xvfb-Negativtests bestanden; kein vollständiger Hauptgrid-Live-Login, keine Passwortpersistenz nach erfolgreicher Anmeldung und keine vollständigen Windows-/macOS-Viewer-Builds).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; jüngster Code-Commit `ad005fc9`, 20/20 neue Credential-Wiederherstellungs- und Opt-out-Prüfungen bestanden; Transient-Credential-Nullzugriff und Benutzername-Log/Profil-Persistenz abgesichert. Kein erfolgreicher autorisierter Hauptgrid-Live-Login und keine vollständigen Windows-/macOS-Viewer-Builds).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

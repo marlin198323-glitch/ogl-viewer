@@ -32,6 +32,108 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 – /goal-Sammelrunde: 20 Prüfpositionen zur Credential-Wiederherstellung
+
+**Code-Commit `ad005fc9`**, Branch `ogl-develop`;
+**20/20 zusätzliche Prüfpositionen bestanden.**
+Die 20 Prüfpositionen bilden **keine abgeschlossene P01-Phase**.
+Der maßgebliche Phasenstand bleibt **18/20, Block 19 aktiv**;
+es fehlt weiterhin ein autorisierter Hauptgrid-End-to-End-Login.
+
+**Korrekturen an ausschließlich bestehenden Dateien:**
+
+- `fspanellogin.cpp`: Bei `setFields(..., from_startup=true)`
+  wird vor dem Zugriff auf `stored_credential->getAuthenticator()`
+  ein Null-Credential abgefangen. Nach einem abgebrochenen
+  oder fehlgeschlagenen Login ohne jemals gespeichertes
+  Konto wird dadurch nicht mehr auf einen Nullzeiger
+  zugegriffen; die vorhandene Transient-Passwort-Wiederherstellung
+  bleibt erhalten.
+- Wenn der Nutzer `FSRememberUsername` deaktiviert,
+  bereinigt der OGL-Login den bisherigen `UserLoginInfo`-Wert
+  sofort beim Klick auf das Kontrollkästchen. Das gilt auch
+  für Altprofile beim nächsten Loginfensterstart, selbst
+  wenn der Nutzer nicht auf „Welt betreten“ klickt.
+  Der Connect-Callback persistiert den Benutzernamen
+  nur noch, wenn diese Einstellung aktiv ist. Bestehende
+  verschlüsselte gespeicherte Credentials und die
+  Nicht-OGL-Kompatibilität bleiben unangetastet.
+- `fspanellogin.cpp` und `llstartup.cpp`: Im OGL-Pfad
+  werden Benutzer-/Accountnamen nicht mehr in
+  den bisherigen Authentifizierungs- und
+  Favoriten-Debugmeldungen oder in der
+  `Attempting login as`-Meldung ausgegeben.
+  Der vorgeschriebene Upstream-Kompatibilitätspfad
+  bleibt erhalten.
+- In der bestehenden
+  `ogl/tests/test_branding_contract.py` entsprechende
+  Regressionstests für Nullprüfung, Namensspeicherung,
+  Opt-out und reduzierte Loginlogs ergänzt.
+
+**20 überprüfte Positionen:**
+
+01 kanonischer Branch; 02 keine neuen Quelldateien;
+03 zwei festgelegte Grids; 04 exakte HTTP-Ausnahme;
+05 Beta-Login-Sperre vor Passwortlesen im Connect-Callback;
+06 Beta-Auto-Login-Sperre; 07 HTTP-Abbruch als Default
+in DE/EN; 08 Gridwechsel löscht vorherige Login-Eingaben;
+09 Direkt-Connect unbekannter Grids gesperrt;
+10 Fremdgrid-Credential-Löschung gesperrt;
+11 verschwundene gespeicherte Konten abgefangen;
+12 Transient-Credential Nullprüfung;
+13 keine vollständigen Credential-Objekte im Loginlog;
+14 Merken-Checkbox bei OGL-Login berücksichtigt;
+15 Opt-out bereinigt letzten Benutzernamen sofort;
+16 Altprofilbereinigung bei bereits deaktiviertem Merken;
+17 Benutzernamen in OGL-Auth-Logs minimiert;
+18 echte Checkbox-Persistenz nach Viewer-Neustart
+unter separatem XDG-Testprofil;
+19 reales Loginfenster und regulärer Voranmelde-Quit;
+20 vollständiger Linux-C++-Build samt Tests.
+Bei Position 05 wurde ein anfänglich falsch
+abgegrenzter Quelltext-Suchbereich im externen
+Prüfskript korrigiert; die auf den tatsächlichen
+Connect-Callback begrenzte Nachprüfung bestand.
+
+**Verifikationen:**
+
+- `bash ogl/scripts/build-test.sh`: kompletter
+  Linux-Mint-Viewer-Build und Staging erfolgreich,
+  **141/141 Python-Tests, 41/41 native CTests**.
+  `git diff --check` erfolgreich.
+- Isolierter GUI-Test mit rein synthetischem
+  `UserLoginInfo`: „Benutzername speichern“
+  deaktiviert, Viewer beendet, anschließend mit
+  demselben temporären Profil neu gestartet;
+  `FSRememberUsername=0` geblieben und
+  `UserLoginInfo` nicht mehr als gespeicherte
+  Benutzerkennung vorhanden. Ein erster zeitlich
+  zu früh gesendeter Ctrl+Q-Test endete mit
+  Timeout 124; nach erneutem Start und Erreichen
+  von `STATE_LOGIN_WAIT` gelang Ctrl+Q
+  **regulär mit Exit-Code 0**.
+- Die ältere GitHub-Portable-Grafik-CI auf
+  `1ebb8ee0` bestand alle sechs Matrixjobs;
+  diese CI ist **kein** vollständiger
+  Windows-/macOS-Viewer-Build.
+- Altbestandprüfung: `client_list_v2.xml`,
+  `cycle_object_animations_v2.lsl` und
+  `script_copy.png` sind bestehende Upstream-Ressourcen;
+  ohne Nutzungs-/Lizenznachweis nicht löschen.
+  **Keine neue Projektdatei angelegt.**
+
+**Blocker unverändert:** Es gibt keinen belegten
+erfolgreichen Hauptgrid-Login mit einem autorisierten
+Testkonto, keine bestätigte Passwortpersistenz nach
+erfolgreicher Authentifizierung, keinen Shutdown
+nach Eintritt in die 3D-Welt und keine vollständigen
+Windows-/macOS-Viewer-Laufzeittests.
+Die separate portable CI ersetzt diese
+Abschlussbedingungen nicht. Daher P01 weiterhin
+**18/20**; der nächste `/goal`-Einstieg
+ist **P01 Block 19/20**, ohne manuelle
+Zwischenabnahme.
+
 ## P01 – /goal-Sammelrunde mit 20 Anmelde-/Sicherheitsprüfungen
 
 **Code-Commit:** `d9fca485`, Branch `ogl-develop`.

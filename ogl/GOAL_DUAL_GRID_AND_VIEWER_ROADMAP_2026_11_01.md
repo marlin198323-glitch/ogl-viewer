@@ -215,7 +215,11 @@ mit X11-Klasse `ogl-viewer`, Desktop- und
 Fehlertext-Korrekturen bestanden. Jüngster Code-Commit
 `d9fca485`: weitere 20/20 differenzierte
 Grid-/Credential-Sicherheitsprüfungen bestanden,
-mit echten synthetischen Login-GUI-Tests).
+mit echten synthetischen Login-GUI-Tests. Neuer Code-Commit
+`ad005fc9`: 20/20 weitere Credential-/Datenschutzprüfungen
+bestanden; Transient-Credential-Nullprüfung, opt-out-gerechtes
+Benutzername-Speichern, OGL-Auth-Log-Reduktion und GUI-Neustart
+mit deaktivierter Speicherung bestätigt).
 Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
 festes Welcome, Voranmelde-Quit (Exit 0) und
 Checkbox-Einstellung nach Neustart lokal bestätigt.
