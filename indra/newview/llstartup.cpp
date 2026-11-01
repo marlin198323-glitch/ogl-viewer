@@ -1885,8 +1885,14 @@ bool idle_startup()
         emsg << LLTrans::getString("LoginFailedHeader") << "\n";
         if(LLLoginInstance::getInstance()->authFailure())
         {
-            LL_INFOS("LLStartUp") << "Login failed, LLLoginInstance::getResponse(): "
-                                  << LLLoginInstance::getInstance()->getResponse() << LL_ENDL;
+            // The login response may contain session identifiers or
+            // authentication metadata. OGL must not serialize the complete
+            // server response into diagnostic logs.
+            if (APP_NAME == "OGL")
+                LL_WARNS("OGLGrid") << "Authentication failed; server response redacted." << LL_ENDL;
+            else
+                LL_INFOS("LLStartUp") << "Login failed, LLLoginInstance::getResponse(): "
+                                      << LLLoginInstance::getInstance()->getResponse() << LL_ENDL;
             LLSD response = LLLoginInstance::getInstance()->getResponse();
             // Still have error conditions that may need some
             // sort of handling - dig up specific message

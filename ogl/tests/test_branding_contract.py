@@ -54,6 +54,62 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertNotIn('params["password"]', body)
         self.assertNotIn('params["username"]', body)
 
+    def test_all_locale_support_strings_use_nexverse_identity(self):
+        root = ROOT / 'indra/newview/skins/default/xui'
+        strings_files = sorted(root.glob('*/strings.xml'))
+        self.assertGreaterEqual(len(strings_files), 13)
+        for filename in strings_files:
+            nodes = [x for x in ET.parse(filename).iter('string')
+                     if x.get('name') == 'SUPPORT_SITE']
+            self.assertEqual(len(nodes), 1, str(filename))
+            self.assertEqual((nodes[0].text or '').strip(), 'NexVerse Portal',
+                             str(filename))
+
+    def test_ogl_download_and_login_denial_use_our_github_source(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        releases = 'https://github.com/marlin198323-glitch/ogl-viewer/releases'
+        for path in sorted(base.glob('*/strings.xml')):
+            tree = ET.parse(path)
+            data = {x.get('name'): (x.text or '').strip()
+                    for x in tree.iter('string') if x.get('name')}
+            if 'ViewerDownloadURL' in data:
+                self.assertEqual(data['ViewerDownloadURL'], releases, str(path))
+            if 'create_account_url' in data:
+                self.assertEqual(data['create_account_url'], 'https://stadt-nexverse.de/',
+                                 str(path))
+            if 'LoginFailedViewerNotPermitted' in data:
+                self.assertNotIn('firestormviewer.org',
+                                 data['LoginFailedViewerNotPermitted'], str(path))
+                self.assertNotIn('viewer-access-faq',
+                                 data['LoginFailedViewerNotPermitted'], str(path))
+        for lang in ('en', 'de'):
+            tree = ET.parse(base / lang / 'strings.xml')
+            labels = {x.get('name'): (x.text or '').strip()
+                      for x in tree.iter('string') if x.get('name')}
+            self.assertEqual(labels['ViewerDownloadURL'], releases)
+            self.assertEqual(labels['create_account_url'], 'https://stadt-nexverse.de/')
+            self.assertIn(releases, labels['LoginFailedViewerNotPermitted'])
+            self.assertNotIn('firestormviewer.org', labels['LoginFailedViewerNotPermitted'])
+            self.assertNotIn('secondlife.com', labels['LoginFailedViewerNotPermitted'])
+            if lang == 'en':
+                self.assertEqual(labels['DOWNLOAD_URL'], releases)
+                self.assertEqual(labels['RELEASE_NOTES_BASE_URL'],
+                                 releases + '?version=')
+                self.assertNotIn('firestormviewer.org', labels['MBFreezeDetected'])
+                self.assertIn('external website', labels['TooltipSLIcon'])
+
+    def test_ogl_login_failure_log_excludes_raw_server_response(self):
+        cpp = self.source('indra/newview/llstartup.cpp')
+        start = cpp.index('if(LLLoginInstance::getInstance()->authFailure())')
+        stop = cpp.index('LLSD response = LLLoginInstance::getInstance()->getResponse();',start)
+        diagnostic = cpp[start:stop]
+        self.assertIn('APP_NAME == "OGL"', diagnostic)
+        self.assertIn('Authentication failed; server response redacted.', diagnostic)
+        self.assertIn('else', diagnostic)
+        self.assertIn('LLLoginInstance::getInstance()->getResponse() << LL_ENDL', diagnostic)
+        self.assertLess(diagnostic.index('APP_NAME == "OGL"'),
+                        diagnostic.index('LLLoginInstance::getInstance()->getResponse() << LL_ENDL'))
+
     def test_prelogin_help_uses_official_nexverse_portal(self):
         source = self.source('indra/newview/fspanellogin.cpp')
         start = source.index('void FSPanelLogin::onClickHelp(')

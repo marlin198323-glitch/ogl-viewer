@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <strings>
-	<string name="SUPPORT_SITE">
-		Firestormサポートポータル
-	</string>
+	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupLoading">
 		[APP_NAME]をインストールしています…
 	</string>
@@ -205,10 +203,10 @@ LibVLCのバージョン：[LIBVLC_VERSION]
 	<string name="AditiGridLabelShort">Aditi（ベータ）</string>
 	<string name="LoginFailedViewerNotPermitted">
 		お使いの古いビューアでは、[CURRENT_GRID]にアクセスできません。以下のページから新しいビューアをダウンロードしてください：
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/marlin198323-glitch/ogl-viewer/releases
 
 詳細については、ＦＡＱを参照してください：
-https://secondlife.com/viewer-access-faq
+https://stadt-nexverse.de/
 	</string>
 	<string name="LoginFailed">
 		システムの問題により、ログイン処理が完了しませんでした。数分後にもう一度試してください。

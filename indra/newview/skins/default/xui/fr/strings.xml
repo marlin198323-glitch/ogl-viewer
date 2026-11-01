@@ -7,9 +7,7 @@
 	<string name="SECOND_LIFE_GRID">
 		Grille de Second Life
 	</string>
-	<string name="SUPPORT_SITE">
-		Portail Assistance Firestorm
-	</string>
+	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupLoading">
 		Chargement de [APP_NAME]...
 	</string>
@@ -202,9 +200,7 @@ Version serveur vocal : [VOICE_VERSION]
 	<string name="Quit">
 		Quitter
 	</string>
-	<string name="create_account_url">
-		https://www.firestormviewer.org/join-secondlife/
-	</string>
+	<string name="create_account_url">https://stadt-nexverse.de/</string>
 	<string name="AgniGridLabel">
 		Grille principale de Second Life (Agni)
 	</string>
@@ -213,10 +209,10 @@ Version serveur vocal : [VOICE_VERSION]
 	</string>
 	<string name="LoginFailedViewerNotPermitted">
 		Le client que vous utilisez ne permet plus d&apos;accéder à Second Life. Téléchargez un nouveau client à la page suivante :
-http://secondlife.com/download
+https://github.com/marlin198323-glitch/ogl-viewer/releases
 
 Pour plus d&apos;informations, consultez la page FAQ ci-dessous :
-http://secondlife.com/viewer-access-faq
+https://stadt-nexverse.de/
 	</string>
 	<string name="LoginFailed">
 		Le processus de connexion n'a pas abouti en raison d'un problème du système. Réessayez dans quelques minutes.

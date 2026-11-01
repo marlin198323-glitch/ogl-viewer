@@ -16,9 +16,7 @@
 	<string name="SECOND_LIFE_GRID">
 		第二人生
 	</string>
-	<string name="SUPPORT_SITE">
-		Firestorm支援網站
-	</string>
+	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<!-- Will be set in fsgridhandler.cpp / llviewernetwork.cpp -->
 	<string name="VIEWER_GENERATION">
 		檢視器[VERSION]
@@ -236,24 +234,20 @@ Voice Server Version: [VOICE_VERSION]
 	<string name="Quit">
 		退出
 	</string>
-	<string name="create_account_url">
-		https://www.firestormviewer.org/join-secondlife/
-	</string>
+	<string name="create_account_url">https://stadt-nexverse.de/</string>
 	<string name="AgniGridLabel">
 		第二人生主網路 (Agni)
 	</string>
 	<string name="AditiGridLabel">
 		第二人生測試網路 (Aditi)
 	</string>
-	<string name="ViewerDownloadURL">
-		https://www.firestormviewer.org/choose-your-platform/
-	</string>
+	<string name="ViewerDownloadURL">https://github.com/marlin198323-glitch/ogl-viewer/releases</string>
 	<string name="LoginFailedViewerNotPermitted">
 目前版本檢視器已無法繼續登入第二人生, 請前往以下網站下載最新版本檢視器:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/marlin198323-glitch/ogl-viewer/releases
 
 更多相關資訊, 請檢視下面的常見問題解答:
-http://secondlife.com/viewer-access-faq
+https://stadt-nexverse.de/
 	</string>
 	<string name="LoginFailed">
 		由於系統錯誤, 登入過程未完成, 請稍後再試.

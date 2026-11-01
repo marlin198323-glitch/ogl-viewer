@@ -16,9 +16,7 @@
 	<string name="SECOND_LIFE_GRID">
 		Second Life Ağı
 	</string>
-	<string name="SUPPORT_SITE">
-		Firestorm Destek Portalı
-	</string>
+	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupDetectingHardware">
 		Donanım saptanıyor...
 	</string>
@@ -191,24 +189,20 @@ Ses Sunucusu Sürümü: [VOICE_VERSION]
 	<string name="Quit">
 		Çık
 	</string>
-	<string name="create_account_url">
-		https://www.firestormviewer.org/join-secondlife/
-	</string>
+	<string name="create_account_url">https://stadt-nexverse.de/</string>
 	<string name="AgniGridLabel">
 		Second Life Ana Ağı (Agni)
 	</string>
 	<string name="AditiGridLabel">
 		Second Life Beta Test Ağı (Aditi)
 	</string>
-	<string name="ViewerDownloadURL">
-		http://secondlife.com/download
-	</string>
+	<string name="ViewerDownloadURL">https://github.com/marlin198323-glitch/ogl-viewer/releases</string>
 	<string name="LoginFailedViewerNotPermitted">
 		Kullandığınız görüntüleyici ile artık Second Life&apos;a erişemezsiniz. Yeni bir görüntüleyiciyi karşıdan yüklemek için lütfen şu sayfayı ziyaret edin:
-http://secondlife.com/download
+https://github.com/marlin198323-glitch/ogl-viewer/releases
 
 Daha fazla bilgi edinmek için asağıdaki SSS sayfamızı ziyaret edin:
-http://secondlife.com/viewer-access-faq
+https://stadt-nexverse.de/
 	</string>
 	<string name="LoginIntermediateOptionalUpdateAvailable">
 		Opsiyonel görüntüleyici güncelleştirmesi mevcut: [VERSION]

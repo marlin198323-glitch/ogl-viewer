@@ -7,9 +7,7 @@
 	<string name="SECOND_LIFE_GRID">
 		Second Life şəbəkəsi
 	</string>
-	<string name="SUPPORT_SITE">
-		Firestorm texniki dəstək portalı
-	</string>
+	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupDetectingHardware">
 		Avadanlıq təyin olunur...
 	</string>
@@ -215,9 +213,7 @@ Səs serveri versiyası: [VOICE_VERSION]
 	<string name="Quit">
 		Çıxış
 	</string>
-	<string name="create_account_url">
-		https://www.firestormviewer.org/join-secondlife/
-	</string>
+	<string name="create_account_url">https://stadt-nexverse.de/</string>
 	<string name="AgniGridLabel">
 		Second Life Əsas Şəbəkəsi (Agni)
 	</string>
@@ -226,10 +222,10 @@ Səs serveri versiyası: [VOICE_VERSION]
 	</string>
 	<string name="LoginFailedViewerNotPermitted">
 		İstifadə etdiyiniz klientin artıq Second Life oyununa girişi yoxdur. Siz müştərinin yeni versiyasını bu ünvandan yükləyə bilərsiniz:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/marlin198323-glitch/ogl-viewer/releases
 
 Ətraflı məlumat üçün FAQ bölməsinə baxın:
-http://secondlife.com/viewer-access-faq
+https://stadt-nexverse.de/
 	</string>
 	<string name="LoginFailed">
 		Şəbəkəyə daxil olmaqda xəta baş verdi.

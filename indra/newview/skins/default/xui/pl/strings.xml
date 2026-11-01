@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <strings>
-	<string name="SUPPORT_SITE">
-		Portal Pomocy Firestorma
-	</string>
+	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupLoading">
 		Ładowanie przeglądarki [APP_NAME]...
 	</string>
@@ -216,10 +214,10 @@ Wersja serwera głosu (Voice Server): [VOICE_VERSION]
 	</string>
 	<string name="LoginFailedViewerNotPermitted">
 		Przeglądarka używana przez Ciebie nie ma już dostępu do Second Life. Proszę przejść na poniższą stronę i pobrać nową:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/marlin198323-glitch/ogl-viewer/releases
 
 Więcej informacji w naszym FAQ:
-http://secondlife.com/viewer-access-faq
+https://stadt-nexverse.de/
 	</string>
 	<string name="LoginFailed">
 		Proces logowania nie został ukończony z powodu problemów systemu. Spróbuj ponownie za kilka minut.
