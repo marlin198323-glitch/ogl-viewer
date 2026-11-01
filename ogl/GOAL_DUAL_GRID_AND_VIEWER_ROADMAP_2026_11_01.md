@@ -212,7 +212,10 @@ Sammelrunde **20/20 technische Prüfblöcke**, nicht 20/20
 P01-Phasenblöcke, erfolgreich; weitere 20/20
 Rebranding-/GUI-Prüfungen nach Commit `65e4b62e`
 mit X11-Klasse `ogl-viewer`, Desktop- und
-Fehlertext-Korrekturen bestanden).
+Fehlertext-Korrekturen bestanden. Jüngster Code-Commit
+`d9fca485`: weitere 20/20 differenzierte
+Grid-/Credential-Sicherheitsprüfungen bestanden,
+mit echten synthetischen Login-GUI-Tests).
 Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
 festes Welcome, Voranmelde-Quit (Exit 0) und
 Checkbox-Einstellung nach Neustart lokal bestätigt.

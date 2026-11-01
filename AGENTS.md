@@ -21,7 +21,7 @@ Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
-sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; 20/20 weitere technische Rebranding-/GUI-Prüfpositionen mit Code-Commit `65e4b62e` grün; echter Live-Login und volle Plattform-Builds noch offen),
+sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; jüngster Code-Commit `d9fca485`, 20/20 neue Login-Sicherheitsprüfungen bestanden; echter Hauptgrid-Live-Login und volle Plattform-Builds noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten

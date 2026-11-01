@@ -32,6 +32,105 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 – /goal-Sammelrunde mit 20 Anmelde-/Sicherheitsprüfungen
+
+**Code-Commit:** `d9fca485`, Branch `ogl-develop`.
+**Ergebnis: 20/20 überprüfbare Teilaufgaben bestanden.**
+Dies ist ein gebündelter Test-/Entwicklungsdurchlauf
+**innerhalb von P01 Block 19**, nicht die fehlende
+Live-Anmeldung oder ein Abschluss der ganzen Phase.
+**Offizieller Phasenstand weiterhin 18/20.**
+
+**Umgesetzte Änderungen in bestehenden Dateien:**
+
+- `indra/newview/fspanellogin.cpp`: Der Connect-Button
+  lehnt nicht definierte/unbekannte Gridwerte jetzt
+  unmittelbar ab. Wird eine andere der beiden festen
+  Welten erst durch den Connect-Button übernommen,
+  werden alte Eingaben zurückgesetzt und die Anmeldung
+  **nicht** ausgeführt. Der Nutzer erhält stattdessen
+  eine freundliche Meldung und kann sich auf dem
+  korrekten Grid neu anmelden.
+- Gespeicherte Konten: Das Löschbestätigungs-Callback
+  prüft den Gridwert erneut (auch bei veralteter
+  Dialog-Aktion). Ein zwischenzeitlich gelöschtes
+  Credential wird vor `userID()`, Passwortnutzung
+  oder `deleteCredential()` auf Null geprüft.
+  Ein ungültiger/staler Löschauftrag darf auch
+  `UserLoginInfo` nicht verändern. Ebenso wird
+  ein verschwundenes Konto bei Auswahl im Login
+  abgefangen, statt es als nutzbaren Account
+  darzustellen. Die bestehende verschlüsselte
+  Credential-Verwaltung bleibt erhalten.
+- `skins/default/xui/en/strings.xml` und
+  `.../de/strings.xml`: verständliche Meldung
+  „Grid gewechselt, Zugangsdaten erneut eingeben“
+  ergänzt, ohne zusätzliche Dateien oder fremde
+  Supportlinks.
+- `ogl/tests/test_nexverse_grid.py`: drei neue
+  Regressionstests für Direkt-Connect, sichere
+  Kontolöschung und verschwundene gespeicherte
+  Konten. Insgesamt **139/139 Python-Tests**,
+  **41/41 native CTests** sowie vollständiger
+  Linux-Mint-Viewer-Build erfolgreich.
+
+**20 Einzelprüfungen der aktuellen Runde:**
+01 richtiger Branch; 02 OpenSim-Hauptgrid live
+vorhanden; 03 fest hinterlegte Login-URI stimmt
+mit öffentlicher `/get_grid_info` überein;
+04 öffentliche Welcome-URI stimmt überein;
+05 Beta-TLS-Hostname stimmt weiterhin **nicht**;
+06 genau zwei Grids; 07 keine freie Gridadresse;
+08 Dropdown-Gridvalidierung; 09 direkte Connect-
+Gridvalidierung; 10 Wechsel des Grids vor Passwort-
+auslesen abgefangen; 11 Beta GUI-Sperre vor
+Passwortauslesen; 12 Beta Auto-Login gesperrt;
+13 Fremdgrid-Credential-Löschung abgewehrt;
+14 Null-Prüfung vor Credential-Dereferenzierung;
+15 keine Änderung gespeicherter Login-ID
+bei fehlendem Credential; 16 fehlendes Konto
+bei Auswahl abgefangen; 17 DE-/EN-Hinweis und
+HTTP-Warnung mit „Abbrechen“ als Standard;
+18 echter Hauptgrid-Xvfb-Loginbildschirm,
+NexVerse-Welcome, künstliche Eingaben und
+HTTP-Warnung ohne Einwilligung, Quit Exit 0;
+19 echter Beta-Xvfb-Test mit synthetischen
+Eingaben, gesperrter Anmeldung, Quit Exit 0;
+20 vollständiger C++-Viewer-Build und Testgate.
+**Alle 20 Prüfpositionen bestanden.**
+
+**Live-Endpunktprüfung ohne Zugangsdaten:**
+`http://hg.stadt-nexverse.de:80/get_grid_info`
+liefert mit GET Status HTTP 200 und dokumentiert
+`<platform>OpenSim</platform>`. Der Beta-Server
+liefert ein Zertifikat für
+`s359142.srv.nexvortex.de`, nicht für
+`beta.stadt-nexverse.de` (Hostname mismatch,
+openssl verify error 62); **Beta-Login bleibt gesperrt**.
+Keine echten Passwörter, Sessions oder Logintokens
+an die Netzdienste übertragen.
+
+**Noch nicht nachgewiesen:** Erfolgreicher Login
+mit autorisiertem Testkonto ins Hauptgrid,
+gespeicherte Passwortwiederherstellung nach
+Neustart, regulärer Shutdown nach
+3D-Welt-Eintritt und vollständige
+Windows-/macOS-Viewer-Build-/GUI-Tests.
+Die bestehende GitHub-CI ist eine portable
+Modul-/Regressionstestmatrix, kein Ersatz
+für diese vollständigen Prüfungen.
+Die Altbestandskontrolle identifizierte
+bereits vorhandene `_v2`-LSL/XML- und
+`script_copy`-Assets; sie wurden mangels
+Abhängigkeitsbeweis nicht blind entfernt.
+Keine neuen Quelldateien/Projektdateien erstellt.
+
+**Nächster Schritt:** `/goal P01 Block 19/20`
+mit tatsächlichem End-to-End-Login- und
+Mehrplattform-Nachweis, danach Block 20 und
+direkter Start von P02 ohne manuelles
+Zwischengate.
+
 ## P01 – technische Arbeitsrunde vom 01.11.2026
 
 **Verifizierte Code-Commits:** `9c29aba6` und `fed30c3e`
