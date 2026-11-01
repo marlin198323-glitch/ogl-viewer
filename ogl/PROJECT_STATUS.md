@@ -33,7 +33,8 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 ## P01 – technische Arbeitsrunde vom 01.11.2026
 
-**Verifizierter Code-Commit:** `9c29aba6` auf `ogl-develop`.
+**Verifizierte Code-Commits:** `9c29aba6` und `fed30c3e`
+auf `ogl-develop`.
 **Sequenziell abgeschlossene Blöcke: 1–6 (6/20).** Das XUI-/C++-
 Login und die bestehenden OGL-Branding-Elemente wurden inventarisiert,
 die zwei festgelegten Grids mit den vorhandenen Sicherheitsverträgen
@@ -55,7 +56,7 @@ aktuelle sichere Zwischenlösung öffnet lediglich die Portal-Startseite.
 
 **Prüfungen lokal Linux Mint:** `bash ogl/scripts/build-test.sh`
 erfolgreich, vollständiges Viewer-Binary kompiliert und
-Release-Staging erzeugt, **120/120 Python-Tests** und
+Release-Staging erzeugt, **121/121 Python-Tests** und
 **41/41 native CTest-Tests** erfolgreich; `git diff --check` ohne
 Fehler. Die Beta-Login-Sperre, feste Grid-Auswahl und
 explizite HTTP-Einwilligung bleiben in den Sicherheitstests grün.
@@ -63,6 +64,28 @@ Keine neue Projektdatei angelegt. Duplikat-/Altbestand-Audit:
 `git ls-files` auf *_neu, *_v2, *.bak und Kopie-Namen geprüft;
 gefundenes upstream-notwendiges `client_list_v2.xml` sowie
 Funktionsressourcen mit „copy“ nicht blind gelöscht.
+
+**Ergänzung zur laufenden Arbeit an Block 7 (noch nicht
+vollständig abgeschlossen):** In einem isolierten Xvfb-Test mit
+1280×720 wurde die bisherige Standardfenstergröße 1024×738 bei
+Y=-9 als zu groß ermittelt. Die vorhandene `settings.xml` wurde auf
+1024×680 (neue Standardinstallation, bestehende Nutzereinstellung
+bleibt erhalten) angepasst. Der wiederholte virtuelle Start zeigte
+ein vollständiges OGL-Fenster mit 1024×680 bei Y=+20; die originale
+NexVerse-Welcome-URL wurde im Log geladen. Ein 16-Sekunden-
+Smoke-Test endete bewusst per Timeout (Exit 124), **kein
+normaler Viewer-Shutdown-Test**. Windows/macOS und echte HiDPI-
+Sichtprüfung bleiben offen.
+
+Ebenfalls überarbeitet: der beim Login angezeigte DE-/EN-
+Virenschutz-Hinweis und der vorhandene Whitelist-Dialog,
+die vorher zur Firestorm-Wiki verlinkten und unkritische
+Ausnahmen nahelegten. Neue Hinweise verlangen eine
+bestätigte Fehlmeldung und raten ausdrücklich zum
+aktivierten Virenschutz. Bestehende andere Sprachdateien
+sind noch im vollständigen Branding-Audit zu prüfen.
+Verifizierte XML-/Branding-Tests plus vollständiger Linux-
+Build: **121 Python, 41 native Tests**, alles bestanden.
 
 **Noch offen:** Blöcke 7–20 inklusive tatsächlicher GUI-Prüfung auf
 720p–4K/HiDPI, Speichern und Wiederherstellen der Zugangsdaten,

@@ -40,9 +40,13 @@ verified NexVerse homepage, not the upstream Firestorm/Second Life site.
 A dedicated recovery URL still needs verification before use. No change
 was made to secrets, credentials or the live account system.
 
-A full local Linux viewer build, 120 Python tests and 41 native tests
-passed. No live grid-login/UI scaling or Windows/macOS installer
-validation has been claimed. P01 remains open at block 7/20.
+A full local Linux viewer build, 121 Python tests and 41 native tests
+passed. A virtual Xvfb 1280x720 GUI launch confirmed the initial 1024x680
+OGL viewer window stays inside the 720p screen and loads the welcome URL.
+The test was time-limited and did not validate real-world OpenSim login,
+high-DPI rendering, a clean application shutdown or platform installers.
+OGL's EN/DE startup antivirus guidance no longer links to Firestorm's wiki
+or encourages unconditional antivirus exceptions. P01 remains open at block 7/20.
 
 ## HTTP login compatibility
 
