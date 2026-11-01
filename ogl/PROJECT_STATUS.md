@@ -16,6 +16,38 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 | Phase D – Plugin-Manager | Grundlage vorhanden, vollständiger sicherer Manager geplant | Versionierte Plugin-API, Rechte, Isolation und Signaturen konzipieren |
 | Phase E – CPU/GPU, Cache, Grafik | Verschiedene Tests/experimentelle Module implementiert, Gesamtziel offen | Grafik-/Cache-Livebenchmark und vollständige Plattform-Builds prüfen |
 | Phase F – verpflichtender Updater | Geplant, 0 von 20 Blöcken implementiert | Gemeinsame Client-/Server-Mindestversions-API und Releasekanäle festlegen |
+| Phase G – OpenGL-/Vulkan-Grafik-Engine | Geplant, 0 von 20 Blöcken als vollständiger Renderer implementiert | Architektur für Renderer-Auswahl und OpenGL-Fallback prüfen |
+| Phase H – OGL-Navigation, Login und vollständiges Rebranding | Geplant; frühere UI-Arbeiten vorhanden, aber Ziel noch nicht erreicht | Firestorm-UI-Reste erfassen; Loginanzeigen "Vulkan RT bereit" und "Effekt aus" entfernen; moderne Navigation planen |
+| Phase I – GitHub-Releases, Portal und Bereinigung | Geplant; Repository besitzt Build-/CI-Grundlagen | Releases/Signierung/Portal-API prüfen und Quellbaum-Audit in jede Runde integrieren |
+
+## Neue verbindliche Anforderungen (01.11.2026)
+
+- **Grafikeinstellung:** Nutzer kann zwischen OpenGL (kompatibler
+  Standard für ältere Hardware) und Vulkan (zusätzlicher vollwertiger
+  Renderer) wählen. Vulkan-RT-Effekte sind optional und separat.
+  **Stand:** Vulkan-Welt-Renderer und Auswahl noch nicht realisiert.
+- **OGL-Produktdesign:** Alle sichtbaren Firestorm-Branding-/
+  Navigation-/Login-/Dialogreste sollen durch ein eigenständiges
+  modernes OGL/NexVerse-Design ersetzt werden. Insbesondere
+  "Vulkan RT bereit" und "Effekt aus" im Login entfernen.
+  Technische Debugdaten in Grafik-/Diagnosebereich verlagern.
+  **Stand:** UI-Umbau noch nicht abgeschlossen.
+- **Releasequelle:** GitHub Releases soll plattform-/architektur-
+  passende geprüfte, signierte OGL-Versionen automatisch
+  veröffentlichen. Das NexVerse-Portal bezieht aktuelle
+  Release-Informationen mit offiziellem API-Zugriff, Cache,
+  Integritätsprüfung und sicheren Downloadlinks.
+  **Stand:** noch keine durchgängige Release-/Portal-Lösung.
+- **Dateiregel und Bereinigung:** ausschließlich vorhandene
+  Projektdateien in-place aktualisieren, keine neuen
+  Projektdateien oder duplizierte Backups/Overlays ohne
+  ausdrückliche Freigabe. Zu jedem 20er-Block verwaiste
+  Inhalte, Dateiduplikate und alten Quellcode prüfen und
+  nach Tests gezielt bereinigen. CI-Release-Dateien
+  sind keine Quellbaum-Ersatzdateien.
+- Urheber-/Lizenzhinweise erhalten, Nutzerdaten schützen.
+- Verbindlicher Detailplan: Hauptroadmap, Phasen G/H/I
+  mit jeweils 20 geplanten Entwicklungsblöcken.
 
 ## Fest bestätigte technische Grundlage
 
@@ -34,8 +66,11 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
   und 20-Block-Plan dokumentiert. Es ist noch **kein**
   produktiv durchsetzender Viewer-/Server-Updater vorhanden.
 - Ein früherer OpenGL/Vulkan-RTX-Entwicklungsstand enthält
-  Diagnosen; sichtbare Welt-RX/RTX-Schatten sind nicht
-  automatisch als implementiert oder freigegeben anzusehen.
+  Diagnosen; das ist **keine** fertig auswählbare Vulkan-
+  Grafik-Engine und kein Nachweis sichtbarer Weltschatten.
+- Die frühere Aussage "originales Firestorm-Design als Standard"
+  beschreibt den bestehenden Zwischenstand, **nicht** das neue
+  Branding-Ziel: künftig rein sichtbare OGL-/NexVerse-Oberfläche.
 
 ## Betriebssysteme und Architektur
 

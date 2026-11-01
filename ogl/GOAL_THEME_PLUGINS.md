@@ -43,6 +43,34 @@ Button "Activate" erforderlich. Neustart wird empfohlen.
 Das originale Firestorm-Design ist Standard und jederzeit
 ueber "Restore original" wiederherstellbar.
 
+## Verbindliche neue Branding- und Dateivorgabe
+
+Die nachfolgenden Phasen sollen die Oberfläche vollständig
+auf OGL/NexVerse umstellen: **kein sichtbarer Firestorm-
+Altstil, keine Firestorm-Marken im normalen Betrieb**.
+Die vorhandene Phase-1-Farbwahl und die frühere
+Original-Firestorm-Rücksetzung bleiben als historische
+Zwischenstandsangabe dokumentiert. Das langfristige
+Nutzer-Standarddesign ist **OGL/NexVerse**; ein interner
+sicherer Skin-/OpenGL-Fallback und verpflichtende
+Urheber-/Lizenzhinweise bleiben erhalten.
+
+Das Login wird kompakter und moderner gestaltet; Anzeigen
+"Vulkan RT bereit" und "Effekt aus" aus dem Login entfernen
+und nur noch in freiwilligen Diagnosen zulassen.
+Navigation, Chat, Login und übrige Fenster verwenden
+gemeinsame Design- und Layoutregeln.
+
+Strikt vorhandene Dateien unter denselben Pfaden
+aktualisieren. **Keine neuen Projektdateien** oder
+parallelen *_neu, *_v2, .bak, Kopien und Overlays ohne
+ausdrückliche Zustimmung; keine Daten/Secrets blind
+überschreiben. Verwaiste UI-Ressourcen/Altcode in jeder
+20-Block-Runde identifizieren und nach Tests bereinigen.
+
+Der Detailplan ist in der Hauptroadmap Phase H (20 Blöcke)
+verbindlich dokumentiert.
+
 ## Phase 2: Native Paketinstallation im Viewer
 
 20 Bloecke: native .ogltheme ZIP-Sicherheitspruefung,
@@ -55,8 +83,10 @@ Windows-/macOS-/Linux-Builds. Ohne externe Interpreterpflicht.
 
 20 Bloecke: Farb-Token-System, Design-Templates, live
 umschaltbare Skins soweit technisch moeglich, bestehende
-Einstellungen schuetzen, fuer Login, Chat und Menues,
-Regressionen bei Login/Voice/PBR/OpenSim und mehreren DPI.
+Einstellungen schuetzen, fuer Login, Chat und Menues;
+OGL/NexVerse als ausschliesslich sichtbares Produktdesign,
+nicht das Firestorm-Original. Regressionen bei
+Login/Voice/PBR/OpenSim und mehreren DPI.
 
 ## Phase 4: Abgesicherte Funktionsplugins und Releases
 

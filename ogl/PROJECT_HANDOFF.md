@@ -37,7 +37,23 @@ automatisch geladen.
 - Ergebnisse testen und direkt auf ogl-develop veröffentlichen.
 - Linux, Windows und macOS, AMD/Intel x86-64 und ARM64 bedenken.
 - CPU-/GPU-Erkennung und OpenGL-Standardpfad für ältere Hardware.
-- Originales Firestorm-Design bleibt der Standard.
+- Sichtbares Branding/Navigation/Login vollständig OGL/NexVerse,
+  kein sichtbarer Firestorm-Altstil; Copyright/Lizenzen erhalten.
+  Die bereits installierte originale Firestorm-Skin-/Farbwahl
+  ist bisheriger Implementierungsstand, nicht das neue UI-Ziel.
+- OpenGL bleibt Standard für ältere Hardware; zusätzlich Vulkan
+  als vollständige anwählbare Grafik-Engine entwickeln,
+  separate GPU-abhängige RT-Effekte und sichere Rückfallfunktion.
+- Login optisch modernisieren und "Vulkan RT bereit" / "Effekt aus"
+  aus der Loginoberfläche entfernen.
+- GitHub-Releases nach erfolgreichem CI-/Signaturprozess
+  automatisch bereitstellen; Stadt-NexVerse-Portal liest
+  passende stabile Releases von GitHub, mit Cache/Integritätsprüfung.
+- Keine neuen Projektdateien ohne explizite Zustimmung.
+  Vorhandene Dateien in-place ändern, keine *_neu/_v2/.bak/
+  Kopie-Dateien. Bei jeder 20-Block-Phase Altbestand,
+  verwaiste Ressourcen, Duplikate und toten Code prüfen
+  und sicher bereinigen, Nutzerdaten/Lizenzen erhalten.
 - Feste Grid-Auswahl: Stadt NexVerse und Stadt NexVerse Beta.
 - Beta-Anmeldung bleibt bis zur bestätigten HTTPS-/Protokoll-
   Unterstützung gesperrt.
@@ -65,7 +81,17 @@ Nutze den Linux-Mint-Commander jam-MS-7D28 und
 Lies zuerst AGENTS.md, ogl/PROJECT_HANDOFF.md,
 ogl/PROJECT_STATUS.md und die /goal-Roadmaps.
 Arbeite immer 20 Entwicklungsblöcke pro Phase ab.
+Bestehende Dateien am bisherigen Pfad ändern;
+keine neuen Projektdateien oder Duplikate ohne Freigabe.
+Zu jeder Runde Altbestand prüfen und sicher bereinigen.
 Linux, Windows und macOS sowie AMD/Intel/ARM64 beachten.
+OGL/NexVerse als vollständig eigenes sichtbares UI mit
+moderner Navigation/Loginmaske; keine Firestorm-Altoptik.
+Aus dem Login "Vulkan RT bereit" und "Effekt aus" entfernen.
+OpenGL als Fallback und zusätzliche frei auswählbare
+Vulkan-Grafik-Engine inklusive Hardwareprüfung entwickeln.
+GitHub-Releases mit signierten Installern automatisch
+bereitstellen und vom NexVerse-Portal beziehen.
 Beide feste NexVerse-Grids erhalten. Ein verpflichtender
 Viewer-Updater muss vom Viewer und Server unterstützt werden;
 alte, nicht mehr zugelassene Versionen dürfen sich nicht

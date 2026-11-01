@@ -37,7 +37,40 @@ Viewer-Versionen dürfen sich nicht anmelden, auch
 wenn ein Client eine Updateaufforderung ignoriert.
 **Das ist noch nicht implementiert.**
 
-Das originale Firestorm-Design bleibt Standard.
+Verbindliche neue Produktgestaltung: Im regulären Nutzerablauf
+darf **nichts vom bisherigen Firestorm-Branding oder der alten
+Firestorm-UI sichtbar sein**. OGL/NexVerse benötigt eine eigene
+Navigation, moderne Loginmaske, Fenster, Chat, Texte und Icons.
+Die Anzeigen "Vulkan RT bereit" und "Effekt aus" sind aus
+dem Login zu entfernen. Technische RT-Diagnosen gehören in
+Grafikeinstellungen/Logs; rechtlich nötige Copyright- und
+Lizenzinformationen dürfen nicht entfernt werden.
+
+Grafik-Engine-Auswahl verbindlich entwickeln: OpenGL als
+Standard/Fallback für ältere Hardware; Vulkan als zweite
+vollwertige Renderer-Engine, anwählbar in Grafikeinstellungen.
+Vulkan-RT-Effekte sind separat und nur bei unterstützter
+GPU verfügbar. Bisherige Vulkan-RT-Prototypen sind
+**noch kein** auswählbarer vollständiger Vulkan-Welt-Renderer.
+
+Github Releases soll nach erfolgreich geprüften Builds
+signierte OGL-Installationspakete für die unterstützten
+OS-/CPU-Varianten automatisch bereitstellen. Das
+NexVerse-Portal bezieht Releases aus offizieller GitHub-
+Quelle mit Caching und Integritätsprüfung. Pflichtupdate-
+Sperre muss zusätzlich auf dem Server durchgesetzt werden.
+**Dies ist geplant, nicht fertig implementiert.**
+
+**Strenge Dateiregel:** Bestehende Dateien am gleichen Pfad
+bearbeiten/überschreiben, niemals *_neu, *_v2, *.bak,
+Kopien, parallele Templates oder zusätzliche Projektdateien
+anlegen. Ist eine neue Projektdatei aus technischen Gründen
+unvermeidlich, vorab ausdrücklich um Freigabe bitten.
+Von CI erzeugte Release-Artefakte außerhalb des Quellbaums
+sind davon getrennt. Zu jeder /goal-Runde eine prüfbare
+Altbestand-/Duplikatkontrolle durchführen und ungenutzten
+Code erst nach Abhängigkeits-/Lizenz-/Regressionstests
+entfernen. Keine Nutzerdaten oder Secrets blind löschen.
 Plugins und Theme-Installationen sicher halten.
 
 Nach Änderungen Tests/Builds dokumentieren, nach

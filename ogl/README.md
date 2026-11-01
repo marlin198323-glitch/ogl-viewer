@@ -51,9 +51,11 @@ The full policy and architecture are documented in
 
 A cross-OS C-ABI handshake is available, and the portable .ogltheme
 checker validates metadata in archives without installing them.
-**There is no installable third-party plugin manager or live theme
-switching in the viewer yet.** Full Windows/macOS builds and signing
-must be verified before claiming cross-platform release readiness.
+**The OGL Designs preferences panel supports installed color-theme
+preview/activation/reset, but not native in-viewer ZIP installation,
+arbitrary code plugins, or complete layout/theme switching yet.**
+Full Windows/macOS builds and signing must be verified before
+claiming cross-platform release readiness.
 
 ## CPU/ARM64 and installable themes foundation
 
@@ -64,7 +66,9 @@ requires both CPU features and operating-system XMM/YMM state support.
 Six OS/architecture CI module test targets are configured. A portable
 theme command-line tool can validate, install, list, select, reset and
 remove declarative packages in a per-user directory, without touching
-viewer files. **The selection is not yet used by the Firestorm UI.**
+viewer files. The later OGL Designs preferences panel can preview,
+activate and reset the *color palette*; full skin/layout switching
+and native package installation are still open.
 Details: [CPU and extension phase 2](CPU_AND_EXTENSION_SYSTEM_PHASE2.md).
 
 ## Optional fast texture cache write deduplication
@@ -79,6 +83,41 @@ behavior remain unchanged. The test report exposes aggregate
 counts but does not prove an end-to-end speedup.
 
 See [P37 Cache Test](CPU_FASTCACHE_OPT_IN_2026_11_01_P37.md).
+
+## Product direction – OGL/NexVerse UI, Vulkan, GitHub Releases
+
+**Binding development goals (not yet finished features):**
+
+- The visible product should be fully OGL/NexVerse branded:
+  modern navigation, compact responsive login, chat, windows
+  and icons without Firestorm-era user-facing styling.
+  Remove "Vulkan RT bereit" and "Effekt aus" from the login.
+  Preserve upstream copyright, license and attribution notices.
+- In graphics settings users must eventually choose between
+  **OpenGL** (default/safe fallback for older hardware) and
+  **Vulkan** (a separate *full world-rendering* backend).
+  Optional Vulkan ray tracing requires suitable GPU capabilities.
+  The current experimental Vulkan RT diagnostic module
+  **is not** a complete selectable Vulkan renderer.
+- Successful verified CI builds should produce signed and
+  versioned **GitHub Releases**, from which the Stadt-NexVerse
+  portal dynamically obtains current downloads via official
+  GitHub API/server-side caching and integrity validation.
+  Actual login blocking for outdated versions remains the
+  server-enforced mandatory-updater goal.
+- **Modify existing project files in place; do not create
+  extra source/project files, copies, _neu/_v2/.bak backups
+  or shadowing replacements without explicit approval.**
+  Every 20-block development phase includes a careful stale
+  code/resource/duplicate audit and removal only after
+  dependency/license/regression checks. Build artifacts
+  in CI are distinct from new project source files.
+
+All three new 20-block phases (G Vulkan renderer, H OGL UI,
+I Releases/Portal/cleanup) are defined in the
+[canonical /goal roadmap](GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md).
+Current [project status](PROJECT_STATUS.md) records what has
+actually been implemented and which live tests remain pending.
 
 ## Mandatory OGL Viewer updater (planned)
 
