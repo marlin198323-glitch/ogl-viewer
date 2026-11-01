@@ -33,17 +33,25 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20**
-(Blöcke 1–18 abgeschlossen; Code `a8951b29`:
-Moduswechsel-Dialoge gegen veraltete,
-wiederholte oder fremde Bestätigungen
-abgesichert, alte Login-XUI-Fallback-
-URLs auf NexVerse umgestellt. 20/20
-QA-Positionen; 198 Python-/41 native
-Tests und Hauptgrid-/Beta-GUI-Smokes
-erfolgreich. CI-Korrektur `0fb7b3d0`
-(UTF-8 unter Windows), portable
-Grafikmatrix 6/6 grün
-(GitHub-Lauf 41338813171).
+(Blöcke 1–18 abgeschlossen.
+`7ab16aaf`: OGL-Credential-Reuse
+nur nach exakt ausgewähltem
+gespeichertem Konto auf gleichem
+kanonischen Grid; manuelle
+Passwörter bleiben unabhängig,
+fehlende Credentials/alte
+Maskierung scheitern geschlossen.
+16 native Prüffälle, 203 Python-
+und 41 CTests, Linux-Vollviewer
+und Hauptgrid-/Beta-GUI-Smokes
+erfolgreich; 20/20
+Einzelprüfpositionen bestanden.
+P02 formal 0/20; echter
+Hauptgrid-Live-Login,
+Passwortpersistenz, In-World-
+Shutdown, vollständige Windows-/
+macOS-Viewer-Build-/GUI-Tests
+weiter offen).
 P02 formal 0/20.
 Noch offen: autorisierter Hauptgrid-
 Live-Login, Passwortpersistenz,

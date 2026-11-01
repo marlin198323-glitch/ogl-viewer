@@ -208,7 +208,24 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Code-Commit `a8951b29`:
+Letzter P01-Code-Commit `7ab16aaf`:
+Gepinnte NexVerse-Credentials
+dürfen nur bei exakter bewusster
+Kontenauswahl auf dem aktuellen
+kanonischen Grid wiederverwendet
+werden; bloße Eingabe des
+Benutzernamens, Gridabweichung,
+verändertes Passwort oder alte
+Maskierungsfüllzeichen erlauben
+keine Secret-Wiederverwendung.
+16 native Positiv-/Negativtests,
+203 Python-/41 native Tests
+und Hauptgrid-/Beta-GUI-Smokes
+bestanden; 20/20 technische
+Prüfpositionen, aber noch keine
+echte Passwortpersistenz-Abnahme.
+Davor:
+`a8951b29`:
 Moduswechsel-Bestätigungen werden
 einmalig an Dialoggeneration, aktuelle
 Auswahl und unverändertes Original-

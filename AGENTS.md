@@ -22,19 +22,18 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
-Code-Commit `a8951b29`: veraltete
-Moduswechsel-Bestätigungen können keine
-Session-Presets oder Toolbars mehr ändern,
-alte Phoenix-/SL-Login-Fallback-URLs
-in bestehenden XUI-Dateien durch
-NexVerse-Ziele ersetzt; 20/20 technische
-Prüfblöcke, 198 Python-/41 native Tests
-sowie Hauptgrid-/Beta-GUI-Negativläufe
-bestanden. CI-Nachfix `0fb7b3d0`
-explizites UTF-8 für Windows-Tests;
-portable Grafikmatrix 6/6 grün
-(Lauf 41338813171). P02 formal 0/20;
-autorisierter Live-Login/
+Code `7ab16aaf`: OGL darf
+gespeicherte Authenticatoren nur
+nach ausdrücklicher exakter
+Konto-/Grid-Auswahl erneut verwenden,
+kein altes Passwort für bloß
+eingetippte Namen oder veraltete
+Passwortmasken. 20/20
+Prüfpositionen, 203 Python-/41
+native Tests, Hauptgrid-/Beta-
+GUI-Negativläufe grün.
+P02 formal 0/20; autorisierter
+Live-Login und vollständige
 Plattform-Viewer-Builds noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate

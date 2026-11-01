@@ -32,6 +32,118 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – gespeicherte Zugangsdaten an echte Kontoauswahl gebunden
+
+**Code-Commit:** `7ab16aaf` auf `ogl-develop`.
+**20/20 technische Entwicklungs-/QA-Positionen bestanden.**
+Formale P01-Abnahme weiterhin **18/20**;
+P02 bleibt **0/20**, bis die fehlenden
+End-to-End- und Plattformnachweise
+tatsächlich vorhanden sind.
+
+**Änderungen – ausschließlich an vier bestehenden Quelldateien:**
+
+- `indra/newview/fspanellogin.cpp`: In
+  `FSPanelLogin::getFields` wird ein
+  bestehender verschlüsselter
+  Authenticator im OGL-Kanal nur dann
+  gelesen, wenn die ausdrücklich
+  aus der Kontenliste ausgewählte
+  Identität exakt mit dem aktuellen
+  Formular und dem ausgewählten
+  NexVerse-Grid übereinstimmt und
+  das Passwort nicht bearbeitet wurde.
+  Das bloße Eintippen eines bereits
+  gespeicherten Benutzernamens
+  reicht ausdrücklich nicht aus.
+  Manuelle Passworteingaben bleiben
+  nutzbar und werden von früheren
+  Credential-Pointern getrennt.
+- Fehlende oder zwischenzeitlich
+  verschwundene gespeicherte
+  Credentials werden ohne
+  Authentifizierungsversuch
+  zurückgewiesen. Ein überholter
+  maskierter Passwort-Platzhalter
+  darf keinen Login auslösen.
+  Die eigentliche HTTP-Warnung
+  und die Beta-Protokollsperre
+  bleiben unangetastet.
+- `indra/newview/oglnexversegrid.h`:
+  die reine, plattformneutrale
+  Policy `canReuseSavedAuthenticator`
+  prüft exakte Kontoidentität,
+  kanonische Haupt-/Beta-Gridkeys,
+  echtes Auswahlereignis, unverändertes
+  Passwort und nicht leeren
+  Benutzernamen.
+- `ogl/tests/test_grid_http_policy.cpp`:
+  **16 ausführbare native Testfälle**
+  für erlaubte und abgelehnte
+  Kombinationen, auch in
+  Release-Builds mit aktiven
+  Assertions. Fünf zusätzliche
+  Python-Regressionstests in
+  `ogl/tests/test_nexverse_grid.py`.
+  Keine neuen Projektdateien,
+  Accounts, Backups oder Secrets;
+  keine Änderungen an der
+  allgemeinen Nicht-OGL-
+  Authentifizierung.
+
+**20 bestandene Prüfblöcke:**
+01 Branch; 02 Upstream-Sync; 03
+keine neuen Projektdateien;
+04 zwei feste Gridprofile;
+05 verwendete OGL-Credential-Policy;
+06 echte gespeicherte Kontoauswahl;
+07 exakte Formular-/Kontogleichheit;
+08 Passwortänderung;
+09 nur kanonische Gridkeys;
+10 exakter Grid-Suffix;
+11 nicht leerer Benutzername;
+12 Auswahlprüfung vor Secret-Zugriff;
+13 veralteter Passwort-Platzhalter
+fail-closed; 14 fehlendes gespeichertes
+Credential fail-closed;
+15 keine alten Credential-Pointer
+bei manueller Eingabe;
+16 Nicht-OGL-Kompatibilität;
+17 16 echte native Positiv-/
+Negativassertions;
+18 Linux-Vollbuild, Python- und CTests;
+19 Hauptgrid-HTTP-Warnungs-GUI;
+20 Beta-Protokollsperr-GUI.
+**20/20 bestanden.**
+
+**Prüfnachweis:** Vollständiger
+`bash ogl/scripts/build-test.sh`
+erfolgreich: **203/203 Python-Tests,
+41/41 native CTests**, kompilierter
+Linux-Mint-Viewer. Isolierte
+1280×720-Xvfb-GUI-Negativläufe
+mit synthetischen Eingaben:
+Hauptgrid-HTTP-Warnung und
+Beta-Anmeldesperre bestätigt,
+kein `STATE_LOGIN_AUTH_INIT`,
+beide Strg+Q-Exit-Code **0**.
+Die native Auswahlpolicy wurde
+ausgeführt; ein realer
+Secure-Store-Re-Login mit
+gültigem Benutzerkonto ist
+weiterhin **nicht** nachgewiesen.
+
+**Wiedereinstieg:** `/goal P01
+Block 19/20`; unabhängig
+testbare P02-Vorarbeiten bleiben
+zulässig. Für P01 weiterhin offen:
+autorisierter Live-Login,
+echte Passwortpersistenz im
+Hauptgrid, In-World-Shutdown und
+vollständige Windows-/macOS-
+Viewer-Build-/GUI-Tests.
+Keine Nutzerzwischenabnahme nötig.
+
 ## CI-Nachprüfung – sechs portable Grafikplattformen grün
 
 Nach dem Code- und Dokumentations-Push
