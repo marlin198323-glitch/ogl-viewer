@@ -117,6 +117,98 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertNotIn("ogl_graphics_status", self.source(
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
 
+    def test_fixed_grid_selector_and_saved_account_callbacks(self):
+        xui = ROOT / "indra/newview/skins/default/xui"
+        login = ET.parse(xui / "en/panel_fs_nui_login.xml").getroot()
+        de = ET.parse(xui / "de/panel_fs_nui_login.xml").getroot()
+        controls = {n.get("name"): n for n in login.iter() if n.get("name")}
+        localized = {n.get("name"): n for n in de.iter() if n.get("name")}
+        self.assertEqual(controls["server_combo"].get("allow_text_entry"), "false")
+        self.assertEqual(controls["grid_panel"].get("visible"), "true")
+        self.assertIn("Stadt NexVerse Beta",
+                      (controls["ServerComboTooltip"].text or ""))
+        self.assertIn("Beta-Anmeldung",
+                      (localized["ServerComboTooltip"].text or ""))
+        for root in (login, de):
+            password_url = next(n for n in root.iter()
+                                if n.get("name") == "forgot_password_url")
+            self.assertEqual(password_url.text.strip(), "https://stadt-nexverse.de/")
+        self.assertEqual(controls["username_combo"].get("allow_text_entry"), "true")
+        self.assertEqual(controls["password_edit"].get("is_password"), "true")
+        self.assertEqual(controls["remember_username_check"].get("control_name"),
+                         "FSRememberUsername")
+        self.assertEqual(controls["remember_check"].get("control_name"),
+                         "RememberPassword")
+        self.assertEqual(controls["remember_check"].get("enabled_control"),
+                         "FSRememberUsername")
+        source = self.source("indra/newview/fspanellogin.cpp")
+        self.assertIn('setCommitCallback(boost::bind(&FSPanelLogin::onSelectServer', source)
+        self.assertIn('setCommitCallback(boost::bind(&FSPanelLogin::onSelectUser', source)
+        self.assertIn('gSecAPIHandler->loadCredential(cred_name)', source)
+        self.assertIn('gSecAPIHandler->deleteCredential(credential)', source)
+        self.assertIn('setMaxTextChars(LLGridManager::getInstance()->isInSecondLife()', source)
+        self.assertIn('if (APP_NAME != "OGL")', source)
+        self.assertIn('LLTextBox* grid_mgr_help_text', source)
+        self.assertIn('OGLNexVerseGrid::isFixedGrid(server_combo_val.asString())', source)
+
+    def test_alternate_skin_logins_keep_all_required_ogl_controls(self):
+        # Actual --skin starlight runtime needs a full XUI definition:
+        # a root-only override caused dummy controls and a black login.
+        # Keep the two pre-existing override paths fully functional.
+        canonical = self.source(
+            "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml")
+        for skin in ("starlight", "starlightcui"):
+            file = ROOT / f"indra/newview/skins/{skin}/xui/en/panel_fs_nui_login.xml"
+            self.assertEqual(file.read_text(), canonical)
+            root = ET.parse(file).getroot()
+            names = {n.get("name") for n in root.iter()}
+            for required in ("ui_stack", "username_combo", "password_edit",
+                             "connect_btn", "server_combo", "remember_check",
+                             "mode_combo", "login_html"):
+                self.assertIn(required, names)
+            self.assertNotIn("login_fs_logo", file.read_text())
+
+    def test_grid_label_fits_and_no_forced_antivirus_modal(self):
+        root = ET.parse(ROOT / "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml").getroot()
+        controls = {n.get("name"): n for n in root.iter() if n.get("name")}
+        label = controls["grid_login_text"]
+        combo = controls["server_combo"]
+        group = controls["grid_panel"]
+        self.assertGreaterEqual(int(label.get("width")), 55)
+        self.assertLessEqual(int(label.get("left")) + int(label.get("width"))
+                             + int(combo.get("left_pad")) + int(combo.get("width")),
+                             int(group.get("width")))
+        start = self.source("indra/newview/llstartup.cpp")
+        self.assertIn('if (APP_NAME != "OGL")', start)
+        self.assertIn('LLNotificationsUtil::add("WhitelistReminder");', start)
+        self.assertIn('gSavedSettings.setBOOL("FSShowWhitelistReminder", false);', start)
+        self.assertLess(start.index('if (APP_NAME != "OGL")'),
+                        start.index('LLNotificationsUtil::add("WhitelistReminder");'))
+
+    def test_password_visibility_is_within_password_field(self):
+        root = ET.parse(ROOT / "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml").getroot()
+        controls = {n.get("name"): n for n in root.iter() if n.get("name")}
+        pw = controls["password_edit"]
+        pane = controls["password_container"]
+        self.assertGreaterEqual(int(pw.get("text_pad_right")), 30)
+        pw_top = int(controls["ogl_password_label"].get("top")) + int(
+            controls["ogl_password_label"].get("height")) + int(pw.get("top_pad"))
+        for name in ("password_show_btn", "password_hide_btn"):
+            btn = controls[name]
+            self.assertEqual(btn.get("follows"), "right|top")
+            self.assertEqual(btn.get("tab_stop"), "true")
+            self.assertTrue(pw_top <= int(btn.get("top")))
+            self.assertTrue(int(btn.get("top")) + int(btn.get("height"))
+                            <= pw_top + int(pw.get("height")))
+            self.assertLessEqual(int(btn.get("left")) + int(btn.get("width")),
+                                 int(pane.get("width")))
+        self.assertEqual(controls["password_show_btn"].get("visible"), "true")
+        self.assertEqual(controls["password_hide_btn"].get("visible"), "false")
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        self.assertIn('childSetAction("password_show_btn", onShowHidePasswordClick', cpp)
+        self.assertIn('childSetAction("password_hide_btn", onShowHidePasswordClick', cpp)
+        self.assertIn('syncShowHidePasswordButton()', cpp)
+
     def test_720p_initial_window_and_safe_antivirus_login_notice(self):
         settings = ET.parse(ROOT / "indra/newview/app_settings/settings.xml")
         fields = list(settings.getroot().find("map"))

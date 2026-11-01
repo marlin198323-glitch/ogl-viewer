@@ -259,8 +259,13 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
     LLTextBox* create_new_account_text = getChild<LLTextBox>("create_new_account_text");
     create_new_account_text->setClickedCallback(onClickNewAccount, NULL);
 
-    LLTextBox* grid_mgr_help_text = getChild<LLTextBox>("grid_login_text");
-    grid_mgr_help_text->setClickedCallback(onClickGridMgrHelp, NULL);
+    // OGL has two fixed grids, not the upstream editable grid manager.
+    // Avoid opening legacy third-party viewer help from the world selector.
+    if (APP_NAME != "OGL")
+    {
+        LLTextBox* grid_mgr_help_text = getChild<LLTextBox>("grid_login_text");
+        grid_mgr_help_text->setClickedCallback(onClickGridMgrHelp, NULL);
+    }
 
 #ifdef OPENSIM
     LLTextBox* grid_builder_text = getChild<LLTextBox>("grid_builder_text");
@@ -1627,6 +1632,19 @@ void FSPanelLogin::updateServerCombo()
     // We add all of the possible values, sorted, and then add a bar and the current value at the top
     LLComboBox* server_choice_combo = sInstance->getChild<LLComboBox>("server_combo");
     server_choice_combo->removeall();
+
+    // Exactly two pinned OGL worlds. Avoid duplicate labels introduced by
+    // old grid aliases and the upstream "current grid" duplicate row.
+    if (APP_NAME == "OGL")
+    {
+        server_choice_combo->add(OGLNexVerseGrid::kName, OGLNexVerseGrid::kKey);
+        server_choice_combo->add(OGLNexVerseGrid::kBetaName, OGLNexVerseGrid::kBetaKey);
+        server_choice_combo->setSelectedByValue(
+            OGLNexVerseGrid::isBetaGrid(LLGridManager::getInstance()->getGrid())
+                ? OGLNexVerseGrid::kBetaKey : OGLNexVerseGrid::kKey, true);
+        update_grid_help();
+        return;
+    }
 
 #if OPENSIM && !SINGLEGRID
     if (!sPendingNewGridURI.empty())

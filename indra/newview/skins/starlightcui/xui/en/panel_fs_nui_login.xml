@@ -6,15 +6,15 @@
   name="panel_login"
   focus_root="true"
   background_visible="true"
-  bg_opaque_color="FloaterFocusBackgroundColor"
+  bg_opaque_color="OGLLoginBackground"
   background_opaque="true"
   width="1024">
   <panel.string
     name="forgot_password_url">
-    http://secondlife.com/account/request.php
+    https://stadt-nexverse.de/
   </panel.string>
   <string name="ServerComboTooltip">
-    An existing grid or a grid URI
+    Select Stadt NexVerse or Stadt NexVerse Beta. Beta sign-in is not yet available.
   </string>
   <web_browser
     tab_stop="false"
@@ -26,18 +26,18 @@
     name="login_html"
     start_url=""
     top="18"
-    height="598"
+    height="610"
     width="1024" />
   <layout_stack
   follows="left|right|bottom"
-  height="152"
+  height="140"
   left="0"
   name="ui_stack"
   orientation="horizontal"
   bottom="-1"
   width="1024">
     <layout_panel
-      height="152"
+      height="140"
       auto_resize="true"
       name="ui_elastic_pad_left"
       width="27" />
@@ -46,16 +46,29 @@
       follows="left|right|top"
       name="ui_container"
       layout="topleft"
+      background_visible="true"
+      background_opaque="true"
+      bg_opaque_color="OGLLoginSurface"
       width="970"
       min_width="970"
-      height="152">
+      height="140">
   <icon
-    height="125"
-    width="125"
-    image_name="login_fs_logo"
-    left="0"
-    top="10"
+    height="92"
+    width="92"
+    image_name="login_ogl_logo"
+    left="9"
+    top="6"
     name="sl_logo_small" />
+  <text
+    name="ogl_brand_caption"
+    follows="left|top"
+    left="0"
+    top="105"
+    width="110"
+    height="20"
+    font="SansSerifSmall"
+    text_color="OGLLoginAccent"
+    halign="center">STADT NEXVERSE</text>
 
     <layout_stack
       animate="false"
@@ -66,15 +79,15 @@
       orientation="vertical"
       top="0"
       left_pad="10"
-      width="685"
-      height="152">
+      width="700"
+      height="140">
     <layout_panel
       auto_resize="false"
       follows="all"
       name="1st_row"
       layout="topleft"
-      height="86"
-      width="685">
+      height="82"
+      width="700">
     <layout_stack
       animate="false"
       clip="false"
@@ -84,19 +97,22 @@
       orientation="horizontal"
       top="0"
       left="0"
-      width="685"
-      height="86">
+      width="700"
+      height="82">
     <layout_panel
         auto_resize="true"
         follows="left|top|right"
         name="login"
         layout="topleft"
         width="206"
-        height="86">
+        height="82">
 
+  <text name="ogl_username_label" left="5" top="4"
+    font="SansSerifLarge" text_color="OGLLoginAccent"
+    height="17" width="200">NEXVERSE USERNAME</text>
   <combo_box
     left="5"
-    top_pad="25"
+    top_pad="2"
     allow_text_entry="true"
     follows="left|top|right"
     height="32"
@@ -111,16 +127,14 @@
     width="201">
     <combo_box.combo_editor
       text_pad_left="8"
-      text_pad_right="8"
-      bg_image_always_focused="true"/>
+      text_pad_right="8"/>
     </combo_box>
     <check_box
-      tab_stop="false"
       control_name="FSRememberUsername"
       follows="left|top|right"
-      font="SansSerifLarge"
+      font="SansSerifMedium"
       left="2"
-      top_pad="10"
+      top_pad="6"
       height="18"
       label="Remember username"
       name="remember_username_check"
@@ -133,7 +147,7 @@
       name="delete_container"
       layout="topleft"
       width="32"
-      height="86">
+      height="82">
     <button
       follows="right|top"
       height="32"
@@ -154,36 +168,61 @@
         name="password_container"
         layout="topleft"
         width="206"
-        height="86">
+        height="82">
     <!-- The max length might be changed in FSPanelLogin.cpp for Opensim! -->
+  <text name="ogl_password_label" left="5" top="4"
+    font="SansSerifLarge" text_color="OGLLoginAccent"
+    height="17" width="200">PASSWORD</text>
   <line_editor
     follows="left|top|right"
     height="32"
     left="5"
     max_length_chars="16"
     text_pad_left="8"
-    text_pad_right="8"
+    text_pad_right="32"
     name="password_edit"
     label="Password"
-    bg_image_always_focused="true"
     font="SansSerifLarge"
     is_password="true" 
     select_on_focus="true"
     commit_on_focus_lost="false"
-    top_pad="25"
+    top_pad="2"
     width="201" />
     <check_box
-      tab_stop="false"
       control_name="RememberPassword"
       enabled_control="FSRememberUsername"
       follows="left|top|right"
-      font="SansSerifLarge"
+      font="SansSerifMedium"
       left="2"
       height="18"
       label="Remember password"
-      top_pad="10"
+      top_pad="6"
       name="remember_check"
       width="204" />
+    <button
+      name="password_show_btn"
+      tool_tip="Show password text"
+      follows="right|top"
+      left="181"
+      top="29"
+      height="20"
+      width="20"
+      image_pressed="Profile_Group_Visibility_Off_Pressed"
+      image_unselected="Profile_Group_Visibility_Off"
+      tab_stop="true"
+      visible="true"  />
+    <button
+      name="password_hide_btn"
+      tool_tip="Hide password text"
+      follows="right|top"
+      left="181"
+      top="29"
+      height="20"
+      width="20"
+      image_pressed="Profile_Group_Visibility_On_Pressed"
+      image_unselected="Profile_Group_Visibility_On"
+      tab_stop="true"
+      visible="false"  />
     </layout_panel> <!-- password_container -->
     <layout_panel
       auto_resize="false"
@@ -191,7 +230,10 @@
       name="start_location_panel"
       layout="topleft"
       width="211"
-      height="86">
+      height="82">
+  <text name="ogl_start_label" left="5" top="4"
+    font="SansSerifLarge" text_color="OGLLoginAccent"
+    height="17" width="200">START LOCATION</text>
   <combo_box
     allow_text_entry="true"
     control_name="NextLoginLocation"
@@ -201,12 +243,11 @@
     max_chars="128"
     combo_editor.font="SansSerifLarge"
     left="5"
-    top_pad="25"
+    top_pad="2"
     name="start_location_combo"
     width="201"
     combo_button.scale_image="true">
     <combo_box.combo_editor
-      bg_image_always_focused="true"
       text_pad_left="8"
       text_pad_right="8"/>
     <combo_box.item
@@ -231,8 +272,8 @@
       name="2nd_row"
       layout="topleft"
       top_pad="0"
-      height="66"
-      width="685">
+      height="58"
+      width="700">
     <layout_stack
       animate="false"
       clip="false"
@@ -242,15 +283,15 @@
       orientation="horizontal"
       top_pad="0"
       left="0"
-      width="685"
-      height="66">
+      width="700"
+      height="58">
     <layout_panel
       auto_resize="false"
       follows="left|top|right"
       name="grid_panel"
       layout="topleft"
       width="342"
-      height="66"
+      height="58"
       visible="true">
     <text
       follows="left|bottom"
@@ -260,11 +301,11 @@
       valign="center"
       top_pad="5"
       left="5"
-      width="35">
-        Grid:
+      width="55">
+        WORLD:
     </text>
     <combo_box
-      allow_text_entry="true"
+      allow_text_entry="false"
       font="SansSerifLarge"
       follows="left|bottom"
       height="32"
@@ -282,13 +323,26 @@
     <combo_box.drop_down_button
       font="SansSerifLarge"/>
     </combo_box>
+    <text
+      follows="left|top|right"
+      font="SansSerifMedium"
+      text_color="OGLLoginLink"
+      top_pad="5"
+      height="16"
+      name="grid_builder_text"
+      valign="center"
+      left="45"
+      width="250"
+      visible="false">
+    + Click to add more grids
+    </text>
     </layout_panel>
-
     <layout_panel
       follows="left|top|right"
       name="mode_selection"
+      visible="false"
       width="342"
-      height="66">
+      height="58">
     <text
       follows="right|top"
       font="SansSerifLarge"
@@ -299,7 +353,7 @@
       top_pad="5"
       right="-130"
       width="75">
-        Mode:
+        DISPLAY:
     </text>
     <combo_box
       follows="right|bottom"
@@ -315,7 +369,7 @@
       <combo_box.drop_down_button
         font="SansSerifLarge"/>
       <combo_box.item
-        label="Firestorm"
+        label="OGL"
         name="Firestorm"
         value="settings_firestorm.xml" />
       <combo_box.item
@@ -335,10 +389,6 @@
         name="Hybrid"
         value="settings_hybrid.xml" />
       <combo_box.item
-        label="Latency"
-        name="Latency"
-        value="settings_latency.xml" />
-      <combo_box.item
         label="Text"
         name="Text"
         value="settings_text.xml" />
@@ -350,10 +400,10 @@
     </layout_stack> <!-- vert_stack -->
   <button
     follows="left|top|right"
-    image_unselected="PushButton_Login"
-    image_pressed="PushButton_Login_Pressed"
-    image_hover_unselected="PushButton_Login_Over"
-    label="Log In"
+    image_unselected="OGL_Login"
+    image_pressed="OGL_Login_Pressed"
+    image_hover_unselected="OGL_Login_Over"
+    label="Enter world"
     label_color="White"
     font="SansSerifLarge"
     name="connect_btn"
@@ -363,21 +413,21 @@
     top="25"/>
     <text
       follows="left|top|right"
-      font="SansSerifMedium"
-      text_color="EmphasisColor"
+      font="SansSerifLarge"
+      text_color="OGLLoginLink"
       left_delta="0"
-      height="16"
+      height="19"
       name="create_new_account_text"
       top_pad="14"
       width="140">
-        Create an account
+        Create account
     </text>
     <text
       follows="left|top|right"
-      font="SansSerifMedium"
-      text_color="EmphasisColor"
+      font="SansSerifLarge"
+      text_color="OGLLoginLink"
       left_delta="0"
-      height="16"
+      height="19"
       name="forgot_password_text"
       top_pad="5"
       width="140">
@@ -385,7 +435,7 @@
     </text>
   </layout_panel>
   <layout_panel
-      height="152"
+      height="140"
       auto_resize="true"
       name="ui_elastic_pad_right"
       width="27" />

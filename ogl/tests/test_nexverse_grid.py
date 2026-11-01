@@ -57,6 +57,20 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn("OGLNexVerseGrid::isFixedGrid(server_combo_val.asString())", self.panel)
         self.assertIn('grid_builder_text->setVisible(APP_NAME != "OGL")', self.panel)
 
+    def test_ogl_dropdown_contains_exactly_two_nonduplicated_grids(self):
+        panel = self.panel
+        marker = panel.index('// Exactly two pinned OGL worlds.')
+        branch_end = panel.index('#if OPENSIM && !SINGLEGRID', marker)
+        branch = panel[marker:branch_end]
+        self.assertIn('if (APP_NAME == "OGL")', branch)
+        self.assertEqual(branch.count('server_choice_combo->add('), 2)
+        self.assertIn('server_choice_combo->add(OGLNexVerseGrid::kName, OGLNexVerseGrid::kKey)', branch)
+        self.assertIn('server_choice_combo->add(OGLNexVerseGrid::kBetaName, OGLNexVerseGrid::kBetaKey)', branch)
+        self.assertIn('OGLNexVerseGrid::isBetaGrid(', branch)
+        self.assertIn('server_choice_combo->setSelectedByValue(', branch)
+        self.assertIn('update_grid_help();', branch)
+        self.assertIn('return;', branch)
+
     def test_beta_credentials_never_sent_from_login_button(self):
         blocked = self.panel.index('Blocked beta authentication: protocol and TLS not verified.')
         credentials = self.panel.index('std::string username = sInstance->getChild<LLUICtrl>("username_combo")', blocked)
