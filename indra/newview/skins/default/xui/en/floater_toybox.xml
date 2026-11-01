@@ -3,8 +3,10 @@
   can_close="true"
   can_dock="false"
   can_minimize="false"
-  can_resize="false"
-  height="575"
+  can_resize="true"
+  min_width="610"
+  min_height="440"
+  height="520"
   help_topic="toybox"
   layout="topleft"
   legacy_header_height="18"
@@ -12,8 +14,8 @@
   positioning="centered"
   save_rect="true"
   single_instance="true"
-  title="Toolbar Buttons"
-  width="975">
+  title="Customize OGL Toolbar"
+  width="820">
   <text
     follows="left|top"
     valign="top"
@@ -43,7 +45,7 @@
       Buttons will appear as shown or as icon-only depending on each toolbar's settings.
   </text>
   <toolbar
-    bottom="350"
+    bottom="300"
     button_display_mode="icons_with_text"
     follows="all"
     left="20"
@@ -79,11 +81,11 @@
   <panel
     bevel_style="none"
     border="true"
-    bottom="535"
+    bottom="480"
     follows="left|bottom|right"
     left="20"
     right="-20"
-    top="535" />
+    top="480" />
   <button
     follows="left|bottom|right"
     height="23"
@@ -93,7 +95,7 @@
     layout="topleft"
     left="185"
     name="btn_clear_all"
-    top="545"
+    top="490"
     width="130">
     <button.commit_callback function="Toybox.ClearAll" />
   </button>
@@ -106,7 +108,7 @@
     layout="topleft"
     left="335"
     name="btn_restore_defaults"
-    top="545"
+    top="490"
     width="130">
     <button.commit_callback function="Toybox.RestoreDefaults" />
   </button>

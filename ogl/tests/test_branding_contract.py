@@ -844,6 +844,104 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertEqual(data[:8], bytes.fromhex("89504e470d0a1a0a"), filename)
             self.assertEqual(unpack("!II", data[16:24]), (size, size), filename)
 
+    def test_ogl_bottom_chatbar_preserves_voice_and_toggle_callbacks(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        main = ET.parse(base / 'en/panel_toolbar_view.xml').getroot()
+        button = next(e for e in main.iter('button')
+                      if e.get('name') == 'local_chat_button')
+        self.assertEqual(button.get('label'), 'Local Chat')
+        self.assertEqual(button.get('height'), '24')
+        self.assertEqual(button.get('width'), '104')
+        self.assertIn('Ctrl+H', button.get('tool_tip'))
+        callback = button.find('commit_callback')
+        self.assertIsNotNone(callback)
+        self.assertEqual(callback.get('function'), 'Floater.Toggle')
+        self.assertEqual(callback.get('parameter'), 'fs_nearby_chat')
+        voice = [e for e in main.iter('fs_nearby_chat_voice_monitor')
+                 if e.get('name') == 'default_chat_bar']
+        self.assertEqual(len(voice), 1)
+        self.assertEqual(voice[0].get('spellcheck'), 'true')
+        self.assertEqual(voice[0].get('follows'), 'left|right|bottom')
+        self.assertTrue(any(e.get('name') == 'toolbar_bottom'
+                            for e in main.iter('toolbar')))
+
+    def test_old_toolbar_overlays_do_not_resurrect_removed_controls(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        for lang in ('de','pt','zh'):
+            root = ET.parse(base / lang / 'panel_toolbar_view.xml').getroot()
+            self.assertFalse(any(e.get('name') == 'nearby_voice_output_monitor'
+                                 for e in root.iter()), lang)
+            self.assertFalse(any(e.get('name') == 'open_chat_bar_button'
+                                 for e in root.iter()), lang)
+            self.assertFalse(any(e.get('name') == 'open_chat_bar_button_panel'
+                                 for e in root.iter()), lang)
+            self.assertEqual(
+                len([e for e in root.iter('button')
+                     if e.get('name') == 'local_chat_button']), 1, lang)
+        german = ET.parse(base / 'de/panel_toolbar_view.xml').getroot()
+        chat = next(e for e in german.iter('button')
+                    if e.get('name') == 'local_chat_button')
+        self.assertEqual(chat.get('label'), 'Lokaler Chat')
+        self.assertEqual(chat.get('width'), '110')
+        self.assertIn('Strg+H', chat.get('tool_tip'))
+
+    def test_ogl_toolbar_customizer_fits_compact_windows_without_losing_actions(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        root = ET.parse(base / 'en/floater_toybox.xml').getroot()
+        self.assertEqual(root.get('name'), 'Toybox')
+        self.assertEqual(root.get('title'), 'Customize OGL Toolbar')
+        self.assertEqual(root.get('width'), '820')
+        self.assertEqual(root.get('height'), '520')
+        self.assertEqual(root.get('can_resize'), 'true')
+        self.assertLessEqual(int(root.get('min_width')), 820)
+        self.assertLessEqual(int(root.get('min_height')), 520)
+        self.assertTrue(root.get('save_rect') == 'true')
+        bar = next(e for e in root.iter('toolbar')
+                   if e.get('name') == 'toybox_toolbar')
+        self.assertEqual(bar.get('read_only'), 'true')
+        self.assertEqual(bar.get('right'), '-20')
+        for name, action in (('btn_clear_all','Toybox.ClearAll'),
+                             ('btn_restore_defaults','Toybox.RestoreDefaults')):
+            button = next(e for e in root.iter('button')
+                          if e.get('name') == name)
+            self.assertEqual(button.get('disabled_control'), 'LockToolbars')
+            self.assertEqual(button.get('top'), '490')
+            callback = button.find('button.commit_callback')
+            self.assertEqual(callback.get('function'), action)
+        locked = next(e for e in root.iter('check_box')
+                      if e.get('name') == 'check_toolbars_locked')
+        self.assertEqual(locked.get('control_name'), 'LockToolbars')
+        german = ET.parse(base / 'de/floater_toybox.xml').getroot()
+        self.assertEqual(german.get('title'), 'OGL-Werkzeugleiste anpassen')
+
+    def test_toolbar_context_menu_labels_keep_action_and_lock_semantics(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        for orientation in ('horizontal','vertical'):
+            for lang, label in (('en','Customize toolbar...'),
+                                ('de','Werkzeugleiste anpassen...')):
+                root = ET.parse(base / lang /
+                                f'menu_toolbars_{orientation}.xml').getroot()
+                entry = next(e for e in root.iter('menu_item_call')
+                             if e.get('name') == 'Choose Buttons')
+                self.assertEqual(entry.get('label'), label)
+                if lang == 'en':
+                    callback = entry.find('menu_item_call.on_click')
+                    self.assertEqual(callback.get('function'), 'Floater.Show')
+                    self.assertEqual(callback.get('parameter'), 'toybox')
+                    self.assertTrue(any(e.get('name') == 'icons_only'
+                                        for e in root.iter('menu_item_check')))
+                    locked = next(e for e in root.iter('menu_item_check')
+                                  if e.get('name') == 'toolbars_locked')
+                    self.assertEqual(locked.find('on_check').get('control'),
+                                     'LockToolbars')
+                    self.assertEqual(locked.find('on_click').get('function'),
+                                     'ToggleControl')
+        inactive = ET.parse(base / 'en/menu_toolbars.xml').getroot()
+        self.assertEqual(
+            next(e for e in inactive.iter('menu_item_call')
+                 if e.get('name') == 'Choose Buttons').get('label'),
+            'Customize toolbar...')
+
     def test_ogl_chat_header_has_larger_round_avatar_and_readable_metadata(self):
         base = ROOT / 'indra/newview/skins/default/xui/en'
         root = ET.parse(base / 'panel_chat_header.xml').getroot()
