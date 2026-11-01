@@ -1,7 +1,7 @@
 #ifndef OGL_NEXVERSE_GRID_H
 #define OGL_NEXVERSE_GRID_H
 
-// OGL-specific fixed OpenSim grid profile.
+// OGL-specific fixed Stadt NexVerse profiles: public OpenSim and the Beta portal.
 //
 // These values follow the public Stadt NexVerse /get_grid_info response.
 // If the server changes its login address, update it here and rebuild.
@@ -21,6 +21,26 @@ inline constexpr const char* kWebsite = "https://stadt-nexverse.de/";
 inline constexpr const char* kSLURLBase = "hop://hg.stadt-nexverse.de:80/";
 inline constexpr const char* kAppSLURLBase =
     "x-grid-location-info://hg.stadt-nexverse.de:80/app";
+
+// Beta is deliberately selectable in the login grid list, but its HTTPS
+// certificate and OpenSim/XML-RPC compatibility have NOT been verified.
+// Do not send credentials to a generic website as if it were an OpenSim
+// login service. Enable authentication only when a matching transport
+// and protocol adapter have been implemented and tested.
+inline constexpr const char* kBetaKey = "beta.stadt-nexverse.de";
+inline constexpr const char* kBetaName = "Stadt NexVerse Beta";
+inline constexpr const char* kBetaLoginURI = "https://beta.stadt-nexverse.de/";
+inline constexpr const char* kBetaWebsite = "https://beta.stadt-nexverse.de/";
+
+inline bool isFixedGrid(const std::string& grid)
+{
+    return grid == kKey || grid == kName ||
+           grid == kBetaKey || grid == kBetaName;
+}
+inline bool isBetaGrid(const std::string& grid)
+{
+    return grid == kBetaKey || grid == kBetaName;
+}
 
 // Approval for one viewer process, plus an optional persisted approval for
 // the *exact* trusted URI. A changed URI or a different grid never inherits
