@@ -219,7 +219,13 @@ mit echten synthetischen Login-GUI-Tests. Neuer Code-Commit
 `ad005fc9`: 20/20 weitere Credential-/Datenschutzprüfungen
 bestanden; Transient-Credential-Nullprüfung, opt-out-gerechtes
 Benutzername-Speichern, OGL-Auth-Log-Reduktion und GUI-Neustart
-mit deaktivierter Speicherung bestätigt).
+mit deaktivierter Speicherung bestätigt. Jüngster
+Code-Commit `69aac477`: weitere 20/20
+Sicherheitsprüfpositionen, inklusive striktem
+Login-Endpunkt-Pinning im UI und direkt an
+der Authentifizierungsgrenze, DE-/EN-Fehlermeldungen,
+Stale-Consent-Sperre und synthetischen GUI-Tests
+ohne Zugangsdaten, bestanden).
 Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
 festes Welcome, Voranmelde-Quit (Exit 0) und
 Checkbox-Einstellung nach Neustart lokal bestätigt.

@@ -32,6 +32,99 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 – /goal-Sammelrunde: 20 Prüfblöcke zur Endpunkt-Pinning-Sicherheit
+
+**Code-Commit:** `69aac477` (`ogl-develop`).
+**20/20 zusätzliche Sicherheits-/Testblöcke erfolgreich; P01
+bleibt ausdrücklich 18/20 Phasenblöcke, Block 19 aktiv.**
+
+**Ursache und Fix:**
+In `fspanellogin.cpp` und `llstartup.cpp` erlaubte
+die historische Ausnahme `all_https` / `secure_login`
+einen beliebigen HTTPS-Loginendpunkt, selbst wenn die
+vermeintlich feste NexVerse-Grid-Konfiguration aus einer
+geänderten Profilquelle einen anderen Server nannte.
+Damit konnte ein fremder HTTPS-Server die
+Credenzialeingaben entgegennehmen. Beide Prüfgrenzen
+verlangen jetzt **`isExactPinnedHTTPLogin` für das
+exakte Hauptgrid und die exakte öffentliche OpenSim-
+Login-URI**, unabhängig vom URL-Schema.
+Ein alternatives HTTPS-Ziel wird **nicht** durch
+ein gültiges Zertifikat allein vertrauenswürdig.
+Die Beta-Anmeldung bleibt bis geprüften TLS- und
+OpenSim-Protokollbedingungen gesperrt.
+Eine spätere freigegebene HTTPS-Migration muss
+bewusst zentral umgepinnt und neu getestet werden.
+
+Das HTTP-Einwilligungsfenster bindet außerdem
+den Zustand von Grid und Konto zum Zeitpunkt
+der Abfrage. Eine verzögert beantwortete
+Einwilligung darf nach Grid-/Kontowechsel
+oder Änderung der Loginadresse weder eine
+dauerhafte Einwilligung speichern noch
+eine Anmeldung starten. Fehlermeldungen
+für unzulässige Server liegen in den
+**bereits bestehenden DE-/EN-Strings**.
+Keine vorhandenen Nutzer-Credentials berührt.
+
+**20/20 nachgewiesene Prüfpositionen der Runde:**
+
+01 Branchprüfung; 02 keine neuen Quelldateien;
+03 zwei feste Grids; 04 erlaubter exakter HTTP-Endpunkt;
+05 leere URI abgewehrt; 06 fremde HTTP-URI abgewehrt;
+07 fremde HTTPS-URI abgewehrt;
+08 unfreigegebene HTTPS-Hauptgridvariante abgewehrt;
+09 mehrere Login-URIs abgewiesen;
+10 URI-Pfadveränderung abgewiesen;
+11 URL-Userinfo und Großschreibungsvariante abgewiesen;
+12 Beta erhält keine Hauptgrid-Freigabe;
+13 GUI prüft exakten URI vor Passwortzugriff;
+14 Netzwerkanmeldung prüft exakten URI nochmals;
+15 AutoLogin bei manipuliertem URI deaktiviert;
+16 alte Zustimmungsdialoge können nicht später
+Einwilligung erteilen; 17 Prüfung von Konto,
+Grid und URI beim HTTP-Warnungs-Callback;
+18 DE-/EN-Fehlermeldung und „Abbrechen“ als Default;
+19 echter GUI-Test des HTTP-Zustimmungsdialogs
+ohne Einwilligung/Authentifizierung, sauberer Quit;
+20 echter Beta-Negativtest ohne Authentifizierung,
+sauberer Quit, ergänzt durch vollständigen Viewer-Build.
+
+**Reale Build- und Laufzeitprüfung:**
+`bash ogl/scripts/build-test.sh` vollständig
+erfolgreich: **143/143 Python-Unittests,
+41/41 native CTests** und vollständiger
+Linux-Viewer-Build/Staging.
+Vorhandenen nativen `ogl_grid_http_policy`-Test
+um fremdes HTTPS, mehrere Server, falsche
+Ports, URI-Userinfo, veränderte Pfade und
+Beta-Fremdgrid erweitert.
+Zwei isolierte Xvfb-GUI-Testprofile:
+NexVerse-Hauptgrid erreicht Loginfenster und
+HTTP-Warnung, **kein `STATE_LOGIN_AUTH_INIT`**
+und Exit 0 nach Strg+Q. Beta meldet
+`Blocked beta authentication: protocol and TLS
+not verified`, ebenfalls keine Authentifizierung,
+Exit 0. Echte Konten, Secrets oder Tokens
+wurden nicht eingegeben oder versendet.
+Git-Diff/Altbestand-/Duplikat-Audit sauber;
+die bestehenden `_v2`-/`script_copy`-
+Dateien sind nicht ohne Nutzungsnachweis
+als löschbar freigegeben.
+
+**Echte P01-Abschlussblocker weiterhin offen:**
+erfolgreicher autorisierter Hauptgrid-Login,
+Passwortpersistenz nach erfolgreichem Login,
+In-World-Shutdown sowie vollständige Windows-
+und macOS-Viewer-Build-/GUI-Prüfungen.
+Die portable GitHub-Matrix ist dafür kein
+vollständiger Ersatz. Kein automatischer
+Fortschritt zu P02, bevor die Blocker
+tatsächlich nachgewiesen sind.
+
+**Weiter:** `/goal P01 Block 19/20`,
+ohne manuelles Nutzer-Abnahmegate.
+
 ## P01 – /goal-Sammelrunde: 20 Prüfpositionen zur Credential-Wiederherstellung
 
 **Code-Commit `ad005fc9`**, Branch `ogl-develop`;
