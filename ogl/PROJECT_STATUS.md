@@ -32,6 +32,91 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – /goal-Durchlauf: Nutzerlinks und Login-Protokollhygiene
+
+**Code-Commit:** `224ced81` (`ogl-develop`).
+**20/20 separat dokumentierte Arbeits-/Prüfpositionen bestanden.**
+Das sind keine 20 neuen Phasenabschlüsse; **P01 bleibt
+18/20 formalen Blöcken** und bei Block 19.
+
+**In bestehenden Dateien implementiert:**
+
+- `llstartup.cpp`: Im OGL-Loginfehlerpfad
+  wird nicht länger die ganze Serverantwort
+  serialisiert, weil diese potentiell
+  Sitzungs- und Authentifizierungsmetadaten
+  enthalten kann. Die nutzerseitige Fehler-
+  verarbeitung bleibt unverändert; Nicht-OGL
+  erhält seinen bisherigen Logpfad.
+- Die vorhandenen **13 Sprachdateien**
+  `skins/default/xui/*/strings.xml` wurden
+  gezielt aktualisiert. Die globale Support-
+  Kennzeichnung ist `NexVerse Portal`, alte
+  Registrierungspfade auf Firestorm werden
+  durch `https://stadt-nexverse.de/` ersetzt,
+  vorhandene Viewer-Download- und Sperr-
+  meldungslinks zeigen auf
+  `https://github.com/marlin198323-glitch/ogl-viewer/releases`.
+  EN/DE beschreiben eine gesperrte OGL-
+  Viewerversion statt eines alten Second-
+  Life-/Firestorm-Downloads. EN verweist bei
+  Versionsinformationen und Fehlermeldungen
+  auf den OGL-Releases-Kanal; externe Links
+  werden neutral beschrieben.
+  Der Releases-Link ist eine Quelle, kein
+  Nachweis vorhandener signierter Installer.
+  Übersetzungen außerhalb EN/DE haben ihre
+  bestehenden Fließtexte behalten; alt-
+  sprachige Second-Life-Referenzen bleiben
+  dort zur späteren UI-Lokalisierungsprüfung.
+- In der bestehenden
+  `ogl/tests/test_branding_contract.py`
+  drei neue Regressionstests hinzugefügt:
+  Supportkennzeichnung aller 13 Sprachdateien;
+  registrierungs- und downloadbezogene Links;
+  OGL-Loginfehler ohne rohe Serverantwort.
+  Keine zusätzlichen Projektdateien,
+  keine Nutzerprofile, Secrets oder
+  Lizenzen bearbeitet.
+
+**20 Prüfpositionen:** 01 Branch; 02 kein
+Remote-Rückstand; 03 keine neuen Projektdateien;
+04 XML aller 13 Sprachdateien; 05 alle 13
+Supportbezeichnungen; 06 Registrierungs-URLs;
+07 Download-URLs; 08 keine Firestorm-Sperrlinks;
+09 keine veralteten externen Second-Life-FAQs;
+10 EN Links; 11 DE Links; 12 EN Zugriffsmeldung;
+13 EN Release-Notes-Quelle; 14 EN Crash-Hilfe;
+15 EN externer Linkhinweis; 16 OGL-Loginfehler-
+Log ohne rohe Antwort; 17 Nicht-OGL-Logging
+bleibt kompatibel; 18 exakte Hauptgrid-
+Endpunktbindung und Beta-Sperre; 19 voller
+Linux-Viewer-Build mit Python-/nativen Tests;
+20 reale GUI-Negativtests Hauptgrid/Beta.
+**20/20 bestanden.**
+
+**Messungen:** `bash ogl/scripts/build-test.sh`
+mit vollständigem Linux-Mint-Build und
+Staging: **162/162 Python-Tests, 41/41
+native CTests**. Hauptgrid per Xvfb:
+`ogl-viewer`-Fenster, NexVerse-Welcome,
+HTTP-Sicherheitsdialog vor Anmeldung,
+kein `STATE_LOGIN_AUTH_INIT`, Strg+Q mit
+Exit-Code 0. Beta: synthetische Eingaben,
+Beta-Sperrmeldung, kein Auth-Versuch und
+Exit-Code 0. Bestehende `_v2`-/`script_copy`-
+Dateien inventarisiert, ohne Nutzung-/Lizenzbeleg
+nicht gelöscht.
+
+**Echte P01-Blocker:** Erfolgreicher autorisierter
+Hauptgrid-Live-Login, verifizierte Passwort-
+persistenz nach Anmeldung, echter In-World-Shutdown
+sowie vollständige Windows-/macOS-Viewer-Build-
+und GUI-Nachweise. Die portable Grafikmodul-CI
+ersetzt diese nicht. **Nächster Einstieg:
+P01 Block 19/20.** Keine manuelle
+Nutzerabnahme als Phasengate.
+
 ## P01 Block 19 – /goal-Durchlauf: HTTP-Zustimmung wirklich nur einmal
 
 **Code-Commit `a7490d9f`**, Branch `ogl-develop`.

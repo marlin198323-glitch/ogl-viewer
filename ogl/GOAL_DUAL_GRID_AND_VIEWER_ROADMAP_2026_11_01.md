@@ -208,18 +208,16 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter Code-Commit `a7490d9f`:
-„Einmal fortfahren“ ist wieder tatsächlich
-nur **ein** HTTP-Loginversuch, danach
-erlischt die Einmal-Freigabe. Geänderte
-Formularwerte und abgelehnte Logins
-ziehen sie zurück; gespeicherte Zustimmung
-bleibt getrennt. DE-/EN-Dialoge korrigiert,
-20/20 neue technische Prüfpositionen,
-159 Python-Tests, 41 native CTests,
-Hauptgrid-/Beta-GUI-Negativläufe grün.
-Vorherige Startort-Sicherheitskorrektur:
-`e4f33c5a`.
+Letzter Code-Commit `224ced81`:
+Support-/Registrierungs-/Downloadlinks
+in 13 vorhandenen Sprachen auf NexVerse/
+OGL-GitHub ausgerichtet; keine vollständige
+Login-Serverantwort mehr im OGL-Fehlerlog.
+20/20 separate Prüfschritte, 162 Python-
+und 41 native Tests, Hauptgrid-/Beta-
+GUI-Negativläufe bestanden. Vorige
+Einmal-HTTP-Zustimmungs-Korrektur:
+`a7490d9f`.
 Voranmelde-Quit, Skalierung und Beta-Sperre sind geprüft.
 **Weiter offen:** autorisierter Hauptgrid-Live-Login,
 gespeicherte Passwortwiederherstellung, In-World-Shutdown
