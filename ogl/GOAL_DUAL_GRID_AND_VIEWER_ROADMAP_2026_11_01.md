@@ -267,8 +267,13 @@ NexVerse-Portal-/Marktplatznavigation statt SL-Commerce
 Altmenüs in 13 Sprachen entfernt, NexVerse-News/
 GitHub-Issues/Release-Navigation und Skriptbibliothek-
 Overlays korrigiert (`8b712092`, 20/20 Prüfschritte,
-174 Python/41 native Tests). Die komplette
-In-World-Visual-/Funktionsabnahme fehlt.
+174 Python/41 native Tests);
+sprachübergreifende NexVerse-Menüverlinkung und
+Bereinigung der verbliebenen L$-/SL-Commerce-
+Overlays (`7a3919a8`, 20/20 technische
+Prüfpositionen, 178 Python-/41 native Tests,
+DE-/PT-GUI-Negativläufe grün).
+Die komplette In-World-Visual-/Funktionsabnahme fehlt.
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

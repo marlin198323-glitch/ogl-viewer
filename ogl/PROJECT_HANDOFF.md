@@ -33,11 +33,11 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen;
-letzte P02-Vorarbeit `8b712092`: Altmenüs in 13 XUI-Sprachen
-entfernt, NexVerse-News, OGL-GitHub-Issues und Release-Navigation,
-Skriptbibliothek-Overlays korrigiert; 20/20 Prüfschritte,
-174 Python- und 41 native Tests erfolgreich. Vorige
-UI-Commits `b654c299`, `17ab85cf`.
+P02-Vorarbeit `7a3919a8`: alte L$-/SL-Commerce-Menüs in allen
+13 Sprachen entfernt, NexVerse-Konto-/Marketplace-/News-/Issue-
+Callbacks gegen Überlagerungen abgesichert, alte portugiesische
+Second-Life-Account-URLs beseitigt; 20/20 QA-Blöcke bestanden,
+178 Python- und 41 native Tests samt echten DE-/PT-GUI-Starts.
 P02 formal 0/20. Hauptgrid-Live-Login,
 Passwortpersistenz, In-World-Shutdown und vollständige
 Windows-/macOS-Viewer-Builds noch offen).

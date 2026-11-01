@@ -32,6 +32,92 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – Sprachübergreifende NexVerse-Routen
+
+**Code-Commit:** `7a3919a8` (`ogl-develop`).
+**20/20 unabhängig geprüfte Arbeits-/Qualitätsblöcke bestanden.**
+Formale Phasen bleiben **P01 18/20, P02 0/20**;
+In-World-Bedienung, Hauptgrid-Live-Login und
+vollständige Plattformviewer-Builds fehlen weiter.
+
+**Änderungen ausschließlich an vorhandenen Pfaden:**
+- Elf zusätzliche Menülokalisierungen
+  `az,da,es,fr,it,ja,pl,pt,ru,tr,zh` geändert;
+  die EN-/DE-Basis war bereits ausgerichtet.
+  Alte Menüpunkte für Second-Life-L$-Kauf,
+  Membership, SL Marketplace, LindenXchange
+  und SL Community Pages aus allen 13
+  Sprach-Overlays entfernt. Dänische und
+  türkische doppelte `Manage My Account`-
+  Elemente entfallen; stattdessen gilt
+  das vorhandene funktionale NexVerse-
+  Basismenü mit unveränderter Callback-ID.
+- Die noch definierten `Manage Account`,
+  `MarketplaceListings`, `NexVerse News`
+  und `Report Bug`-Einträge aller
+  Sprach-Overlays enthalten explizite
+  `Advanced.ShowURL`-Callbacks zu
+  `https://stadt-nexverse.de/`,
+  `https://marketplace.stadt-nexverse.de/`
+  und dem eigenen GitHub-Issue-Tracker.
+  Der vorher in Portugiesisch enthaltene
+  Link zu `secondlife.com/my/account`
+  und `accounts.secondlife.com`
+  wird nicht mehr angeboten.
+- Vier dauerhafte Regressionstests in
+  der bestehenden
+  `ogl/tests/test_branding_contract.py`
+  ergänzt; keine neuen Projektdateien,
+  keine Credentials oder Nutzerdaten geändert.
+  OpenSim-Karte, Landfunktionen,
+  Missbrauchsmeldung, Chat und rechtlich
+  nötige Lizenzinformationen bleiben erhalten.
+
+**20 einzeln bestandene Positionen:**
+01 Branch/Remote synchron und Dateiregel;
+02 XML-Prüfung aller 13 Sprachdateien;
+03 L$-Kauf entfernt; 04 Membership entfernt;
+05 SL Marketplace entfernt; 06 LindenXchange
+entfernt; 07 SL Community Pages entfernt;
+08 Doppelkontomenüs DA/TR entfernt;
+09 portugiesische SL-Konto-/Mitgliedschaftslinks
+entfernt; 10 Konto-URLs aller Overlays;
+11 Marketplace-URLs aller Overlays;
+12 OGL-Issue-URLs aller Overlays;
+13 NexVerse-News-URLs aller Overlays;
+14 kein fremder Credential-/Konto-Link
+in den relevanten Menüaktionen;
+15 gemeinsames funktionales EN-Basismenü;
+16 OpenSim-Kernfunktionen und Lizenzinfo;
+17 Skriptbibliothek EN/DE/PT;
+18 elf XUI-Sprachdateien bytegleich im
+Viewer-Staging; 19 vollständiger Linux-
+Viewer-Build, Python- und CTests;
+20 echte DE- und PT-GUI-Starts mit
+Sprachumschaltung, Login und sauberem Quit.
+**20/20 grün.**
+
+**Nachweise:** `bash ogl/scripts/build-test.sh`
+erfolgreich: **178/178 Python-Tests,
+41/41 native CTests**, Linux-Mint-
+Vollviewer erfolgreich gebaut.
+Zwei isolierte 1280×720-Xvfb-GUI-Läufe
+mit `--set Language de` und
+`--set Language pt`: Sprache in Logs
+bestätigt, `STATE_LOGIN_WAIT`,
+kein `STATE_LOGIN_AUTH_INIT`,
+Strg+Q/Exit-Code **0**.
+Die tatsächlichen Weltmenüs sind ohne
+autorisierte Grid-Anmeldung noch nicht
+durch Klicktests abgenommen.
+Die älteren `_v2`-/`script_copy`-
+Dateien wurden inventarisiert, wegen
+möglicher Abhängigkeiten nicht gelöscht.
+
+**Nächster operativer Einstieg: P01 Block 19/20**;
+unabhängige P02-Arbeit weiter möglich,
+kein künstlicher Phasenabschluss.
+
 ## P02 unabhängige Vorarbeit – Altmenüs und OGL-Support (20 Blöcke)
 
 **Code-Commit:** `8b712092` (`ogl-develop`).
