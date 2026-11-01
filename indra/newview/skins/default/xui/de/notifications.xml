@@ -3,9 +3,9 @@
 <notification name="OGLHTTPLoginWarning" icon="alertmodal.tga" type="alertmodal">
 Stadt NexVerse nutzt derzeit eine unverschlüsselte Verbindung (HTTP). Benutzername und Kennwort können mitgelesen werden. Fahre nur fort, wenn du dieses Risiko akzeptierst.
 
-Für diese Sitzung: Zustimmung nur bis zum Schließen des Viewers. Zustimmung speichern: Entscheidung für genau diese Anmeldeadresse auch bei späteren Starts merken. Die Zustimmung kann in den Debug-Einstellungen (OGLRememberPinnedHTTPLoginURI) widerrufen werden.
+Einmal fortfahren: Zustimmung nur für einen Anmeldeversuch an genau diese Adresse. Bei einem weiteren Versuch wirst du erneut gefragt. Zustimmung speichern: Entscheidung für genau diese Anmeldeadresse auch bei späteren Starts merken. Die Zustimmung kann in den Debug-Einstellungen (OGLRememberPinnedHTTPLoginURI) widerrufen werden.
     <form name="form">
-      <button index="0" name="OGLHTTPConnectOnce" text="Für diese Sitzung"/>
+      <button index="0" name="OGLHTTPConnectOnce" text="Einmal fortfahren"/>
       <button index="1" name="OGLHTTPRemember" text="Zustimmung speichern"/>
       <button default="true" index="2" name="OGLHTTPCancel" text="Abbrechen"/>
     </form>

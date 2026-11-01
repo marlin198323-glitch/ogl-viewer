@@ -27,7 +27,7 @@ int main() {
     assert(!isExactPinnedHTTPLogin(kKey, {kLoginURI + std::string("login")}));
     assert(!isExactPinnedHTTPLogin(OGLNexVerseGrid::kBetaKey, {kLoginURI}));
 
-    assert(!OGLNexVerseGrid::gHTTPLoginApprovedThisSession);
+    assert(!OGLNexVerseGrid::gHTTPLoginApprovedForNextAttempt);
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
         kKey,{kLoginURI},"http://example.invalid/"));
@@ -38,9 +38,13 @@ int main() {
         kKey,{"http://evil.example/"},kLoginURI));
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
         kKey,{kLoginURI,"http://evil.example/"},kLoginURI));
-    OGLNexVerseGrid::gHTTPLoginApprovedThisSession = true;
+    OGLNexVerseGrid::gHTTPLoginApprovedForNextAttempt = true;
     assert(OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(
         kKey,{"http://evil.example/"},""));
+    OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+    assert(!OGLNexVerseGrid::gHTTPLoginApprovedForNextAttempt);
+    assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
+    assert(OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},kLoginURI));
     return 0;
 }

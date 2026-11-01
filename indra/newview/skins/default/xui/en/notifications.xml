@@ -3,9 +3,9 @@
 <notification name="OGLHTTPLoginWarning" icon="alertmodal.tga" type="alertmodal">
 Stadt NexVerse currently uses an unencrypted connection (HTTP). Your username and password may be intercepted. Only continue if you accept this risk.
 
-Continue for this session: approve this exact login address until the viewer closes. Remember approval: keep your decision for this exact address in future sessions. You can revoke saved approval in Debug Settings (OGLRememberPinnedHTTPLoginURI).
+Continue once: approve one login attempt to this exact address. You will be asked again for another attempt. Remember approval: keep your decision for this exact address in future sessions. You can revoke saved approval in Debug Settings (OGLRememberPinnedHTTPLoginURI).
     <form name="form">
-      <button index="0" name="OGLHTTPConnectOnce" text="This session"/>
+      <button index="0" name="OGLHTTPConnectOnce" text="Continue once"/>
       <button index="1" name="OGLHTTPRemember" text="Remember approval"/>
       <button default="true" index="2" name="OGLHTTPCancel" text="Cancel"/>
     </form>

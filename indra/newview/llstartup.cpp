@@ -1798,7 +1798,7 @@ bool idle_startup()
         // OGL: check the transport policy again at the real authentication
         // boundary, covering auto-login and other paths outside the login UI.
         // Insecure HTTP is permitted only for the exact pinned NexVerse URI,
-        // after this-process consent OR opt-in remembered consent for that
+        // after once-only consent OR opt-in remembered consent for that
         // unchanged URI. Other HTTP servers remain blocked.
         if (APP_NAME == "OGL")
         {
@@ -1807,6 +1807,7 @@ bool idle_startup()
             // never send OpenSim credentials to the unverified Beta site.
             if (OGLNexVerseGrid::isBetaGrid(LLGridManager::getInstance()->getGrid()))
             {
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
                 LL_WARNS("OGLGrid") << "Blocked beta authentication: no verified protocol/TLS adapter." << LL_ENDL;
                 gSavedSettings.setBOOL("AutoLogin", false);
                 transition_back_to_login_panel("");
@@ -1821,6 +1822,7 @@ bool idle_startup()
             if (!OGLNexVerseGrid::isExactPinnedHTTPLogin(
                     LLGridManager::getInstance()->getGrid(), uris))
             {
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
                 LL_WARNS("OGLGrid") << "Rejected login: unpinned grid endpoint." << LL_ENDL;
                 gSavedSettings.setBOOL("AutoLogin", false);
                 transition_back_to_login_panel("");
@@ -1834,6 +1836,7 @@ bool idle_startup()
                     gSavedSettings.getString("OGLRememberPinnedHTTPLoginURI"));
             if (!consented_pinned_http)
             {
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
                 LL_WARNS("OGLGrid") << "Rejected login: explicit fixed-grid HTTP consent required."
                                     << LL_ENDL;
                 transition_back_to_login_panel("");
@@ -1849,8 +1852,12 @@ bool idle_startup()
         }
 
         // This call to LLLoginInstance::connect() starts the
-        // authentication process.
+        // authentication process. "Once" permission is consumed at the
+        // transmission boundary; future attempts need new consent unless
+        // the person explicitly chose to remember this exact endpoint.
         login->connect(gUserCredential);
+        if (APP_NAME == "OGL")
+            OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
 #if defined(OPENSIM) && !defined(SINGLEGRID) // <FS:AW optional opensim support>
 // <AW: opensim>
         LLGridManager::getInstance()->saveGridList();

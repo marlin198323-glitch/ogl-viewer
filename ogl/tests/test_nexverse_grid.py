@@ -241,6 +241,43 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('OGLNexVerseGrid::isBetaGrid(LLGridManager::getInstance()->getGrid())', self.panel)
         self.assertIn('LLTrans::getString("OGLBetaLoginUnavailable")', self.panel)
 
+    def test_http_once_permission_expires_on_login_form_change(self):
+        source = self.panel
+        self.assertEqual(source.count('++sOGLLoginFormRevision;'), 10)
+        self.assertGreaterEqual(
+            source.count('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();'), 12)
+        for field in ('password edited', 'loading saved credentials',
+                      'changing destination invalidates consent'):
+            i = source.index(field)
+            self.assertIn('consumeOneTimeHTTPLoginApproval();', source[i-90:i+180])
+        callback = source[source.index('void FSPanelLogin::onClickConnect(void *)'):
+                          source.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertIn('InvalidCredentialFormat', callback)
+        self.assertGreaterEqual(callback.count('consumeOneTimeHTTPLoginApproval();'), 2)
+        for language, expected in (('en','Continue once'),('de','Einmal fortfahren')):
+            notes = ET.parse(ROOT / f'indra/newview/skins/default/xui/{language}/notifications.xml')
+            warning = next(n for n in notes.iter('notification') if n.get('name')=='OGLHTTPLoginWarning')
+            self.assertIn(expected,warning.text)
+            self.assertEqual(next(b.get('text') for b in warning.iter('button')
+                                  if b.get('name')=='OGLHTTPConnectOnce'),expected)
+
+    def test_http_once_approval_is_consumed_at_authentication_boundary(self):
+        startup = self.startup
+        begin = startup.index('Blocked beta authentication: no verified protocol/TLS adapter.')
+        connect = startup.index('login->connect(gUserCredential)', begin)
+        consumed = startup.index('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval()', connect)
+        self.assertLess(connect, consumed)
+        self.assertLess(consumed, startup.index('LLGridManager::getInstance()->saveGridList()', connect))
+        for diagnostic in ('Blocked beta authentication: no verified protocol/TLS adapter.',
+                           'Rejected login: unpinned grid endpoint.',
+                           'Rejected login: explicit fixed-grid HTTP consent required.'):
+            pos = startup.index(diagnostic)
+            self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval()',
+                          startup[pos-160:pos])
+        self.assertIn('consumeOneTimeHTTPLoginApproval()', self.values)
+        self.assertIn('gHTTPLoginApprovedForNextAttempt = false;', self.values)
+        self.assertIn('rememberedURI == kLoginURI', self.values)
+
     def test_beta_credentials_never_sent_from_auto_login(self):
         guard = self.startup.index('Blocked beta authentication: no verified protocol/TLS adapter.')
         call = self.startup.index('login->connect(gUserCredential)')
@@ -250,7 +287,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('transition_back_to_login_panel("")', self.startup)
 
     def test_public_http_exception_remains_exact_and_opt_in(self):
-        self.assertIn('gHTTPLoginApprovedThisSession', self.values)
+        self.assertIn('gHTTPLoginApprovedForNextAttempt', self.values)
         self.assertIn('isExactPinnedHTTPLogin(', self.values)
         self.assertIn('rememberedURI == kLoginURI', self.values)
         self.assertIn('isApprovedPinnedHTTPLogin(', self.startup)
@@ -296,7 +333,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('getValue().asString() != consent_account', panel)
         self.assertIn('isExactPinnedHTTPLogin(consent_grid, current_uris)', panel)
         self.assertLess(panel.index('Ignored stale HTTP login approval.'),
-                        panel.index('gHTTPLoginApprovedThisSession = true'))
+                        panel.index('gHTTPLoginApprovedForNextAttempt = true'))
         self.assertLess(panel.index('Ignored stale HTTP login approval.'),
                         panel.index('gSavedSettings.setString('))
         for lang in ('en', 'de'):

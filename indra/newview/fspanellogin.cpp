@@ -204,7 +204,10 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
 
     sInstance = this;
     if (APP_NAME == "OGL")
+    {
         ++sOGLLoginFormRevision; // invalidate approvals from older panels
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+    }
 
     LLView* login_holder = gViewerWindow->getLoginPanelHolder();
     if (login_holder)
@@ -364,6 +367,7 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
             [](LLUICtrl* control, const LLSD&)
             {
                 ++sOGLLoginFormRevision;
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
                 // Opting out must also disable implicit password persistence.
                 // Do not erase secure-store credentials: users can still
                 // remove individual saved accounts using the delete button.
@@ -382,6 +386,7 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
             [](LLUICtrl*, const LLSD&)
             {
                 ++sOGLLoginFormRevision;
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
             });
     }
     mPreviousUsername = username_combo->getValue().asString();
@@ -618,6 +623,7 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
             return;
         }
         ++sOGLLoginFormRevision; // loading saved credentials changes the form
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
     }
     // A rejected credential must never mark the login as initialized.
     if (sInstance->mInitialized)
@@ -977,6 +983,7 @@ void FSPanelLogin::autologinToLocation(const LLSLURL& slurl)
             return;
         }
         ++sOGLLoginFormRevision;
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
         LLStartUp::setStartSLURL(slurl);
         LL_INFOS("OGLGrid") << "Start location selected; manual login required." << LL_ENDL;
         return;
@@ -1292,7 +1299,7 @@ void FSPanelLogin::onClickConnect(void *)
                                     gSavedSettings.setString(
                                         "OGLRememberPinnedHTTPLoginURI",
                                         OGLNexVerseGrid::kLoginURI);
-                                OGLNexVerseGrid::gHTTPLoginApprovedThisSession = true;
+                                OGLNexVerseGrid::gHTTPLoginApprovedForNextAttempt = true;
                                 LL_WARNS("OGL") << "User approved HTTP login for pinned Stadt NexVerse."
                                                 << LL_ENDL;
                                 FSPanelLogin::onClickConnect(nullptr);
@@ -1339,6 +1346,8 @@ void FSPanelLogin::onClickConnect(void *)
                 // crash the login screen or start an authentication attempt.
                 LL_WARNS("Credentials") << "Unable to create login credential." << LL_ENDL;
                 LLNotificationsUtil::add("InvalidCredentialFormat");
+                if (APP_NAME == "OGL")
+                    OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
                 return;
             }
             std::string identifier_type;
@@ -1365,6 +1374,8 @@ void FSPanelLogin::onClickConnect(void *)
             // format creds.  - Rox.  James, we wanna fix the message when we change
             // this.
             LLNotificationsUtil::add("InvalidCredentialFormat");
+            if (APP_NAME == "OGL")
+                OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
         }
     }
 }
@@ -1478,7 +1489,10 @@ void FSPanelLogin::onPassKey(LLLineEditor* caller, void* user_data)
 {
     FSPanelLogin *self = (FSPanelLogin *)user_data;
     if (APP_NAME == "OGL")
+    {
         ++sOGLLoginFormRevision; // password edited, even if account unchanged
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+    }
     self->mPasswordModified = true;
     if (gKeyboard->getKeyDown(KEY_CAPSLOCK) && sCapslockDidNotification == false)
     {
@@ -1537,7 +1551,10 @@ void FSPanelLogin::updateLoginButtons()
 void FSPanelLogin::clearLoginFieldsForGridChange()
 {
     if (APP_NAME == "OGL")
+    {
         ++sOGLLoginFormRevision;
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+    }
     // This applies to both manual grid changes and grid-bearing SLURLs.
     // Never reuse a plaintext entry or a saved-password filler from the
     // previous world's login form. Preserve encrypted stored credentials.
@@ -1641,7 +1658,10 @@ void FSPanelLogin::onSelectServer()
 void FSPanelLogin::onLocationSLURL()
 {
     if (APP_NAME == "OGL")
+    {
         ++sOGLLoginFormRevision; // changing destination invalidates consent
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+    }
     LLComboBox* location_combo = getChild<LLComboBox>("start_location_combo");
     std::string location = location_combo->getValue().asString();
     LL_DEBUGS("AppInit")<<location<<LL_ENDL;
@@ -1893,7 +1913,10 @@ void FSPanelLogin::onSelectUser()
         return;
     }
     if (APP_NAME == "OGL")
+    {
         ++sOGLLoginFormRevision;
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+    }
 
     LLSD combo_val = combo->getSelectedValue();
     if (combo_val.isUndefined())
@@ -2103,6 +2126,7 @@ void FSPanelLogin::onUsernameTextChanged()
     if (APP_NAME == "OGL")
     {
         ++sOGLLoginFormRevision;
+        OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
         // Clearing the secret on focus loss is too late: pressing Enter
         // immediately after editing a saved username could submit the old
         // account's masked password against the new identity.

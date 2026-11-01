@@ -42,10 +42,17 @@ inline bool isBetaGrid(const std::string& grid)
     return grid == kBetaKey || grid == kBetaName;
 }
 
-// Approval for one viewer process, plus an optional persisted approval for
+// Approval for one pending authentication attempt, plus an optional persisted approval for
 // the *exact* trusted URI. A changed URI or a different grid never inherits
 // approval, and no passwords or session identifiers are stored here.
-inline bool gHTTPLoginApprovedThisSession = false;
+inline bool gHTTPLoginApprovedForNextAttempt = false;
+
+// Called at the actual network-login boundary. The transient approval is
+// single-use; a failed login must not silently permit a second transmission.
+inline void consumeOneTimeHTTPLoginApproval()
+{
+    gHTTPLoginApprovedForNextAttempt = false;
+}
 
 inline bool isExactPinnedHTTPLogin(const std::string& selectedGrid,
                                   const std::vector<std::string>& loginURIs)
@@ -58,7 +65,7 @@ inline bool isApprovedPinnedHTTPLogin(const std::string& selectedGrid,
                                      const std::string& rememberedURI)
 {
     return isExactPinnedHTTPLogin(selectedGrid, loginURIs) &&
-           (gHTTPLoginApprovedThisSession ||
+           (gHTTPLoginApprovedForNextAttempt ||
             rememberedURI == kLoginURI);
 }
 } // namespace OGLNexVerseGrid
