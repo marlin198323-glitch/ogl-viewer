@@ -5130,11 +5130,17 @@ static LLNotificationFunctorRegistration finish_quit_reg("ConfirmQuit", finish_q
 void LLAppViewer::userQuit()
 {
     LL_INFOS() << "User requested quit" << LL_ENDL;
-    if (gDisconnected
+    if ((APP_NAME == "OGL" &&
+         LLStartUp::getStartupState() < STATE_LOGIN_CLEANUP) ||
+        gDisconnected
         || !gViewerWindow
         || !gViewerWindow->getProgressView()
         || gViewerWindow->getProgressView()->getVisible())
     {
+        // The OGL login has no active simulator session to log out of.
+        // Avoid a misleading legacy confirmation modal before sign-in.
+        // requestQuit() retains the normal cleanup and early-exit path;
+        // once in-world, the existing logout confirmation is unchanged.
         requestQuit();
     }
     else

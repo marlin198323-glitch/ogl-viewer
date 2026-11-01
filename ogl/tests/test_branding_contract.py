@@ -213,16 +213,60 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('username_combo->setTextEntry(LLStringUtil::null)', cpp)
         start_switch = cpp.index('LLGridManager::getInstance()->getGrid() != previous_grid')
         switch = cpp[start_switch:cpp.index('/*\n     * Determine whether or not the value in the start_location_combo',start_switch)]
+        self.assertIn('clearLoginFieldsForGridChange();', switch)
+        start_helper = cpp.index('void FSPanelLogin::clearLoginFieldsForGridChange()')
+        helper = cpp[start_helper:cpp.index('void FSPanelLogin::onSelectServer()', start_helper)]
         for term in ('getChild<LLLineEditor>("password_edit")->clear()',
                      'mPasswordModified = false;', 'mPasswordLength = 0;',
                      'mUsernameLength = 0;', 'sPassword.clear();',
                      'addUsersToCombo(true)', 'updateLoginButtons()'):
-            self.assertIn(term, switch)
-        self.assertLess(switch.index('addUsersToCombo(true)'),
-                        switch.index('username_combo->setTextEntry(LLStringUtil::null)'))
+            self.assertIn(term, helper)
+        self.assertLess(helper.index('addUsersToCombo(true)'),
+                        helper.index('username_combo->setTextEntry(LLStringUtil::null)'))
         # A non-separated @-username must not lose its last character.
         self.assertIn('cname = cname.substr(0, arobase);', cpp)
         self.assertIn('LLStringUtil::trim(cname);', cpp)
+
+    def test_prelogin_quit_avoids_legacy_modal_without_skipping_cleanup(self):
+        source = self.source("indra/newview/llappviewer.cpp")
+        start = source.index('void LLAppViewer::userQuit()')
+        end = source.index('static bool finish_early_exit', start)
+        callback = source[start:end]
+        self.assertIn('APP_NAME == "OGL"', callback)
+        self.assertIn('LLStartUp::getStartupState() < STATE_LOGIN_CLEANUP', callback)
+        self.assertLess(callback.index('requestQuit();'),
+                        callback.index('LLNotificationsUtil::add("ConfirmQuit");'))
+        self.assertIn('gViewerWindow->getProgressView()->getVisible()', callback)
+        self.assertIn('LLNotificationsUtil::add("ConfirmQuit");', callback)
+        self.assertIn('void LLAppViewer::requestQuit()', source)
+        self.assertIn('forceQuit();', source)
+
+    def test_grid_bearing_start_location_isolates_login_credentials(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        start = cpp.index("void FSPanelLogin::onUpdateStartSLURL(")
+        end = cpp.index("void FSPanelLogin::setLocation(", start)
+        callback = cpp[start:end]
+        self.assertIn('OGLNexVerseGrid::isFixedGrid(slurl_grid)', callback)
+        self.assertIn('Blocked unlisted grid in start location.', callback)
+        self.assertLess(callback.index('Blocked unlisted grid in start location.'),
+                        callback.index('LLGridManager::getInstance()->setGridChoice(slurl_grid)'))
+        self.assertIn('server_combo->setSelectedByValue(slurl_grid, true)', callback)
+        self.assertIn('sInstance->clearLoginFieldsForGridChange()', callback)
+        self.assertLess(callback.index('sInstance->clearLoginFieldsForGridChange()'),
+                        callback.index('updateServer(); // to change the links'))
+
+    def test_login_welcome_url_cannot_be_replaced_and_creds_not_logged(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        start = cpp.index('void FSPanelLogin::loadLoginPage()')
+        end = cpp.index('void FSPanelLogin::handleMediaEvent', start)
+        loader = cpp[start:end]
+        self.assertIn('OGLNexVerseGrid::kWelcomeURI', loader)
+        self.assertIn('if (APP_NAME != "OGL" && force_login_url.length() > 0)', loader)
+        self.assertIn('gSavedSettings.getString("ForceLoginURL")', loader)
+        self.assertNotIn('<< *credential', cpp)
+        self.assertIn('Restoring login fields from credential store.', cpp)
+        self.assertIn('if (credential.isNull())', cpp)
+        self.assertIn('gSecAPIHandler->loadCredential(credentialName())', cpp)
 
     def test_saved_account_deletion_requires_explicit_confirmation(self):
         for language in ('en', 'de'):

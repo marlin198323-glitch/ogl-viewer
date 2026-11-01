@@ -96,6 +96,7 @@ private:
     void onModeChange(const LLSD& original_value, const LLSD& new_value);
     void onModeChangeConfirm(const LLSD& original_value, const LLSD& new_value, const LLSD& notification, const LLSD& response);
     void onSelectServer();
+    void clearLoginFieldsForGridChange();
     void onLocationSLURL();
     void onUsernameTextChanged();
     void syncShowHidePasswordButton();          // Update which button is shown based on mShowPassword

@@ -552,7 +552,14 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
     {
         sCredentialSet = true;
     }
-    LL_INFOS("Credentials") << "Setting login fields to " << *credential << LL_ENDL;
+    if (credential.isNull())
+    {
+        LL_WARNS("Credentials") << "No stored credential available for login fields." << LL_ENDL;
+        return;
+    }
+    // The credential object's stream representation can contain secrets.
+    // Never write it, a plaintext password or authentication hash to logs.
+    LL_DEBUGS("Credentials") << "Restoring login fields from credential store." << LL_ENDL;
 
     std::string login_id;
     LLSD identifier = credential->getIdentifier();
@@ -806,15 +813,30 @@ void FSPanelLogin::onUpdateStartSLURL(const LLSLURL& new_start_slurl)
         std::string slurl_grid = LLGridManager::getInstance()->getGrid(new_start_slurl.getGrid());
         if ( ! slurl_grid.empty() ) // is that a valid grid?
         {
-            if ( slurl_grid != LLGridManager::getInstance()->getGrid() ) // new grid?
+            if (APP_NAME == "OGL" && !OGLNexVerseGrid::isFixedGrid(slurl_grid))
             {
-                // the slurl changes the grid, so update everything to match
+                LL_WARNS("OGLGrid") << "Blocked unlisted grid in start location." << LL_ENDL;
+                location_combo->setTextEntry(LLStringUtil::null);
+                return;
+            }
+            if (slurl_grid != LLGridManager::getInstance()->getGrid()) // new grid?
+            {
+                // A start-location URL must not carry the previous world's
+                // entered password into another pinned login endpoint.
                 LLGridManager::getInstance()->setGridChoice(slurl_grid);
 
-                // update the grid selector to match the slurl
                 LLComboBox* server_combo = sInstance->getChild<LLComboBox>("server_combo");
-                std::string server_label(LLGridManager::getInstance()->getGridLabel(slurl_grid));
-                server_combo->setSimple(server_label);
+                if (APP_NAME == "OGL")
+                {
+                    server_combo->setSelectedByValue(slurl_grid, true);
+                    sInstance->clearLoginFieldsForGridChange();
+                }
+                else
+                {
+                    const std::string server_label =
+                        LLGridManager::getInstance()->getGridLabel(slurl_grid);
+                    server_combo->setSimple(server_label);
+                }
 
                 updateServer(); // to change the links and splash screen
             }
@@ -914,7 +936,7 @@ void FSPanelLogin::loadLoginPage()
 
     // allow users (testers really) to specify a different login content URL
     std::string force_login_url = gSavedSettings.getString("ForceLoginURL");
-    if ( force_login_url.length() > 0 )
+    if (APP_NAME != "OGL" && force_login_url.length() > 0)
     {
         LLNotificationsUtil::add("WarnForceLoginURL", LLSD(), LLSD(), [](const LLSD&notif, const LLSD&resp)
         {
@@ -1316,6 +1338,25 @@ void FSPanelLogin::updateLoginButtons()
     login_btn->setEnabled(mUsernameLength != 0 && mPasswordLength != 0);
 }
 
+void FSPanelLogin::clearLoginFieldsForGridChange()
+{
+    // This applies to both manual grid changes and grid-bearing SLURLs.
+    // Never reuse a plaintext entry or a saved-password filler from the
+    // previous world's login form. Preserve encrypted stored credentials.
+    LLComboBox* username_combo = getChild<LLComboBox>("username_combo");
+    getChild<LLLineEditor>("password_edit")->clear();
+    addUsersToCombo(true);
+    // addUsersToCombo may auto-select the last username: explicitly clear it.
+    username_combo->setTextEntry(LLStringUtil::null);
+    mPreviousUsername.clear();
+    mUsernameLength = 0;
+    mPasswordLength = 0;
+    mPasswordModified = false;
+    sPassword.clear();
+    getChild<LLButton>("remove_user_btn")->setEnabled(false);
+    updateLoginButtons();
+}
+
 void FSPanelLogin::onSelectServer()
 {
     // The user twiddled with the grid choice ui.
@@ -1358,22 +1399,7 @@ void FSPanelLogin::onSelectServer()
     if (APP_NAME == "OGL" &&
         LLGridManager::getInstance()->getGrid() != previous_grid)
     {
-        // Never carry plaintext input or the fake saved-password filler from
-        // one world into the other. Re-select the account explicitly on the
-        // destination grid; its credential stays in the existing secure store.
-        LLComboBox* username_combo = getChild<LLComboBox>("username_combo");
-        getChild<LLLineEditor>("password_edit")->clear();
-        // Refresh account choices before blanking the field: removeall()
-        // may auto-select the previous UserLoginInfo fallback.
-        addUsersToCombo(true);
-        username_combo->setTextEntry(LLStringUtil::null);
-        mPreviousUsername.clear();
-        mUsernameLength = 0;
-        mPasswordLength = 0;
-        mPasswordModified = false;
-        sPassword.clear();
-        getChild<LLButton>("remove_user_btn")->setEnabled(false);
-        updateLoginButtons();
+        clearLoginFieldsForGridChange();
     }
 
     /*
