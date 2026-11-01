@@ -737,9 +737,48 @@ void FSPanelLogin::getFields(LLPointer<LLCredential>& credential,
         return;
     }
 
-    // load the credential so we can pass back the stored password or hash if the user did
-    // not modify the password field.
-    credential = gSecAPIHandler->loadCredential(credentialName());
+    // Reuse a saved authenticator only after the person explicitly selected
+    // that exact account on the current pinned grid and has not edited the
+    // password. A typed username or a stale combo selection is not permission
+    // to pull a protected password from the local credential store.
+    const std::string requested_credential = credentialName();
+    bool use_saved_authenticator = true;
+    if (APP_NAME == "OGL")
+    {
+        const LLSD selected_account =
+            sInstance->getChild<LLComboBox>("username_combo")->getSelectedValue();
+        const std::string current_grid = LLGridManager::getInstance()->getGrid();
+        use_saved_authenticator = OGLNexVerseGrid::canReuseSavedAuthenticator(
+            current_grid, selected_account.asString(), requested_credential,
+            !selected_account.isUndefined(), sInstance->mPasswordModified);
+
+        if (!use_saved_authenticator && !sInstance->mPasswordModified)
+        {
+            // The visible password might be an old masked-password filler.
+            // Never turn that filler into a network login without a fresh
+            // password edit or explicit valid saved-account selection.
+            LL_WARNS("Credentials") << "Saved-login selection is no longer valid; enter a password." << LL_ENDL;
+            credential = nullptr;
+            return;
+        }
+    }
+    if (use_saved_authenticator)
+    {
+        credential = gSecAPIHandler->loadCredential(requested_credential);
+        if (APP_NAME == "OGL" && credential.isNull())
+        {
+            // A credential may disappear after it was listed in the combo.
+            // Do not submit an empty authenticator as a login attempt.
+            LL_WARNS("Credentials") << "Selected saved login is unavailable; enter a password." << LL_ENDL;
+            return;
+        }
+    }
+    else
+    {
+        // A manually entered password must not carry over a pointer to a
+        // previous startup/saved credential supplied by the caller.
+        credential = nullptr;
+    }
 
     LLSD identifier = LLSD::emptyMap();
     LLSD authenticator = LLSD::emptyMap();

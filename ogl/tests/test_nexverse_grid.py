@@ -158,6 +158,66 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertLess(callback.index('if (credential.isNull())'),
                         callback.index('gSecAPIHandler->deleteCredential(credential)'))
 
+    def test_credentials_are_reused_only_after_exact_saved_account_selection(self):
+        start=self.panel.index('void FSPanelLogin::getFields(')
+        end=self.panel.index('bool FSPanelLogin::areCredentialFieldsDirty(',start)
+        body=self.panel[start:end]
+        self.assertIn('OGLNexVerseGrid::canReuseSavedAuthenticator(',body)
+        self.assertIn('getChild<LLComboBox>("username_combo")->getSelectedValue()',body)
+        self.assertIn('!selected_account.isUndefined()',body)
+        self.assertIn('sInstance->mPasswordModified',body)
+        self.assertLess(body.index('canReuseSavedAuthenticator('),
+                        body.index('gSecAPIHandler->loadCredential(requested_credential)'))
+        self.assertIn('if (use_saved_authenticator)',body)
+        self.assertNotIn('gSecAPIHandler->loadCredential(credentialName())',body)
+
+    def test_invalid_saved_selection_cannot_login_with_masked_filler(self):
+        start=self.panel.index('void FSPanelLogin::getFields(')
+        end=self.panel.index('bool FSPanelLogin::areCredentialFieldsDirty(',start)
+        body=self.panel[start:end]
+        self.assertIn('if (!use_saved_authenticator && !sInstance->mPasswordModified)',body)
+        reject=body.index('Saved-login selection is no longer valid; enter a password.')
+        self.assertLess(reject,body.index('gSecAPIHandler->loadCredential(requested_credential)'))
+        self.assertIn('credential = nullptr;',body[reject:body.index('if (use_saved_authenticator)')])
+        self.assertIn('return;',body[reject:body.index('if (use_saved_authenticator)')])
+
+    def test_disappeared_saved_password_fails_closed_without_network_auth(self):
+        start=self.panel.index('void FSPanelLogin::getFields(')
+        end=self.panel.index('bool FSPanelLogin::areCredentialFieldsDirty(',start)
+        body=self.panel[start:end]
+        self.assertIn('if (APP_NAME == "OGL" && credential.isNull())',body)
+        self.assertIn('Selected saved login is unavailable; enter a password.',body)
+        self.assertLess(body.index('if (APP_NAME == "OGL" && credential.isNull())'),
+                        body.index('credential->getAuthenticator()'))
+        connect=self.panel[self.panel.index('void FSPanelLogin::onClickConnect(void *)'):
+                           self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertIn('if (cred.isNull())',connect)
+        self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();',connect)
+
+    def test_manual_password_never_uses_previous_credential_pointer(self):
+        start=self.panel.index('void FSPanelLogin::getFields(')
+        end=self.panel.index('bool FSPanelLogin::areCredentialFieldsDirty(',start)
+        body=self.panel[start:end]
+        reset=body.index('credential = nullptr;',
+                         body.index('A manually entered password'))
+        self.assertLess(reset, body.index('LLSD authenticator = LLSD::emptyMap();'))
+        self.assertIn('if (FSPanelLogin::sInstance->mPasswordModified)',body)
+        self.assertIn('authenticator["type"] = CRED_AUTHENTICATOR_TYPE_CLEAR;',body)
+        self.assertIn('authenticator["type"] = CRED_AUTHENTICATOR_TYPE_HASH;',body)
+        self.assertIn('credential = gSecAPIHandler->createCredential(',body)
+
+    def test_saved_authenticator_native_policy_uses_canonical_grid_names(self):
+        header=(ROOT/'indra/newview/oglnexversegrid.h').read_text(encoding='utf-8')
+        self.assertIn('inline bool canReuseSavedAuthenticator(',header)
+        self.assertIn('selectedCredential != requestedCredential',header)
+        self.assertIn('!hasSavedSelection || passwordModified',header)
+        self.assertIn('(currentGrid != kKey && currentGrid != kBetaKey)',header)
+        self.assertIn('requestedCredential.substr(separator + 1) == currentGrid',header)
+        native=(ROOT/'ogl/tests/test_grid_http_policy.cpp').read_text(encoding='utf-8')
+        self.assertGreaterEqual(native.count('canReuseSavedAuthenticator('),16)
+        self.assertIn('assert(canReuseSavedAuthenticator(kKey, mainAccount, mainAccount, true, false))',native)
+        self.assertIn('assert(!canReuseSavedAuthenticator(kKey, mainAccount, mainAccount, true, true))',native)
+
     def test_credential_restoration_rejects_cross_grid_or_unpinned_secret(self):
         start = self.panel.index('void FSPanelLogin::setFields(')
         end = self.panel.index('void FSPanelLogin::getFields(', start)

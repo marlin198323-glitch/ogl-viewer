@@ -42,6 +42,28 @@ inline bool isBetaGrid(const std::string& grid)
     return grid == kBetaKey || grid == kBetaName;
 }
 
+// Credential-store access is not authorized by merely typing a name. Only
+// an exact saved-account selection belonging to the currently selected,
+// canonical OGL grid can reuse a previously stored authenticator. A fresh
+// password edit must always take precedence over the stored secret.
+inline bool canReuseSavedAuthenticator(const std::string& currentGrid,
+                                      const std::string& selectedCredential,
+                                      const std::string& requestedCredential,
+                                      bool hasSavedSelection,
+                                      bool passwordModified)
+{
+    if (!hasSavedSelection || passwordModified ||
+        (currentGrid != kKey && currentGrid != kBetaKey) ||
+        selectedCredential != requestedCredential)
+    {
+        return false;
+    }
+
+    const size_t separator = requestedCredential.rfind('@');
+    return separator != std::string::npos && separator > 0 &&
+           requestedCredential.substr(separator + 1) == currentGrid;
+}
+
 // Approval for one pending authentication attempt, plus an optional persisted approval for
 // the *exact* trusted URI. A changed URI or a different grid never inherits
 // approval, and no passwords or session identifiers are stored here.

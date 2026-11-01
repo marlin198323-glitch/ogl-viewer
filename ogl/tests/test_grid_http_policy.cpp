@@ -1,5 +1,10 @@
 #include "../../indra/newview/oglnexversegrid.h"
 
+// Assertions must remain active for these security tests in Release CI.
+// In normal Release builds NDEBUG would otherwise silently skip every check.
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <cassert>
 #include <vector>
 #include <string>
@@ -26,6 +31,37 @@ int main() {
     assert(!isExactPinnedHTTPLogin(kKey, {"http://hg.stadt-nexverse.de:80@evil.example/"}));
     assert(!isExactPinnedHTTPLogin(kKey, {kLoginURI + std::string("login")}));
     assert(!isExactPinnedHTTPLogin(OGLNexVerseGrid::kBetaKey, {kLoginURI}));
+
+    // Actual native policy tests: only the exact explicitly selected saved
+    // identity on the active OGL grid can authorize credential-store reuse.
+    using OGLNexVerseGrid::canReuseSavedAuthenticator;
+    const std::string mainAccount = std::string("test.agent@") + kKey;
+    const std::string betaAccount = std::string("test.agent@") + OGLNexVerseGrid::kBetaKey;
+    assert(canReuseSavedAuthenticator(kKey, mainAccount, mainAccount, true, false));
+    assert(canReuseSavedAuthenticator(OGLNexVerseGrid::kBetaKey,
+                                      betaAccount, betaAccount, true, false));
+    assert(!canReuseSavedAuthenticator(kKey, mainAccount, mainAccount, false, false));
+    assert(!canReuseSavedAuthenticator(kKey, mainAccount, mainAccount, true, true));
+    assert(!canReuseSavedAuthenticator(kKey, "", mainAccount, false, false));
+    assert(!canReuseSavedAuthenticator(kKey, "", mainAccount, true, false));
+    assert(!canReuseSavedAuthenticator(kKey, betaAccount, mainAccount, true, false));
+    assert(!canReuseSavedAuthenticator(kKey, betaAccount, betaAccount, true, false));
+    assert(!canReuseSavedAuthenticator(OGLNexVerseGrid::kBetaKey,
+                                      mainAccount, mainAccount, true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "test.agent", "test.agent", true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "@" + std::string(kKey),
+                                      "@" + std::string(kKey), true, false));
+    assert(!canReuseSavedAuthenticator(kKey, mainAccount + " ",
+                                      mainAccount, true, false));
+    assert(!canReuseSavedAuthenticator(kKey, mainAccount,
+                                      mainAccount + "@other-grid", true, false));
+    assert(!canReuseSavedAuthenticator("other-grid", mainAccount, mainAccount, true, false));
+    assert(!canReuseSavedAuthenticator(OGLNexVerseGrid::kName,
+                                      "test.agent@Stadt NexVerse",
+                                      "test.agent@Stadt NexVerse", true, false));
+    assert(!canReuseSavedAuthenticator(OGLNexVerseGrid::kBetaName,
+                                      "test.agent@Stadt NexVerse Beta",
+                                      "test.agent@Stadt NexVerse Beta", true, false));
 
     assert(!OGLNexVerseGrid::gHTTPLoginApprovedForNextAttempt);
     assert(!OGLNexVerseGrid::isApprovedPinnedHTTPLogin(kKey,{kLoginURI},""));
