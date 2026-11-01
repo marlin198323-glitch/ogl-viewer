@@ -11,40 +11,21 @@
      visible="true">
         
         <menu_item_call
-             label="Account"
+             label="NexVerse Portal"
              name="Manage Account">
                 <menu_item_call.on_click
-                 function="PromptShowURL"
-                 name="ManageMyAccount_url"
-                 parameter="WebLaunchJoinNow,http://secondlife.com/account/" />
-                <menu_item_call.on_visible
-                 function="GridCheck"
-                 parameter="secondlife"/>
+                 function="Advanced.ShowURL"
+                 parameter="https://stadt-nexverse.de/" />
         </menu_item_call>
         <menu_item_call
-            label="Marketplace listings..."
+            label="NexVerse Marketplace"
             name="MarketplaceListings">
             <menu_item_call.on_click
-            function="Floater.ToggleOrBringToFront"
-            parameter="marketplace_listings" />
-        </menu_item_call>
-
-        <menu_item_call
-         label="Buy L$"
-         name="Buy and Sell L$">
-            <menu_item_call.on_click
-             function="BuyCurrency" />
-        </menu_item_call>
-
-      <menu_item_call
-           label="[Membership]"
-           name="Membership">
-            <menu_item_call.on_click
              function="Advanced.ShowURL"
-             parameter="https://secondlife.com/my/account/membership.php"/>
-            <menu_item_call.on_visible
-                 function="Membership.UpdateLabel"/>
-      </menu_item_call>
+             parameter="https://marketplace.stadt-nexverse.de/" />
+        </menu_item_call>
+
+
 
         <menu_item_separator/>
 
@@ -710,7 +691,7 @@
     
     <menu
      create_jump_keys="true"
-     label="Comm"
+     label="Chat &amp; Contacts"
      name="Communicate"
      tear_off="true"
      visible="true">
@@ -861,7 +842,7 @@
              parameter="groups_panel" />
         </menu_item_call>
         <menu_item_check
-         label="Chat..."
+         label="Local Chat"
          name="Nearby Chat"
          shortcut="control|H"
          use_mac_ctrl="true">
@@ -883,7 +864,7 @@
              parameter="people" />
             </menu_item_check>
         <menu_item_check
-         label="Conversations"
+         label="Messages"
          name="Conversations"
          shortcut="control|T"
          use_mac_ctrl="true">
@@ -1024,7 +1005,7 @@
     
     <menu
      create_jump_keys="true"
-     label="World"
+     label="Explore"
      name="World"
      tear_off="true"
      visible="true">
@@ -2577,40 +2558,12 @@
             </menu_item_check>
 
     	<menu_item_call
-             label="SL Marketplace"
-             name="SL Marketplace">
-            <menu_item_call.on_click
-             function="LoadSLMarketplace"/>
-            <menu_item_call.on_visible
-             function="GridCheck"
-             parameter="secondlife"/>
-       </menu_item_call>
-       <menu_item_call
-             label="L$ Market Data"
-             name="LindenXchange">
-            <menu_item_call.on_click
-             function="PromptShowURL"
-             name="lindenxchange_url"
-             parameter="WebLaunchExternalTarget,https://secondlife.com/my/lindex/market.php" />
-            <menu_item_call.on_visible
-             function="GridCheck"
-             parameter="secondlife"/>
-       </menu_item_call>
-    	<menu_item_call
              label="Script Library"
              name="Script Library">
              <menu_item_call.on_click
              function="PromptShowURL"
              name="script_library_url"
              parameter="WebLaunchExternalTarget,https://wiki.secondlife.com/wiki/LSL_Library" />
-       </menu_item_call>
-    	<menu_item_call
-             label="SL Community (blogs, forums, news)"
-             name="SL Community Pages">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="community_pages_url"
-             parameter="WebLaunchExternalTarget,https://community.secondlife.com" />
        </menu_item_call>
        <menu_item_separator/>
        <menu_item_call
@@ -2627,7 +2580,7 @@
     
     <menu
      create_jump_keys="true"
-     label="Help"
+     label="Help &amp; Support"
      name="Help"
      tear_off="true"
      visible="true">

@@ -205,6 +205,66 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertNotIn("ogl_graphics_status", self.source(
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
 
+    def test_ogl_main_menu_portal_and_marketplace_use_verified_nexverse_urls(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        targets = {'Manage Account': 'https://stadt-nexverse.de/',
+                   'MarketplaceListings': 'https://marketplace.stadt-nexverse.de/'}
+        for language in ('en','de'):
+            root = ET.parse(base / language / 'menu_viewer.xml').getroot()
+            for name,url in targets.items():
+                entries = [e for e in root.iter('menu_item_call') if e.get('name')==name]
+                self.assertEqual(len(entries), 1, f'{language}:{name}')
+                callback = entries[0].find('menu_item_call.on_click')
+                self.assertIsNotNone(callback,f'{language}:{name}')
+                self.assertEqual(callback.get('function'), 'Advanced.ShowURL')
+                self.assertEqual(callback.get('parameter'), url)
+                self.assertNotIn('secondlife.com',ET.tostring(entries[0],encoding='unicode'))
+            self.assertTrue(root.find('.//menu[@name="Me"]') is not None)
+
+    def test_ogl_main_menu_removes_unavailable_secondlife_commerce_entries(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        obsolete = {'Buy and Sell L$', 'Membership', 'SL Marketplace',
+                    'LindenXchange', 'SL Community Pages'}
+        for language in ('en','de'):
+            root = ET.parse(base / language / 'menu_viewer.xml').getroot()
+            for element in root.iter():
+                self.assertNotIn(element.get('name'),obsolete,
+                                 f'{language}:{element.get("name")}')
+            all_url_values = ' '.join(e.get('parameter','') for e in root.iter()
+                                      if 'parameter' in e.attrib)
+            self.assertNotIn('secondlife.com/account/',all_url_values)
+            self.assertNotIn('secondlife.com/my/account/membership',all_url_values)
+            self.assertNotIn('secondlife.com/my/lindex/market',all_url_values)
+
+    def test_ogl_main_menu_navigation_labels_preserve_callback_names_and_shortcuts(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        labels = {
+            'en': {'Communicate':'Chat & Contacts','World':'Explore',
+                   'Help':'Help & Support', 'Nearby Chat':'Local Chat',
+                   'Conversations':'Messages'},
+            'de': {'Communicate':'Chat & Kontakte','World':'Welt entdecken',
+                   'Help':'Hilfe & Support','Nearby Chat':'Lokaler Chat',
+                   'Conversations':'Nachrichten'},
+        }
+        for language, names in labels.items():
+            root = ET.parse(base / language / 'menu_viewer.xml').getroot()
+            for name,label in names.items():
+                entries = [e for e in root.iter() if e.get('name')==name]
+                self.assertEqual(len(entries),1,(language,name))
+                self.assertEqual(entries[0].get('label'),label)
+            self.assertEqual(root.find('.//menu[@name="Help"]').tag,'menu')
+        english=ET.parse(base / 'en/menu_viewer.xml').getroot()
+        for name,shortcut,target in (
+            ('Nearby Chat','control|H','fs_nearby_chat'),
+            ('Conversations','control|T','fs_im_container'),
+        ):
+            item=next(e for e in english.iter('menu_item_check') if e.get('name')==name)
+            self.assertEqual(item.get('shortcut'),shortcut)
+            self.assertTrue(any(e.get('parameter')==target for e in item))
+        # Grid-specific core menu and account windows remain.
+        self.assertIsNotNone(english.find('.//menu[@name="Me"]'))
+        self.assertIsNotNone(english.find('.//menu[@name="BuildTools"]'))
+
     def test_login_and_world_menus_remove_upstream_promotions(self):
         removed = {
             "Firestorm Blog", "Firestorm Primfeed", "Firestorm Flickr",
