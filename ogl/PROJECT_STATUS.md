@@ -32,6 +32,95 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 – /goal-Sammelrunde: 20 Formularzustands- und Welcome-Prüfungen
+
+**Code-Commit:** `3dba5f51` auf `ogl-develop`.
+**20/20 technische Prüfpositionen in dieser Runde bestanden.**
+Es handelt sich um zusätzliche Entwicklungs- und Regressionstests
+in **P01 Block 19**, nicht um das fehlende Abschluss-Gate
+der Phase. **P01 bleibt bei 18/20 Phasenblöcken.**
+
+**Umsetzung in vorhandenen Projektdateien:**
+
+- `indra/newview/fspanellogin.cpp`: Der HTTP-Warnungsdialog
+  speichert nun einen **numerischen, monoton erhöhten
+  Formular-Revisionsstand**, zusätzlich zu Grid und
+  Kontonamen. Bei Eingaben im Passwortfeld, Änderungen
+  des Benutzernamens, Wechsel eines gespeicherten Kontos,
+  gridbedingtem Leeren oder dem Neuaufbau der Loginmaske
+  wird dieser Stand invalidiert. Ein verspätet angeklickter
+  Zustimmungsdialog mit veralteter Revision kann weder
+  `OGLRememberPinnedHTTPLoginURI` setzen noch
+  `gHTTPLoginApprovedThisSession` freigeben.
+  Der Callback behält **kein Passwort und keinen Hash**
+  als Zustimmungsreferenz zurück. Die vollständige,
+  strikte Prüfung des gepinnten Hauptgrid-Endpunkts
+  bleibt unverändert aktiv.
+- **Welcome-Privatsphäre und Rebranding:** Der OGL-
+  Welcome-Aufruf übermittelt weiterhin
+  `lang`, `version`, `channel`, `grid` sowie
+  bei Erststart den vorgesehenen `firstlogin`-Wert.
+  Legacy-Firestorm-Parameter wie `skin`,
+  `sourceid`, `os`, `login_content_version`,
+  `noversionpopup` und alte Splash-UI-Flags
+  werden im OGL-Pfad nicht mehr an die
+  NexVerse-Welcome-Seite angehängt. Im Nicht-OGL-
+  Kompatibilitätszweig bleibt das bisherige
+  Verhalten erhalten.
+- In den vorhandenen Dateien
+  `ogl/tests/test_nexverse_grid.py` und
+  `ogl/tests/test_branding_contract.py` wurden
+  Quellen-/Regressionstests für den neuen
+  Formular-Revisionsstand und die URL-Parameter
+  ergänzt. **Keine neue Projektdatei erstellt.**
+
+**20/20 überprüfte technische Einzelpositionen:**
+01 Branch; 02 keine neuen Projektdateien;
+03 zwei gepinnte Grids; 04 exakter Loginendpunkt;
+05 Beta-Sperre; 06 HTTP-Abbruch als Standard;
+07 Formular-Revision `U64`; 08 Neue-Panel-
+Invalidierung; 09 Passwortänderung invalidiert;
+10 Username-Änderung invalidiert;
+11 gespeicherte Kontoauswahl invalidiert;
+12 Gridwechsel invalidiert; 13 keine Passwortkopie
+im HTTP-Warnungs-Callback; 14 Revisionsprüfung
+vor Zustimmung; 15 NexVerse-Welcome fest gepinnt;
+16 Legacy-Telemetrie aus OGL-Welcome entfernt;
+17 Sprache/Version/Grid bleiben vorhanden;
+18 realer Hauptgrid-Xvfb-GUI-Test mit HTTP-
+Warnung und ohne Login; 19 realer Beta-GUI-
+Negativtest; 20 vollständiger Linux-Viewer-
+Build und Python-/native Tests.
+
+**Tatsächliche Testbeweise:**
+`bash ogl/scripts/build-test.sh`: vollständig
+gebaut und gestaged; **145/145 Python-Tests**
+und **41/41 native CTests** grün.
+Hauptgrid und Beta wurden separat auf 1280×720
+(Xvfb, Software-OpenGL, isolierte XDG-Profile)
+gestartet. Beide erreichten `STATE_LOGIN_WAIT`
+und die NexVerse-Welcome-Seite; bei Hauptgrid
+erschien vor Authentifizierung der HTTP-
+Zustimmungsdialog, während Beta explizit
+`Blocked beta authentication: protocol and TLS
+not verified` protokollierte. Bei beiden
+GUI-Tests **keine `STATE_LOGIN_AUTH_INIT`**,
+keine echten Zugangsdaten, Strg+Q führte
+jeweils zu **Exit-Code 0**.
+`git diff --check` erfolgreich.
+Vorhandene `_v2`- und `script_copy`-Assets
+wurden geprüft, mangels nachgewiesener
+Unbenutztheit nicht gelöscht.
+
+**Weiterhin nicht nachgewiesen:** Erfolgreicher
+autorisierter Hauptgrid-End-to-End-Login,
+Passwortpersistenz nach diesem Login,
+In-World-Shutdown sowie vollständige
+Windows-/macOS-Viewer-Build-/GUI-Tests.
+Die portable GitHub-Matrix ist kein Ersatz.
+**Nächster operativer /goal-Schritt bleibt
+P01 Block 19/20**, ohne manuelle Abnahme.
+
 ## P01 – /goal-Sammelrunde: 20 Prüfblöcke zur Endpunkt-Pinning-Sicherheit
 
 **Code-Commit:** `69aac477` (`ogl-develop`).

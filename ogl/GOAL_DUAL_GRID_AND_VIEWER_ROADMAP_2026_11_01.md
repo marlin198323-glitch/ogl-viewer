@@ -225,7 +225,13 @@ Sicherheitsprüfpositionen, inklusive striktem
 Login-Endpunkt-Pinning im UI und direkt an
 der Authentifizierungsgrenze, DE-/EN-Fehlermeldungen,
 Stale-Consent-Sperre und synthetischen GUI-Tests
-ohne Zugangsdaten, bestanden).
+ohne Zugangsdaten, bestanden. Code-Commit
+`3dba5f51`: weitere 20/20
+Formularzustands-/Welcome-Datenschutzprüfungen
+grün; Passwort-/Grid-/Kontoänderungen invalidieren
+alte HTTP-Zustimmung, der OGL-Welcome-Aufruf
+überträgt keine Firestorm-Skin-/SourceID-/OS-
+Telemetrie mehr).
 Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
 festes Welcome, Voranmelde-Quit (Exit 0) und
 Checkbox-Einstellung nach Neustart lokal bestätigt.

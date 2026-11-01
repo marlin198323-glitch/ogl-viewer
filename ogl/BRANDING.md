@@ -86,6 +86,18 @@ to Firestorm support websites. The latest local gate is
 full Windows/macOS viewer builds and authenticated grid login
 remain unverified; P01 stays 18/20.
 
+P01 block 19 follow-up `3dba5f51`: the fixed NexVerse welcome
+background no longer receives legacy Firestorm skin, sourceid,
+OS details, or splash preferences in OGL. Only language, version,
+channel, grid and optional first-run metadata remain. HTTP consent
+callbacks capture a numeric form revision instead of a password;
+edits, stored-account switches, grid resets and new login panels
+invalidate stale approvals. A full Linux viewer build, 145 Python
+tests, 41 native CTests and real HTTP-consent/Beta-negative Xvfb
+GUI smoke tests succeeded. P01 remains 18/20: authenticated
+login, password persistence, in-world shutdown and full
+Windows/macOS viewer builds are not yet verified.
+
 ## HTTP login compatibility
 
 The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.
