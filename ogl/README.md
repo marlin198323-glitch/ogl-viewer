@@ -73,18 +73,20 @@ counts but does not prove an end-to-end speedup.
 
 See [P37 Cache Test](CPU_FASTCACHE_OPT_IN_2026_11_01_P37.md).
 
-## Dedicated Stadt NexVerse grid
+## Dedicated Stadt NexVerse grids (public and Beta)
 
-This OGL fork is pinned to Stadt NexVerse. The grid profile has one source
-of truth: `indra/newview/oglnexversegrid.h`. The login UI cannot select
-other grids; upstream and remote grid lists are not loaded. See
-[`NEXVERSE_GRID.md`](NEXVERSE_GRID.md) for verified endpoints and TLS
-limitations.
+This OGL fork ships exactly two compiled-in login choices:
+Stadt NexVerse (hg.stadt-nexverse.de:80) and
+Stadt NexVerse Beta (beta.stadt-nexverse.de).
+The sole source of truth is indra/newview/oglnexversegrid.h.
+The current selection is saved, and other grid imports/overrides are
+blocked. See NEXVERSE_GRID.md for URLs and safety rules.
 
-The public Stadt NexVerse login currently uses HTTP. OGL permits exactly
-that grid URI only after an explicit, temporary warning confirmation.
-Automatic HTTP login without approval is blocked. HTTP does **not** encrypt
-credentials; use a separate test account when possible.
+The public OpenSim login uses the existing exact-URI HTTP consent flow.
+The Beta entry is selectable, but Beta authentication is deliberately
+blocked until its HTTPS certificate and actual login protocol are
+verified. Never transmit credentials to an unverified endpoint.
+See GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md.
 
 ## Öffentliche Grafikauslieferung
 

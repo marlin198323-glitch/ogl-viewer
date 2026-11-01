@@ -80,8 +80,10 @@ Im Login-Dropdown sollten **Stadt NexVerse** und **Stadt NexVerse Beta**
 erscheinen. Die Auswahl soll den zuletzt gewählten Eintrag speichern.
 Die Beta-Auswahl darf **nicht** bis zum eigentlichen Netzwerk-Login gelangen.
 
-**Abnahmestand:** Die Änderung wurde auf GitHub umgesetzt.
-Der Linux-Mint-PC war beim Bearbeiten nicht mit Desktop Commander verbunden.
-Deshalb sind lokale Kompilierung, Viewer-Paketierung und visuelle Abnahme
-noch nicht bestätigt. Die GitHub-CI prüft die plattformübergreifenden
-Modul-/Python-Verträge getrennt von einem vollständigen Viewer-Build.
+**Abnahmestand (01.11.2026):** Linux Mint ist wieder erreichbar.
+Der Zweigrid-Stand wurde mit bash ogl/scripts/build-test.sh gebaut und
+verpackt. 119 Python-Tests und 41 native Tests bestanden; die portable
+GitHub-CI war für den zugrunde liegenden Commit erfolgreich.
+Die visuelle Bedienabnahme beider Dropdown-Einträge im geöffneten
+Viewer steht noch aus. Der echte Beta-Login bleibt gesperrt.
+Die portable CI ersetzt keine vollständige Windows-/macOS-Viewer-Freigabe.
