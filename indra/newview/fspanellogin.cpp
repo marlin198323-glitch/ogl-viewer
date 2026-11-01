@@ -775,7 +775,9 @@ void FSPanelLogin::updateLocationSelectorsVisibility()
         bool show_start = gSavedSettings.getBOOL("ShowStartLocation");
         sInstance->getChild<LLLayoutPanel>("start_location_panel")->setVisible(show_start);
 
-        bool show_server = gSavedSettings.getBOOL("ForceShowGrid");
+        // Both built-in NexVerse worlds must always be selectable in OGL,
+        // regardless of an old Firestorm ForceShowGrid preference.
+        bool show_server = (APP_NAME == "OGL") || gSavedSettings.getBOOL("ForceShowGrid");
         sInstance->getChild<LLLayoutPanel>("grid_panel")->setVisible(show_server);
         sInstance->addUsersToCombo(show_server);
     }
