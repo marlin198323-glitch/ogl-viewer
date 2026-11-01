@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <colors>
+  <!-- OGL Login palette; shared by panels, labels and translated layouts. -->
+  <color name="OGLLoginBackground" value="0.022 0.035 0.078 1" />
+  <color name="OGLLoginSurface" value="0.022 0.038 0.080 0.98" />
+  <color name="OGLLoginAccent" value="0.30 0.82 0.99 1" />
+  <color name="OGLLoginLink" value="0.58 0.88 1.0 1" />
 
 	<!--  Colors in this scheme  -->
 	<!-- 

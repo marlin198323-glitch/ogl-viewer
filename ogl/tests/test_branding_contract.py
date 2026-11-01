@@ -43,21 +43,21 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn("OGLNexVerseGrid::isExactPinnedHTTPLogin", source)
         self.assertIn("User approved HTTP login for pinned Stadt NexVerse", source)
 
-    def test_nexverse_login_bar_readable_and_graphics_status_truthful(self):
+    def test_nexverse_login_bar_without_rtx_debug(self):
         from struct import unpack
         path = ROOT / "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"
         root = ET.parse(path).getroot()
         elements = {x.get("name"): x for x in root.iter() if x.get("name")}
         for name in ("ogl_brand_caption", "ogl_username_label",
-                     "ogl_password_label", "ogl_start_label", "ogl_graphics_status"):
+                     "ogl_password_label", "ogl_start_label"):
             self.assertIn(name, elements)
-        self.assertEqual(elements["connect_btn"].get("label"), "Welt betreten")
+        self.assertEqual(elements["connect_btn"].get("label"), "Enter world")
         german = ET.parse(ROOT / "indra/newview/skins/default/xui/de/panel_fs_nui_login.xml")
         glabels = [x for x in german.getroot().iter() if x.get("name") == "connect_btn"]
         self.assertEqual(len(glabels), 1)
         self.assertEqual(glabels[0].get("label"), "Welt betreten")
         self.assertEqual(elements["connect_btn"].get("image_unselected"), "OGL_Login")
-        self.assertIn("0.022", elements["panel_login"].get("bg_opaque_color"))
+        self.assertEqual(elements["panel_login"].get("bg_opaque_color"), "OGLLoginBackground")
         textures = ET.parse(ROOT / "indra/newview/skins/default/textures/textures.xml")
         names = {x.get("name") for x in textures.getroot()}
         for name in ("OGL_Login", "OGL_Login_Over", "OGL_Login_Pressed"):
@@ -66,9 +66,56 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertEqual(data[:8], bytes.fromhex("89504e470d0a1a0a"))
             self.assertEqual(unpack("!II", data[16:24]), (299, 64))
         login_cpp = self.source("indra/newview/fspanellogin.cpp")
-        self.assertIn('ogl_rtx_rendering_active()', login_cpp)
-        self.assertIn('Vulkan RT bereit | Effekte aus', login_cpp)
+        self.assertNotIn('ogl_rtx_rendering_active()', login_cpp)
+        self.assertNotIn('ogl_rtx_hardware_supported()', login_cpp)
+        self.assertNotIn('Vulkan RT bereit', login_cpp)
+        self.assertNotIn('Effekte aus', login_cpp)
+        self.assertNotIn('ogl_graphics_status', elements)
+        self.assertNotIn('ogl_graphics_status', login_cpp)
+        self.assertIn('"ui_stack" : "login_widgets"', login_cpp)
+        self.assertIn('LLWeb::loadURLInternal(OGLNexVerseGrid::kWebsite)', login_cpp)
+        self.assertIn('LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite)', login_cpp)
         self.assertIn('APP_NAME == "OGL" || !gSavedSettings.getBOOL', login_cpp)
+
+    def test_responsive_ogl_login_palette_and_locale_contract(self):
+        xui = ROOT / "indra/newview/skins/default/xui"
+        english = ET.parse(xui / "en/panel_fs_nui_login.xml").getroot()
+        german = ET.parse(xui / "de/panel_fs_nui_login.xml").getroot()
+        by_name = {node.get("name"): node for node in english.iter()
+                   if node.get("name")}
+        localized = {node.get("name"): node for node in german.iter()
+                     if node.get("name")}
+        colors = ET.parse(ROOT / "indra/newview/skins/default/colors.xml")
+        named = {c.get("name") for c in colors.getroot()}
+        self.assertTrue({"OGLLoginBackground", "OGLLoginSurface",
+                         "OGLLoginAccent", "OGLLoginLink"} <= named)
+        for node in english.iter():
+            for attr in ("bg_opaque_color", "text_color"):
+                token = node.get(attr)
+                if token and token.startswith("OGLLogin"):
+                    self.assertIn(token, named)
+        self.assertEqual(by_name["ui_stack"].get("height"), "140")
+        self.assertEqual(by_name["1st_row"].get("height"), "82")
+        self.assertEqual(by_name["2nd_row"].get("height"), "58")
+        self.assertEqual(by_name["login_html"].get("height"), "610")
+        self.assertEqual(by_name["login_html"].get("follows"), "all")
+        self.assertEqual(by_name["mode_selection"].get("visible"), "false")
+        self.assertEqual(by_name["grid_panel"].get("visible"), "true")
+        for name in ("username_combo", "password_edit", "server_combo",
+                     "start_location_combo", "remember_username_check",
+                     "remember_check"):
+            self.assertIn(name, by_name)
+        for name in ("remember_username_check", "remember_check"):
+            self.assertNotEqual(by_name[name].get("tab_stop"), "false")
+        self.assertEqual(by_name["ogl_password_label"].text, "PASSWORD")
+        self.assertEqual(localized["ogl_password_label"].text, "PASSWORT")
+        self.assertEqual(localized["ogl_username_label"].text, "NEXVERSE-NAME")
+        self.assertEqual(localized["ogl_start_label"].text, "STARTORT")
+        self.assertEqual(localized["connect_btn"].get("label"), "Welt betreten")
+        self.assertNotIn("bg_image_always_focused", self.source(
+            "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
+        self.assertNotIn("ogl_graphics_status", self.source(
+            "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
 
     def test_rtx_world_frame_bridge_never_claims_live_rendering(self):
         pipeline = self.source("indra/newview/pipeline.cpp")

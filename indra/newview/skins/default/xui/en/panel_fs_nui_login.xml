@@ -6,7 +6,7 @@
   name="panel_login"
   focus_root="true"
   background_visible="true"
-  bg_opaque_color="0.022 0.035 0.078 1"
+  bg_opaque_color="OGLLoginBackground"
   background_opaque="true"
   width="1024">
   <panel.string
@@ -26,18 +26,18 @@
     name="login_html"
     start_url=""
     top="18"
-    height="598"
+    height="610"
     width="1024" />
   <layout_stack
   follows="left|right|bottom"
-  height="152"
+  height="140"
   left="0"
   name="ui_stack"
   orientation="horizontal"
   bottom="-1"
   width="1024">
     <layout_panel
-      height="152"
+      height="140"
       auto_resize="true"
       name="ui_elastic_pad_left"
       width="27" />
@@ -48,26 +48,26 @@
       layout="topleft"
       background_visible="true"
       background_opaque="true"
-      bg_opaque_color="0.022 0.038 0.080 0.98"
+      bg_opaque_color="OGLLoginSurface"
       width="970"
       min_width="970"
-      height="152">
+      height="140">
   <icon
-    height="110"
-    width="110"
+    height="92"
+    width="92"
     image_name="login_ogl_logo"
-    left="0"
-    top="8"
+    left="9"
+    top="6"
     name="sl_logo_small" />
   <text
     name="ogl_brand_caption"
     follows="left|top"
-    left="8"
-    top="119"
+    left="0"
+    top="105"
     width="110"
     height="20"
     font="SansSerifSmall"
-    text_color="0.30 0.82 0.99 1"
+    text_color="OGLLoginAccent"
     halign="center">STADT NEXVERSE</text>
 
     <layout_stack
@@ -80,13 +80,13 @@
       top="0"
       left_pad="10"
       width="700"
-      height="152">
+      height="140">
     <layout_panel
       auto_resize="false"
       follows="all"
       name="1st_row"
       layout="topleft"
-      height="86"
+      height="82"
       width="700">
     <layout_stack
       animate="false"
@@ -98,18 +98,18 @@
       top="0"
       left="0"
       width="700"
-      height="86">
+      height="82">
     <layout_panel
         auto_resize="true"
         follows="left|top|right"
         name="login"
         layout="topleft"
         width="206"
-        height="86">
+        height="82">
 
-  <text name="ogl_username_label" left="5" top="6"
-    font="SansSerifLarge" text_color="0.30 0.82 0.99 1"
-    height="17" width="200">NEXVERSE-NAME</text>
+  <text name="ogl_username_label" left="5" top="4"
+    font="SansSerifLarge" text_color="OGLLoginAccent"
+    height="17" width="200">NEXVERSE USERNAME</text>
   <combo_box
     left="5"
     top_pad="2"
@@ -127,16 +127,14 @@
     width="201">
     <combo_box.combo_editor
       text_pad_left="8"
-      text_pad_right="8"
-      bg_image_always_focused="true"/>
+      text_pad_right="8"/>
     </combo_box>
     <check_box
-      tab_stop="false"
       control_name="FSRememberUsername"
       follows="left|top|right"
       font="SansSerifMedium"
       left="2"
-      top_pad="10"
+      top_pad="6"
       height="18"
       label="Remember username"
       name="remember_username_check"
@@ -149,7 +147,7 @@
       name="delete_container"
       layout="topleft"
       width="32"
-      height="86">
+      height="82">
     <button
       follows="right|top"
       height="32"
@@ -170,11 +168,11 @@
         name="password_container"
         layout="topleft"
         width="206"
-        height="86">
+        height="82">
     <!-- The max length might be changed in FSPanelLogin.cpp for Opensim! -->
-  <text name="ogl_password_label" left="5" top="6"
-    font="SansSerifLarge" text_color="0.30 0.82 0.99 1"
-    height="17" width="200">PASSWORT</text>
+  <text name="ogl_password_label" left="5" top="4"
+    font="SansSerifLarge" text_color="OGLLoginAccent"
+    height="17" width="200">PASSWORD</text>
   <line_editor
     follows="left|top|right"
     height="32"
@@ -184,7 +182,6 @@
     text_pad_right="8"
     name="password_edit"
     label="Password"
-    bg_image_always_focused="true"
     font="SansSerifLarge"
     is_password="true" 
     select_on_focus="true"
@@ -192,7 +189,6 @@
     top_pad="2"
     width="201" />
     <check_box
-      tab_stop="false"
       control_name="RememberPassword"
       enabled_control="FSRememberUsername"
       follows="left|top|right"
@@ -200,7 +196,7 @@
       left="2"
       height="18"
       label="Remember password"
-      top_pad="10"
+      top_pad="6"
       name="remember_check"
       width="204" />
     <button
@@ -234,10 +230,10 @@
       name="start_location_panel"
       layout="topleft"
       width="211"
-      height="86">
-  <text name="ogl_start_label" left="5" top="6"
-    font="SansSerifLarge" text_color="0.30 0.82 0.99 1"
-    height="17" width="200">STARTORT</text>
+      height="82">
+  <text name="ogl_start_label" left="5" top="4"
+    font="SansSerifLarge" text_color="OGLLoginAccent"
+    height="17" width="200">START LOCATION</text>
   <combo_box
     allow_text_entry="true"
     control_name="NextLoginLocation"
@@ -252,7 +248,6 @@
     width="201"
     combo_button.scale_image="true">
     <combo_box.combo_editor
-      bg_image_always_focused="true"
       text_pad_left="8"
       text_pad_right="8"/>
     <combo_box.item
@@ -277,7 +272,7 @@
       name="2nd_row"
       layout="topleft"
       top_pad="0"
-      height="66"
+      height="58"
       width="700">
     <layout_stack
       animate="false"
@@ -289,14 +284,14 @@
       top_pad="0"
       left="0"
       width="700"
-      height="66">
+      height="58">
     <layout_panel
       auto_resize="false"
       follows="left|top|right"
       name="grid_panel"
       layout="topleft"
       width="342"
-      height="66"
+      height="58"
       visible="true">
     <text
       follows="left|bottom"
@@ -307,7 +302,7 @@
       top_pad="5"
       left="5"
       width="35">
-        WELT:
+        WORLD:
     </text>
     <combo_box
       allow_text_entry="true"
@@ -331,7 +326,7 @@
     <text
       follows="left|top|right"
       font="SansSerifMedium"
-      text_color="EmphasisColor"
+      text_color="OGLLoginLink"
       top_pad="5"
       height="16"
       name="grid_builder_text"
@@ -345,8 +340,9 @@
     <layout_panel
       follows="left|top|right"
       name="mode_selection"
+      visible="false"
       width="342"
-      height="66">
+      height="58">
     <text
       follows="right|top"
       font="SansSerifLarge"
@@ -357,7 +353,7 @@
       top_pad="5"
       right="-130"
       width="75">
-        ANSICHT:
+        DISPLAY:
     </text>
     <combo_box
       follows="right|bottom"
@@ -397,16 +393,6 @@
         name="Text"
         value="settings_text.xml" />
       </combo_box>
-      <text
-        name="ogl_graphics_status"
-        follows="right|bottom"
-        font="SansSerifLarge"
-        text_color="0.30 0.82 0.99 1"
-        halign="right"
-        right="-5"
-        top="44"
-        width="320"
-        height="18">OpenGL aktiv · RT aus</text>
     </layout_panel>
 
     </layout_stack> <!-- 2nd_row_stack -->
@@ -417,7 +403,7 @@
     image_unselected="OGL_Login"
     image_pressed="OGL_Login_Pressed"
     image_hover_unselected="OGL_Login_Over"
-    label="Welt betreten"
+    label="Enter world"
     label_color="White"
     font="SansSerifLarge"
     name="connect_btn"
@@ -428,28 +414,28 @@
     <text
       follows="left|top|right"
       font="SansSerifLarge"
-      text_color="EmphasisColor"
+      text_color="OGLLoginLink"
       left_delta="0"
       height="19"
       name="create_new_account_text"
       top_pad="14"
       width="140">
-        Bürger werden
+        Create account
     </text>
     <text
       follows="left|top|right"
       font="SansSerifLarge"
-      text_color="EmphasisColor"
+      text_color="OGLLoginLink"
       left_delta="0"
       height="19"
       name="forgot_password_text"
       top_pad="5"
       width="140">
-        Passwort vergessen?
+        Forgot password?
     </text>
   </layout_panel>
   <layout_panel
-      height="152"
+      height="140"
       auto_resize="true"
       name="ui_elastic_pad_right"
       width="27" />

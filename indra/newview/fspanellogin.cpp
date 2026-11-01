@@ -33,7 +33,6 @@
 
 #include "indra_constants.h"        // for key and mask constants
 #include "oglnexversegrid.h" // Central fixed Stadt NexVerse profile
-#include "oglrtxhost.h" // RTX status: ready hardware vs actual rendered effects
 #include "llfloaterreg.h"
 #include "llfontgl.h"
 #include "llmd5.h"
@@ -219,21 +218,7 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
 
     reshape(rect.getWidth(), rect.getHeight());
 
-    // An accurate in-viewer status: RTX-capable hardware must never be
-    // presented as live ray-traced rendering until a scene bridge exists.
-    if (APP_NAME == "OGL")
-    {
-        LLTextBox* graphics = findChild<LLTextBox>("ogl_graphics_status");
-        if (graphics)
-        {
-            if (ogl_rtx_rendering_active())
-                graphics->setText(LLStringExplicit("RTX-Rendering aktiv"));
-            else if (ogl_rtx_hardware_supported())
-                graphics->setText(LLStringExplicit("Vulkan RT bereit | Effekte aus"));
-            else
-                graphics->setText(LLStringExplicit("OpenGL aktiv | kein Vulkan RT"));
-        }
-    }
+    // RT diagnostics belong in graphics settings and logs, not the login UI.
 
     LLUICtrl& mode_combo = getChildRef<LLUICtrl>("mode_combo");
     mode_combo.setValue(gSavedSettings.getString("SessionSettingsFile"));
@@ -499,7 +484,7 @@ void FSPanelLogin::showLoginWidgets()
     {
         // *NOTE: Mani - This may or may not be obselete code.
         // It seems to be part of the defunct? reg-in-client project.
-        sInstance->getChildView("login_widgets")->setVisible( true);
+        sInstance->getChildView(APP_NAME == "OGL" ? "ui_stack" : "login_widgets")->setVisible(true);
         LLMediaCtrl* web_browser = sInstance->getChild<LLMediaCtrl>("login_html");
 
         // *TODO: Append all the usual login parameters, like first_login=Y etc.
@@ -1169,6 +1154,11 @@ void FSPanelLogin::onClickNewAccount(void*)
 {
     if (sInstance)
     {
+        if (APP_NAME == "OGL")
+        {
+            LLWeb::loadURLInternal(OGLNexVerseGrid::kWebsite);
+            return;
+        }
 #ifdef OPENSIM
         LLSD grid_info;
         LLGridManager::getInstance()->getGridData(grid_info);
@@ -1196,6 +1186,13 @@ void FSPanelLogin::onClickForgotPassword(void*)
 {
     if (sInstance)
     {
+        if (APP_NAME == "OGL")
+        {
+            // The verified portal is a safe starting point until a documented
+            // account-recovery URL exists. Never link OGL users to Second Life.
+            LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite);
+            return;
+        }
 #ifdef OPENSIM
         LLSD grid_info;
         LLGridManager::getInstance()->getGridData(grid_info);
