@@ -339,6 +339,22 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
     username_combo->setTextChangedCallback(boost::bind(&FSPanelLogin::onUsernameTextChanged, this));
     username_combo->setCommitCallback(boost::bind(&FSPanelLogin::onSelectUser, this));
     username_combo->setFocusLostCallback(boost::bind(&FSPanelLogin::onSelectUser, this));
+    if (APP_NAME == "OGL")
+    {
+        // Migrated profiles might contain an obsolete last-login identifier
+        // despite the user previously opting out of username persistence.
+        if (!gSavedSettings.getBOOL("FSRememberUsername"))
+            gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
+
+        getChild<LLUICtrl>("remember_username_check")->setCommitCallback(
+            [](LLUICtrl* control, const LLSD&)
+            {
+                // Clear the last-login identifier immediately when the user
+                // opts out, even if they never click the Connect button.
+                if (!control->getValue().asBoolean())
+                    gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
+            });
+    }
     mPreviousUsername = username_combo->getValue().asString();
 
     childSetAction("password_show_btn", onShowHidePasswordClick, this);
@@ -370,7 +386,10 @@ void FSPanelLogin::addFavoritesToStartLocation()
     }
     std::string current_grid = getChild<LLComboBox>("server_combo")->getSimple();
     std::string current_user = canonical_user_name + " @ " + current_grid;
-    LL_DEBUGS("Favorites") << "Current user: \"" << current_user << "\"" << LL_ENDL;
+    if (APP_NAME != "OGL")
+    {
+        LL_DEBUGS("Favorites") << "Current user: \"" << current_user << "\"" << LL_ENDL;
+    }
     std::string filename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, "stored_favorites.xml");
     mUsernameLength = current_user.length();
     updateLoginButtons();
@@ -616,7 +635,10 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
         if (from_startup)
         {
             LLPointer<LLCredential> stored_credential = gSecAPIHandler->loadCredential(cred_name);
-            if (stored_credential->getAuthenticator().size() == 0 ||
+            // A failed login can restore a transient credential that was
+            // never saved (for example when "remember username" is off).
+            if (stored_credential.isNull() ||
+                stored_credential->getAuthenticator().size() == 0 ||
                 (stored_credential->getAuthenticator().has("secret") && stored_credential->getAuthenticator()["secret"].asString() != authenticator["secret"].asString()))
             {
                 sInstance->getChild<LLLineEditor>("password_edit")->setText(sPassword);
@@ -673,13 +695,19 @@ void FSPanelLogin::getFields(LLPointer<LLCredential>& credential,
     std::string password = sInstance->getChild<LLUICtrl>("password_edit")->getValue().asString();
     sPassword = password;
 
-    LL_INFOS("Credentials", "Authentication") << "retrieving username:" << username << LL_ENDL;
+    if (APP_NAME != "OGL")
+    {
+        LL_INFOS("Credentials", "Authentication") << "retrieving username:" << username << LL_ENDL;
+    }
     // determine if the username is a first/last form or not.
     size_t separator_index = username.find_first_of(' ');
     if (separator_index == username.npos
         && !LLGridManager::getInstance()->isSystemGrid())
     {
+        if (APP_NAME != "OGL")
+    {
         LL_INFOS("Credentials", "Authentication") << "account: " << username << LL_ENDL;
+    }
         // single username, so this is a 'clear' identifier
         identifier["type"] = CRED_IDENTIFIER_TYPE_ACCOUNT;
         identifier["account_name"] = username;
@@ -725,7 +753,10 @@ void FSPanelLogin::getFields(LLPointer<LLCredential>& credential,
 
         if (last.find_first_of(' ') == last.npos)
         {
-            LL_INFOS("Credentials", "Authentication") << "agent: " << username << LL_ENDL;
+            if (APP_NAME != "OGL")
+    {
+        LL_INFOS("Credentials", "Authentication") << "agent: " << username << LL_ENDL;
+    }
             // traditional firstname / lastname
             identifier["type"] = CRED_IDENTIFIER_TYPE_AGENT;
             identifier["first_name"] = first;
@@ -1171,7 +1202,16 @@ void FSPanelLogin::onClickConnect(void *)
 
         std::string username = sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString();
         std::string password = sInstance->getChild<LLUICtrl>("password_edit")->getValue().asString();
-        gSavedSettings.setString("UserLoginInfo", credentialName());
+        // Never persist a username from an OGL login attempt when the
+        // user explicitly declined to remember that account.
+        if (APP_NAME != "OGL" || gSavedSettings.getBOOL("FSRememberUsername"))
+        {
+            gSavedSettings.setString("UserLoginInfo", credentialName());
+        }
+        else
+        {
+            gSavedSettings.getControl("UserLoginInfo")->resetToDefault();
+        }
 
         if(username.empty())
         {

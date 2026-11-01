@@ -1515,7 +1515,14 @@ bool idle_startup()
             gSavedSettings.setBOOL("RememberPassword", gRememberPassword);
         }
         // </FS:Ansariel>
-        LL_INFOS("AppInit") << "Attempting login as: " << userid << LL_ENDL;
+        if (APP_NAME == "OGL")
+        {
+            LL_INFOS("AppInit") << "Attempting login on the selected NexVerse grid." << LL_ENDL;
+        }
+        else
+        {
+            LL_INFOS("AppInit") << "Attempting login as: " << userid << LL_ENDL;
+        }
 //      gDebugInfo["LoginName"] = userid;
 // [SL:KB] - Patch: Viewer-CrashReporting | Checked: 2010-11-16 (Catznip-2.6.0a) | Added: Catznip-2.4.0b
         if (gCrashSettings.getBOOL("CrashSubmitName"))

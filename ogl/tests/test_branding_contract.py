@@ -316,6 +316,38 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('if (credential.isNull())', cpp)
         self.assertIn('gSecAPIHandler->loadCredential(credentialName())', cpp)
 
+    def test_ogl_identity_is_not_logged_in_plain_text(self):
+        startup = self.source('indra/newview/llstartup.cpp')
+        self.assertIn('Attempting login on the selected NexVerse grid.', startup)
+        self.assertIn('if (APP_NAME == "OGL")', startup)
+        cpp = self.source('indra/newview/fspanellogin.cpp')
+        self.assertIn('LL_DEBUGS("Favorites") << "Current user:', cpp)
+        self.assertIn('if (APP_NAME != "OGL")', cpp)
+        self.assertIn('Restoring login fields from credential store.', cpp)
+
+    def test_transient_login_credential_restoration_and_username_privacy(self):
+        cpp = self.source('indra/newview/fspanellogin.cpp')
+        stored = cpp.index('LLPointer<LLCredential> stored_credential = gSecAPIHandler->loadCredential(cred_name);')
+        self.assertLess(cpp.index('if (stored_credential.isNull() ||', stored),
+                        cpp.index('stored_credential->getAuthenticator()', stored))
+        self.assertIn('sInstance->getChild<LLLineEditor>("password_edit")->setText(sPassword)', cpp)
+        assert 'sPassword' in cpp
+        connect = cpp[cpp.index('void FSPanelLogin::onClickConnect(void *)'):
+                      cpp.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertIn('APP_NAME != "OGL" || gSavedSettings.getBOOL("FSRememberUsername")', connect)
+        self.assertLess(connect.index('gSavedSettings.getBOOL("FSRememberUsername")'),
+                        connect.index('gSavedSettings.setString("UserLoginInfo", credentialName())'))
+        self.assertIn('gSavedSettings.getControl("UserLoginInfo")->resetToDefault()', connect)
+        self.assertIn('getChild<LLUICtrl>("remember_username_check")->setCommitCallback(', cpp)
+        self.assertIn('if (!gSavedSettings.getBOOL("FSRememberUsername"))', cpp)
+        self.assertIn('gSavedSettings.getControl("UserLoginInfo")->resetToDefault()', cpp)
+        self.assertIn('if (!control->getValue().asBoolean())', cpp)
+        self.assertLess(cpp.index('remember_username_check")->setCommitCallback('),
+                        cpp.index('void FSPanelLogin::onClickConnect(void *)'))
+        for prefix in ('retrieving username:', 'account: ', 'agent: '):
+            self.assertIn(f'LL_INFOS("Credentials", "Authentication") << "{prefix}"', cpp)
+        self.assertGreaterEqual(cpp.count('if (APP_NAME != "OGL")'), 3)
+
     def test_saved_account_deletion_requires_explicit_confirmation(self):
         for language in ('en', 'de'):
             notices = ET.parse(ROOT / f'indra/newview/skins/default/xui/{language}/notifications.xml')
