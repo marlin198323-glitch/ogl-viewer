@@ -3535,7 +3535,11 @@ bool idle_startup()
         }
         // </FS:Techwolf Lupindo>
         // <FS:PP>
-        if (gSavedSettings.getBOOL("AutoQueryGridStatus"))
+        // OGL has exactly two pinned grids. A migrated Firestorm profile can
+        // still have AutoQueryGridStatus enabled, which would send a network
+        // request to its legacy Phoenix/Second Life feed after login. Never
+        // contact that third-party endpoint from OGL, regardless of settings.
+        if (APP_NAME != "OGL" && gSavedSettings.getBOOL("AutoQueryGridStatus"))
         {
             FSCoreHttpUtil::callbackHttpGetRaw(gSavedSettings.getString("AutoQueryGridStatusURL"),
                 downloadGridstatusComplete, [](const LLSD& data) { downloadGridstatusError(data, gSavedSettings.getString("AutoQueryGridStatusURL")); });

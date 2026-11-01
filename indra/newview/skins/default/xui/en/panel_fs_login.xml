@@ -334,7 +334,7 @@
             name="Firestorm"
             value="settings_firestorm.xml" />
            <combo_box.item
-            label="Phoenix"
+            label="Classic"
             name="Phoenix"
             value="settings_phoenix.xml" />
            <combo_box.item

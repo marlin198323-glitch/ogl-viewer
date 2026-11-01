@@ -67,7 +67,7 @@
      layout="topleft"
      name="AutoQueryGridStatus"
      top_pad="3"
-     width="450"/>
+     width="450" visible="false" enabled="false"/>
 
     <check_box
       control_name="FSEnableGrowl"
@@ -87,7 +87,7 @@
       height="16"
       control_name="FSGrowlWhenActive"
       name="notify_growl_always_checkbox"
-      label="Show Growl Notifications even when Firestorm is active"/>
+      label="Show Growl Notifications even when OGL is active"/>
     <check_box
       enabled_control="FSEnableGrowl"
       layout="topleft"

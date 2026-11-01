@@ -71,6 +71,21 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('update_grid_help();', branch)
         self.assertIn('return;', branch)
 
+    def test_ogl_never_downloads_untrusted_legacy_grid_status_feed(self):
+        startup=self.startup
+        guard='if (APP_NAME != "OGL" && gSavedSettings.getBOOL("AutoQueryGridStatus"))'
+        self.assertIn(guard,startup)
+        start=startup.index(guard)
+        end=startup.index('// </FS:PP>',start)
+        body=startup[start:end]
+        self.assertIn('FSCoreHttpUtil::callbackHttpGetRaw(',body)
+        self.assertIn('gSavedSettings.getString("AutoQueryGridStatusURL")',body)
+        self.assertLess(body.index('APP_NAME != "OGL"'),
+                        body.index('FSCoreHttpUtil::callbackHttpGetRaw('))
+        # A persisted true value from a prior installation still
+        # cannot bypass the OGL-specific condition.
+        self.assertNotIn('if (gSavedSettings.getBOOL("AutoQueryGridStatus"))',body)
+
     def test_direct_login_button_rechecks_grid_before_any_credentials(self):
         start = self.panel.index('void FSPanelLogin::onClickConnect(void *)')
         end = self.panel.index('void FSPanelLogin::onClickNewAccount(void*)', start)

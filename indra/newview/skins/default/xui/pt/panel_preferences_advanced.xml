@@ -4,7 +4,7 @@
 		[NUM]:[DEN]
 	</panel.string>
 	<check_box label="Permitir múltiplos viewers abertos" name="allow_multiple_viewer_check"/>
-	<check_box label="Mostrar seleção de grid ao entrar" name="show_grid_selection_check"/>
+	<check_box label="Mostrar seleção de grid ao entrar" name="show_grid_selection_check" visible="false" enabled="false"/>
 	<check_box label="Mostrar menu “Avançado”" name="show_advanced_menu_check"/>
 	<check_box label="Mostrar menu “Desenvolvedor” (use por sua conta e risco!)" name="show_develop_menu_check"/>
 	<check_box label="Desativar detecção de VRAM via WMI (Windows)" name="FSDisableWMIProbing"/>

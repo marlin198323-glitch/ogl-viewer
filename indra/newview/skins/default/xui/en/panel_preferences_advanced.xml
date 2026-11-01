@@ -31,12 +31,12 @@
      control_name="ForceShowGrid"
      follows="top|left"
      height="15"
-     label="Allow login to other grids (Not all grids will support Firestorm)"
+     label="Allow login to other grids (Not all grids will support OGL)"
      layout="topleft"
      left="30"
      name="show_grid_selection_check"
      top_pad="5"
-     width="237"/>
+     width="237" visible="false" enabled="false"/>
     <check_box
      control_name="UseDebugMenus"
      follows="top|left"

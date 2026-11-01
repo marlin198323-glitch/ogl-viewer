@@ -4,7 +4,7 @@
 		[NUM]:[DEN]
 	</panel.string>
 	<check_box label="Mehrere Viewer zulassen" name="allow_multiple_viewer_check"/>
-	<check_box label="Bei Anmeldung Gridauswahl anzeigen" name="show_grid_selection_check"/>
+	<check_box label="Bei Anmeldung Gridauswahl anzeigen" name="show_grid_selection_check" visible="false" enabled="false"/>
 	<check_box label="Menü „Erweitert“ anzeigen" name="show_advanced_menu_check"/>
 	<check_box label="Menü „Entwickler“ anzeigen (Benutzung auf eigene Gefahr!)" name="show_develop_menu_check"/>
 	<check_box label="VRAM-Ermittlung über WMI auf Windows-Systemen deaktivieren" name="FSDisableWMIProbing"/>

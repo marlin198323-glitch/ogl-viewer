@@ -11,6 +11,64 @@ class OGLBrandingContract(unittest.TestCase):
     def source(self, path):
         return (ROOT / path).read_text()
 
+    def test_fixed_grids_cannot_be_reenabled_from_advanced_preferences(self):
+        base=ROOT/'indra/newview/skins/default/xui'
+        files=sorted(base.glob('*/panel_preferences_advanced.xml'))
+        self.assertEqual(len(files),13)
+        for path in files:
+            root=ET.parse(path).getroot()
+            options=[e for e in root.iter('check_box')
+                     if e.get('name')=='show_grid_selection_check']
+            self.assertEqual(len(options),1,str(path))
+            self.assertEqual(options[0].get('visible'),'false',str(path))
+            self.assertEqual(options[0].get('enabled'),'false',str(path))
+            self.assertEqual(options[0].get('control_name','ForceShowGrid'),'ForceShowGrid')
+
+    def test_legacy_external_grid_status_switch_hidden_across_locales(self):
+        base=ROOT/'indra/newview/skins/default/xui'
+        files=sorted(base.glob('*/panel_preferences_alerts.xml'))
+        self.assertEqual(len(files),13)
+        for path in files:
+            root=ET.parse(path).getroot()
+            options=[e for e in root.iter('check_box')
+                     if e.get('name')=='AutoQueryGridStatus']
+            self.assertLessEqual(len(options),1,str(path))
+            for opt in options:
+                self.assertEqual(opt.get('visible'),'false',str(path))
+                self.assertEqual(opt.get('enabled'),'false',str(path))
+        original=ET.parse(base/'en/panel_preferences_alerts.xml').getroot()
+        self.assertEqual(len([e for e in original.iter('check_box')
+                              if e.get('name')=='FSShowServerVersionChangeNotice']),1)
+
+    def test_visible_ogl_preference_text_no_firestorm_labels_in_any_locale(self):
+        base=ROOT/'indra/newview/skins/default/xui'
+        names=('panel_preferences_UI.xml','panel_preferences_chat.xml',
+               'panel_preferences_sound.xml','panel_preferences_alerts.xml',
+               'panel_preferences_advanced.xml','panel_preferences_graphics1.xml')
+        found=0
+        for name in names:
+            for path in sorted(base.glob('*/'+name)):
+                root=ET.parse(path).getroot()
+                found+=1
+                for e in root.iter():
+                    for attribute in ('label','title','tool_tip'):
+                        self.assertNotIn('Firestorm',e.get(attribute,''),str(path))
+        self.assertGreaterEqual(found,65)
+
+    def test_legacy_login_mode_preset_still_loads_but_uses_ogl_names(self):
+        base=ROOT/'indra/newview/skins/default/xui'
+        for lang in ('en','es'):
+            root=ET.parse(base/lang/'panel_fs_login.xml').getroot()
+            modes=[e for e in root.iter('combo_box.item')
+                   if e.get('name') in ('Firestorm','Phoenix')]
+            self.assertEqual(len(modes),2)
+            labels={e.get('name'):e.get('label') for e in modes}
+            self.assertEqual(labels,{'Firestorm':'OGL','Phoenix':'Classic'})
+            if lang=='en':
+                self.assertEqual({e.get('name'):e.get('value') for e in modes},
+                                 {'Firestorm':'settings_firestorm.xml',
+                                  'Phoenix':'settings_phoenix.xml'})
+
     def test_ogl_preferences_tab_brand_without_changing_registered_callbacks(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         files = sorted(base.glob('*/floater_preferences.xml'))
