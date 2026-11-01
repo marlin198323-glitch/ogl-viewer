@@ -432,7 +432,9 @@ std::string LLViewerMedia::getCurrentUserAgent()
     std::ostringstream codec;
     codec << "SecondLife/";
     codec << LLVersionInfo::instance().getVersion();
-    codec << " (" << channel << "; " << skin_name << " skin)";
+    // Preserve the legacy SecondLife/ prefix for compatible media services,
+    // but never advertise a Firestorm skin in the OGL viewer.
+    codec << " (" << channel << "; " << (APP_NAME == "OGL" ? "OGL" : skin_name) << " skin)";
     LL_INFOS() << codec.str() << LL_ENDL;
 
     return codec.str();

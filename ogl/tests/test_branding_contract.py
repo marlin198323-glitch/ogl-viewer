@@ -227,6 +227,30 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('cname = cname.substr(0, arobase);', cpp)
         self.assertIn('LLStringUtil::trim(cname);', cpp)
 
+    def test_ogl_does_not_request_legacy_firestorm_network_services(self):
+        fs_data = self.source('indra/newview/fsdata.cpp')
+        start = fs_data.index('void FSData::startDownload()')
+        body = fs_data[start:fs_data.index('// call this _after_ the login screen', start)]
+        self.assertIn('if (APP_NAME == "OGL")', body)
+        self.assertIn('mFSDataDone = true;', body)
+        self.assertIn('Skipped legacy Firestorm configuration downloads.', body)
+        self.assertLess(body.index('mFSDataDone = true;'),
+                        body.index('callbackHttpGetRaw('))
+        self.assertLess(body.index('return;'), body.index('callbackHttpGetRaw('))
+        start = fs_data.index('void FSData::downloadAgents()')
+        agents = fs_data[start:fs_data.index('void FSData::processData(', start)]
+        self.assertIn('if (APP_NAME == "OGL")', agents)
+        self.assertIn('mAgentsDone = true;', agents)
+        self.assertLess(agents.index('return;'), agents.index('callbackHttpGetRaw('))
+
+    def test_ogl_browser_user_agent_uses_ogl_skin_not_firestorm(self):
+        media = self.source('indra/newview/llviewermedia.cpp')
+        start = media.index('std::string LLViewerMedia::getCurrentUserAgent()')
+        part = media[start:media.index('void LLViewerMedia::updateBrowserUserAgent()', start)]
+        self.assertIn('(APP_NAME == "OGL" ? "OGL" : skin_name)', part)
+        self.assertIn('codec << "SecondLife/";', part)
+        self.assertIn('LLVersionInfo::instance().getVersion()', part)
+
     def test_prelogin_quit_avoids_legacy_modal_without_skipping_cleanup(self):
         source = self.source("indra/newview/llappviewer.cpp")
         start = source.index('void LLAppViewer::userQuit()')

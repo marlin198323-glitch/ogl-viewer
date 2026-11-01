@@ -294,6 +294,17 @@ static void downloadError(LLSD const &aData, std::string const &aURL)
 // call this just before the login screen and after the LLProxy has been setup.
 void FSData::startDownload()
 {
+    if (APP_NAME == "OGL")
+    {
+        // The OGL viewer is pinned to NexVerse grids. Do not send its
+        // channel/version, client identifier or IP address to unrelated
+        // Firestorm/Phoenix HTTP configuration endpoints during startup.
+        // The startup state machine still requires this completion flag.
+        mFSDataDone = true;
+        LL_INFOS("OGL") << "Skipped legacy Firestorm configuration downloads." << LL_ENDL;
+        return;
+    }
+
     mFSdataFilename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, "fsdata.xml");
     mFSdataDefaultsFilename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, llformat("fsdata_defaults.%s.xml", LLVersionInfo::getInstance()->getShortVersion().c_str()));
     mClientTagsFilename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, "client_list_v2.xml");
@@ -353,6 +364,14 @@ void FSData::startDownload()
 // call this _after_ the login screen to pick up grid data.
 void FSData::downloadAgents()
 {
+    if (APP_NAME == "OGL")
+    {
+        // OpenSim grids manage their own agent/asset flags. Do not access
+        // the upstream support/ban feeds or legacy tag services.
+        mAgentsDone = true;
+        return;
+    }
+
 #ifdef OPENSIM
     std::string filename_prefix = LLGridManager::getInstance()->getGridId();
 #else
