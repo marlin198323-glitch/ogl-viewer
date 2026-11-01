@@ -513,6 +513,97 @@ erst danach Block 20/P02 nach Abschluss-Gate.
 Alle 20 Prüfungen in einer Sitzung abgearbeitet,
 keine manuelle Zwischenabnahme eingeführt.
 
+## P01 – /goal-Sammelrunde: 20 technische Arbeits- und Prüfblöcke
+
+**Code-Commit:** `65e4b62e` auf `ogl-develop`.
+**20/20 Prüfpositionen bestanden; der operative P01-Stand bleibt 18/20.**
+Die geprüften Positionen sind echte Änderungen und Regressionen in
+**Block 19**, nicht ein Ersatz für die P01-Phasenblöcke 19 und 20.
+
+- **Linux-/Desktop-Rebranding:** In den bestehenden
+  `llwindowsdl2.cpp`- und Desktop-Installerskripten
+  der installierte App-Titel auf `OGL Viewer` geändert.
+  `StartupWMClass=ogl-viewer`; SDL-SDL-Hints für
+  X11/Wayland ergänzt. Der erste reale X11-Test zeigte,
+  dass SDL-Hints allein **nicht** ausreichen. Deshalb
+  am tatsächlichen X11-Fenster `XSetClassHint`
+  ergänzt. **Zweiter realer Test:** X11-Klasse
+  `("ogl-viewer" "ogl-viewer")` statt
+  `do-not-directly-run-firestorm-bin`. Für Wayland
+  wurde bislang nur ein Hint implementiert, **kein
+  echter Wayland-GUI-Test** durchgeführt.
+- **Bestehender Linux-Desktop-Installer:** Erzeugt
+  `ogl-viewer.desktop` statt eines Firestorm-Menüeintrags
+  und verwendet das bestehende ausführbare Programm
+  (keine ungetestete Umbenennung von Binärdateien).
+  Korrigierte Ausgabe/Fehlerbehandlung. Ein alter
+  `firestorm-viewer.desktop`-Eintrag wird **nur**
+  entfernt, wenn sein Exec-Pfad nachweislich zur
+  exakt gleichen Installation gehört. Temporärer
+  HOME-Test: alter eigener Eintrag migriert, korrekter
+  Name/WMClass/Pfad, fremder Eintrag geschützt,
+  wiederholte Installation idempotent. Reale
+  Systeminstallation/Wayland-Verhalten noch offen.
+- **Erkennbare Fehlermeldungen:** Noch sichtbare
+  Firestorm-Download-/Supportlinks bei beschädigter
+  Konfiguration und Netzwerkfehlern verwenden in
+  OGL jetzt die bekannte NexVerse-Projektseite
+  `https://stadt-nexverse.de/` und verweisen auf
+  offizielle OGL-Builds statt fremde Downloads.
+  Die Linux-Meldung zu nicht unterstützter
+  32-Bit-True-Color-Anzeige nennt ebenfalls OGL.
+  Der Nicht-OGL-Kompatibilitätszweig und
+  Lizenzhinweise bleiben erhalten.
+- **20/20 Prüfpunkte im selben Durchlauf erfolgreich:**
+  01 Branch, 02 keine neuen Quelldateien, 03 feste
+  Grids, 04 Beta-Sperre, 05 DE/EN-HTTP-Einwilligung,
+  06 sicherer Gridwechsel, 07 Credential-Logging,
+  08 12 Login-Overrides, 09 Desktop-Titel,
+  10 Desktop-Klasse, 11 X11-Klassenimplementierung,
+  12 Wayland-Hint (nur Codevertrag), 13 abgesicherte
+  Desktop-Migration, 14 Installer-Fehlerbehandlung,
+  15 OGL-Fehler-/Supporttexte, 16 OGL-True-Color-Text,
+  17 720p GUI, 18 1080p/150-%-GUI,
+  19 4K/200-%-GUI, 20 vollständiger
+  Linux-Build samt Python/native Tests.
+  Die sechs Installer-/Desktop-Simulationen
+  liefen ausschließlich unter einem temporären HOME,
+  ohne Nutzerprofile zu verändern.
+- **Reale Viewer-Regressionsläufe:** 1280×720 bei
+  150-%-Wunsch: Fenster **1024×680**.
+  1920×1080 bei 150 %: **1536×1020**.
+  3840×2160 bei 200 %: **2048×1360**.
+  Bei allen drei Starts NexVerse-Welcome geladen,
+  `STATE_LOGIN_WAIT`, **0 Dummy-Widgets** und
+  Ctrl+Q mit Exit-Code **0**. Der X11-Klassenwechsel
+  wurde am tatsächlich laufenden Viewer festgestellt.
+- **Build:** `bash ogl/scripts/build-test.sh`
+  vollständiges Linux-Mint-Binary und Staging erfolgreich,
+  **136/136 Python-Unittests** und
+  **41/41 native CTests** bestanden;
+  `git diff --check` und Bash-Syntaxprüfung erfolgreich.
+  Die vorherige portable Grafik-CI für
+  `2ad45c91` war auf 6 Plattform-Runnern grün,
+  deckt aber **keine kompletten Windows-/macOS-
+  Viewer-Builds** ab.
+- **Offene echte Gates:** Es fehlt ein ausdrücklich
+  autorisierter realer Hauptgrid-Login,
+  gespeicherte Passwortwiederherstellung nach Login,
+  Shutdown nach Eintritt in die 3D-Welt und
+  vollständige Windows-/macOS-Viewer-Builds/GUI-Tests.
+  Nach diesen Nachweisen erst P01 Block 19/20
+  abschließen und Block 20 sowie P02 freigeben.
+  Paket-Signierung/GitHub-Release noch nicht
+  implementiert. In der Entwicklung wurden
+  keine neuen Projektdateien angelegt, bestehende
+  Lizenzen und nachweislich benötigte Alt-Ressourcen
+  nicht blind entfernt.
+
+**Weiter:** `/goal P01 Block 19/20`; erneute
+20er-Sammelprüfungen können unabhängige Risiken
+abarbeiten, fehlende Live-/Plattform-Gates jedoch
+nicht als erfolgreich fingieren.
+
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle
 Vulkan-/CPU-Module sind zu übernehmen. Diese Bestände bedeuten

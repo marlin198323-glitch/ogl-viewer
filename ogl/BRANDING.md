@@ -72,6 +72,20 @@ The local gate was 135 Python tests and 41 native CTests. A separate
 20/20 security/build verification batch succeeded, but P01 remains
 18/20 pending a real authenticated grid login and full platform builds.
 
+P01 block 19 desktop rebranding: an installed OGL desktop entry now
+advertises `Name=OGL Viewer` and `StartupWMClass=ogl-viewer`.
+Existing installations are migrated only if the previous Firestorm
+launcher points to the same packaged binary. The SDL/X11 runtime
+directly sets its actual XClassHint (an SDL environment hint alone
+failed in a real GUI smoke); Xvfb now reports WM_CLASS
+`("ogl-viewer", "ogl-viewer")`. Three GUI smoke tests at 720p,
+1080p/150% and 4K/200% loaded the welcome page and exited
+cleanly. OGL configuration/display errors no longer send users
+to Firestorm support websites. The latest local gate is
+136 Python tests plus 41 native CTests. Real Wayland,
+full Windows/macOS viewer builds and authenticated grid login
+remain unverified; P01 stays 18/20.
+
 ## HTTP login compatibility
 
 The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.

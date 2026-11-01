@@ -209,7 +209,10 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 **Status:** aktiv; Blöcke 1–18/20 geprüft; Block 19 weiter
 bearbeitet (Code-Commits `6ac3c63f`, `1e4a6d4a`; in der aktuellen
 Sammelrunde **20/20 technische Prüfblöcke**, nicht 20/20
-P01-Phasenblöcke, erfolgreich).
+P01-Phasenblöcke, erfolgreich; weitere 20/20
+Rebranding-/GUI-Prüfungen nach Commit `65e4b62e`
+mit X11-Klasse `ogl-viewer`, Desktop- und
+Fehlertext-Korrekturen bestanden).
 Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
 festes Welcome, Voranmelde-Quit (Exit 0) und
 Checkbox-Einstellung nach Neustart lokal bestätigt.
