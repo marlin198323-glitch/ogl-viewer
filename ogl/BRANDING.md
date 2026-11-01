@@ -40,13 +40,19 @@ verified NexVerse homepage, not the upstream Firestorm/Second Life site.
 A dedicated recovery URL still needs verification before use. No change
 was made to secrets, credentials or the live account system.
 
-A full local Linux viewer build, 121 Python tests and 41 native tests
-passed. A virtual Xvfb 1280x720 GUI launch confirmed the initial 1024x680
+A full local Linux viewer build, 126 Python tests and 41 native tests
+passed. Virtual Xvfb 1280x720 GUI launches confirm the initial 1024x680
 OGL viewer window stays inside the 720p screen and loads the welcome URL.
+A 3840x2160 virtual display starts the viewer centered. OGL's fixed grid
+dropdown shows exactly Stadt NexVerse and Stadt NexVerse Beta with no
+free-form grid address entry. The StarLight skin also displayed the OGL
+login in an isolated 35-second GUI test; the current skin-XUI loader
+requires complete overlays, so the two existing StarLight XML files
+are currently kept aligned with the canonical OGL panel.
 The test was time-limited and did not validate real-world OpenSim login,
 high-DPI rendering, a clean application shutdown or platform installers.
 OGL's EN/DE startup antivirus guidance no longer links to Firestorm's wiki
-or encourages unconditional antivirus exceptions. P01 remains open at block 7/20.
+or encourages unconditional antivirus exceptions. P01 remains open at block 9/20.
 
 ## HTTP login compatibility
 

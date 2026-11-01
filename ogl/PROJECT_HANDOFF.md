@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 7/20** (1–6 nach Code-Commit `9c29aba6` geprüft).
+wechseln. Aktueller Einstieg: **P01, Block 9/20** (Blöcke 1–8 geprüft; jüngster Code-Commit `459ba13b`).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

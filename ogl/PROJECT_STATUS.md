@@ -8,8 +8,8 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Nächster Block:** `/goal P01 Block 7/20` – Eingabefelder, Skalierung
-und echte HiDPI-/Login-Regression. **Keine manuelle Abnahme erforderlich.**
+**Nächster Block:** `/goal P01 Block 9/20` – gespeicherte Konten und
+Passwörter ohne Regression prüfen. **Keine manuelle Abnahme erforderlich.**
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -17,7 +17,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
-| P01 – Branding und modernes Login | aktiv | 6/20 | Block 7: Felder und DPI prüfen |
+| P01 – Branding und modernes Login | aktiv | 8/20 | Block 9: Kontospeicherung prüfen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
@@ -87,7 +87,7 @@ sind noch im vollständigen Branding-Audit zu prüfen.
 Verifizierte XML-/Branding-Tests plus vollständiger Linux-
 Build: **121 Python, 41 native Tests**, alles bestanden.
 
-**Noch offen:** Blöcke 7–20 inklusive tatsächlicher GUI-Prüfung auf
+**Noch offen:** Blöcke 9–20 inklusive weiterer GUI-Prüfung auf
 720p–4K/HiDPI, Speichern und Wiederherstellen der Zugangsdaten,
 sichtbarer Gridwechsel, bestätigtes öffentliches Grid-Login,
 vollständiger sichtbarer OGL-Rebranding-Audit, UI-/Sicherheitsregression
@@ -95,10 +95,69 @@ und relevante Windows-/macOS-CI. Ein lokaler Modul-/Linux-Build
 ist kein Beleg für plattformübergreifende Installer. **P01 bleibt
 aktiv**, kein Phasenabschluss und noch kein Übergang nach P02.
 
-**Nächster Arbeitsschritt:** `/goal P01 Block 7/20` –
-Login-Eingaben auf kleinen/großen Anzeigen und HiDPI sowie
-Breiten-/Fokusregression technisch absichern. Danach 8–20
-sequenziell abschließen und erst mit grünen Gates P02 starten.
+**Nächster Arbeitsschritt:** `/goal P01 Block 9/20` –
+Gespeicherte Konten/Passwörter mit isolierten Testprofilen und
+negativen Fällen prüfen. Danach 10–20 vollständig absichern;
+P02 erst nach Abschluss-Gate starten.
+
+## P01 – weitere /goal-Runde: Blöcke 7–8/20
+
+**Code-Commit:** `459ba13b` (`ogl-develop`). Fortschritt nun
+**8/20, Phase weiterhin aktiv**.
+
+- **Block 7 abgeschlossen:** Passwort-Sichtbarkeitsschalter aus dem
+  Checkbox-Bereich in das Passwortfeld verschoben; Text rechts
+  gepolstert, Schalter innerhalb des Eingabebereichs und per
+  Tastatur erreichbar. Bestehende Username-/Passwort-Verarbeitung
+  nicht ausgetauscht. 1280×720 OGL-Login sichtbar geprüft; 4K-
+  Virtual-Display startete mit zentriertem 1024×680-Fenster
+  (+1408/+740). Diese Geometrie ist **kein** abgeschlossener
+  HiDPI-Text- und Mehrplattformtest (Block 16).
+- **Block 8 abgeschlossen:** OGL-Gridfeld auf feste Dropdown-Auswahl
+  (kein Texteingabe-URI) umgebaut; zwei gepinnte Systemgrids
+  werden explizit und einmalig eingetragen. Deutscher/englischer
+  Tooltip erläutert die noch gesperrte Beta-Anmeldung. Die
+  Beschriftung 'WELT:' wurde nach einem echten 720p-Screenshot
+  von 35 auf 55 UI-Einheiten erweitert. Im virtuellen X11-Test
+  das Dropdown per XTest angeklickt und beide Einträge sichtbar
+  verifiziert, ohne Login oder Passwortversand. Codeprüfung
+  bestätigt: unbekannte Gridwerte bleiben zurückgewiesen.
+- **Vorarbeiten für spätere P01-Blöcke:** Kontospeichern,
+  Passwortspeichern, Passwortsichtbarkeit und Kontoauswahl in
+  vorhandenen C++-Callbacks/XUI mit Testverträgen geprüft (9,
+  noch kein echter gespeicherter Zugangsdaten-Livetest).
+  Der alte Firestorm-Grid-Hilfe-Klick ist bei OGL gesperrt
+  (10/14). Die bisher beim ersten Login störende Firestorm-
+  Whitelist-Meldung wird für OGL nicht mehr eingeblendet;
+  Sicherheitssoftware wird nicht deaktiviert (10).
+  Der bereits entfernte RTX-Diagnosestatus und DE/EN-Texte
+  bleiben geprüft (11–15).
+- **Altbestand (17–18 noch nicht vollständig abgenommen):**
+  Die alten StarLight- und StarLightCUI-Login-Overlays enthielten
+  Firestorm-Logo/alte Mode-Auswahl. Ein zunächst ausprobierter
+  reiner XUI-Wurzelknoten verursachte **leere Loginwidgets**;
+  diese Variante wurde verworfen. Da die Skin-Laufzeit vollständige
+  Panels erwartet, wurden die **vorhandenen beiden Dateipfade**
+  mit dem kanonischen OGL-Logininhalt überschrieben – keine
+  neue Projektdatei. Der StarLight-Viewer wurde 35 Sekunden
+  isoliert auf Xvfb getestet: moderne OGL-Loginoberfläche
+  sichtbar, `STATE_LOGIN_WAIT`, **0 Dummy-Controls**.
+  Eine künftige echte zentralisierte XUI-Vererbung bleibt
+  P03-Aufgabe; aktuell müssen die zwei bestehenden Skin-
+  Layoutdateien noch separat gepflegt werden. Keine ungenutzten
+  Upstream-Skin-/Lizenz-/Copy-Assets blind gelöscht.
+- **Verifikation:** Linux-Mint-Build/Packaging erfolgreich,
+  **126/126 Python-Tests**, **41/41 native CTests** bestanden.
+  Xvfb: 1280×720 Default/Login mit realem Dropdown und
+  StarLight/Login, sowie 3840×2160 Startfenstergeometrie.
+  Die Smoke-Tests endeten absichtlich nach Timeout (Exit 124);
+  das ist **kein** sauberes Schließen oder Login in die 3D-Welt.
+  Live-Grid-Login, echte Kontopersistenz, 4K-HiDPI-
+  Schriftqualität, Windows/macOS Viewer-Builds bleiben offen.
+
+**Weiter:** `/goal P01 Block 9/20`. Ohne
+manuelles Phasengate, aber fehlende echte Funktionen
+oder externe Abhängigkeiten dürfen nicht als bestanden gelten.
 
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle
