@@ -259,8 +259,9 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
 #ifdef SINGLEGRID
     server_choice_combo->setEnabled(false);
 #endif
-    // OGL exclusively targets Stadt NexVerse; show it but prevent edits.
-    if (APP_NAME == "OGL") server_choice_combo->setEnabled(false);
+    // OGL has exactly two pinned NexVerse profiles. Allow selecting
+    // between those entries; unknown grids remain blocked by the manager.
+    if (APP_NAME == "OGL") server_choice_combo->setEnabled(true);
 
     std::string current_grid = LLGridManager::getInstance()->getGrid();
     updateServer();
@@ -1040,6 +1041,19 @@ void FSPanelLogin::onClickConnect(void *)
             return;
         }
 
+        // Beta selection is available for future protocol development, but
+        // this HTTPS website is NOT a verified OpenSim/XML-RPC endpoint and
+        // its TLS certificate currently does not match its hostname.
+        // Never transmit passwords, hashed credentials or session tokens.
+        if (APP_NAME == "OGL" &&
+            OGLNexVerseGrid::isBetaGrid(LLGridManager::getInstance()->getGrid()))
+        {
+            LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                "MESSAGE", LLTrans::getString("OGLBetaLoginUnavailable")));
+            LL_WARNS("OGLGrid") << "Blocked beta authentication: protocol and TLS not verified." << LL_ENDL;
+            return;
+        }
+
         // OGL: only allow the fixed Stadt NexVerse HTTP endpoint. A user
         // may explicitly remember approval of this exact URI, instead of
         // acknowledging the same transport warning at every viewer start.
@@ -1298,6 +1312,15 @@ void FSPanelLogin::onSelectServer()
 
     LLComboBox* server_combo = getChild<LLComboBox>("server_combo");
     LLSD server_combo_val = server_combo->getSelectedValue();
+    if (APP_NAME == "OGL" &&
+        (server_combo_val.isUndefined() ||
+         !OGLNexVerseGrid::isFixedGrid(server_combo_val.asString())))
+    {
+        // No arbitrary typed grids / remote network auto-discovery in OGL.
+        LL_WARNS("OGLGrid") << "Rejected unlisted grid selection." << LL_ENDL;
+        server_combo->setSelectedByValue(LLGridManager::getInstance()->getGrid(), true);
+        return;
+    }
 #if OPENSIM && !SINGLEGRID
     LL_INFOS("AppInit") << "grid " << (!server_combo_val.isUndefined() ? server_combo_val.asString() : server_combo->getValue().asString()) << LL_ENDL;
     if (server_combo_val.isUndefined() && sPendingNewGridURI.empty())
