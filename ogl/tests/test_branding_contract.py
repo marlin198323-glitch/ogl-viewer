@@ -585,7 +585,7 @@ class OGLBrandingContract(unittest.TestCase):
                     seen[key] += 1
                     self.assertEqual((entry.text or '').strip(), expected[key],
                                      (path, key))
-            text = path.read_text()
+            text = path.read_text(encoding="utf-8")
             for obsolete in ('phoenixviewer.com/app/loginV3/',
                              'secondlife.eniac15.lindenlab.com/reg-in-client/',
                              'secondlife.com/account/request.php',
