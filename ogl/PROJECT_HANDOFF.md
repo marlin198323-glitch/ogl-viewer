@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `3dba5f51`, 20/20 neue Formularzustands-/Welcome-Privatsphäre-Prüfungen bestanden: ein Passwortwechsel oder ein neues Loginpanel invalidiert alte HTTP-Zustimmungen ohne Speichern der Passwörter, kein Legacy-Firestorm-Telemetrieanhang an OGL-Welcome. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `15162927`, 20/20 Kontowechsel- und Eingabeprüfungen bestanden. Konten aus anderen Grids werden erst nach dem vollständigen Reset erneut auswählbar; leere Eingaben lösen keine HTTP-Warnung aus. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

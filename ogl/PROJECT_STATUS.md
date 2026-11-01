@@ -32,6 +32,71 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 – /goal-Sammelrunde: Kontotrennung und Eingabeprüfung
+
+**Code-Commit:** `15162927` auf `ogl-develop`.
+**20/20 überprüfte technische Positionen bestanden.**
+**Phasenstand bleibt P01 18/20** – Block 19 ist noch nicht
+abgenommen, weil authentifizierter Login/Passwortpersistenz
+und vollständige Windows-/macOS-Viewer-Builds fehlen.
+
+**Implementierung:**
+- `fspanellogin.cpp` lädt bei Auswahl eines gespeicherten
+  Kontos einer **anderen** fest angepinnten Welt nicht mehr
+  vor dem Gridwechsel dessen Credential. Stattdessen wird
+  das Zielgrid gewechselt, der gesamte bisherige Login-
+  Zustand zurückgesetzt, die Weltanzeige aktualisiert
+  und eine verständliche DE-/EN-Nachricht angezeigt.
+  Eine erneute bewusste Kontoauswahl auf dem Zielgrid
+  ist erforderlich. Der alte Upstream-Kompatibilitäts-
+  pfad ist nur für Nicht-OGL-Builds erhalten.
+- Leerer beziehungsweise nur aus Leerzeichen bestehender
+  Benutzername und leeres Passwort werden auch bei
+  Enter-Tastenkürzel **vor** der HTTP-Einwilligungsabfrage
+  abgefangen. Misslingt die Erzeugung eines Credential-
+  Objekts, erfolgt eine Fehlermeldung statt Dereferenzierung
+  eines Nullzeigers.
+- Bestehende Python-Vertragstests erweitert; keine neuen
+  Quelldateien, keine Änderungen an echten Nutzerprofilen.
+
+**20 dokumentierte Einzelpositionen:**
+01 Branch; 02 keine neuen Quelldateien; 03 zwei feste Grids;
+04 feste Gridwahl; 05 gespeicherte Gridzuordnung geprüft;
+06 Zielgrid vor Laden fremder Credentials erkannt;
+07 altes Passwort vor Laden des Zielkontos gelöscht;
+08 wiederholte Kontoauswahl erforderlich; 09 Nicht-OGL-
+Kompatibilität; 10 sicherer Direkt-Connect-Gridwechsel;
+11 exakter gepinnter HTTP-Loginserver; 12 leerer Benutzername;
+13 leeres Passwort; 14 Null-Credential-Schutz;
+15 Beta-Anmeldesperre; 16 HTTP-Abbrechen Standard in DE/EN;
+17 realer Login-GUI-Test mit leerem Benutzernamen/Enter;
+18 realer Hauptgrid-HTTP-Sicherheitsdialog-Test;
+19 realer Beta-Login-Negativtest; 20 vollständiger Linux-
+Viewer-Build und Testgate. **Alle bestanden.**
+
+**Messungen:** `bash ogl/scripts/build-test.sh` baute
+den vollständigen Linux-Mint-Viewer einschließlich Staging;
+**147/147 Python-Tests, 41/41 native CTests** erfolgreich.
+Drei getrennte Xvfb-Starts mit isolierten Testprofilen;
+jeweils `STATE_LOGIN_WAIT`, **kein**
+`STATE_LOGIN_AUTH_INIT`, reguläres Strg+Q mit
+**Exit-Code 0**. Leerer Benutzername mit synthetischem
+Passwort erzeugte **keinen** HTTP-Zustimmungsdialog.
+Hauptgrid zeigte den HTTP-Dialog, Beta blockierte
+synthetische Zugangsdaten. Kein erfolgreicher Login
+wurde behauptet oder ausgeführt. Die bestehenden
+`_v2`- und `script_copy`-Ressourcen wurden
+inventarisiert, ohne belegte Abhängigkeiten zu löschen.
+
+**Blocker:** Autorisierter Hauptgrid-Live-Login,
+erneuter Login über gespeichertes Passwort,
+Shutdown **nach** 3D-Welt-Eintritt und komplette
+Windows-/macOS-Viewer-Build- und Laufzeittests.
+Die GitHub-Matrix prüft portable Module, keine
+vollständigen plattformübergreifenden Viewer-Builds.
+**Weiter:** `/goal P01 Block 19/20`; danach
+Block 20 und P02 ohne zusätzliche Nutzerabnahme.
+
 ## P01 – /goal-Sammelrunde: 20 Formularzustands- und Welcome-Prüfungen
 
 **Code-Commit:** `3dba5f51` auf `ogl-develop`.

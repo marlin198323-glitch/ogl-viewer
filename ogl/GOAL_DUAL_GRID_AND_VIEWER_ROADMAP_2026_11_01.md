@@ -206,39 +206,23 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 ### /goal P01 – Branding und modernes Login
 
-**Status:** aktiv; Blöcke 1–18/20 geprüft; Block 19 weiter
-bearbeitet (Code-Commits `6ac3c63f`, `1e4a6d4a`; in der aktuellen
-Sammelrunde **20/20 technische Prüfblöcke**, nicht 20/20
-P01-Phasenblöcke, erfolgreich; weitere 20/20
-Rebranding-/GUI-Prüfungen nach Commit `65e4b62e`
-mit X11-Klasse `ogl-viewer`, Desktop- und
-Fehlertext-Korrekturen bestanden. Jüngster Code-Commit
-`d9fca485`: weitere 20/20 differenzierte
-Grid-/Credential-Sicherheitsprüfungen bestanden,
-mit echten synthetischen Login-GUI-Tests. Neuer Code-Commit
-`ad005fc9`: 20/20 weitere Credential-/Datenschutzprüfungen
-bestanden; Transient-Credential-Nullprüfung, opt-out-gerechtes
-Benutzername-Speichern, OGL-Auth-Log-Reduktion und GUI-Neustart
-mit deaktivierter Speicherung bestätigt. Jüngster
-Code-Commit `69aac477`: weitere 20/20
-Sicherheitsprüfpositionen, inklusive striktem
-Login-Endpunkt-Pinning im UI und direkt an
-der Authentifizierungsgrenze, DE-/EN-Fehlermeldungen,
-Stale-Consent-Sperre und synthetischen GUI-Tests
-ohne Zugangsdaten, bestanden. Code-Commit
-`3dba5f51`: weitere 20/20
-Formularzustands-/Welcome-Datenschutzprüfungen
-grün; Passwort-/Grid-/Kontoänderungen invalidieren
-alte HTTP-Zustimmung, der OGL-Welcome-Aufruf
-überträgt keine Firestorm-Skin-/SourceID-/OS-
-Telemetrie mehr).
-Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
-festes Welcome, Voranmelde-Quit (Exit 0) und
-Checkbox-Einstellung nach Neustart lokal bestätigt.
-Die Beta-Sperre wurde mit künstlichen Eingaben im Viewer bestätigt.
-Hauptgrid-Live-Login, gespeicherte Passwort-Credentials nach
-erfolgreichem Login und vollständige Windows/macOS-Viewer-Nachweise
-sind nicht abgeschlossen; deshalb P01 weiter 18/20. Vorarbeiten zu späteren Blöcken siehe PROJECT_STATUS.md.
+**Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
+Block 19 – Grid-Login-/Plattformregression.
+Letzter Code-Commit `15162927`: sichere Kontoauswahl
+über beide festen NexVerse-Welten, Formularreset vor
+Übernahme fremder Credentials, leere Loginfelder bereits
+vor HTTP-Zustimmung abgefangen; zusätzliche 20/20
+technische Prüfpositionen bestanden (147 Python-,
+41 native Tests und drei echte GUI-Negativprüfungen).
+Voranmelde-Quit, Skalierung und Beta-Sperre sind geprüft.
+**Weiter offen:** autorisierter Hauptgrid-Live-Login,
+gespeicherte Passwortwiederherstellung, In-World-Shutdown
+und vollständige Windows-/macOS-Viewer-Build-/GUI-Nachweise.
+Alle früheren Commits/Ergebnisse dokumentiert in
+[PROJECT_STATUS.md](PROJECT_STATUS.md).
+Keine manuelle Zwischenabnahme; P02 erst nach dem
+tatsächlich erfüllten P01-Abschluss-Gate.
+
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.
