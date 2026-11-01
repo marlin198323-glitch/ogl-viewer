@@ -3805,6 +3805,20 @@ U32 LLWindowWin32::getFSAASamples()
     return mFSAASamples;
 }
 
+bool LLWindowWin32::getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size)
+{
+    if (!mWindowHandle || !position || !size) return false;
+    MONITORINFO info = {};
+    info.cbSize = sizeof(info);
+    HMONITOR monitor = MonitorFromWindow(mWindowHandle, MONITOR_DEFAULTTONEAREST);
+    if (!monitor || !GetMonitorInfo(monitor, &info)) return false;
+    position->mX = info.rcWork.left;
+    position->mY = info.rcWork.top;
+    size->mX = info.rcWork.right - info.rcWork.left;
+    size->mY = info.rcWork.bottom - info.rcWork.top;
+    return size->mX > 0 && size->mY > 0;
+}
+
 LLWindow::LLWindowResolution* LLWindowWin32::getSupportedResolutions(S32 &num_resolutions)
 {
     ASSERT_MAIN_THREAD();

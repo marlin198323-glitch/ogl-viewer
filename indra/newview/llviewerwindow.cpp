@@ -288,6 +288,65 @@ static const F32 MIN_UI_SCALE = 0.75f;
 static const F32 MAX_UI_SCALE = 7.0f;
 static const F32 MIN_DISPLAY_SCALE = 0.75f;
 
+static void oglExpandLoginWindow(LLWindow* window)
+{
+    if (!window) return;
+    // On high-DPI monitors a 1024x680 physical window contains fewer than
+    // 1024x680 logical units. Enlarge the window within the active monitor's
+    // usable work area before initializing UI fonts and rendering. Do not
+    // modify users' saved WindowWidth/WindowHeight or UIScaleFactor.
+    if (APP_NAME == "OGL" && !window->getFullscreen() && !gHeadlessClient)
+    {
+        LLCoordScreen origin, available, existing;
+        if (window->getDesktopWorkArea(&origin, &available) &&
+            window->getSize(&existing))
+        {
+            const F32 requested = llclamp(
+                gSavedSettings.getF32("UIScaleFactor") * window->getSystemUISize(),
+                MIN_UI_SCALE, MAX_UI_SCALE);
+            // Reserve room for OS decorations, taskbars and window movement.
+            const S32 max_width = available.mX - 32;
+            const S32 max_height = available.mY - 48;
+            if (max_width >= existing.mX && max_height >= existing.mY &&
+                requested > 1.f)
+            {
+                const S32 width = llmin(max_width,
+                    llmax(existing.mX, llceil(1024.f * requested)));
+                const S32 height = llmin(max_height,
+                    llmax(existing.mY, llceil(680.f * requested)));
+                if (width > existing.mX || height > existing.mY)
+                {
+                    window->setSize(LLCoordScreen(width, height));
+                    window->setPosition(LLCoordScreen(
+                        origin.mX + (available.mX - width) / 2,
+                        origin.mY + (available.mY - height) / 2));
+                    LL_INFOS("OGL") << "Adjusted OGL HiDPI login window to "
+                        << width << "x" << height << LL_ENDL;
+                }
+            }
+        }
+    }
+
+}
+
+// The OGL sign-in footer requires 1024x680 logical UI units to show all
+// account, password, start-location, grid and connect controls. Keep the
+// preference unchanged when a physically small window cannot fit the
+// requested scale; recalculate when the user enlarges the window.
+static F32 oglConstrainLoginScale(LLWindow* window, F32 requested)
+{
+    if (APP_NAME != "OGL" || !window || window->getFullscreen())
+        return requested;
+
+    LLCoordWindow physical;
+    if (!window->getSize(&physical) || physical.mX <= 0 || physical.mY <= 0)
+        return requested;
+
+    const F32 max_fit = llmin(F32(physical.mX) / 1024.f,
+                              F32(physical.mY) / 680.f);
+    return llclamp(llmin(requested, max_fit), MIN_UI_SCALE, MAX_UI_SCALE);
+}
+
 // <FS:Ansariel> FIRE-31852: Now it aggressively executes gestures within focussed floaters...
 //static const char KEY_MOUSELOOK = 'M';
 
@@ -2069,6 +2128,9 @@ LLViewerWindow::LLViewerWindow(const Params& p)
 
     const bool do_not_enforce = false;
     mWindow->setMinSize(p.min_width, p.min_height, do_not_enforce);  // root view not set
+
+    oglExpandLoginWindow(mWindow);
+
     LLCoordScreen scr;
     mWindow->getSize(&scr);
 
@@ -2085,6 +2147,7 @@ LLViewerWindow::LLViewerWindow(const Params& p)
     // Get the real window rect the window was created with (since there are various OS-dependent reasons why
     // the size of a window or fullscreen context may have been adjusted slightly...)
     F32 ui_scale_factor = llclamp(gSavedSettings.getF32("UIScaleFactor") * mWindow->getSystemUISize(), MIN_UI_SCALE, MAX_UI_SCALE);
+    ui_scale_factor = oglConstrainLoginScale(mWindow, ui_scale_factor);
 
     mDisplayScale.setVec(llmax(1.f / mWindow->getPixelAspectRatio(), 1.f), llmax(mWindow->getPixelAspectRatio(), 1.f));
     mDisplayScale *= ui_scale_factor;
@@ -2756,6 +2819,16 @@ void LLViewerWindow::reshape(S32 width, S32 height)
     // may have been destructed.
     if (!LLApp::isExiting())
     {
+        // An SDL backend may replay its original window size after the first
+        // high-DPI resize request. Re-apply the intended physical size once
+        // after normal window events start, rather than spinning on resize.
+        static bool ogl_initial_resize_checked = false;
+        if (APP_NAME == "OGL" && !ogl_initial_resize_checked)
+        {
+            ogl_initial_resize_checked = true;
+            oglExpandLoginWindow(mWindow);
+        }
+
         gWindowResized = true;
 
         // update our window rectangle
@@ -7233,6 +7306,7 @@ F32 LLViewerWindow::getWorldViewAspectRatio() const
 void LLViewerWindow::calcDisplayScale()
 {
     F32 ui_scale_factor = llclamp(gSavedSettings.getF32("UIScaleFactor") * mWindow->getSystemUISize(), MIN_UI_SCALE, MAX_UI_SCALE);
+    ui_scale_factor = oglConstrainLoginScale(mWindow, ui_scale_factor);
     LLVector2 display_scale;
     display_scale.setVec(llmax(1.f / mWindow->getPixelAspectRatio(), 1.f), llmax(mWindow->getPixelAspectRatio(), 1.f));
     display_scale *= ui_scale_factor;

@@ -1114,12 +1114,8 @@ bool LLWindowSDL::getSize(LLCoordWindow *size)
 
 bool LLWindowSDL::setPosition(const LLCoordScreen position)
 {
-    if(mWindow)
-    {
-        // *FIX: (?)
-        //MacMoveWindow(mWindow, position.mX, position.mY, false);
-    }
-
+    if (!mWindow) return false;
+    SDL_SetWindowPosition(mWindow, position.mX, position.mY);
     return true;
 }
 
@@ -1447,6 +1443,20 @@ bool LLWindowSDL::pasteTextFromPrimary(LLWString &dst)
 bool LLWindowSDL::copyTextToPrimary(const LLWString &s)
 {
     return setSelectionText(XA_PRIMARY, s);
+}
+
+bool LLWindowSDL::getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size)
+{
+    if (!mWindow || !position || !size) return false;
+    const S32 display_index = SDL_GetWindowDisplayIndex(mWindow);
+    SDL_Rect bounds;
+    if (display_index < 0 || SDL_GetDisplayUsableBounds(display_index, &bounds) != 0)
+        return false;
+    position->mX = bounds.x;
+    position->mY = bounds.y;
+    size->mX = bounds.w;
+    size->mY = bounds.h;
+    return bounds.w > 0 && bounds.h > 0;
 }
 
 LLWindow::LLWindowResolution* LLWindowSDL::getSupportedResolutions(S32 &num_resolutions)

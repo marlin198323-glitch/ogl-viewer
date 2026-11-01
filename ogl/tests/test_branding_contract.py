@@ -253,6 +253,33 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('childSetAction("password_hide_btn", onShowHidePasswordClick', cpp)
         self.assertIn('syncShowHidePasswordButton()', cpp)
 
+    def test_cross_platform_ogl_hidpi_login_window_contract(self):
+        core = self.source('indra/newview/llviewerwindow.cpp')
+        self.assertIn('static F32 oglConstrainLoginScale(LLWindow* window, F32 requested)', core)
+        self.assertIn('F32(physical.mX) / 1024.f', core)
+        self.assertIn('F32(physical.mY) / 680.f', core)
+        self.assertIn('window->getDesktopWorkArea(&origin, &available)', core)
+        self.assertIn('static bool ogl_initial_resize_checked = false;', core)
+        self.assertEqual(core.count('oglExpandLoginWindow(mWindow);'), 2)
+        self.assertIn('SDL_SetWindowPosition(mWindow, position.mX, position.mY)', self.source('indra/llwindow/llwindowsdl2.cpp'))
+        self.assertIn('gSavedSettings.getF32("UIScaleFactor") * mWindow->getSystemUISize()', core)
+        self.assertIn('window->setSize(LLCoordScreen(width, height))', core)
+        self.assertIn('window->setPosition(LLCoordScreen(', core)
+        self.assertEqual(core.count('ui_scale_factor = oglConstrainLoginScale(mWindow, ui_scale_factor);'), 2)
+        self.assertIn('origin.mX + (available.mX - width) / 2', core)
+        self.assertIn('origin.mY + (available.mY - height) / 2', core)
+        self.assertNotIn('gSavedSettings.setF32("UIScaleFactor", requested)', core)
+        base = self.source('indra/llwindow/llwindow.h')
+        self.assertIn('getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size)', base)
+        for platform in ('sdl2', 'win32', 'macosx'):
+            header = self.source(f'indra/llwindow/llwindow{platform}.h')
+            impl = self.source(f'indra/llwindow/llwindow{platform}.cpp')
+            self.assertIn('getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size) override;', header)
+            self.assertIn('getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size)', impl)
+        self.assertIn('SDL_GetDisplayUsableBounds(', self.source('indra/llwindow/llwindowsdl2.cpp'))
+        self.assertIn('MonitorFromWindow(', self.source('indra/llwindow/llwindowwin32.cpp'))
+        self.assertIn('CGDisplayBounds(', self.source('indra/llwindow/llwindowmacosx.cpp'))
+
     def test_720p_initial_window_and_safe_antivirus_login_notice(self):
         settings = ET.parse(ROOT / "indra/newview/app_settings/settings.xml")
         fields = list(settings.getroot().find("map"))

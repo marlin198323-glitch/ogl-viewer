@@ -73,6 +73,10 @@ public:
     virtual bool getPosition(LLCoordScreen *position) = 0;
     virtual bool getSize(LLCoordScreen *size) = 0;
     virtual bool getSize(LLCoordWindow *size) = 0;
+    // Physical desktop work area of the monitor containing this window.
+    // Used for OGL HiDPI startup sizing without assuming one resolution.
+    virtual bool getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size)
+    { return false; }
     virtual bool setPosition(LLCoordScreen position) = 0;
     bool setSize(LLCoordScreen size);
     bool setSize(LLCoordWindow size);

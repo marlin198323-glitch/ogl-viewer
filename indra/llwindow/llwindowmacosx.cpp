@@ -1426,6 +1426,17 @@ bool LLWindowMacOSX::resetDisplayResolution()
 }
 
 
+bool LLWindowMacOSX::getDesktopWorkArea(LLCoordScreen* position, LLCoordScreen* size)
+{
+    if (!position || !size) return false;
+    const CGRect bounds = CGDisplayBounds(mDisplay);
+    position->mX = ll_round(bounds.origin.x);
+    position->mY = ll_round(bounds.origin.y);
+    size->mX = ll_round(bounds.size.width);
+    size->mY = ll_round(bounds.size.height);
+    return size->mX > 0 && size->mY > 0;
+}
+
 LLWindow::LLWindowResolution* LLWindowMacOSX::getSupportedResolutions(S32 &num_resolutions)
 {
     if (!mSupportedResolutions)
