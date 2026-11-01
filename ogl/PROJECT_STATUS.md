@@ -8,9 +8,9 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Nächster Block:** `/goal P01 Block 16/20` – Login-Layout bei
-150–200 % UI-Skalierung, 720p–4K und HiDPI reparieren/prüfen.
-**Keine manuelle Abnahme erforderlich.**
+**Nächster Block:** `/goal P01 Block 18/20` – identifizierte
+Login-Altbestandteile nur nach nachvollziehbarer Nutzungs-/Lizenz-
+und Regressionprüfung bereinigen. **Keine manuelle Abnahme erforderlich.**
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -18,7 +18,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
-| P01 – Branding und modernes Login | aktiv | 15/20 | Block 16: HiDPI-Login-Clipping beheben |
+| P01 – Branding und modernes Login | aktiv | 17/20 | Block 18: abhängige Login-Altteile bereinigen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
@@ -88,7 +88,7 @@ sind noch im vollständigen Branding-Audit zu prüfen.
 Verifizierte XML-/Branding-Tests plus vollständiger Linux-
 Build: **121 Python, 41 native Tests**, alles bestanden.
 
-**Noch offen:** Blöcke 16–20 inklusive HiDPI-Layoutkorrektur auf
+**Noch offen:** Blöcke 18–20, besonders Altbestand-/Lizenzprüfung, Live-Login auf
 720p–4K/HiDPI, Speichern und Wiederherstellen der Zugangsdaten,
 sichtbarer Gridwechsel, bestätigtes öffentliches Grid-Login,
 vollständiger sichtbarer OGL-Rebranding-Audit, UI-/Sicherheitsregression
@@ -96,12 +96,12 @@ und relevante Windows-/macOS-CI. Ein lokaler Modul-/Linux-Build
 ist kein Beleg für plattformübergreifende Installer. **P01 bleibt
 aktiv**, kein Phasenabschluss und noch kein Übergang nach P02.
 
-**Nächster Arbeitsschritt:** `/goal P01 Block 16/20` –
-HiDPI-Laufzeittest bei 150 % ergab Abschneiden der rechten
-Loginfelder. Responsive XUI/Startfenstergröße so korrigieren,
-dass das Login bei Windows/macOS-System-DPI und Linux-UI-Skalierung
-vollständig sichtbar ist; anschließend Blöcke 17–20 weiter
-bearbeiten und P02 erst nach echtem P01-Abschluss-Gate starten.
+**Nächster Arbeitsschritt:** `/goal P01 Block 18/20` –
+alte Login-/Grid-Builder-/Mode-Komponenten und Skin-Overrides
+nutzungs-/lizenzsicher abbauen oder ausdrücklich als
+Kompatibilitätsbestand dokumentieren. Anschließend Block 19
+inklusive Grid-Login, Windows/macOS-Nachweisen (soweit
+verfügbar) und Block 20. P02 erst nach echtem P01-Gate starten.
 
 ## P01 – weitere /goal-Runde: Blöcke 7–8/20
 
@@ -236,6 +236,72 @@ oder externe Abhängigkeiten dürfen nicht als bestanden gelten.
 **Weiter:** `/goal P01 Block 16/20`; P02 noch nicht
 freigegeben. Phasengates sind technische Prüfungen,
 keine manuelle Nutzerabnahme.
+
+## P01 – /goal-Runde: Blöcke 16–17/20
+
+**Verifizierter Code-Commit:** `af1ff08b` auf `ogl-develop`.
+**Sequenzieller Fortschritt: 17/20; P01 weiterhin aktiv.**
+
+- **Block 16 abgeschlossen – adaptive Bildschirm-/HiDPI-Skalierung:**
+  Alle **bestehenden** Fensterklassen (SDL/Linux, Win32 und
+  macOS) besitzen jetzt eine Abfrage der nutzbaren Arbeitsfläche
+  des aktuellen Monitors. Bei OGL-Start wird das Fenster
+  entsprechend der gewünschten UI-Skalierung bei ausreichend
+  Platz vergrößert und auf dem Monitor zentriert. Die
+  `UIScaleFactor`-Vorgabe wird nicht direkt überschrieben;
+  reicht die Fensterfläche nicht, begrenzt die Laufzeit
+  den effektiven UI-Maßstab auf die notwendigen 1024×680
+  logischen Einheiten. Das Linux-SDL-Backend positioniert
+  Fenster jetzt tatsächlich über `SDL_SetWindowPosition`.
+  Nach der initialen SDL-Größenmeldung erfolgt höchstens
+  ein erneuter Resize-Abgleich, da das Fenster sonst
+  auf die alten 1024×680 zurückfallen konnte. Die
+  normale Fenstergrößenspeicherung der Viewer-Engine
+  bleibt aktiv.
+- **Reale GUI-Regressionen unter Linux Mint/Xvfb:**
+  1280×720 bei gewünschtem 150 %: 1024×680, effektive
+  Skalierung begrenzt, Login inklusive aller Bedienelemente
+  vollständig im Fenster. 1920×1080 bei 150 %:
+  **1536×1020 bei (+192,+30)**, alle Login-Felder und
+  Links sichtbar. 3840×2160 bei 200 %:
+  **2048×1360 bei (+896,+400)**, alle Login-Felder und
+  Links sichtbar. Welcome-/Nachrichten-Webseite blieb
+  unverändert. Alle drei Screenshots visuell geprüft und
+  `STATE_LOGIN_WAIT` geloggt. Smoke-Prozesse bewusst
+  per Timeout beendet (Exit 124); kein sauberer
+  Logout-/Shutdown-Nachweis.
+- **Block 17 abgeschlossen – Altbestand inventarisiert:**
+  `panel_fs_login.xml` wird von `fspanellogin.cpp`
+  weiterhin für einen nicht-OGL-Kompatibilitätszweig
+  referenziert. `mode_combo` und `grid_builder_text`
+  existieren in den aktuellen XUIs noch als im OGL
+  ausgeblendete Kompatibilitäts-Controls und besitzen
+  C++-Callbacks; die beiden vorhandenen StarLight-XUI-
+  Dateien wurden bereits auf OGL-Login umgestellt.
+  Vorhandenes Upstream-`client_list_v2.xml` und
+  `cycle_object_animations_v2.lsl` nicht ungeprüft
+  gelöscht. Vollständige sichere Entfernung der
+  versteckten Altteile ist **Block 18**, noch nicht
+  als abgeschlossen verbucht.
+- **Build und Regression:** `bash ogl/scripts/build-test.sh`
+  mit **129/129 Python-Tests**, **41/41 native CTests**
+  und erfolgreichem realem Linux-Viewer-Build/Staging.
+  `git diff --check` bestanden. Windows/macOS-
+  Implementierungen wurden strukturell ergänzt,
+  **aber nicht auf diesen Betriebssystemen kompiliert
+  oder visuell getestet**; entsprechende Nachweise
+  bleiben für Block 19 beziehungsweise spätere
+  Release-Phasen offen.
+- **Nutzerdaten und Sicherheit:** Keine neuen
+  Quellprojektdateien angelegt, vorhandene
+  Benutzerprofile/Secrets nicht verändert,
+  die exakt zwei Grids und die Beta-Sperre
+  unverändert belassen.
+
+**Weiter:** `/goal P01 Block 18/20`. Kein manuelles
+Nutzer-Abnahmegate. Block 19 darf ohne realen
+Login-/Plattformnachweis nicht als vollständig
+bestanden gelten.
 
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle

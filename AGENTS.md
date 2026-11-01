@@ -21,7 +21,7 @@ Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
-sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 16/20 (1–15 abgeschlossen),
+sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 18/20 (1–17 abgeschlossen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten

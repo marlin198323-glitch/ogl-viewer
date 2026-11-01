@@ -40,7 +40,7 @@ verified NexVerse homepage, not the upstream Firestorm/Second Life site.
 A dedicated recovery URL still needs verification before use. No change
 was made to secrets, credentials or the live account system.
 
-A full local Linux viewer build, 128 Python tests and 41 native tests
+A full local Linux viewer build, 129 Python tests and 41 native tests
 passed. Virtual Xvfb 1280x720 GUI launches confirm the initial 1024x680
 OGL viewer window stays inside the 720p screen and loads the welcome URL.
 A 3840x2160 virtual display starts the viewer centered. OGL's fixed grid
@@ -52,7 +52,7 @@ are currently kept aligned with the canonical OGL panel.
 The test was time-limited and did not validate real-world OpenSim login,
 high-DPI rendering, a clean application shutdown or platform installers.
 OGL's EN/DE startup antivirus guidance no longer links to Firestorm's wiki
-or encourages unconditional antivirus exceptions. P01 remains open at block 16/20. A 1920x1080 Xvfb launch with 150% UI scaling demonstrated clipping of the right-hand login controls; HiDPI responsiveness is not yet approved.
+or encourages unconditional antivirus exceptions. P01 remains open at block 18/20. Updated Linux Xvfb screenshots confirm complete login fields at 1280x720 (UI request 150%, capped), 1920x1080 (UI 150%, 1536x1020 window) and 3840x2160 (UI 200%, 2048x1360 window). Windows and macOS remain untested.
 
 ## HTTP login compatibility
 
