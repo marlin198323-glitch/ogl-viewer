@@ -18520,13 +18520,13 @@ Change of this parameter will affect the layout of buttons in notification toast
     <key>WindowHeight</key>
     <map>
       <key>Comment</key>
-      <string>SL viewer window height</string>
+      <string>Viewer initial window height (fits 720p screens; saved user size is retained)</string>
       <key>Persist</key>
       <integer>1</integer>
       <key>Type</key>
       <string>U32</string>
       <key>Value</key>
-      <integer>738</integer>
+      <integer>680</integer>
     </map>
     <key>WindowMaximized</key>
     <map>

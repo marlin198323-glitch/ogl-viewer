@@ -15026,13 +15026,9 @@ Camera reset might be inhibited by the following objects:
     icon="notifytip.tga"
     name="WhitelistReminder"
     type="alertmodal">
-To improve [APP_NAME]'s performance, please whitelist it.
+Antivirus and [APP_NAME]
 
-Some antivirus programs may mistakenly block parts of [APP_NAME], slowing down its performance and causing some features to malfunction. To prevent these issues, we strongly recommend adding [APP_NAME] to your antivirus program's whitelist (or exclusion list). This will ensure the viewer runs smoothly.
-
-For detailed instructions on how to whitelist [APP_NAME] - including a list of files and folders to exclude - please visit our guide:
-
-https://wiki.firestormviewer.org/antivirus_whitelisting
+If your security software reports a false positive or blocks a verified [APP_NAME] component, check its security logs first. Keep real-time protection enabled. Only add a narrowly scoped exception after confirming the installed viewer's origin and integrity, and follow your antivirus provider's instructions.
   </notification>
 
   <!-- <FS:TJ> Detect and notify if the viewer is trying to run as admin on Windows -->

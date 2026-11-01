@@ -117,6 +117,32 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertNotIn("ogl_graphics_status", self.source(
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
 
+    def test_720p_initial_window_and_safe_antivirus_login_notice(self):
+        settings = ET.parse(ROOT / "indra/newview/app_settings/settings.xml")
+        fields = list(settings.getroot().find("map"))
+        defaults = {}
+        for i in range(0, len(fields) - 1, 2):
+            if fields[i].tag == "key":
+                defaults[fields[i].text] = fields[i + 1]
+        def default_value(key):
+            record = list(defaults[key])
+            return {record[i].text: record[i + 1].text
+                    for i in range(0, len(record) - 1, 2)}["Value"]
+        self.assertLessEqual(int(default_value("WindowHeight")), 680)
+        self.assertLessEqual(int(default_value("WindowWidth")), 1024)
+        for language in ("en", "de"):
+            root = ET.parse(ROOT / (
+                f"indra/newview/skins/default/xui/{language}/notifications.xml"))
+            notices = [n for n in root.iter("notification")
+                       if n.get("name") == "WhitelistReminder"]
+            self.assertEqual(len(notices), 1)
+            body = notices[0].text or ""
+            self.assertNotIn("wiki.firestormviewer.org", body)
+            self.assertIn("[APP_NAME]", body)
+            floater = self.source(
+                f"indra/newview/skins/default/xui/{language}/floater_whitelist.xml")
+            self.assertNotIn("wiki.firestormviewer.org", floater)
+
     def test_rtx_world_frame_bridge_never_claims_live_rendering(self):
         pipeline = self.source("indra/newview/pipeline.cpp")
         module = self.source("ogl/modules/rtx/ogl_rtx_module.cpp")

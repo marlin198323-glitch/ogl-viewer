@@ -3,8 +3,7 @@
 		Anti-Virus- und Anti-Malware-Software sind essenziell für die sichere Nutzung des Internet, können aber eine Vielzahl an Problem für den Viewer erzeugen.
 Um die Beinträchtigung zu minimieren und Stabilität und Performance zu erhöhen, raten wir daher eingehend alle Benutzer Ausnahmen (auch bekannt als Whitelisting) für wichtige Verzeichnisse und Programme einzurichten, die vom Viewer verwendet werden.
 
-Weitere Details hierzu finden Sie unter
-https://wiki.firestormviewer.org/antivirus_whitelisting
+Lassen Sie den Virenschutz eingeschaltet. Eine eng begrenzte Ausnahme sollten Sie nur bei einer bestätigten Fehlmeldung und nach Prüfung der Herkunft und Integrität des Viewers einrichten. Beachten Sie die Dokumentation Ihres Sicherheitsanbieters.
 	</text>
 	<text name="whitelist_folder_instruction">
 		Das folgende Textfeld die Verzeichnisse angezeigt, die vom Viewer verwendet werden.

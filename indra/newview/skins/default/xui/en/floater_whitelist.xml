@@ -17,8 +17,7 @@
 Anti-virus and Anti-malware are an essential part of safe Internet use, but they can cause a variety of issues for the viewer.
 To reduce interference and improve stability and performance, we strongly advise that all users ensure that there are exclusions (known as Whitelisting) for important folders and programs that the viewer uses. 
 
-For more detailed information, visit
-https://wiki.firestormviewer.org/antivirus_whitelisting
+Keep antivirus protection enabled. Add a narrowly scoped exception only after confirming a genuine false positive and verifying your installer's origin and integrity. Consult your security software provider's documentation.
      
      </text>
      <text
@@ -32,7 +31,7 @@ https://wiki.firestormviewer.org/antivirus_whitelisting
           width="689"
           wrap="true">
 To help simplify the task the box below shows the folders the viewer is using. 
-Please add these to your AV folder exclusions as shown on the above wiki page.
+Only add verified components when your security provider confirms an exception is necessary.
      </text>
      <text_editor
           parse_urls="true"
@@ -57,7 +56,7 @@ Please add these to your AV folder exclusions as shown on the above wiki page.
           width="689"
           wrap="true">
 The following box shows the names and full paths of the viewer executables.
-Add the full paths to your AV executable exclusions as shown in the above wiki.
+Use these paths only to identify the affected component while investigating a confirmed false positive.
      </text>
      <text_editor
           parse_urls="true"
