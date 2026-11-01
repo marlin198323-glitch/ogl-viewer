@@ -1154,6 +1154,26 @@ void FSPanelLogin::onClickConnect(void *)
             return;
         }
 
+        // Reject incomplete login forms *before* offering to transmit any
+        // password via HTTP. This also covers Enter-key and programmatic
+        // login triggers that bypass the disabled Connect button.
+        if (APP_NAME == "OGL")
+        {
+            std::string entered_name =
+                sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString();
+            LLStringUtil::trim(entered_name);
+            if (entered_name.empty())
+            {
+                LLNotificationsUtil::add("MustHaveAccountToLogIn");
+                return;
+            }
+            if (sInstance->getChild<LLUICtrl>("password_edit")->getValue().asString().empty())
+            {
+                LLNotificationsUtil::add("MustEnterPasswordToLogIn");
+                return;
+            }
+        }
+
         // OGL: trust only the exact configured OpenSim login service.
         // Merely switching the stored grid URI to another HTTPS host
         // must never bypass endpoint pinning. A future verified HTTPS
@@ -1250,6 +1270,14 @@ void FSPanelLogin::onClickConnect(void *)
             LLPointer<LLCredential> cred;
             bool remember;
             getFields(cred, remember);
+            if (cred.isNull())
+            {
+                // Missing secure-store or malformed credential data must not
+                // crash the login screen or start an authentication attempt.
+                LL_WARNS("Credentials") << "Unable to create login credential." << LL_ENDL;
+                LLNotificationsUtil::add("InvalidCredentialFormat");
+                return;
+            }
             std::string identifier_type;
             cred->identifierType(identifier_type);
             LLSD allowed_credential_types;
@@ -1823,6 +1851,34 @@ void FSPanelLogin::onSelectUser()
         }
     }
 
+    // Selecting a stored account from another fixed OGL world is a grid
+    // change, not permission to reuse that account's masked password. The
+    // destination credentials must be selected again *after* clearing the
+    // previous form, before any protected credential is loaded.
+    if (APP_NAME == "OGL")
+    {
+        const std::string selected_grid = cred_name.substr(cred_name.rfind('@') + 1);
+        if (selected_grid != LLGridManager::getInstance()->getGrid())
+        {
+            try
+            {
+                LLGridManager::getInstance()->setGridChoice(selected_grid);
+            }
+            catch (LLInvalidGridName ex)
+            {
+                LL_WARNS("OGLGrid") << "Rejected invalid saved account grid." << LL_ENDL;
+                sInstance->clearLoginFieldsForGridChange();
+                return;
+            }
+            sInstance->clearLoginFieldsForGridChange();
+            updateServer();
+            LLNotificationsUtil::add("GenericAlert", LLSD().with(
+                "MESSAGE", LLTrans::getString("OGLGridChangedReenterCredentials")));
+            LL_INFOS("OGLGrid") << "Saved account changed the login world; fields reset." << LL_ENDL;
+            return;
+        }
+    }
+
     LLPointer<LLCredential> credential = gSecAPIHandler->loadCredential(cred_name);
     if (credential.isNull())
     {
@@ -1842,7 +1898,8 @@ void FSPanelLogin::onSelectUser()
         const std::string grid_name = cred_name.substr(arobase + 1, cred_name.length() - arobase - 1);
 
         // Grid has changed - set new grid and update server combo
-        if (LLGridManager::getInstance()->getGrid() != grid_name)
+        if (APP_NAME != "OGL" &&
+            LLGridManager::getInstance()->getGrid() != grid_name)
         {
             try
             {

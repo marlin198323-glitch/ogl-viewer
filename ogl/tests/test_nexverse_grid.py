@@ -110,6 +110,20 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertLess(callback.index('if (credential.isNull())'),
                         callback.index('gSecAPIHandler->deleteCredential(credential)'))
 
+    def test_saved_cross_grid_account_never_loads_secret_before_switch(self):
+        start = self.panel.index('void FSPanelLogin::onSelectUser()')
+        end = self.panel.index('void FSPanelLogin::updateServerCombo()', start)
+        callback = self.panel[start:end]
+        switch = callback.index('selected_grid != LLGridManager::getInstance()->getGrid()')
+        clear = callback.index('sInstance->clearLoginFieldsForGridChange()', switch)
+        load = callback.index('gSecAPIHandler->loadCredential(cred_name)')
+        self.assertLess(switch, load)
+        self.assertLess(clear, load)
+        self.assertIn('OGLGridChangedReenterCredentials', callback)
+        self.assertIn('return;', callback[clear:load])
+        self.assertIn('APP_NAME != "OGL" &&', callback)
+        self.assertIn('Saved account changed the login world; fields reset.', callback)
+
     def test_disappeared_saved_login_is_rejected_without_password(self):
         start = self.panel.index('void FSPanelLogin::onSelectUser()')
         end = self.panel.index('void FSPanelLogin::updateServerCombo()', start)
@@ -121,6 +135,22 @@ class StadtNexVerseGridTests(unittest.TestCase):
                         callback.index('sInstance->setFields(credential)'))
         self.assertLess(callback.index('if (credential.isNull())'),
                         callback.index('sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(true)'))
+
+    def test_empty_login_is_rejected_before_http_consent(self):
+        callback = self.panel[
+            self.panel.index('void FSPanelLogin::onClickConnect(void *)'):
+            self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertIn('LLStringUtil::trim(entered_name)', callback)
+        self.assertLess(callback.index('LLNotificationsUtil::add("MustHaveAccountToLogIn")'),
+                        callback.index('OGLHTTPLoginWarning'))
+        self.assertLess(callback.index('LLNotificationsUtil::add("MustEnterPasswordToLogIn")'),
+                        callback.index('OGLHTTPLoginWarning'))
+        self.assertLess(callback.index('LLStringUtil::trim(entered_name)'),
+                        callback.index('OGLHTTPLoginWarning'))
+        self.assertIn('if (cred.isNull())', callback)
+        self.assertLess(callback.index('if (cred.isNull())'),
+                        callback.index('cred->identifierType(identifier_type)'))
+        self.assertIn('Unable to create login credential.', callback)
 
     def test_beta_credentials_never_sent_from_login_button(self):
         blocked = self.panel.index('Blocked beta authentication: protocol and TLS not verified.')
