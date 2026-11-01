@@ -54,6 +54,14 @@ high-DPI rendering, a clean application shutdown or platform installers.
 OGL's EN/DE startup antivirus guidance no longer links to Firestorm's wiki
 or encourages unconditional antivirus exceptions. P01 remains open at block 19/20. Old mode and grid-builder controls were removed from 12 existing localized/alternate OGL login XUI files; the non-OGL legacy login remains for compatibility. All three tested Linux skins showed the OGL welcome/login without missing dummy widgets. Updated Linux Xvfb screenshots confirm complete login fields at 1280x720 (UI request 150%, capped), 1920x1080 (UI 150%, 1536x1020 window) and 3840x2160 (UI 200%, 2048x1360 window). Windows and macOS remain untested.
 
+During P01 block 19, the Linux GUI also confirmed the fixed welcome
+URL cannot be replaced by a saved ForceLoginURL override. The OGL
+pre-login Ctrl+Q closes normally (exit code 0) without a redundant
+legacy confirmation dialog. The isolated FSRememberUsername setting
+survived a viewer restart; this does not prove successful account
+login or stored-password restoration. Real main-grid and full
+Windows/macOS viewer tests remain pending.
+
 ## HTTP login compatibility
 
 The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.

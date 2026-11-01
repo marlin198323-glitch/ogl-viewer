@@ -8,9 +8,9 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Nächster Block:** `/goal P01 Block 19/20` – vollständige
-Login-/Kontopersistenz- und Mehrplattform-Regression nachweisen,
-ohne die Beta-Sperre aufzuheben. **Keine manuelle Abnahme erforderlich.**
+**Aktiver Block:** `/goal P01 Block 19/20` (Teilprüfungen bestanden;
+vollständiger Live-Login und plattformübergreifender Viewer-Nachweis
+noch nicht verfügbar). **Keine manuelle Zwischenabnahme erforderlich.**
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -97,13 +97,14 @@ ist kein Beleg für plattformübergreifende Installer. **P01 bleibt
 aktiv**, kein Phasenabschluss und noch kein Übergang nach P02.
 
 **Nächster Arbeitsschritt:** `/goal P01 Block 19/20` –
-erfolgreiche Anmeldung am Hauptgrid, gespeicherte Accounts/
-Passwortpersistenz und regulären Viewer-Shutdown nur mit
-autorisiertem Testkonto und isoliertem Profil prüfen.
-Windows/macOS-Build-/GUI-Nachweise soweit real verfügbar
-beschaffen. Negativprüfung des Beta-Grids bereits bestanden;
-Beta-Login bleibt bis bestätigtem TLS und Protokoll gesperrt.
-Block 20 erst nach tatsächlich erfülltem Abschluss-Gate.
+mit einem autorisierten Hauptgrid-Testkonto tatsächliche Anmeldung
+und Wiederherstellung gespeicherter Zugangsdaten nach erneutem
+Programmstart prüfen; danach regulären Shutdown **nach Welt-Login**
+messen. Die Voranmelde-Schließprüfung besteht bereits. Windows-/
+macOS-FULL-Viewer-Builds und GUI-Regressionsnachweise bleiben
+ausstehend (ein Modulmatrix-CI ersetzt diese nicht).
+Beta-Login bleibt bis bestätigtem TLS/Protokoll gesperrt.
+Block 20 und P02 erst bei tatsächlich erfülltem Abschluss-Gate.
 
 ## P01 – weitere /goal-Runde: Blöcke 7–8/20
 
@@ -359,6 +360,75 @@ bestanden gelten.
 
 **Weiter:** `/goal P01 Block 19/20`, ohne manuelle
 Zwischenabnahme, aber mit echten technischen Prüfgates.
+
+## P01 – /goal-Runde: Block 19/20 (technische Teilprüfungen)
+
+**Code-Commit:** `6ac3c63f` (`ogl-develop`).
+**Fortschritt unverändert: 18/20; Block 19 weiterhin in Arbeit.**
+
+- **Korrektur 1 – über Startort-URL ausgelöster Gridwechsel:**
+  Die Loginmaske konnte zuvor über einen Grid-tragenden SLURL
+  auf ein anderes Grid wechseln, ohne alte Benutzernamen/
+  Passwort-Eingaben zu verwerfen. Der bereits bestehende
+  Reset von `onSelectServer()` und der SLURL-Pfad rufen
+  jetzt dieselbe neue, in bestehenden C++-Dateien definierte
+  Methode `clearLoginFieldsForGridChange()` auf.
+  Ein unbekanntes SLURL-Grid wird explizit abgewiesen.
+  Die gespeicherten Konto-Objekte werden nicht gelöscht.
+- **Korrektur 2 – Credential-Log/Welcome:**
+  Das volle Credential-Objekt wird nicht mehr in der
+  Login-Logzeile ausgegeben. Null-Credentials werden
+  vor Dereferenzierung abgewiesen. OGL ignoriert
+  alte `ForceLoginURL`-Overrides im Benutzerprofil
+  für die Welcome-Anzeige, ohne die Einstellung des
+  Nicht-OGL-Kompatibilitätszweigs zu ändern.
+- **Korrektur 3 – Voranmelde-Beenden:** Bei
+  `STATE_LOGIN_WAIT` löst Strg+Q bei OGL
+  `requestQuit()` direkt aus, statt die alte
+  Abfragemeldung "Wirklich beenden?" zu öffnen.
+  Die vorhandene Bestätigungs-/Logoutlogik nach
+  Eintritt in die Welt wurde nicht verändert.
+- **Build und Tests:** Vollständiger Linux-Mint-C++-
+  Viewer-Build und Staging erfolgreich;
+  **133/133 Python-Unittests** und
+  **41/41 native CTests** erfolgreich. `git diff --check`
+  bestanden. Die letzte vorherige GitHub-Matrix-CI
+  für `bce9aeb7` war erfolgreich, prüft aber
+  portable Module und Python-Quelltests, **keine**
+  kompletten Windows-/macOS-Viewer-Installer.
+- **Isolierte echte GUI-Regression:** 1280×720 Xvfb
+  mit gesetzter fremder `ForceLoginURL` zeigte
+  die korrekte NexVerse-Welcome-URI in Logs/Browser,
+  keine fremde Navigation. Strg+Q wurde erkannt
+  und der Viewer beendete sich im erneuten Test
+  **regulär mit Exit-Code 0**, ohne Quit-Modal.
+  Mit einem ausschließlich unter `/tmp` angelegten
+  synthetischen Testprofil wurde "Benutzername
+  speichern" deaktiviert. `FSRememberUsername`
+  wurde als 0 gespeichert und nach echtem Neustart
+  als deaktivierte Checkbox visualisiert. Auch
+  der zweite Viewerstart endete mit Exit-Code 0.
+  **Es wurde kein echtes Konto angemeldet und
+  kein Passwort-Secret gespeichert oder übertragen.**
+- **Negativprüfung/Bestandsprüfung:** Die bereits
+  geprüfte Beta-Sperre, feste Zwei-Grid-Auswahl,
+  HTTP-Zustimmungsregeln und OpenGL-Fallback
+  bleiben durch Regressionstests abgedeckt.
+  Wiederholte Duplikatprüfung: alte `_v2`-
+  und `script_copy`-Ressourcen sind vorhandener
+  und nicht ohne Nutzungsnachweis zu löschender
+  Upstream-Bestand. Keine neuen Projektdateien.
+- **Blocker für Block 19/20 und Phasenabschluss:**
+  Kein autorisierter Live-Hauptgrid-Test mit
+  erfolgreichem Login und Wiederherstellung
+  gespeicherter Passwörter; kein nach-Welt-Login-
+  Shutdown-Test; keine vollständigen Windows-/
+  macOS-Viewer-Build-/Lauftests. Diese Nachweise
+  ausdrücklich **nicht** als bestanden markieren.
+
+**Weiter:** `/goal P01 Block 19/20`, mit Schwerpunkt
+auf den fehlenden externen Ende-zu-Ende-Nachweisen.
+Block 20/P02 bleiben bis zum P01-Abschluss-Gate gesperrt.
 
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle

@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 nachgewiesen; Code-Commit `450163aa`; Hauptgrid-Live-Login und Mehrplattform-Nachweis offen).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 nachgewiesen; Code-Commit `6ac3c63f`; Voranmelde-Shutdown und Checkbox-Persistenz im Linux-GUI bestätigt; Hauptgrid-Live-Login und komplette Windows-/macOS-Viewer-Nachweise offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

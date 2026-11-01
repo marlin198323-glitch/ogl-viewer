@@ -206,10 +206,15 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 ### /goal P01 – Branding und modernes Login
 
-**Status:** aktiv; Blöcke 1–18/20 geprüft (zuletzt `450163aa`);
-folgend Block 19: Live-Login, Kontopersistenz und Plattformregression.
-Die Beta-Sperre wurde mit künstlichen Testeingaben im laufenden Viewer bestätigt;
-Hauptgrid-Live-Login und Windows/macOS-Nachweise sind nicht abgeschlossen. Vorarbeiten zu späteren Blöcken siehe PROJECT_STATUS.md.
+**Status:** aktiv; Blöcke 1–18/20 geprüft; Block 19 teilweise
+abgearbeitet (Code-Commit `6ac3c63f`).
+Sichere SLURL-Gridwechsel, Credential-Log-Reduktion,
+festes Welcome, Voranmelde-Quit (Exit 0) und
+Checkbox-Einstellung nach Neustart lokal bestätigt.
+Die Beta-Sperre wurde mit künstlichen Eingaben im Viewer bestätigt.
+Hauptgrid-Live-Login, gespeicherte Passwort-Credentials nach
+erfolgreichem Login und vollständige Windows/macOS-Viewer-Nachweise
+sind nicht abgeschlossen; deshalb P01 weiter 18/20. Vorarbeiten zu späteren Blöcken siehe PROJECT_STATUS.md.
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.
