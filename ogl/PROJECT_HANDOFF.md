@@ -33,10 +33,12 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen;
-P02-Vorarbeiten `b654c299` Chatlayout und `17ab85cf`
-NexVerse-Menüs umgesetzt und jeweils mit 20/20 geprüften
-Einzelpositionen bestätigt; letzter Vollbuild 170 Python-
-und 41 native Tests. P02 formal 0/20. Hauptgrid-Live-Login,
+letzte P02-Vorarbeit `8b712092`: Altmenüs in 13 XUI-Sprachen
+entfernt, NexVerse-News, OGL-GitHub-Issues und Release-Navigation,
+Skriptbibliothek-Overlays korrigiert; 20/20 Prüfschritte,
+174 Python- und 41 native Tests erfolgreich. Vorige
+UI-Commits `b654c299`, `17ab85cf`.
+P02 formal 0/20. Hauptgrid-Live-Login,
 Passwortpersistenz, In-World-Shutdown und vollständige
 Windows-/macOS-Viewer-Builds noch offen).
 Den letzten tatsächlich erledigten Block und Commit immer

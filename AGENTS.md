@@ -21,10 +21,10 @@ Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
-sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; letzte UI-Code-Commits
-`b654c299` Chatfenster und `17ab85cf` NexVerse-Navigation, jeweils
-20/20 technisch geprüfte P02-Vorarbeiten; P02 formal 0/20 und
-P01-Live-Login-/Plattformgates noch offen),
+sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen; letzter UI-Code-Commit
+`8b712092` bereinigte NexVerse-Hilfe, News und 13 Sprachen;
+20/20 technische Prüfpositionen, 174 Python-/41 native Tests.
+P02 formal 0/20; Hauptgrid-Live-Login-/Plattformgates noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten

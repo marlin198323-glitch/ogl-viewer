@@ -32,6 +32,85 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – Altmenüs und OGL-Support (20 Blöcke)
+
+**Code-Commit:** `8b712092` (`ogl-develop`).
+**20/20 überprüfte technische Einzelpositionen bestanden.**
+Der Phasenstand bleibt **P01 18/20 und P02 formal 0/20**:
+Vollständige In-World-/Windows-/macOS-Abnahmen fehlen.
+
+**Konkrete Implementierung (nur bestehende Dateien):**
+- Sämtliche 13 vorhandenen `menu_viewer.xml`-
+  Lokalisierungen auf nicht mehr passende
+  Second-Life-Events, Linden Home, Official
+  Linden Blog, alte Public Issue Tracker und
+  `Firestorm MoTD` geprüft und die jeweiligen
+  Menüeinträge entfernt. Das verhindert, dass
+  Übersetzungs-Overlays die entfernten Menüs
+  erneut einblenden.
+- Der vorhandene Content-/Entdecken-Bereich
+  bietet nun **NexVerse News** mit dem
+  offiziellen `https://stadt-nexverse.de/`-
+  Link (DE: „NexVerse Nachrichten“).
+  Die Hilfe bietet in EN/DE den verifizierten
+  GitHub-Fehlertracker und die offizielle
+  Release-Seite. Daraus folgt **keine**
+  Aussage, dass bereits signierte Installer
+  veröffentlicht sind.
+- Die Script-Library-Menüpunkte in Deutsch
+  und Portugiesisch wurden von falsch
+  typisierten `menu_item_check`-Overlays
+  auf `menu_item_call` korrigiert. Bestehende
+  LSL-/OpenSim-Skriptfunktionen, Grid- und
+  Abuse-Menüs sowie rechtliche „Über den
+  Viewer“-Informationen bleiben erhalten.
+- Bestehende
+  `ogl/tests/test_branding_contract.py`
+  um vier Tests erweitert. Keine neuen
+  Quelldateien, Backups, Templates oder
+  Zugangsdaten verändert.
+
+**20 prüfbare Positionen:** 01 Branch/Sync,
+02 keine neuen Projektdateien,
+03 13 XML-Sprachen gültig,
+04 SL Events entfernt, 05 Linden Home
+entfernt, 06 Linden Blog entfernt,
+07 alter Public Issue Tracker entfernt,
+08 alter Firestorm MoTD entfernt
+(jeweils in allen Sprachen);
+09 News EN/DE eindeutig,
+10 EN News-Portal, 11 DE News-Portal,
+12 EN GitHub Issues, 13 DE GitHub Issues,
+14 EN GitHub-Releases, 15 DE GitHub-Releases,
+16 EN/DE Entdecken-Menü,
+17 Skriptbibliothek EN/DE/PT korrekt aufrufbar,
+18 OpenSim-Welt-/Lizenzfunktionen erhalten,
+19 alle 12 geänderten Menü-Overlays
+bytegleich im Viewer-Staging,
+20 Linux-Vollbuild plus Python-/Native-
+Tests und realer GUI-Negativlauf.
+**20/20 bestanden.**
+
+**Verifikation:** `bash ogl/scripts/build-test.sh`
+erfolgreich: vollständiger Linux-Mint-
+Viewer-Build, **174/174 Python-Tests,
+41/41 native CTests**. Isolierter
+1280×720-Xvfb-Voranmelde-Viewer:
+Fensterklasse `ogl-viewer`, `STATE_LOGIN_WAIT`,
+keine Authentifizierung,
+Strg+Q mit Exit-Code **0**.
+In-World-Klicktests der Menüs noch nicht
+nachweisbar, da autorisierter Hauptgrid-
+Live-Login fehlt. Vorhandene `_v2`-/`script_copy`-
+Ressourcen nur inventarisiert, mangels
+Abhängigkeitsnachweis nicht gelöscht.
+
+**Nächster `/goal`-Einstieg:** P01
+Block 19/20; unabhängige P02-Arbeit kann
+fortgesetzt werden. Kein künstlicher
+P01-/P02-Phasenabschluss und keine
+manuelle Nutzerzwischenabnahme.
+
 ## P02 unabhängige Vorarbeit – neue NexVerse-Navigation (20 Blöcke)
 
 **Code-Commit:** `17ab85cf` auf `ogl-develop`.
