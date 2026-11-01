@@ -32,6 +32,93 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – /goal-Durchlauf mit 20 überprüften Arbeitspositionen
+
+**Code-Commit:** `a35f6caa` auf `ogl-develop`.
+**20/20 Entwicklungs- und Prüfpositionen dieser Runde
+bestanden.** Dieser Durchlauf ist keine künstliche
+Fertigmeldung für P01: Formal **18/20 Phasenblöcke**;
+End-to-End-Login und vollständige Plattform-Builds offen.
+
+**Implementierte Korrekturen (nur bestehende Pfade):**
+- `fspanellogin.cpp::updateServer` füllt in OGL
+  nach einem Gridwechsel **nicht mehr automatisch
+  Credentials** einer anderen Welt ein.
+  Die bewusste Kontowahl und die Nicht-OGL-
+  Kompatibilität bleiben erhalten.
+- Unbekannte gespeicherte Gridkonten löschen
+  das bisherige Loginformular. Ein unbekannter
+  selbst eingegebener Nutzer übernimmt nie ein
+  zuvor eingegebenes oder maskiertes Passwort.
+  Bei Änderung des Benutzernamens wird das
+  vorige Passwort **sofort beim Editieren**
+  zurückgesetzt, nicht erst beim Fokuswechsel.
+  Transient-Secret, Passwortlänge, Modified-Flag
+  und Konto-Löschen-Schaltfläche werden mitgeprüft.
+- `setFields` lässt OGL nur Credentials des
+  aktuell ausgewählten fest angepinnten Grids
+  anzeigen. Ein zurückgewiesenes Credential
+  setzt **nicht** irrtümlich `sCredentialSet=true`.
+- Die Revision eines ausstehenden HTTP-Warnungsdialogs
+  wird zusätzlich bei Änderungen der
+  „Benutzername speichern“- und „Passwort speichern“-
+  Einstellungen sowie des Start-/Teleportziels
+  ungültig. Keine Passwörter im Dialog gespeichert.
+- Vorhandene `ogl/tests/test_nexverse_grid.py`
+  um vier zusätzliche Regressionstests erweitert.
+  Keine neuen Quelldateien erstellt oder
+  echte Nutzer-Credentials verwendet.
+
+**20/20 dokumentierte Positionen:**
+01 Branch/Remote-Sync; 02 Dateiregel;
+03 feste Grids; 04 kein Auto-Credential
+nach Gridwechsel; 05 Welcome/Gridliste bleibt;
+06 Kontoauswahl mit Gridwechsel vor Secret-Laden;
+07 unbekannte gespeicherte Konten geleert;
+08 keine Übernahme eines fremden Passworts bei
+Freitext-Nutzer; 09 sofortiges Passwortleeren
+bei Namensedit; 10 Transient-Secret gelöscht;
+11 Konto-Löschen-Button deaktiviert;
+12 Passwortflags zurückgesetzt; 13 Restore
+prüft exakt das aktuelle Grid; 14 kein
+`sCredentialSet` für abgelehnte Credentials;
+15 Consent-Revision bleibt aktiv;
+16 beide Speicher-Checkboxen invalidieren
+alte Einwilligungen; 17 Teleportzieländerung
+invalidiert Einwilligungen; 18 Hauptgrid-Xvfb-
+HTTP-Warnung ohne Authentifizierung;
+19 Beta-Negativtest und finaler Viewer-GUI-
+Start jeweils mit regulärem Quit;
+20 vollständiger Linux-Build und alle Tests.
+**20/20 bestanden.**
+
+**Technische Nachweise:** `bash ogl/scripts/build-test.sh`:
+vollständiger Linux-Mint-Viewer inklusive Staging,
+**154/154 Python-Tests und 41/41 native CTests**
+erfolgreich. Separater echter Hauptgrid-GUI-Test
+mit rein synthetischen Eingaben: HTTP-Warnung,
+`STATE_LOGIN_WAIT`, kein `STATE_LOGIN_AUTH_INIT`,
+Exit-Code 0. Beta: `Blocked beta authentication:
+protocol and TLS not verified`, kein Auth-Versuch,
+Exit-Code 0. Nach der letzten Änderung
+zusätzlich finaler 1280×720-Xvfb-GUI-Start mit
+`ogl-viewer`-Fensterklasse, Login bereit,
+kein Auth-Versuch und sauberer Exit 0.
+Duplikat-/Altbestandkontrolle: vorhandene
+`_v2`-/`script_copy`-Dateien ohne
+Nutzungsnachweis nicht gelöscht.
+
+**Offene Abschluss-Gates:** Autorisierter
+Hauptgrid-Live-Login, Passwortpersistenz nach
+diesem Login, Logout/Shutdown **aus der Welt**
+sowie volle Windows-/macOS-Viewer-Build-/GUI-
+Tests. Die grüne GitHub-6er-Matrix prüft
+portable Grafikmodule und ersetzt diese
+End-to-End-Tests **nicht**. Nächster
+`/goal`: P01 Block 19/20; danach P01
+Block 20 und P02, sobald die echten
+Gates erfüllt sind.
+
 ## P01 – /goal-Sammelrunde: Speicher-Opt-out und OGL-Menüs
 
 **Code-Commit:** `d364f3e1` auf `ogl-develop`.

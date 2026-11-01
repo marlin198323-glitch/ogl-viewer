@@ -208,15 +208,16 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter Code-Commit `d364f3e1`: konsequenter
-Opt-out von Benutzername-/Passwortspeicherung
-und AutoLogin auch im frühen Startpfad; bisherige
-Firestorm-Promotion-/Support-Menüs durch OGL-
-Portalzugänge ersetzt, 26 Menü-XUI geprüft.
-20/20 technische Prüfpositionen dieser Runde,
-150 Python- und 41 native Tests sowie
-isolierte GUI-Opt-out-/Neustarttests bestanden.
-Vorige Kontotrennung: `15162927`.
+Letzter Code-Commit `a35f6caa`: keine stille
+Credential-Nachladung beim OGL-Gridwechsel,
+Passwort-Reset beim Benutzernamenedit,
+Restore auf aktuell ausgewähltes Grid begrenzt,
+HTTP-Zustimmung bei geänderten Speicheroptionen
+oder Teleportziel ungültig. 20/20
+separat verifizierte Arbeitspositionen;
+154 Python-Tests, 41 native Tests,
+Hauptgrid-/Beta-/Final-GUI-Läufe bestanden.
+Vorige Menü-/Privacy-Korrektur: `d364f3e1`.
 Voranmelde-Quit, Skalierung und Beta-Sperre sind geprüft.
 **Weiter offen:** autorisierter Hauptgrid-Live-Login,
 gespeicherte Passwortwiederherstellung, In-World-Shutdown
