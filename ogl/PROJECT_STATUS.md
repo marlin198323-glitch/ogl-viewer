@@ -32,6 +32,100 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – /goal-Durchlauf: HTTP-Zustimmung wirklich nur einmal
+
+**Code-Commit `a7490d9f`**, Branch `ogl-develop`.
+**20/20 unabhängige technische Arbeits-/Prüfpositionen
+dieser Runde bestanden.** Die formale P01-Phase
+bleibt **18/20 Phasenblöcke**: Weder echte
+Hauptgrid-Anmeldedaten noch vollständige
+Windows-/macOS-Viewer-Buildnachweise lagen vor.
+
+**Umsetzung:**
+
+- `oglnexversegrid.h`, `fspanellogin.cpp` und
+  `llstartup.cpp`: Die alte globale Freigabe
+  `gHTTPLoginApprovedThisSession` durch
+  `gHTTPLoginApprovedForNextAttempt` ersetzt.
+  Die Freigabe „Einmal fortfahren“ wird direkt
+  **nach** `login->connect(gUserCredential)`
+  verbraucht. Ein weiterer Versuch muss die
+  HTTP-Risikoabfrage erneut bestätigen.
+  Die separat gespeicherte Zustimmung wird nur
+  bei expliziter Wahl „Zustimmung speichern“
+  gesetzt und funktioniert weiterhin nur für
+  die exakt festgelegte Hauptgrid-URI.
+- Fehlende, falsch formatierte Credentials,
+  abgewiesene Beta-/unbekannte Endpunkte sowie
+  Loginformular-Änderungen (Passwort, Username,
+  gespeichertes Konto, Grid, Startort,
+  Speicheroptionen, Loginfenster-Neuaufbau)
+  entziehen die nur einmalige Berechtigung.
+  Der Nicht-OGL-Kompatibilitätspfad behält
+  seine bisherige Funktion.
+- In den vorhandenen DE-/EN-Benachrichtigungen
+  `OGLHTTPLoginWarning` die bisher irreführende
+  Angabe „Für diese Sitzung / This session“
+  durch **„Einmal fortfahren / Continue once“**
+  und die entsprechende Erklärung ersetzt.
+  Die Standardaktion bleibt „Abbrechen“.
+- Bestehende Python-/native Tests um die
+  Einmal-Konsumierung und die Unabhängigkeit
+  der bewusst gespeicherten Zustimmung
+  ergänzt. **Keine neuen Projektdateien**.
+
+**20/20 geprüfte Einzelpositionen:**
+01 Branch; 02 keine neuen Projektdateien;
+03 gepinnte Hauptgrid-URI; 04 Beta-Trennung;
+05 exaktes URI-Pinning; 06 standardmäßig
+keine Freigabe; 07 Konsumierungsfunktion;
+08 getrennte gespeicherte Zustimmung;
+09 einmalige Freigabe durch expliziten
+Dialog-Callback; 10 dauerhafte Speicherung
+nur über „Zustimmung speichern“;
+11 Entzug bei Formularänderungen;
+12 Credentialtyp-Prüfung; 13 Entzug bei
+ungültigem Credential; 14 Beta-Rücksetzung;
+15 Rücksetzung bei fremder URI;
+16 Rücksetzung bei verweigerter Einwilligung;
+17 Konsum nach Netzwerk-Login-Aufruf;
+18 korrekte EN-/DE-Texte; 19 vollständiger
+Linux-Build mit Python- und nativen
+Regressionsprüfungen; 20 reale Hauptgrid-
+und Beta-GUI-Negativtests.
+Ein anfänglich auf den falschen Quelltextbereich
+begrenzter Check 14 wurde am tatsächlichen
+Beta-Startpfad nachgeprüft und bestanden.
+
+**Messungen:** `bash ogl/scripts/build-test.sh`
+komplett erfolgreich, einschließlich
+**159/159 Python-Tests und 41/41 native CTests**
+und vollständigem Linux-Viewer-Staging.
+Hauptgrid unter Xvfb 1280×720: Loginfenster
+bereit, HTTP-Warnung mit künstlichen Eingaben,
+keine Zustimmung/Netzwerkanmeldung,
+regulärer Exit **0** und WM-Klasse `ogl-viewer`.
+Beta unter eigenem Testprofil: Anmeldeversuch
+mit künstlichen Eingaben abgelehnt, kein
+`STATE_LOGIN_AUTH_INIT`, sauberer Exit **0**.
+Der einmalige **erfolgreiche** Anmeldeversuch
+wurde mangels autorisierten Hauptgrid-Testkontos
+nicht Ende-zu-Ende ausgeführt. Die native
+Policy-Regression prüft den Wechsel von
+„einmal erlaubt“ zu „erneut gesperrt“;
+gespeicherte Zustimmung bleibt unabhängig.
+
+**Weiterer Abschlussblocker:** autorisierter
+Hauptgrid-Live-Login, Passwortwiederherstellung
+nach erfolgreichem Login, In-World-Shutdown
+und vollständige Windows-/macOS-Viewer-
+Build-/Laufzeitnachweise.
+Portable GitHub-Grafik-CI ist dafür kein Ersatz.
+**Nächster Einstieg P01 Block 19/20**;
+unabhängige Arbeiten können fortgesetzt werden,
+P02 formell erst nach nachgewiesener P01-Abnahme
+ohne manuelle Nutzerzwischenprüfung.
+
 ## P01 Block 19 – /goal-Durchlauf: sichere Startort-Links
 
 **Code-Commit `e4f33c5a`, Branch `ogl-develop`.**

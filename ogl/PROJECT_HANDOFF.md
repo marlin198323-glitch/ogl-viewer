@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `e4f33c5a`, 20/20 Startort-/Prelogin-Sicherheitsprüfungen grün. Interne Standortlinks setzen bei OGL nur die Zielregion, lösen keinen automatischen Login aus; fremde Grids sowie ungültige/NaN-/Inf-Koordinaten werden abgewiesen, OGL-Hilfe nutzt NexVerse-Portal. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `a7490d9f`, 20/20 Einmal-HTTP-Zustimmungs-/Grid-Prüfungen grün. „Einmal fortfahren“ wird am Netzwerk-Login verbraucht; formularbedingte Änderungen und abgelehnte Anmeldungen entziehen sie. „Zustimmung speichern“ bleibt unabhängig und exakt URI-gepinnt; DE/EN-Texte berichtigt. Kein autorisierter Hauptgrid-Live-Login, keine gespeicherte Anmeldung/3D-Exit-Abnahme oder vollständige Windows-/macOS-Viewer-Builds).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

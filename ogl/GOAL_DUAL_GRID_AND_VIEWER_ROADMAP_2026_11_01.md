@@ -208,16 +208,18 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter Code-Commit `e4f33c5a`: Standortlinks
-setzen bei OGL nur erlaubte Startorte; kein
-unbeabsichtigter automatischer Login, ungültige
-und nicht-endliche Koordinaten abgewiesen,
-Login-Hilfe über NexVerse-Portal.
-20/20 zusätzliche Arbeits- und Prüfpositionen
-grün, 157 Python- und 41 native Tests,
-isolierte Hauptgrid-/Beta-GUI-Negativläufe
-bestanden. Vorige Credential-Isolation:
-`a35f6caa`.
+Letzter Code-Commit `a7490d9f`:
+„Einmal fortfahren“ ist wieder tatsächlich
+nur **ein** HTTP-Loginversuch, danach
+erlischt die Einmal-Freigabe. Geänderte
+Formularwerte und abgelehnte Logins
+ziehen sie zurück; gespeicherte Zustimmung
+bleibt getrennt. DE-/EN-Dialoge korrigiert,
+20/20 neue technische Prüfpositionen,
+159 Python-Tests, 41 native CTests,
+Hauptgrid-/Beta-GUI-Negativläufe grün.
+Vorherige Startort-Sicherheitskorrektur:
+`e4f33c5a`.
 Voranmelde-Quit, Skalierung und Beta-Sperre sind geprüft.
 **Weiter offen:** autorisierter Hauptgrid-Live-Login,
 gespeicherte Passwortwiederherstellung, In-World-Shutdown
