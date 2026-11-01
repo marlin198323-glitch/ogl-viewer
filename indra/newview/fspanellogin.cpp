@@ -220,9 +220,15 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
 
     // RT diagnostics belong in graphics settings and logs, not the login UI.
 
-    LLUICtrl& mode_combo = getChildRef<LLUICtrl>("mode_combo");
-    mode_combo.setValue(gSavedSettings.getString("SessionSettingsFile"));
-    mode_combo.setCommitCallback(boost::bind(&FSPanelLogin::onModeChange, this, getChild<LLUICtrl>("mode_combo")->getValue(), _2));
+    // Only non-OGL legacy panels expose the old viewer-style selector.
+    // Keep its callbacks for upstream compatibility, not the OGL login.
+    if (APP_NAME != "OGL")
+    {
+        LLUICtrl& mode_combo = getChildRef<LLUICtrl>("mode_combo");
+        mode_combo.setValue(gSavedSettings.getString("SessionSettingsFile"));
+        mode_combo.setCommitCallback(boost::bind(&FSPanelLogin::onModeChange,
+            this, mode_combo.getValue(), _2));
+    }
 
     LLLineEditor* password_edit(getChild<LLLineEditor>("password_edit"));
     password_edit->setKeystrokeCallback(onPassKey, this);
@@ -268,9 +274,11 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
     }
 
 #ifdef OPENSIM
-    LLTextBox* grid_builder_text = getChild<LLTextBox>("grid_builder_text");
-    grid_builder_text->setClickedCallback(onClickGridBuilder, NULL);
-    grid_builder_text->setVisible(APP_NAME != "OGL");
+    if (APP_NAME != "OGL")
+    {
+        LLTextBox* grid_builder_text = getChild<LLTextBox>("grid_builder_text");
+        grid_builder_text->setClickedCallback(onClickGridBuilder, NULL);
+    }
 #endif
 
     LLSLURL start_slurl(LLStartUp::getStartSLURL());

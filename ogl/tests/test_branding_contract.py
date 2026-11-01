@@ -99,7 +99,7 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertEqual(by_name["2nd_row"].get("height"), "58")
         self.assertEqual(by_name["login_html"].get("height"), "610")
         self.assertEqual(by_name["login_html"].get("follows"), "all")
-        self.assertEqual(by_name["mode_selection"].get("visible"), "false")
+        self.assertNotIn("mode_selection", by_name)
         self.assertEqual(by_name["grid_panel"].get("visible"), "true")
         for name in ("username_combo", "password_edit", "server_combo",
                      "start_location_combo", "remember_username_check",
@@ -116,6 +116,30 @@ class OGLBrandingContract(unittest.TestCase):
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
         self.assertNotIn("ogl_graphics_status", self.source(
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml"))
+
+    def test_ogl_legacy_login_controls_removed_from_every_locale(self):
+        paths = sorted((ROOT / 'indra/newview/skins').glob(
+            '*/xui/*/panel_fs_nui_login.xml'))
+        self.assertEqual(len(paths), 12)
+        for path in paths:
+            root = ET.parse(path).getroot()
+            names = {node.get('name') for node in root.iter() if node.get('name')}
+            for obsolete in ('mode_selection', 'mode_selection_text',
+                             'mode_combo', 'grid_builder_text'):
+                self.assertNotIn(obsolete, names, str(path))
+            self.assertIn('ui_stack', names, str(path))
+        cpp = self.source('indra/newview/fspanellogin.cpp')
+        self.assertIn('if (APP_NAME != "OGL")', cpp)
+        self.assertIn('LLUICtrl& mode_combo', cpp)
+        self.assertIn('LLTextBox* grid_builder_text', cpp)
+        self.assertIn('buildFromFile( "panel_fs_login.xml")', cpp)
+        self.assertIn('getChild<LLUICtrl>("mode_combo")->setValue(original_value)', cpp)
+        for path in sorted((ROOT / 'indra/newview/skins').glob(
+            '*/xui/*/panel_fs_login.xml')):
+            ET.parse(path)
+        # Retain source and license assets of old alternative skins, even
+        # though the OGL startup always uses the canonical new login.
+        self.assertTrue((ROOT / 'indra/newview/skins/default/xui/en/panel_fs_login.xml').is_file())
 
     def test_fixed_grid_selector_and_saved_account_callbacks(self):
         xui = ROOT / "indra/newview/skins/default/xui"
@@ -164,7 +188,7 @@ class OGLBrandingContract(unittest.TestCase):
             names = {n.get("name") for n in root.iter()}
             for required in ("ui_stack", "username_combo", "password_edit",
                              "connect_btn", "server_combo", "remember_check",
-                             "mode_combo", "login_html"):
+                             "login_html"):
                 self.assertIn(required, names)
             self.assertNotIn("login_fs_logo", file.read_text())
 

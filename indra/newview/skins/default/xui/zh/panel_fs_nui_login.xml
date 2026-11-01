@@ -36,18 +36,6 @@
 							<text name="grid_login_text">
 								網路:
 							</text>
-							<text name="grid_builder_text">
-								+ 新增更多類比網格
-							</text>
-						</layout_panel>
-						<layout_panel name="mode_selection">
-							<text name="mode_selection_text">
-								模式:
-							</text>
-							<combo_box name="mode_combo" tool_tip="選擇您最熟悉的檢視器樣式，以便根據您的需求進行調整。">
-								<combo_box.item label="混合" name="Hybrid" />
-								<combo_box.item label="文字" name="Text" />
-							</combo_box>
 						</layout_panel>
 					</layout_stack>
 				</layout_panel>

@@ -55,7 +55,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('server_choice_combo->selectFirstItem()', self.panel)
         self.assertIn("Rejected unlisted grid selection.", self.panel)
         self.assertIn("OGLNexVerseGrid::isFixedGrid(server_combo_val.asString())", self.panel)
-        self.assertIn('grid_builder_text->setVisible(APP_NAME != "OGL")', self.panel)
+        self.assertIn('grid_builder_text->setClickedCallback(onClickGridBuilder, NULL)', self.panel)
 
     def test_ogl_dropdown_contains_exactly_two_nonduplicated_grids(self):
         panel = self.panel

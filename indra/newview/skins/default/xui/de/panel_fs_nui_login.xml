@@ -42,19 +42,6 @@
 							<text name="grid_login_text">
 								WELT:
 							</text>
-							<text name="grid_builder_text">
-								+ Klicken um Grids hinzuzufügen
-							</text>
-						</layout_panel>
-						<layout_panel name="mode_selection">
-							<text name="mode_selection_text">
-								ANSICHT:
-							</text>
-							<combo_box name="mode_combo" tool_tip="Wählen Sie, welcher Viewer-Style Ihnen am meisten vertraut ist, um die Standards Ihren Bedürfnissen anzupassen.">
-								<combo_box.item label="Modern" name="Modern"/>
-								<combo_box.item label="Hybrid" name="Hybrid"/>
-								<combo_box.item label="Text" name="Text"/>
-							</combo_box>
 						</layout_panel>
 					</layout_stack>
 				</layout_panel>
