@@ -178,7 +178,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
             self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
         self.assertIn('const std::string consent_grid =', panel)
         self.assertIn('const std::string consent_account =', panel)
-        self.assertIn('[consent_grid, consent_account]', panel)
+        self.assertIn('[consent_grid, consent_account, consent_revision]', panel)
         self.assertIn('Ignored stale HTTP login approval.', panel)
         self.assertIn('sInstance->getChild<LLComboBox>("server_combo")->getSelectedValue().asString() != consent_grid', panel)
         self.assertIn('getValue().asString() != consent_account', panel)
@@ -193,6 +193,23 @@ class StadtNexVerseGridTests(unittest.TestCase):
                        if e.get('name') == 'OGLUnexpectedGridEndpoint']
             self.assertEqual(len(matches), 1)
             self.assertGreater(len((matches[0].text or '').strip()), 60)
+
+    def test_password_edits_invalidate_pending_http_consent_without_capturing_secret(self):
+        panel = self.panel
+        self.assertIn('static U64 sOGLLoginFormRevision = 0;', panel)
+        self.assertIn('const U64 consent_revision = sOGLLoginFormRevision;', panel)
+        self.assertIn('[consent_grid, consent_account, consent_revision]', panel)
+        self.assertIn('sOGLLoginFormRevision != consent_revision', panel)
+        self.assertNotIn('consent_password', panel)
+        self.assertNotIn('consent_secret', panel)
+        self.assertIn('++sOGLLoginFormRevision; // password edited', panel)
+        self.assertIn('++sOGLLoginFormRevision; // loading saved credentials', panel)
+        self.assertIn('++sOGLLoginFormRevision; // invalidate approvals from older panels', panel)
+        for hook in ('void FSPanelLogin::onUsernameTextChanged()',
+                     'void FSPanelLogin::clearLoginFieldsForGridChange()',
+                     'void FSPanelLogin::onSelectUser()'):
+            part = panel[panel.index(hook):]
+            self.assertIn('++sOGLLoginFormRevision;', part[:2200])
 
     def test_beta_warning_and_http_consent_are_localized(self):
         for language in ("en", "de"):

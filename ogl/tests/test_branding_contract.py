@@ -33,6 +33,27 @@ class OGLBrandingContract(unittest.TestCase):
         panel = self.source("indra/newview/skins/default/xui/en/panel_fs_nui_login.xml")
         self.assertIn('image_name="login_ogl_logo"', panel)
 
+    def test_ogl_welcome_url_omits_firestorm_telemetry(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        start = cpp.index('void FSPanelLogin::loadLoginPage()')
+        stop = cpp.index('void FSPanelLogin::handleMediaEvent(', start)
+        body = cpp[start:stop]
+        self.assertIn('OGLNexVerseGrid::kWelcomeURI', body)
+        self.assertIn('params["lang"] = LLUI::getLanguage()', body)
+        self.assertIn('params["channel"] = LLVersionInfo::getInstance()->getChannel()', body)
+        self.assertIn('params["grid"] = LLGridManager::getInstance()->getGridId()', body)
+        self.assertIn('if (APP_NAME != "OGL")', body)
+        self.assertLess(body.index('if (APP_NAME != "OGL")', body.index('// The OGL welcome page')),
+                        body.index('params["os"]'))
+        self.assertIn('params["sourceid"]', body)
+        self.assertIn('params["skin"]', body)
+        self.assertIn('params["login_content_version"]', body)
+        self.assertIn('params[m.second]', body)
+        self.assertLess(body.index('params[m.second]'),
+                        body.index('// Make an LLURI with this augmented info'))
+        self.assertNotIn('params["password"]', body)
+        self.assertNotIn('params["username"]', body)
+
     def test_nexverse_background_and_https_auth_guard(self):
         source = self.source("indra/newview/fspanellogin.cpp")
         self.assertIn("OGLNexVerseGrid::kWelcomeURI", source)

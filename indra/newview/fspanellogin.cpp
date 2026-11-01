@@ -90,6 +90,10 @@ bool FSPanelLogin::sCredentialSet = false;
 std::string FSPanelLogin::sPassword = "";
 std::string FSPanelLogin::sPendingNewGridURI{};
 
+// Monotonic per-process edit revision, deliberately independent from the
+// panel lifetime. HTTP approval callbacks retain this number, never secrets.
+static U64 sOGLLoginFormRevision = 0;
+
 // Helper for converting a user name into the canonical "Firstname Lastname" form.
 // For new accounts without a last name "Resident" is added as a last name.
 static std::string canonicalize_username(const std::string& name);
@@ -198,6 +202,8 @@ FSPanelLogin::FSPanelLogin(const LLRect &rect,
     mShowPassword     = false;
 
     sInstance = this;
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision; // invalidate approvals from older panels
 
     LLView* login_holder = gViewerWindow->getLoginPanelHolder();
     if (login_holder)
@@ -576,6 +582,8 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
         LL_WARNS("Credentials") << "No stored credential available for login fields." << LL_ENDL;
         return;
     }
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision; // loading saved credentials changes the form
     // The credential object's stream representation can contain secrets.
     // Never write it, a plaintext password or authentication hash to logs.
     LL_DEBUGS("Credentials") << "Restoring login fields from credential store." << LL_ENDL;
@@ -999,8 +1007,14 @@ void FSPanelLogin::loadLoginPage()
     // Grid
     params["grid"] = LLGridManager::getInstance()->getGridId();
 
-    // add OS info
-    params["os"] = LLOSInfo::instance().getOSStringSimple();
+    // The OGL welcome page needs only language, channel/version and the
+    // selected public world. Do not disclose OS, sourceid or Firestorm skin
+    // preferences to the web page. Keep the upstream splash parameters in
+    // the non-OGL compatibility path.
+    if (APP_NAME != "OGL")
+    {
+        // add OS info
+        params["os"] = LLOSInfo::instance().getOSStringSimple();
 
     // sourceid
     params["sourceid"] = gSavedSettings.getString("sourceid");
@@ -1033,6 +1047,7 @@ void FSPanelLogin::loadLoginPage()
 	{
 		params[m.second] = gSavedSettings.getBOOL(m.first) ? "1" : "0";
 	}
+    }
 
     // Make an LLURI with this augmented info
     std::string url = login_page.scheme().empty()? login_page.authority() : login_page.scheme() + "://" + login_page.authority();
@@ -1166,8 +1181,9 @@ void FSPanelLogin::onClickConnect(void *)
                         LLGridManager::getInstance()->getGrid();
                     const std::string consent_account =
                         sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString();
+                    const U64 consent_revision = sOGLLoginFormRevision;
                     LLNotificationsUtil::add("OGLHTTPLoginWarning", LLSD(), LLSD(),
-                        [consent_grid, consent_account](const LLSD& notification, const LLSD& response)
+                        [consent_grid, consent_account, consent_revision](const LLSD& notification, const LLSD& response)
                         {
                             const S32 option = LLNotificationsUtil::getSelectedOption(
                                 notification, response);
@@ -1178,6 +1194,7 @@ void FSPanelLogin::onClickConnect(void *)
                                 std::vector<std::string> current_uris;
                                 LLGridManager::getInstance()->getLoginURIs(current_uris);
                                 if (!sInstance ||
+                                    sOGLLoginFormRevision != consent_revision ||
                                     LLGridManager::getInstance()->getGrid() != consent_grid ||
                                     sInstance->getChild<LLComboBox>("server_combo")->getSelectedValue().asString() != consent_grid ||
                                     sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString() != consent_account ||
@@ -1362,6 +1379,8 @@ void FSPanelLogin::onClickHelp(void*)
 void FSPanelLogin::onPassKey(LLLineEditor* caller, void* user_data)
 {
     FSPanelLogin *self = (FSPanelLogin *)user_data;
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision; // password edited, even if account unchanged
     self->mPasswordModified = true;
     if (gKeyboard->getKeyDown(KEY_CAPSLOCK) && sCapslockDidNotification == false)
     {
@@ -1417,6 +1436,8 @@ void FSPanelLogin::updateLoginButtons()
 
 void FSPanelLogin::clearLoginFieldsForGridChange()
 {
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision;
     // This applies to both manual grid changes and grid-bearing SLURLs.
     // Never reuse a plaintext entry or a saved-password filler from the
     // previous world's login form. Preserve encrypted stored credentials.
@@ -1769,6 +1790,8 @@ void FSPanelLogin::onSelectUser()
     {
         return;
     }
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision;
 
     LLSD combo_val = combo->getSelectedValue();
     if (combo_val.isUndefined())
@@ -1938,6 +1961,8 @@ bool FSPanelLogin::getShowFavorites()
 
 void FSPanelLogin::onUsernameTextChanged()
 {
+    if (APP_NAME == "OGL")
+        ++sOGLLoginFormRevision;
     mUsernameLength = getChild<LLUICtrl>("username_combo")->getValue().asString().length();
     updateLoginButtons();
 }
