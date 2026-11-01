@@ -208,12 +208,15 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter Code-Commit `15162927`: sichere Kontoauswahl
-über beide festen NexVerse-Welten, Formularreset vor
-Übernahme fremder Credentials, leere Loginfelder bereits
-vor HTTP-Zustimmung abgefangen; zusätzliche 20/20
-technische Prüfpositionen bestanden (147 Python-,
-41 native Tests und drei echte GUI-Negativprüfungen).
+Letzter Code-Commit `d364f3e1`: konsequenter
+Opt-out von Benutzername-/Passwortspeicherung
+und AutoLogin auch im frühen Startpfad; bisherige
+Firestorm-Promotion-/Support-Menüs durch OGL-
+Portalzugänge ersetzt, 26 Menü-XUI geprüft.
+20/20 technische Prüfpositionen dieser Runde,
+150 Python- und 41 native Tests sowie
+isolierte GUI-Opt-out-/Neustarttests bestanden.
+Vorige Kontotrennung: `15162927`.
 Voranmelde-Quit, Skalierung und Beta-Sperre sind geprüft.
 **Weiter offen:** autorisierter Hauptgrid-Live-Login,
 gespeicherte Passwortwiederherstellung, In-World-Shutdown

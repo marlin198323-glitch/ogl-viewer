@@ -32,6 +32,102 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 – /goal-Sammelrunde: Speicher-Opt-out und OGL-Menüs
+
+**Code-Commit:** `d364f3e1` auf `ogl-develop`.
+**20/20 getrennte technische Prüfpositionen bestanden; dies
+sind nicht die 20 formalen Phasenblöcke. P01 weiterhin 18/20.**
+Block 19 kann erst nach tatsächlichen Live-/Plattform-
+Abschlussnachweisen geschlossen werden.
+
+**Konkrete Implementierung, nur an vorhandenen Pfaden:**
+
+- `indra/newview/fspanellogin.cpp`: OGL wertet das
+  Abwählen von „Benutzername speichern“ nun
+  vollständig aus: `UserLoginInfo` wird gelöscht,
+  `RememberPassword` und `AutoLogin` werden
+  deaktiviert, und die Passwortspeicher-Checkbox
+  wird sichtbar abgewählt. Auch beim Öffnen eines
+  migrierten Profils mit bereits deaktivierter
+  Benutzernamenspeicherung werden alte
+  Passwort-/AutoLogin-Einstellungen korrigiert.
+  **Keine** bestehenden, bewusst gespeicherten
+  Konten pauschal aus dem geschützten Speicher
+  gelöscht; Löschung bleibt eine individuelle
+  Nutzeraktion.
+- `indra/newview/llstartup.cpp`: Derselbe Opt-out
+  wird **vor** der automatischen Loginentscheidung
+  durchgesetzt. Ein früheres AutoLogin-Flag kann
+  die Datenschutzpräferenz nicht still umgehen.
+  Ein ausdrücklicher Login über das geöffnete
+  Formular bleibt möglich.
+- Die vorhandenen Menü-XUI-Dateien für Anmelde-
+  und Weltmenüs aller betroffenen Sprachen sind
+  bereinigt. Firestorm-Blog-/Social-/Support-
+  Promotions entfernt, alte Wiki-Hilfe ersetzt
+  durch **NexVerse Portal / NexVerse Help** mit
+  bekanntem Projektlink `https://stadt-nexverse.de/`.
+  Internes Quellcode-/OpenSim-Verhalten sowie
+  das „Über [APP_NAME]“-Fenster für rechtlich
+  nötige Lizenzhinweise bleiben erhalten.
+  Die Menüs wurden als XML und durch
+  Quellcode-Regressionstests geprüft; ein
+  manueller Klick auf jeden Navigationspunkt
+  wurde nicht als bestanden behauptet.
+- Regressionstest in der bestehenden
+  `ogl/tests/test_branding_contract.py` erweitert.
+  Keine neuen Quellprojektdateien, keine .bak-
+  Kopien oder Änderungen an echten Nutzerprofilen.
+
+**20 geprüfte Positionen dieser Runde:**
+01 Branch; 02 keine neuen Projektdateien;
+03 XML-Validität aller 26 Menu-Overlays;
+04 keine sichtbaren Firestorm-Menütexte;
+05 alte Social-/Supportmenüs entfernt;
+06 NexVerse-Portal im Login-Menü;
+07 NexVerse-Portal im Weltmenü;
+08 korrekte Portal-URLs; 09 keine alten
+Firestorm-/Phoenix-URLs in EN-Menüs;
+10 Viewer-/Lizenz-About-Eintrag erhalten;
+11 Grid-Hilfe erhalten; 12 Benutzerkennung
+beim Opt-out entfernt; 13 Passwortspeichern
+deaktiviert; 14 AutoLogin deaktiviert;
+15 Startup-Entscheidung respektiert Opt-out;
+16 vorhandene gesicherte Konten nicht
+ungefragt gelöscht; 17 vollständiger
+Linux-Mint-Build samt **150/150 Python-
+Tests** und **41/41 nativen CTests**;
+18 GUI-Start mit künstlichem Widerspruch
+`FSRememberUsername=false`,
+`RememberPassword=true`, `AutoLogin=true`:
+Loginfenster statt Netzwerkanmeldung,
+`RememberPassword=0`, sauberer Quit;
+19 echter GUI-Klick auf „Benutzername
+speichern“ mit `FSRememberUsername=0`
+und `RememberPassword=0` als gespeicherte
+Werte; 20 erneuter Viewerstart mit
+demselben isolierten Profil, Werte
+weiterhin 0, keine Authentifizierung
+und Exit-Code 0. **Alle 20 bestanden.**
+
+**Unveränderte externe P01-Blocker:** Kein
+autorisierter erfolgreicher Hauptgrid-Login
+und daher kein vollständiger Nachweis
+einer gespeicherten Passwortanmeldung
+oder eines In-World-Shutdowns;
+keine kompletten Windows-/macOS-
+Viewer-Build-/GUI-Tests. Portable
+GitHub-CI allein ersetzt sie nicht.
+Die alte upstream-Dateiliste `_v2`/
+`script_copy` wurde erneut inventarisiert;
+keine Löschung ohne Abhängigkeitsbeleg.
+
+**Weiter:** `/goal P01 Block 19/20`;
+unabhängige sichtbare P02-Navigations-
+Vorarbeiten können bei echten Blockern
+fortgesetzt werden, der formale Start
+von P02 bleibt jedoch an P01 gebunden.
+
 ## P01 – /goal-Sammelrunde: Kontotrennung und Eingabeprüfung
 
 **Code-Commit:** `15162927` auf `ogl-develop`.

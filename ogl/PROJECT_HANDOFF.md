@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `15162927`, 20/20 Kontowechsel- und Eingabeprüfungen bestanden. Konten aus anderen Grids werden erst nach dem vollständigen Reset erneut auswählbar; leere Eingaben lösen keine HTTP-Warnung aus. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `d364f3e1`, 20/20 Opt-out-/Navigationsprüfungen grün. Unchecking „Benutzername speichern“ deaktiviert Passwortspeichern und AutoLogin; alte Firestorm-Menüpromotions wurden aus Login-/Weltmenüs entfernt und NexVerse-Portalhilfe verlinkt. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

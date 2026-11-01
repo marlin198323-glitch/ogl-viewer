@@ -98,6 +98,18 @@ GUI smoke tests succeeded. P01 remains 18/20: authenticated
 login, password persistence, in-world shutdown and full
 Windows/macOS viewer builds are not yet verified.
 
+P01 block-19 progress `d364f3e1`: Login and world menu XUI overlays
+now omit visible Firestorm promotions, social links and Wiki/support
+destinations. OGL help links use the existing Stadt NexVerse portal;
+the About dialog and required upstream copyright notices remain.
+All 26 existing menu locale overlays parsed successfully. Privacy
+opt-out disables RememberPassword and AutoLogin at checkbox commit,
+at login panel construction and before the startup AutoLogin branch.
+Synthetic isolated Linux GUI tests confirmed this state persisted
+after a real viewer restart without transmitting credentials. The
+full Linux build, 150 Python tests and 41 native CTests passed.
+P01 remains 18/20 pending authentic grid and full-platform evidence.
+
 ## HTTP login compatibility
 
 The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.
