@@ -23,6 +23,27 @@ This is the development branch, not a production-ready OGL release.
   acknowledgments are retained. The executable may retain upstream internal
   code names and still includes upstream Firestorm features.
 
+## P01 – Login modernization in progress (2026-11-01)
+
+The default OGL login panel now uses a compact 140-unit footer instead of
+152 units, with shared OGL colors in the existing `skins/default/colors.xml`.
+The standard NexVerse welcome browser remains unchanged and the two fixed
+grids retain their existing security guards. OpenGL/Vulkan RT diagnostics
+have been removed from the login panel; renderer logging and diagnostics
+elsewhere are untouched. The legacy mode selector is hidden in the OGL
+login while saved settings remain available internally. Both remembered
+username and password controls remain intact and keyboard accessible.
+English and German UI overrides are checked by static tests.
+
+Account creation and forgotten-password actions for OGL open the
+verified NexVerse homepage, not the upstream Firestorm/Second Life site.
+A dedicated recovery URL still needs verification before use. No change
+was made to secrets, credentials or the live account system.
+
+A full local Linux viewer build, 120 Python tests and 41 native tests
+passed. No live grid-login/UI scaling or Windows/macOS installer
+validation has been claimed. P01 remains open at block 7/20.
+
 ## HTTP login compatibility
 
 The fixed Stadt NexVerse login endpoint is `http://hg.stadt-nexverse.de:80/`.

@@ -8,8 +8,8 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Nächster Block:** `/goal P01 Block 1/20` – Branding
-und moderner Login. **Keine manuelle Abnahme erforderlich.**
+**Nächster Block:** `/goal P01 Block 7/20` – Eingabefelder, Skalierung
+und echte HiDPI-/Login-Regression. **Keine manuelle Abnahme erforderlich.**
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -17,7 +17,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
-| P01 – Branding und modernes Login | bereit | 0/20 | Block 1 beginnen |
+| P01 – Branding und modernes Login | aktiv | 6/20 | Block 7: Felder und DPI prüfen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
@@ -30,6 +30,52 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P01 – technische Arbeitsrunde vom 01.11.2026
+
+**Verifizierter Code-Commit:** `9c29aba6` auf `ogl-develop`.
+**Sequenziell abgeschlossene Blöcke: 1–6 (6/20).** Das XUI-/C++-
+Login und die bestehenden OGL-Branding-Elemente wurden inventarisiert,
+die zwei festgelegten Grids mit den vorhandenen Sicherheitsverträgen
+abgeglichen, sichtbare alte Login-Auswahl/RT-Debugtexte identifiziert,
+eine gemeinsame Login-Farbpalette in der vorhandenen `colors.xml`
+hinterlegt, die bestehende NexVerse-Welcome-URL beibehalten und
+die untere Loginleiste von 152 auf 140 Einheiten verkleinert.
+
+**Weitere bereits technisch bearbeitete Punkte (nicht als
+sequenzieller 7–20-Fortschritt verbucht):** Login-RTX-Debugstatus samt
+Abhängigkeit entfernt (11–13), alte Phoenix/Firestorm-Modusauswahl im
+OGL-Login ausgeblendet, Sprachtexte Englisch/Deutsch aktualisiert (15),
+Tastaturzugänglichkeit der beiden Speichern-Checkboxen verbessert (14),
+Konto- und Passwort-Hinweislinks auf die verifizierte NexVerse-
+Website statt Second Life/Firestorm geführt (10), altes
+`showLoginWidgets()`-Layoutziel für OGL korrigiert. Es gibt **noch
+keine dokumentierte direkte Passwort-zurücksetzen-URL**; die
+aktuelle sichere Zwischenlösung öffnet lediglich die Portal-Startseite.
+
+**Prüfungen lokal Linux Mint:** `bash ogl/scripts/build-test.sh`
+erfolgreich, vollständiges Viewer-Binary kompiliert und
+Release-Staging erzeugt, **120/120 Python-Tests** und
+**41/41 native CTest-Tests** erfolgreich; `git diff --check` ohne
+Fehler. Die Beta-Login-Sperre, feste Grid-Auswahl und
+explizite HTTP-Einwilligung bleiben in den Sicherheitstests grün.
+Keine neue Projektdatei angelegt. Duplikat-/Altbestand-Audit:
+`git ls-files` auf *_neu, *_v2, *.bak und Kopie-Namen geprüft;
+gefundenes upstream-notwendiges `client_list_v2.xml` sowie
+Funktionsressourcen mit „copy“ nicht blind gelöscht.
+
+**Noch offen:** Blöcke 7–20 inklusive tatsächlicher GUI-Prüfung auf
+720p–4K/HiDPI, Speichern und Wiederherstellen der Zugangsdaten,
+sichtbarer Gridwechsel, bestätigtes öffentliches Grid-Login,
+vollständiger sichtbarer OGL-Rebranding-Audit, UI-/Sicherheitsregression
+und relevante Windows-/macOS-CI. Ein lokaler Modul-/Linux-Build
+ist kein Beleg für plattformübergreifende Installer. **P01 bleibt
+aktiv**, kein Phasenabschluss und noch kein Übergang nach P02.
+
+**Nächster Arbeitsschritt:** `/goal P01 Block 7/20` –
+Login-Eingaben auf kleinen/großen Anzeigen und HiDPI sowie
+Breiten-/Fokusregression technisch absichern. Danach 8–20
+sequenziell abschließen und erst mit grünen Gates P02 starten.
 
 **Bestehende bereits geprüfte Teilfunktionen:** Öffentliche und
 Beta-Grid-Auswahl, OGL-Farbtheme-Panel und experimentelle
