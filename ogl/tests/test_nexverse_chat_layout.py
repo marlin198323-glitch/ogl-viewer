@@ -1,7 +1,7 @@
-"""Regression: untouched Firestorm chat skin, real *round* chat portraits.
+"""Regression: OGL/NexVerse chat with real avatars and preserved controls.
 
-No navy/neon themes, giant floaters, forced chat cards or synthetic
-messages may be introduced when maintaining this UI.
+Improve the layout without inventing messages, overriding user theme colors,
+or breaking the underlying voice and chat infrastructure.
 """
 import unittest
 import xml.etree.ElementTree as ET
@@ -17,41 +17,41 @@ def read_xui(relative):
     return ET.parse(XUI/relative).getroot()
 
 
-class OriginalFirestormChatTests(unittest.TestCase):
-    def test_original_contact_floater_geometry_and_gray_skin(self):
+class OGLNexVerseChatTests(unittest.TestCase):
+    def test_ogl_conversation_container_geometry_and_theme(self):
         box=read_xui("floater_fs_im_container.xml")
-        self.assertEqual(box.get("height"),"390")
-        self.assertEqual(box.get("width"),"396")
+        self.assertEqual(box.get("height"),"432")
+        self.assertEqual(box.get("width"),"500")
         tabs=box.find(".//tab_container[@name='im_box_tab_container']")
         self.assertIsNotNone(tabs)
-        self.assertEqual(tabs.get("width"),"394")
-        self.assertEqual(tabs.get("tab_width"),"115")
+        self.assertEqual(tabs.get("width"),"498")
+        self.assertEqual(tabs.get("tab_width"),"132")
         self.assertEqual(tabs.get("tab_height"),"20")
         self.assertEqual(tabs.get("tab_position"),"left")
-        # Only deliberate visual difference: REAL profile images on tabs.
+        # Real profile images and tab functionality remain intact.
         self.assertEqual(tabs.get("use_custom_icon_ctrl"),"true")
         self.assertIsNone(box.get("bg_opaque_color"))
 
-    def test_original_im_floater_and_send_button(self):
+    def test_ogl_im_floater_and_send_button(self):
         chat=read_xui("floater_fs_im_session.xml")
-        self.assertEqual(chat.get("height"),"332")
-        self.assertEqual(chat.get("width"),"394")
-        self.assertEqual(chat.get("min_width"),"250")
-        self.assertEqual(chat.get("min_height"),"150")
+        self.assertEqual(chat.get("height"),"392")
+        self.assertEqual(chat.get("width"),"460")
+        self.assertEqual(chat.get("min_width"),"320")
+        self.assertEqual(chat.get("min_height"),"220")
         self.assertIsNone(chat.get("bg_opaque_color"))
         self.assertIsNotNone(chat.find(".//fs_chat_history[@name='chat_history']"))
         send=chat.find(".//button[@name='send_chat']")
         self.assertIsNotNone(send)
-        # Original Firestorm choice of visible/hidden Send button.
+        # Keep the existing preference controlling Send button visibility.
         parent=chat.find(".//layout_panel[@name='input_button_layout_panel']")
         self.assertIsNotNone(parent)
         self.assertEqual(parent.get("visibility_control"),"FSShowIMSendButton")
         self.assertIsNotNone(chat.find(".//chat_editor[@name='chat_editor']"))
 
-    def test_original_nearby_and_mute_layout(self):
+    def test_ogl_nearby_and_mute_layout(self):
         chat=read_xui("floater_fs_nearby_chat.xml")
-        self.assertEqual(chat.get("height"),"332")
-        self.assertEqual(chat.get("width"),"394")
+        self.assertEqual(chat.get("height"),"392")
+        self.assertEqual(chat.get("width"),"440")
         self.assertIsNone(chat.get("bg_opaque_color"))
         self.assertIsNotNone(chat.find(".//fs_chat_history[@name='chat_history']"))
         self.assertIsNotNone(chat.find(".//fs_chat_history[@name='chat_history_muted']"))
@@ -59,16 +59,16 @@ class OriginalFirestormChatTests(unittest.TestCase):
         cpp=(VIEWER/"fsfloaternearbychat.cpp").read_text()
         self.assertNotIn("OGLModernConversationCards",cpp)
 
-    def test_original_chat_header_with_circular_real_photo(self):
+    def test_ogl_chat_header_with_circular_real_photo(self):
         row=read_xui("panel_chat_header.xml")
-        self.assertEqual(row.get("height"),"24")
+        self.assertEqual(row.get("height"),"34")
         self.assertEqual(row.get("bg_alpha_color"),"ChatHeaderAlphaBackground")
         self.assertEqual(row.get("bg_opaque_color"),"ChatHeaderOpaqueBackground")
         self.assertIsNone(row.get("bg_alpha_image"))
         icon=row.find(".//avatar_icon[@name='avatar_icon']")
         self.assertIsNotNone(icon)
-        self.assertEqual(icon.get("width"),"18")
-        self.assertEqual(icon.get("height"),"18")
+        self.assertEqual(icon.get("width"),"26")
+        self.assertEqual(icon.get("height"),"26")
         self.assertEqual(icon.get("circular"),"true")
         # Portrait stays visible regardless of old ShowChatMiniIcons preference.
         self.assertIsNone(icon.get("visibility_control"))
@@ -104,12 +104,12 @@ class OriginalFirestormChatTests(unittest.TestCase):
         avatar=item.find(".//avatar_icon")
         self.assertEqual(avatar.get("circular"),"true")
 
-    def test_original_3d_toast_only_circle_photo(self):
+    def test_ogl_3d_toast_with_round_photo(self):
         toast=read_xui("panel_chat_item.xml")
         self.assertEqual(toast.get("height"),"180")
         avatar=toast.find(".//avatar_icon[@name='avatar_icon']")
         self.assertIsNotNone(avatar)
-        self.assertEqual(avatar.get("height"),"18")
+        self.assertEqual(avatar.get("height"),"26")
         self.assertEqual(avatar.get("circular"),"true")
         self.assertIsNotNone(toast.find(".//text_chat[@name='msg_text']"))
         self.assertIsNone(toast.get("bg_alpha_image"))

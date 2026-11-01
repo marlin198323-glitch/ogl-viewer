@@ -3,7 +3,7 @@
   background_visible="true"
   default_tab_group="1"
   follows="all"
-  height="332"
+  height="392"
   layout="topleft"
   left="0"
   name="nearby_chat"
@@ -18,10 +18,10 @@
   save_visibility="true"
   save_dock_state="true"
   visible="false"
-  width="394"
+  width="440"
   can_resize="true"
-  min_width="250"
-  min_height="150">
+  min_width="300"
+  min_height="220">
   <floater.string name="chatbox_label">To nearby chat</floater.string>
   <layout_stack
     border_size="0"
@@ -149,8 +149,8 @@
     tab_group="1"
     animate="false"
     follows="all"
-    height="308"
-    width="394"
+    height="368"
+    width="440"
     layout="topleft"
     orientation="horizontal"
     name="ls_chat"
@@ -167,8 +167,8 @@
         animate="false"
         default_tab_group="2"
         follows="all"
-        height="304"
-        width="394"
+        height="364"
+        width="440"
         layout="topleft"
         orientation="vertical"
         name="im_panels"
@@ -179,7 +179,7 @@
           name="chat_holder">
           <fs_chat_history
            invisibility_control="FSShowMutedChatHistory"
-           font="SansSerifSmall"
+           font="SansSerif"
            follows="all"
            name="chat_history"
            parse_highlights="true"
@@ -190,7 +190,7 @@
            bottom="-1" />
           <fs_chat_history
            visibility_control="FSShowMutedChatHistory"
-           font="SansSerifSmall"
+           font="SansSerif"
            follows="all"
            name="chat_history_muted"
            parse_highlights="true"
@@ -232,7 +232,7 @@
           visibility_control="FSNearbyChatbar"
           tab_group="2"
           top_delta="0"
-          height="26"
+          height="30"
           bottom="-1"
           auto_resize="false"
           name="chat_layout_panel">
@@ -257,8 +257,8 @@
                layout="topleft"
                expand_lines_count="5"
                follows="left|right|bottom"
-               font="SansSerifSmall"
-               height="20"
+               font="SansSerif"
+               height="24"
                is_expandable="true"
                text_tentative_color="TextFgTentativeColor"
                name="chat_box"
@@ -331,7 +331,7 @@
                min_val="-2147483647"
                mouse_opaque="true"
                name="ChatChannel"
-               tool_tip="Channel to send chat on. Enabled in Preferences -> Chat -> Firestorm -> Show channel selection in chat bar." />
+               tool_tip="Channel to send chat on. Enable channel selection in Preferences > Chat." />
 
             </layout_panel>
             <layout_panel

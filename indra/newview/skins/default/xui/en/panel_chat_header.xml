@@ -5,15 +5,15 @@
      bg_opaque_color="ChatHeaderOpaqueBackground"
      bg_alpha_color="ChatHeaderAlphaBackground"
      follows="top|left|right"
-     height="24"
+     height="34"
      label="im_header"
      layout="topleft"
      name="im_header"
      width="310">
     <layout_stack
      top="0"
-     height="24"
-     right="-120"
+     height="34"
+     right="-84"
      name="header_ls"
      layout="topleft"
      orientation="horizontal"
@@ -23,36 +23,36 @@
          name="icon_lp"
          auto_resize="false"
          user_resize="false"
-         width="21"
-         height="24"
+         width="32"
+         height="34"
          visible="true">
             <avatar_icon
              circular="true"
              follows="left"
-             height="18"
+             height="26"
              image_name="Generic_Person"
              layout="topleft"
              left="3"
              mouse_opaque="true"
              name="avatar_icon"
-             top="3"
-             width="18" />
+             top="4"
+             width="26" />
         </layout_panel>
         <layout_panel
          name="name_lp"
          auto_resize="true"
          user_resize="false"
-         height="24">
+         height="34">
             <text
              parse_urls="false"
              allow_scroll="false"
-             v_pad="6"
+             v_pad="10"
              read_only="true"
              follows="left|right"
              font.style="BOLD"
-             height="24"
+             height="34"
              layout="topleft"
-             left="4"
+             left="8"
              right="-1"
              name="user_name"
              text_color="ChatNameColor"
@@ -73,8 +73,8 @@
     layout="topleft"
     left_pad="5"
     name="time_box"
-    right="-5"
-    top="7"
+    right="-8"
+    top="11"
     value="23:30"
-    width="110" />
+    width="72" />
 </panel>

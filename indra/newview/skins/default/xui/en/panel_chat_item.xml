@@ -7,20 +7,20 @@
   follows="all">
      <avatar_icon circular="true"
         follows="left|top"
-        height="18"
+        height="26"
         image_name="Generic_Person"
         layout="topleft"
         left="3"
         mouse_opaque="true"
         name="avatar_icon"
-        top="3"
-        width="18" />
+        top="4"
+        width="26" />
 	<text_chat
       top="3"
-      left="30"
-      right="-10"
+      left="38"
+      right="-8"
       height="120"
-      text_color="White"
+      text_color="ChatHistoryTextColor"
       word_wrap="true"
       mouse_opaque="true"
       valign="top"

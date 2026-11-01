@@ -636,6 +636,105 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertEqual(data[:8], bytes.fromhex("89504e470d0a1a0a"), filename)
             self.assertEqual(unpack("!II", data[16:24]), (size, size), filename)
 
+    def test_ogl_chat_header_has_larger_round_avatar_and_readable_metadata(self):
+        base = ROOT / 'indra/newview/skins/default/xui/en'
+        root = ET.parse(base / 'panel_chat_header.xml').getroot()
+        avatar = root.find('.//avatar_icon')
+        name = root.find('.//text[@name="user_name"]')
+        time = root.find('.//text[@name="time_box"]')
+        layout = root.find('.//layout_stack[@name="header_ls"]')
+        self.assertEqual(root.get('height'), '34')
+        self.assertEqual(layout.get('height'), '34')
+        self.assertEqual(avatar.get('circular'), 'true')
+        self.assertEqual(avatar.get('height'), '26')
+        self.assertEqual(avatar.get('width'), '26')
+        self.assertEqual(name.get('font.style'), 'BOLD')
+        self.assertEqual(name.get('use_ellipses'), 'true')
+        self.assertEqual(name.get('height'), '34')
+        self.assertEqual(time.get('halign'), 'right')
+        self.assertEqual(time.get('follows'), 'right')
+        self.assertEqual(time.get('width'), '72')
+        # Narrower timestamp reservation leaves additional space for names.
+        self.assertEqual(layout.get('right'), '-84')
+
+    def test_ogl_chat_item_has_round_avatar_and_theme_aware_wrapped_text(self):
+        base = ROOT / 'indra/newview/skins/default/xui/en'
+        root = ET.parse(base / 'panel_chat_item.xml').getroot()
+        avatar = root.find('.//avatar_icon')
+        text = root.find('.//text_chat[@name="msg_text"]')
+        self.assertEqual(avatar.get('circular'), 'true')
+        self.assertEqual(avatar.get('width'), '26')
+        self.assertEqual(avatar.get('height'), '26')
+        self.assertEqual(text.get('left'), '38')
+        self.assertEqual(text.get('right'), '-8')
+        self.assertEqual(text.get('word_wrap'), 'true')
+        self.assertEqual(text.get('text_color'), 'ChatHistoryTextColor')
+
+    def test_ogl_nearby_chat_window_is_readable_and_resizable(self):
+        base = ROOT / 'indra/newview/skins/default/xui/en'
+        root = ET.parse(base / 'floater_fs_nearby_chat.xml').getroot()
+        self.assertEqual(root.get('width'), '440')
+        self.assertEqual(root.get('height'), '392')
+        self.assertEqual(root.get('min_width'), '300')
+        self.assertEqual(root.get('min_height'), '220')
+        self.assertEqual(root.get('can_resize'), 'true')
+        histories = {e.get('name'): e for e in root.iter('fs_chat_history')}
+        for name in ('chat_history', 'chat_history_muted'):
+            self.assertEqual(histories[name].get('font'), 'SansSerif')
+            self.assertEqual(histories[name].get('follows'), 'all')
+        editor = next(e for e in root.iter('chat_editor') if e.get('name') == 'chat_box')
+        self.assertEqual(editor.get('font'), 'SansSerif')
+        self.assertEqual(editor.get('height'), '24')
+        self.assertEqual(editor.get('wrap'), 'true')
+        self.assertEqual(editor.get('spellcheck'), 'true')
+        self.assertEqual(editor.get('is_expandable'), 'true')
+        self.assertEqual(root.find('.//layout_panel[@name="chat_layout_panel"]').get('height'), '30')
+        channel = next(e for e in root.iter('spinner') if e.get('name') == 'ChatChannel')
+        self.assertNotIn('Firestorm', channel.get('tool_tip', ''))
+        for child in ('chat_options_btn', 'chat_search_btn', 'chat_history_btn'):
+            self.assertTrue(any(e.get('name') == child for e in root.iter()), child)
+
+    def test_ogl_direct_and_group_chat_use_same_readable_message_style(self):
+        base = ROOT / 'indra/newview/skins/default/xui/en'
+        root = ET.parse(base / 'floater_fs_im_session.xml').getroot()
+        self.assertEqual(root.get('width'), '460')
+        self.assertEqual(root.get('height'), '392')
+        self.assertEqual(root.get('min_width'), '320')
+        self.assertEqual(root.get('min_height'), '220')
+        self.assertEqual(root.get('can_resize'), 'true')
+        stack = root.find('.//layout_stack[@name="chat_stack"]')
+        self.assertEqual(stack.get('width'), '460')
+        self.assertEqual(stack.get('height'), '368')
+        history = next(e for e in root.iter('fs_chat_history')
+                       if e.get('name') == 'chat_history')
+        self.assertEqual(history.get('font'), 'SansSerif')
+        self.assertEqual(history.get('follows'), 'all')
+        editor = next(e for e in root.iter('chat_editor') if e.get('name') == 'chat_editor')
+        self.assertEqual(editor.get('font'), 'SansSerif')
+        self.assertEqual(editor.get('height'), '24')
+        self.assertEqual(editor.get('spellcheck'), 'true')
+        self.assertEqual(editor.get('wrap'), 'true')
+        self.assertEqual(root.find('.//layout_panel[@name="chat_layout_panel"]').get('height'), '30')
+        for name in ('view_profile_btn', 'group_info_btn', 'chat_options_btn'):
+            self.assertTrue(any(e.get('name') == name for e in root.iter()), name)
+
+    def test_ogl_conversation_container_keeps_tab_and_session_navigation(self):
+        base = ROOT / 'indra/newview/skins/default/xui/en'
+        root = ET.parse(base / 'floater_fs_im_container.xml').getroot()
+        tabs = root.find('.//tab_container[@name="im_box_tab_container"]')
+        self.assertEqual(root.get('width'), '500')
+        self.assertEqual(root.get('height'), '432')
+        self.assertEqual(root.get('can_resize'), 'true')
+        self.assertEqual(tabs.get('width'), '498')
+        self.assertEqual(tabs.get('height'), '432')
+        self.assertEqual(tabs.get('follows'), 'left|right|top|bottom')
+        self.assertEqual(tabs.get('tab_width'), '132')
+        self.assertEqual(tabs.get('tab_max_width'), '132')
+        self.assertEqual(tabs.get('tab_position'), 'left')
+        self.assertEqual(tabs.get('open_tabs_on_drag_and_drop'), 'true')
+        for tag in ('first_tab', 'middle_tab', 'last_tab'):
+            self.assertIsNotNone(tabs.find(tag), tag)
+
     def test_upstream_copyright_still_present(self):
         self.assertIn("Linden Research, Inc.",
                       self.source("indra/llcommon/indra_constants.h"))

@@ -5,7 +5,7 @@
   default_tab_group="1"
   show_title="true"
   follows="all"
-  height="332"
+  height="392"
   layout="topleft"
   left="0"
   name="panel_im"
@@ -14,11 +14,11 @@
   can_minimize="true"
   can_close="true"
   visible="false"
-  width="394"
+  width="460"
   can_resize="true"
-  min_width="250"
+  min_width="320"
   save_rect="true"
-  min_height="150">
+  min_height="220">
     <floater.string
      name="participant_added"
      value="[NAME] was invited to the conversation."/>
@@ -529,8 +529,8 @@
     default_tab_group="2"
     animate="false"
     follows="all"
-    height="308"
-    width="394"
+    height="368"
+    width="460"
     layout="topleft"
     orientation="horizontal"
     name="chat_stack"
@@ -540,13 +540,13 @@
       name="im_control_panel_holder"
       min_width="115"
       width="150"
-      height="320"
+      height="380"
       auto_resize="false"
       user_resize="true">
       <panel
       name="panel_im_control_panel"
       layout="topleft"
-      height="320"
+      height="380"
       width="150"
       follows="all"/>
     </layout_panel>
@@ -562,8 +562,8 @@
         default_tab_group="3"
         animate="false"
         follows="all"
-        height="304"
-        width="394"
+        height="364"
+        width="460"
         layout="topleft"
         orientation="vertical"
         name="im_panels"
@@ -573,7 +573,7 @@
         <layout_panel
           name="chat_holder">
           <fs_chat_history
-          font="SansSerifSmall"
+          font="SansSerif"
           follows="all"
           name="chat_history"
           parse_highlights="true"
@@ -614,7 +614,7 @@
         <layout_panel
           tab_group="3"
           top_delta="0"
-          height="26"
+          height="30"
           bottom="-1"
           auto_resize="false"
           name="chat_layout_panel">
@@ -637,8 +637,8 @@
               layout="topleft"
               expand_lines_count="5"
               follows="left|right|bottom"
-              font="SansSerifSmall"
-              height="20"
+              font="SansSerif"
+              height="24"
               is_expandable="true"
               text_tentative_color="TextFgTentativeColor"
               name="chat_editor"
