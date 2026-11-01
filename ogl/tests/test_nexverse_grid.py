@@ -375,7 +375,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
             self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
         self.assertIn('const std::string consent_grid =', panel)
         self.assertIn('const std::string consent_account =', panel)
-        self.assertIn('[consent_grid, consent_account, consent_revision]', panel)
+        self.assertIn('[consent_grid, consent_account, consent_revision, consent_sequence]', panel)
         self.assertIn('Ignored stale HTTP login approval.', panel)
         self.assertIn('sInstance->getChild<LLComboBox>("server_combo")->getSelectedValue().asString() != consent_grid', panel)
         self.assertIn('getValue().asString() != consent_account', panel)
@@ -390,6 +390,61 @@ class StadtNexVerseGridTests(unittest.TestCase):
                        if e.get('name') == 'OGLUnexpectedGridEndpoint']
             self.assertEqual(len(matches), 1)
             self.assertGreater(len((matches[0].text or '').strip()), 60)
+
+    def test_only_most_recent_http_dialog_can_authorize(self):
+        panel=self.panel
+        begin=panel.index('void FSPanelLogin::onClickConnect(void *)')
+        end=panel.index('void FSPanelLogin::onClickNewAccount(void*)', begin)
+        connect=panel[begin:end]
+        self.assertIn('static U64 sOGLHTTPWarningSequence = 0;',panel)
+        self.assertIn('const U64 consent_sequence = ++sOGLHTTPWarningSequence;',connect)
+        self.assertIn('[consent_grid, consent_account, consent_revision, consent_sequence]',connect)
+        self.assertIn('sOGLHTTPWarningSequence != consent_sequence',connect)
+        self.assertLess(connect.index('sOGLHTTPWarningSequence != consent_sequence'),
+                        connect.index('gHTTPLoginApprovedForNextAttempt = true;'))
+        self.assertLess(connect.index('sOGLHTTPWarningSequence != consent_sequence'),
+                        connect.index('gSavedSettings.setString('))
+        self.assertLess(connect.index('++sOGLHTTPWarningSequence;',connect.index('Ignored stale HTTP login approval.')),
+                        connect.index('gHTTPLoginApprovedForNextAttempt = true;'))
+
+    def test_one_time_http_approval_cannot_be_replayed(self):
+        connect=self.panel[self.panel.index('void FSPanelLogin::onClickConnect(void *)'):
+                           self.panel.index('void FSPanelLogin::onClickNewAccount(void*)')]
+        self.assertEqual(connect.count('const U64 consent_sequence = ++sOGLHTTPWarningSequence;'),1)
+        # One increment creates the dialog, a second invalidates it before
+        # granting either one-time or persistent permission.
+        self.assertEqual(connect.count('++sOGLHTTPWarningSequence;'),2)
+        self.assertLess(connect.index('++sOGLHTTPWarningSequence;',
+                            connect.index('Ignored stale HTTP login approval.')),
+                        connect.index('if (option == 1)'))
+        self.assertLess(connect.index('if (option == 1)'),
+                        connect.index('gHTTPLoginApprovedForNextAttempt = true;'))
+        self.assertIn('sOGLLoginFormRevision != consent_revision',connect)
+        self.assertNotIn('consent_password',connect)
+        self.assertNotIn('consent_secret',connect)
+
+    def test_cancelling_mode_change_never_resets_toolbars(self):
+        source=self.panel
+        begin=source.index('void FSPanelLogin::onModeChange(')
+        confirm=source.index('void FSPanelLogin::onModeChangeConfirm(',begin)
+        original=source[begin:confirm]
+        end=len(source)
+        callback=source[confirm:end]
+        self.assertNotIn('ResetToolbarSettings',original)
+        self.assertIn('original_value.asString() != new_value.asString()',original)
+        self.assertIn('LLNotificationsUtil::add("ModeChange"',original)
+        accept=callback.index('case 0:')
+        decline=callback.index('case 1:')
+        self.assertLess(accept,decline)
+        accepted=callback[accept:decline]
+        self.assertIn('gSavedSettings.getBOOL("FSToolbarsResetOnModeChange")',accepted)
+        self.assertIn('gSavedSettings.setBOOL("ResetToolbarSettings", true)',accepted)
+        self.assertLess(accepted.index('ResetToolbarSettings", true'),
+                        accepted.index('getControl("SessionSettingsFile")->set(new_value)'))
+        self.assertLess(accepted.index('getControl("SessionSettingsFile")->set(new_value)'),
+                        accepted.index('requestQuit()'))
+        self.assertNotIn('ResetToolbarSettings',callback[decline:])
+        self.assertIn('setValue(original_value)',callback[decline:])
 
     def test_privacy_and_teleport_changes_invalidate_old_http_consent(self):
         source = self.panel
@@ -410,7 +465,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
         panel = self.panel
         self.assertIn('static U64 sOGLLoginFormRevision = 0;', panel)
         self.assertIn('const U64 consent_revision = sOGLLoginFormRevision;', panel)
-        self.assertIn('[consent_grid, consent_account, consent_revision]', panel)
+        self.assertIn('[consent_grid, consent_account, consent_revision, consent_sequence]', panel)
         self.assertIn('sOGLLoginFormRevision != consent_revision', panel)
         self.assertNotIn('consent_password', panel)
         self.assertNotIn('consent_secret', panel)

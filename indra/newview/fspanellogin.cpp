@@ -95,6 +95,9 @@ std::string FSPanelLogin::sPendingNewGridURI{};
 // Monotonic per-process edit revision, deliberately independent from the
 // panel lifetime. HTTP approval callbacks retain this number, never secrets.
 static U64 sOGLLoginFormRevision = 0;
+// At most the newest outstanding HTTP warning can authorize a login.
+// Superseded or replayed confirmations must never initiate authentication.
+static U64 sOGLHTTPWarningSequence = 0;
 // A saved-account deletion must be authorized for the exact current form.
 // A second confirmation supersedes an earlier one; a confirmed request
 // cannot be replayed after the protected credential is deleted.
@@ -1276,8 +1279,9 @@ void FSPanelLogin::onClickConnect(void *)
                     const std::string consent_account =
                         sInstance->getChild<LLUICtrl>("username_combo")->getValue().asString();
                     const U64 consent_revision = sOGLLoginFormRevision;
+                    const U64 consent_sequence = ++sOGLHTTPWarningSequence;
                     LLNotificationsUtil::add("OGLHTTPLoginWarning", LLSD(), LLSD(),
-                        [consent_grid, consent_account, consent_revision](const LLSD& notification, const LLSD& response)
+                        [consent_grid, consent_account, consent_revision, consent_sequence](const LLSD& notification, const LLSD& response)
                         {
                             const S32 option = LLNotificationsUtil::getSelectedOption(
                                 notification, response);
@@ -1288,6 +1292,7 @@ void FSPanelLogin::onClickConnect(void *)
                                 std::vector<std::string> current_uris;
                                 LLGridManager::getInstance()->getLoginURIs(current_uris);
                                 if (!sInstance ||
+                                    sOGLHTTPWarningSequence != consent_sequence ||
                                     sOGLLoginFormRevision != consent_revision ||
                                     LLGridManager::getInstance()->getGrid() != consent_grid ||
                                     sInstance->getChild<LLComboBox>("server_combo")->getSelectedValue().asString() != consent_grid ||
@@ -1297,6 +1302,9 @@ void FSPanelLogin::onClickConnect(void *)
                                     LL_WARNS("OGLGrid") << "Ignored stale HTTP login approval." << LL_ENDL;
                                     return;
                                 }
+                                // Consume this specific dialog before any other
+                                // action. A second callback cannot replay approval.
+                                ++sOGLHTTPWarningSequence;
                                 // Only the dedicated "Remember" button writes
                                 // a persistent preference. "Once" never does.
                                 if (option == 1)
@@ -2186,13 +2194,8 @@ void FSPanelLogin::onUsernameTextChanged()
 
 void FSPanelLogin::onModeChange(const LLSD& original_value, const LLSD& new_value)
 {
-    // <FS:AO> make sure toolbar settings are reset on mode change
-    if (gSavedSettings.getBOOL("FSToolbarsResetOnModeChange"))
-    {
-        LL_INFOS() << "Clearing toolbar settings." << LL_ENDL;
-        gSavedSettings.setBOOL("ResetToolbarSettings", true);
-    }
-
+    // Do not reset the current toolbars just for opening the confirmation:
+    // declining a mode change must leave the active layout untouched.
     if (original_value.asString() != new_value.asString())
     {
         LLNotificationsUtil::add("ModeChange", LLSD(), LLSD(), boost::bind(&FSPanelLogin::onModeChangeConfirm, this, original_value, new_value, _1, _2));
@@ -2205,6 +2208,11 @@ void FSPanelLogin::onModeChangeConfirm(const LLSD& original_value, const LLSD& n
     switch (option)
     {
         case 0:
+            if (gSavedSettings.getBOOL("FSToolbarsResetOnModeChange"))
+            {
+                LL_INFOS() << "Resetting toolbar settings for confirmed mode change." << LL_ENDL;
+                gSavedSettings.setBOOL("ResetToolbarSettings", true);
+            }
             gSavedSettings.getControl("SessionSettingsFile")->set(new_value);
             LLAppViewer::instance()->requestQuit();
             break;
