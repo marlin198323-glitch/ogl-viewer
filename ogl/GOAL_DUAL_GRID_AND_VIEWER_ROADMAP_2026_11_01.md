@@ -67,6 +67,17 @@ Textur-, Mesh- und Avatar-Ladezeiten messen und verbessern.
 Vulkan-RT-Tests nur optional. Linux-, Windows- und macOS-Builds
 einschließlich x64 und ARM64 separat bauen, signieren und testen.
 
+## Phase F – verpflichtender Viewer-Updater
+
+Die verbindliche Mindestversion muss vor dem Login geprüft werden.
+Der Viewer bietet Pflichtupdates an, der NexVerse-Server lehnt
+nicht mehr zugelassene Versionen ab. Das System muss Linux,
+Windows und macOS samt x64-/ARM64-Paketen unterstützen.
+20 Entwicklungsblöcke und Abnahmekriterien stehen in
+GOAL_MANDATORY_VIEWER_UPDATER.md.
+
+**Status: geplant, nicht implementiert.**
+
 ## Prüfung
 
     cd "/home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm"

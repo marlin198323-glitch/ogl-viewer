@@ -73,6 +73,15 @@ counts but does not prove an end-to-end speedup.
 
 See [P37 Cache Test](CPU_FASTCACHE_OPT_IN_2026_11_01_P37.md).
 
+## Mandatory OGL Viewer updater (planned)
+
+NexVerse requires a mandatory Viewer updater. Unsupported older
+releases must be denied grid login by the server, not only shown a
+client-side warning. Existing Velopack sources are not a completed
+NexVerse release/update service. See the
+[20-block updater plan](GOAL_MANDATORY_VIEWER_UPDATER.md)
+and [project handoff for future chats](PROJECT_HANDOFF.md).
+
 ## Dedicated Stadt NexVerse grids (public and Beta)
 
 This OGL fork ships exactly two compiled-in login choices:
