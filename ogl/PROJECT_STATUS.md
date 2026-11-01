@@ -32,6 +32,83 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – /goal-Durchlauf: sichere Startort-Links
+
+**Code-Commit `e4f33c5a`, Branch `ogl-develop`.**
+**20/20 überprüfte technische Arbeits- und Prüfpositionen bestanden.**
+Dies sind separate Code-/Sicherheits-/GUI-Prüfungen
+innerhalb von P01 Block 19, **kein Nachweis für 20/20
+abgeschlossene Phasenblöcke**. Der formale Stand bleibt
+**P01 18/20**.
+
+**Umsetzung nur in bestehenden Dateien:**
+
+- `indra/newview/fspanellogin.cpp`: `autologinToLocation`
+  bewahrt bei OGL die erlaubte räumliche Zielregion,
+  stößt aber keine automatische Authentifizierung mehr an.
+  Nur die beiden festgelegten NexVerse-Grids werden als
+  Startziel akzeptiert. Der Anwender muss die Anmeldung
+  bewusst über die Loginmaske auslösen; die bisherige
+  Ende-zu-Ende-Prüfung für gepinnte URI/HTTP-Einwilligung
+  bleibt damit anwendbar. Eine Zieländerung invalidiert
+  ältere HTTP-Consent-Dialoge. Der Nicht-OGL-Upstream-
+  Ablauf bleibt im Originalpfad.
+- Der bestehende interne `location_login`-Handler
+  lehnt fehlerhafte x/y/z-Koordinaten ab: definierte
+  Initialwerte, `LLStringUtil::convertToF32`,
+  Prüfung auf `std::isfinite`, kein Auswerten
+  uninitialisierter `F32` mehr.
+- `onClickHelp` verlinkt für OGL auf das vorhandene
+  offizielle NexVerse-Portal statt auf den alten
+  Second-Life-Prelogin-Hilfedienst.
+- Vorhandene Tests
+  `ogl/tests/test_nexverse_grid.py` und
+  `ogl/tests/test_branding_contract.py`
+  erweitert; **keine neuen Projektdateien**, keine
+  Nutzerprofile, gespeicherten Credentials oder Secrets
+  überschrieben.
+
+**20 Positionen der geprüften Runde:**
+01 Branch; 02 Upstream-Synchronisation;
+03 keine neuen Dateien; 04 beide festen Grids;
+05 exakte HTTP-Einwilligung; 06 Beta-Sperre;
+07 interner `location_login` blockiert untrusted
+Aufrufe; 08 Tokenanzahl-Validierung; 09 Varianten
+mit nur Regionsnamen bzw. Regionsname/x behalten;
+10 x/y-Validierung; 11 z-Validierung;
+12 NaN-/Inf-Abweisung; 13 uninitialisierte Parser
+entfernt; 14 nur räumliche Startorte; 15 fremde
+Grids blockiert; 16 Ziel erhalten und OGL-Login
+manuell; 17 Nicht-OGL-Kompatibilität; 18 Hilfe
+auf Stadt NexVerse; 19 echte Hauptgrid- und
+Beta-GUI-Sicherheitstests; 20 vollständiger Linux-
+Viewer-Build und alle Testgate-Ergebnisse.
+**20/20 bestanden.**
+
+**Testbelege:** `bash ogl/scripts/build-test.sh`
+kompiliert und staged den kompletten Linux-Mint-
+Viewer. **157/157 Python-Tests, 41/41 CTests**.
+Hauptgrid: isolierter 1280×720-Xvfb-Start mit
+künstlichen Eingaben, HTTP-Warnung,
+`STATE_LOGIN_WAIT`, keine Einwilligung oder
+`STATE_LOGIN_AUTH_INIT`, regulärer Quit **Exit 0**.
+Beta: synthetische Eingaben, `Blocked beta authentication:
+protocol and TLS not verified.`, keine Authentifizierung,
+Quit **Exit 0**. Quelldiff und Altbestand geprüft;
+bestehende `_v2`-/`script_copy`-Assets nicht
+ohne Nutzung-/Lizenzbeweis gelöscht.
+
+**P01-Abschlussblocker unverändert:** Erfolgreicher
+autorisierter Hauptgrid-Live-Login, tatsächliche
+gespeicherte Passwortwiederherstellung nach
+diesem Login, In-World-Shutdown und komplette
+Windows-/macOS-Viewer-Build-/GUI-Tests.
+Die GitHub-Portable-Grafik-Matrix ist
+kein Ersatz. **Nächster Einstieg bleibt
+P01 Block 19/20**; danach ohne manuelle
+Zwischenabnahme Block 20/P02, sobald
+die Abschluss-Gates tatsächlich bestanden sind.
+
 ## P01 Block 19 – /goal-Durchlauf mit 20 überprüften Arbeitspositionen
 
 **Code-Commit:** `a35f6caa` auf `ogl-develop`.

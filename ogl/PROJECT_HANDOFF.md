@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `a35f6caa`, 20/20 Credential-Isolations-/Consent-Prüfungen grün. Ein Gridwechsel lädt keine anderen Passwörter nach; Benutzernamenänderung löscht den alten Secretzustand, Restore prüft aktuelles Grid; jede geänderte Speicheroption/Teleportdestination invalidiert alte HTTP-Zustimmung. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
+wechseln. Aktueller Einstieg: **P01, Block 19/20** (Blöcke 1–18 abgeschlossen; Code-Commit `e4f33c5a`, 20/20 Startort-/Prelogin-Sicherheitsprüfungen grün. Interne Standortlinks setzen bei OGL nur die Zielregion, lösen keinen automatischen Login aus; fremde Grids sowie ungültige/NaN-/Inf-Koordinaten werden abgewiesen, OGL-Hilfe nutzt NexVerse-Portal. Hauptgrid-Live-Login, Passwortpersistenz, In-World-Shutdown und vollständige Windows-/macOS-Viewer-Builds weiter offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

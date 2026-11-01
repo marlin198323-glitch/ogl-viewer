@@ -208,16 +208,16 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter Code-Commit `a35f6caa`: keine stille
-Credential-Nachladung beim OGL-Gridwechsel,
-Passwort-Reset beim Benutzernamenedit,
-Restore auf aktuell ausgewähltes Grid begrenzt,
-HTTP-Zustimmung bei geänderten Speicheroptionen
-oder Teleportziel ungültig. 20/20
-separat verifizierte Arbeitspositionen;
-154 Python-Tests, 41 native Tests,
-Hauptgrid-/Beta-/Final-GUI-Läufe bestanden.
-Vorige Menü-/Privacy-Korrektur: `d364f3e1`.
+Letzter Code-Commit `e4f33c5a`: Standortlinks
+setzen bei OGL nur erlaubte Startorte; kein
+unbeabsichtigter automatischer Login, ungültige
+und nicht-endliche Koordinaten abgewiesen,
+Login-Hilfe über NexVerse-Portal.
+20/20 zusätzliche Arbeits- und Prüfpositionen
+grün, 157 Python- und 41 native Tests,
+isolierte Hauptgrid-/Beta-GUI-Negativläufe
+bestanden. Vorige Credential-Isolation:
+`a35f6caa`.
 Voranmelde-Quit, Skalierung und Beta-Sperre sind geprüft.
 **Weiter offen:** autorisierter Hauptgrid-Live-Login,
 gespeicherte Passwortwiederherstellung, In-World-Shutdown
