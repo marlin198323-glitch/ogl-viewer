@@ -43,6 +43,7 @@
 
 // if there is a better methood to get at the settings from llwindow/ let me know! -Zi
 #include "llcontrol.h"
+#include "indra_constants.h"
 extern LLControlGroup gSavedSettings;
 
 #ifdef LL_GLIB
@@ -674,6 +675,14 @@ bool LLWindowSDL::createContext(int x, int y, int width, int height, int bits, b
     mGrabbyKeyFlags = 0;
     mReallyCapturedCount = 0;
 
+    // Set a stable desktop identity for the OGL fork before SDL creates
+    // its X11/Wayland window; never expose the inherited Firestorm binary
+    // filename as the application class used by taskbars and docks.
+    if (APP_NAME == "OGL")
+    {
+        SDL_SetHint("SDL_VIDEO_X11_WMCLASS", "ogl-viewer");
+        SDL_SetHint("SDL_VIDEO_WAYLAND_WMCLASS", "ogl-viewer");
+    }
     SDL_SetHint( SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0" );
     SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
 
@@ -865,14 +874,15 @@ bool LLWindowSDL::createContext(int x, int y, int width, int height, int bits, b
     if (colorBits < 32)
     {
         close();
-        setupFailure(
-            "Second Life requires True Color (32-bit) to run in a window.\n"
-            "Please go to Control Panels -> Display -> Settings and\n"
-            "set the screen to 32-bit color.\n"
-            "Alternately, if you choose to run fullscreen, Second Life\n"
-            "will automatically adjust the screen each time it runs.",
-            "Error",
-            OSMB_OK);
+        const std::string display_error = (APP_NAME == "OGL")
+            ? "OGL Viewer requires a 32-bit True Color display.\n"
+              "Please change your display color depth or driver settings and restart OGL Viewer."
+            : "Second Life requires True Color (32-bit) to run in a window.\n"
+              "Please go to Control Panels -> Display -> Settings and\n"
+              "set the screen to 32-bit color.\n"
+              "Alternately, if you choose to run fullscreen, Second Life\n"
+              "will automatically adjust the screen each time it runs.";
+        setupFailure(display_error, "Error", OSMB_OK);
         return false;
     }
 
@@ -887,6 +897,17 @@ bool LLWindowSDL::createContext(int x, int y, int width, int height, int bits, b
         {
             mSDL_Display = info.info.x11.display;
             mSDL_XWindowID = info.info.x11.window;
+            // SDL's WM_CLASS hint is ignored by some packaged SDL builds.
+            // Apply the OGL desktop identity to the actual X11 window
+            // without renaming the upstream binary or changing its loader.
+            if (APP_NAME == "OGL")
+            {
+                XClassHint ogl_class = {};
+                ogl_class.res_name = const_cast<char*>("ogl-viewer");
+                ogl_class.res_class = const_cast<char*>("ogl-viewer");
+                XSetClassHint(mSDL_Display, mSDL_XWindowID, &ogl_class);
+                XFlush(mSDL_Display);
+            }
         }
         else
         {
