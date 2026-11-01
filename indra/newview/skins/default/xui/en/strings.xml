@@ -4,6 +4,7 @@
      For example, the strings used in avatar chat bubbles, and strings
      that are returned from one component and may appear in many places-->
 <strings>
+  <string name="OGLBetaLoginUnavailable">The Stadt NexVerse Beta grid is selectable, but login is not available yet. Its HTTPS certificate and authentication protocol must be verified before the viewer can connect. No credentials were sent.</string>
   <string name="OGLInsecureGridLogin">This grid login address is not approved. For Stadt NexVerse, manually confirm the HTTP warning before logging in; other insecure servers are blocked.</string>
 
 
