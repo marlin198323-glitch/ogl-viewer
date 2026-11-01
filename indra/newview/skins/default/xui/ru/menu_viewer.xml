@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <menu_bar name="Main Menu">
 	<menu label="Аватар" name="Me">
-		<menu_item_call label="Ваш аккаунт" name="Manage Account"/>
-		<menu_item_call label="Торговые списки..." name="MarketplaceListings"/>
-		<menu_item_call label="Купить L$" name="Buy and Sell L$"/>
+		<menu_item_call label="NexVerse Portal" name="Manage Account">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
+		<menu_item_call label="NexVerse Marketplace" name="MarketplaceListings">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://marketplace.stadt-nexverse.de/"/>
+		</menu_item_call>
 
 		<menu_item_call label="Новое окно Инвентаря" name="NewInventoryWindow"/>
 		<menu_item_check label="Инвентарь" name="Inventory"/>
@@ -317,11 +320,10 @@
 	<!-- Content Menu -->
 	<menu label="Содержимое" name="Content">
 		<menu_item_check label="Поиск" name="Search"/>
-		<menu_item_call label="Торговая площадка SL (Marketplace)" name="SL Marketplace"/>
-		<menu_item_call label="Торговые данные L$" name="LindenXchange"/>
 		<menu_item_call label="Библиотека скриптов" name="Script Library"/>
-		<menu_item_call label="SL Сообщество (блоги, форумы, новости)" name="SL Community Pages"/>
-		<menu_item_call label="NexVerse News" name="NexVerse News"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
 	</menu>
 	<!-- Help Menu -->
 	<menu label="Помощь" name="Help">
@@ -341,7 +343,9 @@
 		<menu_item_call name="whitelist_folders" label="Советник Белого Списка"/>
 		<menu_item_call label="Проверка статуса сети (Grid Status)" name="Grid Status"/>
 		<menu_item_call label="Пожаловаться" name="Report Abuse"/>
-		<menu_item_call label="Сообщить об ошибке" name="Report Bug"/>
+		<menu_item_call label="Сообщить об ошибке" name="Report Bug">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://github.com/marlin198323-glitch/ogl-viewer/issues"/>
+		</menu_item_call>
 		<menu_item_call label="Удары, толчки и попадания" name="Bumps, Pushes &amp;amp; Hits"/>
 		<menu_item_check label="Включить кнопку системной информации" name="Enable Sysinfo Button"/>
 		<menu_item_call label="Информация о [APP_NAME]" name="About Second Life"/>

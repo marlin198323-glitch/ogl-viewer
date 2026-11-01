@@ -236,6 +236,81 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertNotIn('secondlife.com/my/account/membership',all_url_values)
             self.assertNotIn('secondlife.com/my/lindex/market',all_url_values)
 
+    def test_all_thirteen_locales_drop_legacy_secondlife_economy(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        menus = sorted(base.glob('*/menu_viewer.xml'))
+        self.assertEqual(len(menus), 13)
+        obsolete = {'Buy and Sell L$', 'Membership', 'SL Marketplace',
+                    'LindenXchange', 'SL Community Pages', 'Manage My Account'}
+        for path in menus:
+            root = ET.parse(path).getroot()
+            self.assertTrue(any(e.get('name') == 'Me' for e in root.iter('menu')),
+                            str(path))
+            self.assertFalse(obsolete & {e.get('name') for e in root.iter()},
+                             str(path))
+
+    def test_every_translated_account_marketplace_news_and_issue_url_is_pinned(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        expected = {
+            'Manage Account': 'https://stadt-nexverse.de/',
+            'MarketplaceListings': 'https://marketplace.stadt-nexverse.de/',
+            'NexVerse News': 'https://stadt-nexverse.de/',
+            'Report Bug': 'https://github.com/marlin198323-glitch/ogl-viewer/issues',
+        }
+        menus = sorted(base.glob('*/menu_viewer.xml'))
+        self.assertEqual(len(menus), 13)
+        for path in menus:
+            root = ET.parse(path).getroot()
+            for name, uri in expected.items():
+                matching = [e for e in root.iter() if e.get('name') == name]
+                self.assertLessEqual(len(matching), 1, (path,name))
+                for entry in matching:
+                    self.assertEqual(entry.tag, 'menu_item_call', (path,name))
+                    click = entry.find('menu_item_call.on_click')
+                    self.assertIsNotNone(click, (path,name))
+                    self.assertEqual(click.get('function'), 'Advanced.ShowURL',
+                                     (path,name))
+                    self.assertEqual(click.get('parameter'), uri, (path,name))
+                    self.assertNotIn('secondlife.com',
+                                     ET.tostring(entry, encoding='unicode'))
+
+    def test_portuguese_account_never_opens_secondlife_membership(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        pt = ET.parse(base / 'pt/menu_viewer.xml').getroot()
+        all_text = ET.tostring(pt,encoding='unicode')
+        self.assertNotIn('accounts.secondlife.com', all_text)
+        self.assertNotIn('secondlife.com/my/account', all_text)
+        self.assertNotIn('change_membership', all_text)
+        self.assertNotIn('WebLaunchJoinNow', all_text)
+        account = next(e for e in pt.iter('menu_item_call')
+                       if e.get('name') == 'Manage Account')
+        self.assertEqual(account.get('label'), 'NexVerse Portal')
+        self.assertEqual(account.find('menu_item_call.on_click').get('parameter'),
+                         'https://stadt-nexverse.de/')
+        for lang in ('tr', 'da'):
+            translated = ET.parse(base / lang / 'menu_viewer.xml').getroot()
+            self.assertFalse(any(e.get('name') == 'Manage My Account'
+                                 for e in translated.iter()), lang)
+            # No parallel account menu: the English base defines the
+            # shared, working NexVerse menu and this locale inherits it.
+            self.assertFalse(any(e.get('name') == 'Manage Account'
+                                 for e in translated.iter()), lang)
+
+    def test_locale_overlay_keeps_ogl_portal_and_real_opensim_commands(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        english = ET.parse(base / 'en/menu_viewer.xml').getroot()
+        for name in ('Manage Account', 'MarketplaceListings', 'Report Abuse',
+                     'Buy Land', 'World Map', 'Nearby Chat', 'Conversations',
+                     'About Second Life', 'Report Bug'):
+            self.assertTrue(any(e.get('name') == name for e in english.iter()),
+                            name)
+        for path in sorted(base.glob('*/menu_viewer.xml')):
+            tree = ET.parse(path).getroot()
+            self.assertTrue(any(e.get('name') == 'Help' for e in tree.iter('menu')),
+                            str(path))
+            self.assertFalse(any('firestorm' in e.get('label','').lower()
+                                 for e in tree.iter()),str(path))
+
     def test_ogl_main_menu_navigation_labels_preserve_callback_names_and_shortcuts(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         labels = {

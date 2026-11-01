@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <menu_bar name="Main Menu">
 	<menu label="我自己" name="Me">
-		<menu_item_call label="帳戶" name="Manage Account" />
-		<menu_item_call label="市場刊登" name="MarketplaceListings" />
-		<menu_item_call label="購買 L$" name="Buy and Sell L$" />
+		<menu_item_call label="NexVerse Portal" name="Manage Account" >
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
+		<menu_item_call label="NexVerse Marketplace" name="MarketplaceListings" >
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://marketplace.stadt-nexverse.de/"/>
+		</menu_item_call>
 		<menu_item_check label="庫存" name="Inventory" />
 		<menu_item_call label="新庫存視窗" name="NewInventoryWindow" />
 		<menu_item_check label="受保護的檔案夾" name="Protected Folders" />
@@ -269,11 +272,10 @@
 	</menu>
 	<menu label="內容" name="Content">
 		<menu_item_check label="搜尋" name="Search" />
-		<menu_item_call label="SL市場" name="SL Marketplace" />
-		<menu_item_call label="L$ 匯率" name="LindenXchange" />
 		<menu_item_call label="指令碼庫" name="Script Library" />
-		<menu_item_call label="SL社群（部落格、論壇、新聞）" name="SL Community Pages" />
-		<menu_item_call label="NexVerse News" name="NexVerse News" />
+		<menu_item_call label="NexVerse News" name="NexVerse News" >
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
 	</menu>
 	<menu label="幫助" name="Help">
 		<menu_item_check label="啟用瀏覽器UI提示" name="Enable Hints" />
@@ -285,7 +287,9 @@
 		<menu_item_call name="whitelist_folders" label="白名單顧問" />
 		<menu_item_check label="檢查網路狀態" name="Grid Status" />
 		<menu_item_call label="違規檢舉" name="Report Abuse" />
-		<menu_item_call label="報告問題" name="Report Bug" />
+		<menu_item_call label="報告問題" name="Report Bug" >
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://github.com/marlin198323-glitch/ogl-viewer/issues"/>
+		</menu_item_call>
 		<menu_item_call label="碰撞、推擠與打擊" name="Bumps, Pushes &amp;amp; Hits" />
 		<menu_item_check label="啟用系統資訊按鈕" name="Enable Sysinfo Button" />
 		<menu_item_call label="關於 [APP_NAME]" name="About Second Life" />

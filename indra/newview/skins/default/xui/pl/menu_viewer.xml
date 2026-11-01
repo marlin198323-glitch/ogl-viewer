@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <menu_bar name="Main Menu">
 	<menu label="Awatar" name="Me">
-		<menu_item_call label="Zarządzaj kontem" name="Manage Account"/>
-		<menu_item_call label="Moje rzeczy na Marketplace" name="MarketplaceListings"/>
-		<menu_item_call label="Kup L$" name="Buy and Sell L$"/>
+		<menu_item_call label="NexVerse Portal" name="Manage Account">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
+		<menu_item_call label="NexVerse Marketplace" name="MarketplaceListings">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://marketplace.stadt-nexverse.de/"/>
+		</menu_item_call>
 		<menu_item_check label="Moja szafa" name="Inventory"/>
 		<menu_item_call label="Nowe okno szafy" name="NewInventoryWindow" />
 		<menu_item_check label="Foldery chronione" name="Protected Folders" />
@@ -282,11 +285,10 @@
 	</menu>
 	<menu label="Zawartość" name="Content">
 		<menu_item_check label="Wyszukiwarka" name="Search"/>
-		<menu_item_call label="Marketplace Second Life" name="SL Marketplace"/>
-		<menu_item_call label="Dane z rynku L$" name="LindenXchange"/>
 		<menu_item_call label="Biblioteka skryptów" name="Script Library"/>
-		<menu_item_call label="Społeczność SL (blogi, fora, aktualności)" name="SL Community Pages"/>
-		<menu_item_call label="NexVerse News" name="NexVerse News"/>
+		<menu_item_call label="NexVerse News" name="NexVerse News">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://stadt-nexverse.de/"/>
+		</menu_item_call>
 	</menu>
 	<menu label="Pomoc" name="Help">
 		<menu_item_check label="Włącz podpowiedzi" name="Enable Hints"/>
@@ -305,7 +307,9 @@
 		<menu_item_call name="whitelist_folders" label="Doradca wykluczeń" />
 		<menu_item_check label="Sprawdź stan świata" name="Grid Status"/>
 		<menu_item_call label="Zgłoś nadużycie" name="Report Abuse"/>
-		<menu_item_call label="Zgłoś problem" name="Report Bug"/>
+		<menu_item_call label="Zgłoś problem" name="Report Bug">
+			<menu_item_call.on_click function="Advanced.ShowURL" parameter="https://github.com/marlin198323-glitch/ogl-viewer/issues"/>
+		</menu_item_call>
 		<menu_item_call label="Zderzenia, popchnięcia i uderzenia" name="Bumps, Pushes &amp;amp; Hits"/>
 		<menu_item_check label="Włącz przycisk Sysinfo" name="Enable Sysinfo Button"/>
 		<menu_item_call label="Informacje o [APP_NAME]" name="About Second Life"/>
