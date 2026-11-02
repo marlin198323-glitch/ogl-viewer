@@ -32,6 +32,68 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – 20 Blöcke Menübereinigung und Windows-CI (02.11.2026)
+
+Code-Commit ef3dc0e5 direkt auf origin/ogl-develop.
+20/20 technische Arbeitsschritte abgeschlossen;
+keine formale P02-Fertigstellung. Linux-Vollviewer
+7.2.5.158 gebaut; 232/232 Python-Tests, 41/41 native
+CTests und 80/80 Branding-Tests bestanden. Zusätzlich
+80 Branding-Tests mit LC_ALL=C und PYTHONUTF8=0
+bestanden, um die Windows-Defaultkodierung unabhängig
+von der Linux-UTF-8-Standardeinstellung zu prüfen.
+
+Implementierung nur in 13 bestehenden Projektdateien:
+- EN-Basismenü und elf bestehende Sprach-Overlays
+  AZ, DE, ES, FR, IT, JA, PL, PT, RU, TR, ZH:
+  das alte DeprecatedHelp-Untermenü mit alten
+  Second-Life-Issue-Tracker- und Hilfeseiten entfernt.
+  Dänisch definiert keinen eigenen DeprecatedHelp-
+  Eintrag und erbt die englische Menüstruktur.
+- Die aktuellen NexVerse-Hilfemenüs, Report Bug,
+  Script Library, Release-Links und technischen
+  Advanced-/Admin-Menüs bleiben bestehen.
+- Der vorhandene englische Advanced-Webbrowser-Test
+  öffnet statt einer alten Second-Life-Webseite
+  https://stadt-nexverse.de/.
+- Zwei neue Menüregressionstests und fünf bestehende
+  Textleser im vorhandenen Branding-Test ausdrücklich
+  auf UTF-8 umgestellt. Vorher war GitHub-Lauf
+  41491396250 auf Windows-2022 und Windows-11-ARM
+  wegen eines cp1252-UnicodeDecodeError gescheitert;
+  die vier übrigen Matrixjobs waren erfolgreich.
+  Der korrigierte GitHub-CI-Lauf steht noch aus.
+
+20 tatsächlich geprüfte technische Arbeitsschritte:
+01 Branch/Arbeitsverzeichnis sauber;
+02 Windows-CI-Fehlerlog ausgewertet;
+03 Python-Textdekodierung korrigiert;
+04 alle 13 Menü-Overlays und Callback-Abhängigkeiten geprüft;
+05 englische Menü-Basis korrigiert; 06 AZ-Overlay;
+07 DE; 08 ES; 09 FR; 10 IT; 11 JA; 12 PL;
+13 PT; 14 RU; 15 TR; 16 ZH;
+17 Advanced-Browser-Smoke auf NexVerse korrigiert;
+18 80 Branding-Tests auch mit ASCII-Systemkodierung bestanden;
+19 Linux-Vollbuild, 232 Python-Tests und 41 native
+CTests, 13/13 XUI-Menüs bytegleich im Build;
+DE-/EN-Xvfb-Voranmelde-GUI jeweils mit
+STATE_LOGIN_WAIT, kein AUTH_INIT, Exit-Code 0;
+20 Code auf GitHub gepusht, Status/Altbestand geprüft.
+Keine neuen Projektdateien; sieben bekannte alte
+_v2-/script_copy-Dateipfade ohne Nutzungs-/Lizenznachweis
+nicht gelöscht. Keine Nutzerdaten, Credentials,
+User-Caches, Secrets verändert.
+
+Nicht abgenommen: authentifizierter Hauptgrid-Live-
+Login, echte Passwortwiederherstellung und In-World-
+Shutdown, vollständige Windows-/macOS-Vollviewer-
+Build-/GUI-Tests. Beta-TLS-Hostnameproblem offen,
+Beta-Login weiterhin gesperrt. Portable Matrix-CI
+ersetzt diese Viewer-Nachweise nicht.
+Formaler Stand P01 18/20 und P02 0/20.
+Nächster /goal-Einstieg P01 Block 19/20;
+unabhängige P02-Vorarbeiten bleiben möglich.
+
 ## P02 unabhängige Vorarbeit – externe Altlinks in Einstellungen (02.11.2026)
 
 **Code-Commit bf031d29** auf origin/ogl-develop;

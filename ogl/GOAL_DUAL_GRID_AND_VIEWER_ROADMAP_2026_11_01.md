@@ -468,6 +468,19 @@ Formale P01 18/20 und P02 0/20 unverändert;
 Live-/Windows-/macOS-Viewer-Gates fehlen. Weitere
 Details in PROJECT_STATUS.md.
 
+Unabhängige P02-Vorarbeit (02.11.2026, ef3dc0e5):
+In 20 dokumentierten Arbeitsschritten das alte
+DeprecatedHelp-Untermenü aus EN und elf Overlays
+entfernt, Dänisch erbt die korrigierte Basis.
+OGL-/NexVerse-Hilfe, Script Library und Admin-Funktionen
+erhalten; Advanced-Webbrowser-Test nutzt NexVerse.
+Windows-cp1252-CI-Testlesefehler mit explizitem UTF-8
+korrigiert und unter ASCII-Systemkodierung geprüft.
+Linux-Vollbuild, 232 Python-/41 native Tests, 13/13
+XUI-Staging und DE-/EN-GUI-Smokes grün. Kein vollständiger
+Windows-/macOS-Viewer- oder Live-Login-Nachweis.
+Formal P01 18/20, P02 0/20. Details im Status.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

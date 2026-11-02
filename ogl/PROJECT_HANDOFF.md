@@ -144,6 +144,20 @@ und aktualisierte XUI-Staging-Dateien geprüft.
 P01 19/20**, keine echten In-World-/Windows-/
 macOS-Vollviewer-Gates behaupten. Details im Status.
 
+Letzte /goal-20er-Runde (02.11.2026):
+ef3dc0e5: Altes Second-Life-DeprecatedHelp-Untermenü
+aus EN und elf lokalisierten Menüdateien entfernt.
+Der aktive NexVerse-Help- und Script-Library-Pfad
+bleibt erhalten. Windows-cp1252-Regressionstest-
+Fehler auf explizites UTF-8 korrigiert und unter
+ASCII-Systemkodierung lokal bestätigt. Linux-Vollbuild,
+232 Python-/41 native Tests, 80 Branding-Tests,
+13/13 XUI-Menüs im Build und isolierte DE-/EN-Login-
+Smokes bestanden. Formale Phase P01 18/20,
+P02 0/20; nächster /goal P01 Block 19/20.
+Kein echter Live-Login oder Windows-/macOS-Vollviewer-
+Test behauptet. Details in PROJECT_STATUS.md.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

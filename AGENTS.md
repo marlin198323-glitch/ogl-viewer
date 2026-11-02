@@ -73,6 +73,16 @@ DE-/EN-Xvfb-GUI und 18 XUI-Stagingdateien erfolgreich.
 Formaler Stand bleibt P01 18/20, P02 0/20.
 Details/weitere Blocker in ogl/PROJECT_STATUS.md.
 
+Unabhängige /goal-20er-Runde (02.11.2026, ef3dc0e5):
+Veraltetes Second-Life-DeprecatedHelp-Untermenü
+aus EN und elf lokalisierten bestehenden Menüs
+entfernt, OGL-Hilfe und Scripting erhalten.
+Windows-cp1252-Testfehler durch UTF-8-Dekodierung
+repariert; Linux-Vollbuild, 232 Python-/41 native
+Tests, 80 Branding-Tests auch mit ASCII, 13 XUI-
+Stagingdateien und DE-/EN-GUI-Smokes bestanden.
+Formal P01 18/20, P02 0/20, weitere Abnahmen offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 
