@@ -390,6 +390,22 @@ getestet oder verändert; Live-Login und
 Windows-/macOS-Vollviewer-Gates offen.
 Formal P01 18/20, P02 0/20.
 
+**P01 unabhängige Sicherheitsvorarbeit (02.11.2026,
+8e9e773e):** Die alten Grid-Manager-Hilfe-
+und Grid-Builder-Direktcallbacks sind selbst
+abgesichert, sodass auch migrierte/alternative
+Login-Skins in OGL keinen Fremd-Grid-Builder
+mehr öffnen. Hilfe führt zum NexVerse-Portal.
+Unverändert bleiben die zwei festen Grids und
+das Verhalten anderer Viewer-Kanäle.
+20 technische Prüfungen, Linux-Vollbuild
+7.2.5.174, 262 Python-/41 CTests,
+110 Branding-/49 Gridtests sowie DE-720p-
+und EN-1080p-GUI-Smokes bestanden.
+Live-Login/Windows-/macOS-Vollviewer
+nicht abgenommen; formal P01 18/20,
+P02 0/20. Details PROJECT_STATUS.md.
+
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.

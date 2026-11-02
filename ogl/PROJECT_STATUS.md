@@ -32,6 +32,71 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 unabhängige Vorarbeit – Legacy-Grid-Callbacks absichern (02.11.2026)
+
+Code-Commit 8e9e773e auf origin/ogl-develop;
+20/20 nachgewiesene technische Prüfpunkte, KEINE formale
+P01-Abnahme. Der OGL-Viewer 7.2.5.174 wurde unter Linux
+vollständig gebaut, 262/262 Python-Tests, 41/41 CTests,
+110/110 Branding- und 49/49 Grid-Tests bestanden
+(gezielte Tests auch mit LC_ALL=C/PYTHONUTF8=0).
+Isolierter DE-Loginstart 1280x720 sowie EN-Loginstart
+1920x1080 jeweils STATE_LOGIN_WAIT, kein AUTH_INIT,
+sauberer Exit-Code 0. Keine reale gespeicherte Anmeldung.
+
+**Änderungen nur an zwei bestehenden Dateien:**
+- indra/newview/fspanellogin.cpp: Der alte Grid-
+  Manager-Hilfe-Callback öffnet im OGL-Kanal ausschließlich
+  das offizielle NexVerse-Portal statt eines Second-Life-
+  Hilfe-Topics. Der alte Grid-Builder-Callback bricht
+  unter OGL vor dem Fremd-URL-Aufruf ab, auch falls
+  ein altes UI oder Skin den Callback nachträglich auslöst.
+  Für andere Viewer-Kanäle bleiben die Legacy-Funktionen.
+- ogl/tests/test_branding_contract.py: drei weitere
+  Tests für die zwei direkten Callback-Sicherungen,
+  nicht verdrahtete OGL-Hilfe-/Builder-Callbacks,
+  ursprüngliche versteckte Builder-Komponenten
+  und den unveränderten Zwei-Grid-Selektor.
+
+**20 technische Prüfpositionen:**
+01 Repo/Branch/saubere Ausgangsbasis geprüft;
+02 Projekt-Handoff/Status/Phasenplan gelesen;
+03 jüngste GitHub-CI (vorheriger Code erfolgreich);
+04 zwei fest hinterlegte NexVerse-Grids überprüft;
+05 Callback-Verdrahtung im aktiven OGL-Login untersucht;
+06 Legacy-Grid-Hilfe-Direktfunktion identifiziert;
+07 offiziellen Portal-Fallback eingebaut;
+08 Rücksprung vor upstream Help-Resolver geprüft;
+09 Legacy-Grid-Builder-Direktfunktion identifiziert;
+10 OGL-Rücksprung vor Upstream-Fremd-URL eingebaut;
+11 übrige Viewer-Kanäle unverändert belassen;
+12 13 bestehende Legacy-Login-Sprachlayouts überprüft;
+13 10 moderne Login-Overlay-Sprachen überprüft;
+14 Builder nirgends neu sichtbar und
+   Zwei-Grid-Eingabe bleibt schreibgeschützt;
+15 drei Regressionstests ergänzt, 110/110 grün;
+16 49/49 Gridtests auch unter ASCII grün;
+17 vollständiger Linux-Build, 262/262 Python-
+   und 41/41 native Tests grün;
+18 DE 720p Voranmelde-GUI bis Login und Exit 0;
+19 EN 1080p Voranmelde-GUI bis Login und Exit 0;
+20 Quellcode direkt gepusht, git diff --check,
+   Altbestand und keine neuen Dateien kontrolliert.
+Sieben bekannte _v2-/script_copy-Pfade bleiben
+bis zur sicheren Nutzungs-/Lizenzprüfung erhalten.
+Keine Nutzerdaten, Secure-Store-Einträge,
+Caches, Secrets oder Serverdateien bearbeitet.
+
+**Formal weiterhin P01 18/20, P02 0/20.**
+P01-Block 19 (autorisierter Live-Login, tatsächliche
+Credential-Restore- und plattformübergreifende
+Viewer-GUI-Abnahme) bleibt offen, ebenso Beta-
+TLS-Hostnamefehler, In-World-Shutdown und
+vollständige Windows-/macOS-Vollviewer-Tests.
+Die portable Grafikmodulmatrix ersetzt diese
+End-to-End-Gates nicht. Weiterer /goal-Einstieg
+P01 Block 19/20; unabhängige Vorarbeiten möglich.
+
 ## P01 unabhängige Vorarbeit – verwaiste Start-Credentials nicht als Passwort übernehmen (02.11.2026)
 
 Code-Commit 4ff7e7cb direkt auf origin/ogl-develop.

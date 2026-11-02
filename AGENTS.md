@@ -176,6 +176,18 @@ Keine echten Credentials getestet.
 P01 formal 18/20, P02 0/20;
 Live-Login und alle Plattform-Gates offen.
 
+Letzte unabhängige P01-/goal-Vorarbeit
+(02.11.2026, 8e9e773e): Legacy-Grid-
+Hilfe und -Builder auch gegen direkte
+UI-Callbacks abgesichert, OGL-Hilfe nur
+NexVerse-Portal, kein Fremd-Grid-Builder.
+20 Prüfschritte; Linux-Vollbuild 7.2.5.174,
+262 Python-/41 CTests, 110 Branding-/
+49 Gridtests, 23 Login-Overlay-Prüfungen
+und DE-720p-/EN-1080p-GUI bestanden.
+Formal P01 18/20, P02 0/20;
+Live-Login und volle Plattformgates offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

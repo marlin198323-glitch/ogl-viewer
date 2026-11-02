@@ -271,6 +271,21 @@ macOS-Vollviewer-Test behaupten.
 P01 formal 18/20, P02 0/20,
 nächster Einstieg P01 Block 19/20.
 
+**Letzte unabhängige /goal-Runde (02.11.2026,
+8e9e773e):** Legacy-Grid-Hilfe-Callback
+unter OGL auf offizielles NexVerse-Portal
+begrenzt, alter Grid-Builder-Callback vor
+Fremd-URL gesperrt. Gilt auch für alte UI-
+Callbacks; zwei feste Grids bleiben erhalten.
+20 technische Prüfpunkte, Linux-Vollviewer
+7.2.5.174, 262 Python-/41 native Tests,
+110 Branding-/49 Gridtests, 23 Login-
+Sprachlayouts und isolierte DE-720p-
+/EN-1080p-Starts bestanden. Keine
+authentifizierte oder Windows-/macOS-
+Vollviewer-Abnahme. Formal P01 18/20,
+P02 0/20, nächster /goal P01 Block 19/20.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
