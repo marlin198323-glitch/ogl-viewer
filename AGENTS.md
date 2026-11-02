@@ -188,6 +188,23 @@ und DE-720p-/EN-1080p-GUI bestanden.
 Formal P01 18/20, P02 0/20;
 Live-Login und volle Plattformgates offen.
 
+Letzte unabhängige P01-/goal-20er-Runde
+(02.11.2026, be18b791): Login-Retry-
+Zwischenspeicher nur für manuelle
+Passwörter; maskierte gespeicherte
+Authenticator nicht als Klartext
+wiederherstellen. Beim Konto-
+Wechsel altes Klartext-Retry
+verwerfen, fehlende manuelle
+Eingabe erzwingt Passwortneueingabe.
+Linux-Vollbuild 7.2.5.176,
+265 Python-/41 native Tests,
+113 Branding-/49 Gridtests,
+DE-720p-/EN-1080p-GUI grün.
+20 technische Prüfschritte; formal
+P01 18/20, P02 0/20, Live-
+und Plattform-Gates noch offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

@@ -406,6 +406,29 @@ Live-Login/Windows-/macOS-Vollviewer
 nicht abgenommen; formal P01 18/20,
 P02 0/20. Details PROJECT_STATUS.md.
 
+Unabhängige P01-Vorarbeit (02.11.2026, be18b791):
+Retry-Zwischenspeicher für OGL-Anmeldungen
+enthält nur echte, manuell eingegebene
+Passwörter, niemals den angezeigten
+Maskierungsplatzhalter gespeicherter
+Credentials. Beim Wechsel zu einem
+gespeicherten Konto wird ein altes
+manuelles Retry-Passwort verworfen;
+ohne echte Eingabe wird nach einem
+fehlgeschlagenen Startversuch das
+Passwortfeld leer und die Anmelden-
+Schaltfläche deaktiviert. Gültige
+gespeicherte Authenticator und andere
+Viewer-Kanäle bleiben unberührt.
+20 technische Prüfpunkte, Linux-
+Vollbuild 7.2.5.176, 265 Python-/
+41 native Tests, 113 Branding-/49 Grid-
+Tests und DE-720p-/EN-1080p-GUI-Smokes
+bestanden. Keine echte Credential-
+Integration getestet. Formal P01
+18/20, P02 0/20; restliche
+End-to-End-Gates bleiben offen.
+
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.

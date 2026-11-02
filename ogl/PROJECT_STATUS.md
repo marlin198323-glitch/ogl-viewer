@@ -32,6 +32,111 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 unabhängige Vorarbeit – Retry-Passwort strikt von gespeichertem Platzhalter trennen (02.11.2026)
+
+Code-Commit be18b791 auf origin/ogl-develop.
+20/20 technische Prüfschritte dieser unabhängigen
+P01-Vorarbeit, KEINE formale P01-Abnahme.
+Linux-Vollviewer 7.2.5.176 gebaut;
+265/265 Python-Tests, 41/41 native CTests,
+113/113 Branding- und 49/49 Gridtests
+bestanden (gezielte Tests auch unter
+LC_ALL=C und PYTHONUTF8=0).
+Isolierter DE-GUI-Start bei 1280x720 und
+EN-GUI-Start bei 1920x1080 jeweils
+STATE_LOGIN_WAIT, ohne AUTH_INIT, sauberer
+Exit-Code 0. Es wurde kein reales
+Konto authentifiziert, kein Secure-Store
+oder echtes Benutzerprofil verändert.
+
+Sicherheits- und Funktionsergänzung nur in
+zwei vorhandenen Projektdateien:
+- indra/newview/fspanellogin.cpp:
+  getFields kopiert bei OGL nur den
+  manuell eingegebenen Wert in den statischen
+  Retry-Zwischenspeicher. Ein bloßes
+  gespeichertes Authenticator-Token mit
+  Maskierungs-/Anzeigefülltext leert diesen
+  Zwischenspeicher statt den Fülltext zu
+  übernehmen. Die geschützte Konto-Credential
+  bleibt über den alten Secure-Store nutzbar.
+  Beim ausdrücklich gewählten neuen
+  gespeicherten Konto wird der vorherige
+  Klartext-Retry eines anderen Kontos
+  verworfen, ausgenommen der Startup-
+  Wiederherstellungsweg, der ein tatsächlich
+  manuell eingegebenes Passwort benötigen
+  kann. Ein fehlgeschlagener Startversuch
+  ohne gespeichertes echtes Retry-Passwort
+  leert das Eingabefeld und setzt Länge,
+  Änderungsmerkmal und Login-Button
+  zurück. Ein tatsächlich manuell eingegebenes
+  Passwort darf nach einer fehlgeschlagenen
+  Anmeldung weiter restauriert werden.
+  Nicht-OGL-Kanäle behalten bisheriges
+  Verhalten.
+- ogl/tests/test_branding_contract.py:
+  drei zusätzliche gezielte Source-Contract-
+  Tests zum manuell-only Retry-Speicher,
+  Fehlversuchs-Rückfall und Kontowechsel;
+  unveränderter sicherer Speicherpfad
+  geprüft. Diese statischen Tests ersetzen
+  keine tatsächliche Secure-Store-
+  Integration mit realen Credentials.
+
+20 nachweislich abgearbeitete Prüfpositionen:
+01 Repository und Branch ogl-develop geprüft;
+02 Arbeitsverzeichnis vor Änderungen sauber;
+03 jüngste CI-Ergebnisse erfolgreich geprüft;
+04 Hand-off und P01-Detailplan gelesen;
+05 OGL-Loginformular-Credential-Lebenszyklus geprüft;
+06 getFields zwischen gespeicherter
+   und manuell bearbeiteter Eingabe unterschieden;
+07 gespeicherter Authenticator wird nicht
+   als sichtbares Passwort interpretiert;
+08 vorherige Übernahme des Fülltextes in
+   den statischen Retry-Speicher nachvollzogen;
+09 Cache-Schreibpfad auf manuelle Eingabe
+   beschränkt;
+10 Cache für geschützte gespeicherte
+   Kontoauswahl explizit geleert;
+11 manuelles Passwort bleibt für
+   fehlgeschlagene Login-Retries verfügbar;
+12 Kontoauswahl leert früheres
+   Klartext-Retry außerhalb des Startuprücklaufs;
+13 leerer Startup-Retry löscht das Eingabefeld;
+14 leerer Startup-Retry setzt Passwortlänge
+   und Bearbeitungsstatus zurück;
+15 gültige gespeicherte Authenticator-
+   Auswahl und Non-OGL-Pfade erhalten;
+16 drei neue Source-Contract-Tests ergänzt,
+   113/113 Branding- und 49/49 Gridtests
+   auch unter ASCII-Systemkodierung bestanden;
+17 Linux-Vollviewer-Build 7.2.5.176,
+   265/265 Python- und 41/41 native Tests bestanden;
+18 isolierter DE-720p-Login-GUI-Start
+   und sauberer Exit 0;
+19 isolierter EN-1080p-Login-GUI-Start
+   und sauberer Exit 0;
+20 Code direkt auf origin/ogl-develop gepusht,
+   Änderungen auf Whitespace geprüft,
+   bestehende Datei- und Altbestandsregel beachtet.
+Sieben bekannte _v2-/script_copy-Pfade wurden
+nicht ohne Nutzungs-/Lizenzprüfung gelöscht.
+Keine neuen Quell- oder Testdateien angelegt.
+
+**Formaler Stand unverändert P01 18/20,
+P02 0/20.** Nächster operativer /goal-
+Block P01 19/20: autorisierter Live-Login,
+tatsächliche gespeicherte Passwort-
+Wiederherstellung, In-World-Shutdown und
+vollständige Windows-/macOS-Vollviewer-
+Build-/GUI-Nachweise stehen noch aus.
+Beta-TLS-Hostnameabweichung weiter offen,
+keine Umgehung der TLS-Validierung.
+Portable Grafikmatrix ist kein Ersatz
+für Plattform-Vollviewer-Abnahmen.
+
 ## P01 unabhängige Vorarbeit – Legacy-Grid-Callbacks absichern (02.11.2026)
 
 Code-Commit 8e9e773e auf origin/ogl-develop;

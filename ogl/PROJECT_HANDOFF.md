@@ -286,6 +286,27 @@ authentifizierte oder Windows-/macOS-
 Vollviewer-Abnahme. Formal P01 18/20,
 P02 0/20, nächster /goal P01 Block 19/20.
 
+Letzte unabhängige /goal-20er-Runde
+(02.11.2026, be18b791): OGL-Anmeldung
+cached bei getFields nur ein wirklich
+manuell eingegebenes Passwort als
+temporäres Retry-Passwort. Gespeicherte
+Authenticator-Platzhalter werden nicht
+übernommen; bei Kontowechsel wird der
+vorherige Klartext-Retry gelöscht.
+Leerer Startup-Retry erzwingt manuelle
+Neueingabe, tatsächlich manuell
+eingegebene Passwörter können nach
+fehlgeschlagener Anmeldung restauriert
+werden. 20 technische Prüfpositionen,
+Linux-Vollbuild 7.2.5.176, 265 Python-
+/41 native Tests, 113 Branding-
+/49 Gridtests, DE-720p-/EN-1080p-GUI
+bestanden. Weder echte Credentials
+noch Grid-Live-Login getestet.
+Formal P01 18/20, P02 0/20.
+Nächster operativer /goal P01 Block 19/20.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
