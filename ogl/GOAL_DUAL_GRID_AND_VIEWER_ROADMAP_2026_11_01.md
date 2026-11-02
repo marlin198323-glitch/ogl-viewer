@@ -480,15 +480,27 @@ Formal P01 18/20, P02 0/20.
 19. Python-/native Tests, realen Linux-Viewer-Build und Grid-Login-Regression prüfen.
 20. Änderungen pushen, Status/Commit dokumentieren und P02 direkt starten.
 
-**Abschluss-Gate:** Alle 20 Punkte implementiert oder als
-bereits nachweislich vorhanden geprüft, relevante Tests
-und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
-sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+**P01 Linux-Abnahme vom 02.11.2026: 20/20.**
+Der Nutzer bestätigt erfolgreichen Live-Login,
+funktionierende 3D-Welt, sauberen Shutdown
+und Wiederherstellung gespeicherter Konten.
+Linux-Build 7.2.5.180 und 270 Python-/41
+native Tests bestanden unabhängig.
+Windows-/macOS-Vollviewer-Tests derzeit
+mangels Testplattform nicht möglich und als
+Pflicht vor jeweiligen Releases in P13
+nachholen. Beta-TLS-Fehler ist P08 zugeordnet.
+P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Status:** formal geplant; 0/20 Phasenblöcke abgeschlossen,
-weil P01 noch echte End-to-End-Blocker hat. Unabhängige Vorarbeit
+**Aktueller Status:** P02 aktiv, 1/20 abgeschlossen.
+Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
+in vorhandenen XUI-/C++-Dateien inventarisiert:
+13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater
+und alle betroffenen XMLs erfolgreich geparst.
+Nächster Schritt: Block 2, OGL-Navigationshierarchie.
+Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,
 20/20 technische Prüfpositionen, 167 Python/41 native Tests);
@@ -684,6 +696,12 @@ offen. Formal P01 18/20, P02 0/20.
 bereits nachweislich vorhanden geprüft, relevante Tests
 und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
 sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
+
+Historische Vermerke auf P01 18/20 weiter
+oben beziehen sich auf Vorarbeiten vor der
+Linux-Funktionsbestätigung. Windows/macOS
+bleiben bis zum vollständigen OS-Release-Gate
+unfreigegeben.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 

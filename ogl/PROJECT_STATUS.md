@@ -8,9 +8,18 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** `/goal P01 Block 19/20` (Teilprüfungen bestanden;
-vollständiger Live-Login und plattformübergreifender Viewer-Nachweis
-noch nicht verfügbar). **Keine manuelle Zwischenabnahme erforderlich.**
+**Aktiver Block:** /goal P02 Block 2/20.
+P01 unter Linux 20/20 abgeschlossen nach
+Nutzerbestätigung am 02.11.2026: Live-Login,
+3D-Welt, sauberer Shutdown und gespeicherte
+Zugangsdaten funktionieren. Diese Abnahme
+beruht auf der ausdrücklichen Nutzerprüfung;
+der Assistent hat nur Prelogin und Linux-Build
+eigenständig getestet. Windows/macOS bleiben
+für spätere Plattform-Release-Gates in P13 offen;
+Beta-TLS-Zertifikat ist P08 zugeordnet.
+P02 Block 1/20 Inventur abgeschlossen.
+
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
 Arbeitsauftrag möglich, direkter Start der Folgephase.
@@ -18,8 +27,8 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
-| P01 – Branding und modernes Login | aktiv | 18/20 | Block 19: Live-Login und Plattformregression |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | offen | 0/20 | nach Abschluss der Vorphase |
+| P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 1/20 | Block 2: OGL-Navigation konsolidieren |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -31,6 +40,47 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## Phasenwechsel: P01 Linux-Abnahme / P02 Block 1 (02.11.2026)
+
+P01 unter Linux 20/20 abgeschlossen nach
+expliziter Rückmeldung des Nutzers:
+Viewer-Login ins Live-Grid erfolgreich,
+3D-Welt funktioniert, Viewer-Shutdown
+sauber, gespeicherte Zugangsdaten
+werden zuverlässig wiederhergestellt.
+Vom Assistenten separat nachgewiesen:
+Linux-Vollbuild 7.2.5.180,
+270 Python-/41 native Tests
+und isolierte Voranmelde-GUI-Smokes.
+Kein eigenständiger Login mit Nutzerkonto
+und keine Windows-/macOS-Vollviewer-GUI-
+Abnahme behaupten. Diese Plattformtests
+sind Pflicht vor OS-spezifischen Releases
+und in P13 verblieben. Beta-TLS-Fehler
+wird in P08 bearbeitet; kein Bypass.
+
+P02 Block 1/20: Inventar der bestehenden
+Menü-/Fenster-/Chat-Dateien erstellt:
+13 menu_viewer.xml-Übersetzungen,
+11 panel_toolbar_view.xml-Locales,
+13 IM-Container-Locale-Overlays,
+sieben panel_chat_header.xml-Locales,
+zwei Nearby-Chat-Overlays,
+zehn moderne Login-Overrides zur Abgrenzung.
+258 englische floater_*.xml-Dateien
+vorhanden; alle untersuchten XML-Dateien
+erfolgreich geparst. Aktive Quellen:
+fschathistory.cpp, fsfloaternearbychat.cpp,
+fsfloaterim.cpp, llviewerwindow.cpp.
+Sieben bekannte _v2-/script_copy-Dateien
+inventarisiert, nicht blind entfernt.
+Keine neuen Quelldateien.
+P02 nächster Block 2/20: einheitliche
+OGL-Navigationshierarchie festlegen.
+Die folgenden älteren Berichte dokumentieren
+historische damalige Stände, nicht den
+aktuellen Phasenstatus.
 
 ## P01 Block 19/20 – Transport-/CI-/Credential-Prüfung (02.11.2026)
 

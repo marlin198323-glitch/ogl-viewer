@@ -20,25 +20,22 @@ Commits und uncommitted changes prüfen. Keine .env,
 Benutzerdaten, Cache-, Login- oder Secret-Dateien
 ungefragt überschreiben.
 
-**Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
-sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
-Code `b2520078`: Augenknopf
-darf gespeicherte Credential-
-Anzeigefüllzeichen nicht wie
-echte Passwörter aufdecken;
-erst manuelle Eingabe
-aktiviert die Reveal-Tasten,
-leeres Feld maskiert erneut.
-20/20 technische Einzelchecks,
-220 Python-/41 native Tests,
-DE-GUI-Start und EN-
-Screenshot verifiziert,
-Beta-TLS weiterhin ungültig.
-P02 formal 0/20; echter
-Live-Login sowie volle
-Windows-/macOS-Viewer-
-Abnahmen offen),
-danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
+**Operativer /goal-Ablauf:** P01–P13 in der Hauptroadmap.
+P01 (Linux) ist seit 02.11.2026 mit 20/20 abgeschlossen.
+Nutzerbestätigte Live-Tests: Anmeldung erfolgreich,
+3D-Welt funktioniert, sauberer Viewer-Shutdown,
+gespeicherte Logindaten werden wiederhergestellt.
+Das sind Nutzer-Abnahmeaussagen, keine automatisch
+authentifizierten Tests des Assistenten.
+Linux-Vollbuild 7.2.5.180, 270 Python-/41 native Tests
+waren unabhängig zuvor bestanden.
+Windows-/macOS-Vollviewer-GUI und -Build sind
+noch nicht testbar, bleiben in P13 als Pflicht
+vor Freigabe für diese Systeme vorgemerkt.
+Beta-TLS-Zertifikatsabweichung bleibt P08.
+Aktiv P02 Block 2/20 (Inventur Block 1 erledigt).
+Verbindlich ist der Anfang von PROJECT_STATUS.md.
+
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten
 bearbeiten, betroffene Tests/Builds/CI prüfen, direkt auf

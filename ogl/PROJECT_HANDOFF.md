@@ -32,31 +32,22 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Aktueller Einstieg: **P01, Block 19/20**
-(Blöcke 1–18 abgeschlossen;
-`b2520078`: Augenknöpfe
-für nicht entschlüsselbare
-gespeicherte Passwort-
-Platzhalter gesperrt,
-manuell eingegebene
-Passwörter weiter
-anzeigbar, nach Leeren
-wieder maskiert.
-20/20 technische Checks,
-220 Python-/41 native
-Tests, DE-Xvfb-GUI und
-EN-Xvfb-Screenshot grün;
-Hauptgrid-Gridinfo
-bestätigt, Beta-TLS-
-Zertifikat unpassend.
-Beta-GUI-Klicktest nicht
-abgeschlossen. P02 0/20;
-autorisierter Hauptgrid-
-Login, Passwortpersistenz,
-In-World-Shutdown und
-vollständige Windows-/
-macOS-Viewer-GUI-/Build-
-Abnahmen noch offen).
+wechseln. Neuer Einstieg: P02 Block 2/20.
+P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
+Nutzerbestätigung vom 02.11.2026:
+Live-Login, 3D-Welt, Shutdown und Speicherung/
+Wiederherstellung der Anmeldedaten funktionieren.
+Der Assistent hat die Live-Anmeldung nicht mit
+eigenen Zugangsdaten reproduziert; Linux-Vollbuild
+7.2.5.180, 270 Python-/41 native Tests und
+Prelogin-GUI-Smokes waren separat erfolgreich.
+Windows/macOS noch nicht verfügbar für
+Vollviewer-Abnahme, vor Release in P13 nachholen.
+Beta-TLS-Zertifikatsproblem bleibt P08.
+P02 Block 1/20: Menüs/Floater/Chat inventarisiert,
+13 Menü-/11 Toolbar-Sprachlayouts und
+258 EN-Floater als XML erfolgreich geparst.
+
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 
