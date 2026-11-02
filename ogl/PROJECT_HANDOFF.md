@@ -122,6 +122,17 @@ EN-Xvfb-GUI-Lauf mit Exit 0 bestanden.
 **P01 bleibt 18/20, P02 formal 0/20; nächster Block P01 19/20.**
 Details in `ogl/PROJECT_STATUS.md`.
 
+**Letzte unabhängige P02-Vorarbeit (02.11.2026,
+f1552bb1):** Alte externe Firestorm-/BugSplat-Crashuploads
+in den drei Plattformstartpfaden und im separaten
+Crash-Logger für OGL gesperrt; Crash-Upload-Tab verborgen.
+Linux-Vollbuild und 227 Python-/41 native Tests erfolgreich;
+DE-/EN-Xvfb-Login-Smokes sauber. Native vollständige
+Windows-/macOS-GUI-/Build-Nachweise fehlen.
+**Formaler Stand P01 18/20, P02 0/20;
+nächster Block P01 19/20.**
+Details in ogl/PROJECT_STATUS.md.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

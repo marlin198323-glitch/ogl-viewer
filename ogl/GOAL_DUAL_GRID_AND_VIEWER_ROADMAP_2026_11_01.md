@@ -447,6 +447,16 @@ drei erben die englische Einstellung. Linux-Vollbuild,
 mit sauberem Exit bestanden. P01 bleibt 18/20, P02 bleibt
 formal 0/20. Kein Live-/Windows-/macOS-Vollviewer-Gate behauptet.
 
+**Weitere unabhängige P02-Vorarbeit (02.11.2026, f1552bb1):**
+Legacy-Firestorm-Crashuploads unter OGL auf Linux/Windows/macOS
+sowie im separaten Crash-Logger gesperrt, den irreführenden
+alten Crash-Upload-Tab im OGL-Einstellungsdialog ausgeblendet.
+Bestehende Benutzerpräferenzen bleiben unangetastet. Linux-
+Vollbuild, 227 Python-/41 native Tests sowie isolierte DE- und
+EN-GUI-Starts erfolgreich. Windows-/macOS-Vollviewer-Gates
+und echter Live-Login weiterhin offen. **P01 18/20, P02 0/20
+formal unverändert.** Siehe PROJECT_STATUS.md.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

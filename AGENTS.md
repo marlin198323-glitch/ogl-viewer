@@ -56,6 +56,14 @@ Seiten, aktualisierte Sprachoptionen); Linux-Vollbuild,
 **Formaler Stand bleibt P01 18/20, P02 0/20.** Verbindliche
 Detailnachweise stehen in `ogl/PROJECT_STATUS.md`.
 
+Unabhängige P02-Vorarbeit vom 02.11.2026: f1552bb1
+blockiert den alten Firestorm-/BugSplat-Crashupload unter
+OGL an Linux-/Windows-/macOS-Einstiegspunkten und direkt
+im Crash-Logger. Linux-Vollbuild, 227 Python-/41 native
+Tests, DE-/EN-Voranmelde-GUI erfolgreich; vollständige
+Windows-/macOS-Abnahmen bleiben offen. P01 18/20,
+P02 0/20 formal unverändert. Details in PROJECT_STATUS.md.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

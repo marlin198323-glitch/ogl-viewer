@@ -32,6 +32,71 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – OGL-Datenschutz bei Absturzberichten (02.11.2026)
+
+**Code-Commit: f1552bb1** (origin/ogl-develop).
+**Linux-Vollbuild: erfolgreich, 227/227 Python- und 41/41 native
+CTests bestanden.** Isolierte 1280×720-EN-/DE-Xvfb-
+Login-GUI-Läufe jeweils bis STATE_LOGIN_WAIT,
+kein STATE_LOGIN_AUTH_INIT und sauberer Fenster-Exit 0.
+**Formale Phasen weiter P01 18/20 und P02 0/20.**
+
+**Implementierung ausschließlich in sechs vorhandenen Quelldateien:**
+- indra/newview/llappviewerlinux.cpp: OGL darf den
+  bisherigen Linux-Breakpad-/Fremdserver-Uploadpfad auch
+  bei übernommenen Einstellungen nicht initialisieren.
+- indra/newview/llappviewerwin32.cpp: Der bisherige
+  BugSplat-Sender wird unter OGL nicht konstruiert.
+  Die reguläre Viewer-Initialisierung läuft weiter.
+- indra/newview/llappdelegate-objc.mm: macOS startet
+  den vorhandenen BugSplat-Dienst im OGL-Kanal nicht;
+  normale App-Initialisierung bleibt unberührt.
+- indra/llcrashlogger/llcrashlogger.cpp: Auch ein
+  separat gestarteter alter Crash-Logger verweigert unter
+  OGL die Initialisierung bereits vor HTTP-Start.
+- indra/newview/llfloaterpreference.cpp: Der nicht mehr
+  passende Firestorm-Crash-Upload-Tab wird im OGL
+  unabhängig von der Compile-Time-Reporting-Option
+  entfernt. Fremde Kanäle bleiben kompatibel.
+- ogl/tests/test_branding_contract.py: fünf neue
+  plattformspezifische Quellcode-Regressionsprüfungen.
+  75/75 Branding-Tests bestanden.
+
+**20 technische Prüfpositionen (keine formalen Phasenblöcke):**
+01 korrekter Branch; 02 origin synchron; 03 keine neuen
+Projektdateien; 04 Linux-Sender-Gate vorhanden; 05
+übernommene Einstellung erzwingt keine Freigabe;
+06 Nicht-OGL-Linux-Verhalten erhalten; 07 Windows-
+Bugsplat-Gate; 08 Windows-Basisinitialisierung erhalten;
+09 macOS-Sender-Gate; 10 macOS-Viewer-Start unverändert;
+11 direkte Crash-Logger-Sperre; 12 Sperre vor
+HTTP-Initialisierung; 13 OGL-Crash-Tab verborgen;
+14 Reporting-Compile-Option weiterhin berücksichtigt;
+15 bestehende Nutzer-Konfigurationsdateien unverändert;
+16 fünf zusätzliche Regressionstests; 17 75 Branding-
+Tests; 18 227 Python-/41 native Tests und Linux-Vollbuild;
+19 echter DE-Xvfb-Voranmeldelauf/sauberer Exit;
+20 echter EN-Xvfb-Voranmeldelauf/sauberer Exit und
+Altbestand-Inventur (sieben vorhandene _v2-/script_copy-
+Pfade, ohne Abhängigkeits-/Lizenznachweis nicht gelöscht).
+
+**Testgrenzen:** Der Linux-Build war ohne BugSplat
+konfiguriert. Die Windows-/macOS-Codepfade sind durch
+statische Regressionstests abgedeckt, aber noch **nicht**
+durch vollständige native Viewer-Builds oder Laufzeittests
+bestätigt. Ein zukünftiger freiwilliger OGL-Crashupload
+benötigt einen geprüften eigenen Dienst mit eigener
+Datenschutzerklärung und ausdrücklicher Einwilligung.
+Alle aktuellen lokalen Benutzer-/Credential-Daten
+bleiben unberührt.
+
+**Weiter offen:** autorisierter Live-Login des Hauptgrids,
+echte gespeicherte Credential-Wiederherstellung, In-World-
+Shutdown, vollständige Windows-/macOS-Viewer-Tests und
+das zuvor festgestellte Beta-TLS-Zertifikatsproblem.
+Nächster operativer Einstieg: /goal P01 Block 19/20.
+Unabhängige P02-Vorarbeiten können fortgesetzt werden.
+
 ## P02 unabhängige Vorarbeit – eingebetteter NexVerse-Webbrowser (02.11.2026)
 
 **Code-Commit:** `912a7320` auf `origin/ogl-develop`.
