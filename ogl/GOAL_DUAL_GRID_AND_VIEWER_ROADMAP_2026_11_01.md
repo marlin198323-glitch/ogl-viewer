@@ -457,6 +457,17 @@ EN-GUI-Starts erfolgreich. Windows-/macOS-Vollviewer-Gates
 und echter Live-Login weiterhin offen. **P01 18/20, P02 0/20
 formal unverändert.** Siehe PROJECT_STATUS.md.
 
+**Weitere unabhängige P02-Vorarbeit (02.11.2026, bf031d29):**
+Firestorm-Wiki-Verweise aus 13 bestehenden Netzwerk-/
+Cache-Sprachlayouts beseitigt, Chat-Befehlsdokumentation
+in fünf Sprachen ohne veraltete Fremdlinks, alte
+Second-Life-Kontolinkfreigabe im OGL-Kanal gesperrt.
+230 Python-/41 native Tests, Linux-Vollbuild, bytegleiche
+XUI-Staging-Kontrolle und DE-/EN-Xvfb-Login-Smokes grün.
+Formale P01 18/20 und P02 0/20 unverändert;
+Live-/Windows-/macOS-Viewer-Gates fehlen. Weitere
+Details in PROJECT_STATUS.md.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

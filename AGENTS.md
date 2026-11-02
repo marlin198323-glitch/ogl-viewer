@@ -64,6 +64,15 @@ Tests, DE-/EN-Voranmelde-GUI erfolgreich; vollständige
 Windows-/macOS-Abnahmen bleiben offen. P01 18/20,
 P02 0/20 formal unverändert. Details in PROJECT_STATUS.md.
 
+Unabhängige P02-Vorarbeit (02.11.2026): bf031d29
+entfernt Firestorm-Wiki-Hilfelinks aus 13 Setup-
+Sprachlayouts, alte Chat-Doku-Links in fünf Sprachen,
+sperrt Second-Life-E-Mail-Kontoverweise in OGL.
+Linux-Vollbuild, 230 Python-/41 native Tests,
+DE-/EN-Xvfb-GUI und 18 XUI-Stagingdateien erfolgreich.
+Formaler Stand bleibt P01 18/20, P02 0/20.
+Details/weitere Blocker in ogl/PROJECT_STATUS.md.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

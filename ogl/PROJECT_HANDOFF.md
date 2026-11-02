@@ -133,6 +133,17 @@ Windows-/macOS-GUI-/Build-Nachweise fehlen.
 nächster Block P01 19/20.**
 Details in ogl/PROJECT_STATUS.md.
 
+**Letzter Entwicklungsstand (02.11.2026):**
+bf031d29: alte Firestorm-Wiki-Hilfelinks aus 13
+Setup-Sprachlayouts entfernt, Chat-Command-Hilfe
+in fünf Sprachen bereinigt, Second-Life-E-Mail-
+Kontolink im OGL-Kanal gesperrt. Linux-Vollbuild,
+230 Python-/41 native Tests, DE-/EN-Xvfb-Login
+und aktualisierte XUI-Staging-Dateien geprüft.
+**Formale P01 18/20, P02 0/20; nächster Block
+P01 19/20**, keine echten In-World-/Windows-/
+macOS-Vollviewer-Gates behaupten. Details im Status.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

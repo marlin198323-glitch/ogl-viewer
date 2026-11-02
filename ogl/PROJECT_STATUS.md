@@ -32,6 +32,65 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – externe Altlinks in Einstellungen (02.11.2026)
+
+**Code-Commit bf031d29** auf origin/ogl-develop;
+Linux-Vollviewer 7.2.5.156 erfolgreich gebaut.
+**230/230 Python-Tests, 41/41 native CTests, 78/78 gezielte
+Branding-Regressionsprüfungen erfolgreich.** Echte isolierte
+DE-/EN-Xvfb-Login-GUI-Smokes jeweils mit STATE_LOGIN_WAIT,
+ohne STATE_LOGIN_AUTH_INIT, per Fenster geschlossen, Exit-Code 0.
+
+**Geändert nur an 20 bestehenden Projektdateien:**
+- 13 bestehende panel_preferences_setup.xml-Sprachvarianten:
+  alte Verweise auf die externe Firestorm-Wiki bei
+  Bandbreite/Cache entfernt, lokale Überschriften,
+  Einstellungen und Layoutanker erhalten. Türkische
+  Overlay-Datei definiert nur die Bandbreitenüberschrift.
+- EN/DE/JA/PL/ZH panel_preferences_chat.xml:
+  toten Firestorm-Wiki-Link für den vorhandenen
+  Chat-Befehlsbereich durch kurze, nicht klickbare
+  Überschrift ersetzt. Command-Checkbox und bestehende
+  Befehlsbeispiele bleiben erhalten.
+- llfloaterpreference.cpp: Die alte Second-Life-Konto-
+  E-Mail-Einstellungsseite wird in OGL auch bei
+  unerwarteter Second-Life-Grideinstellung nicht wieder
+  sichtbar. Der vorhandene OpenSim-Checkboxpfad für
+  Offline-IM-Mail bei unterstützten Grids bleibt erhalten;
+  sonstige Viewer-Kanäle behalten ihr bisheriges Verhalten.
+- ogl/tests/test_branding_contract.py: drei zusätzliche
+  Regressionstests, alle 13 Setup-Sprachen und fünf
+  Chat-Overlays per XML auf Funktionserhalt geprüft.
+
+**20 technische Prüfpositionen (keine formalen P02-Blöcke):**
+01 korrekter Branch, 02 origin-Synchronität, 03 keine
+untracked Projektdateien, 04 ursprüngliche UI-Controls
+erhalten, 05 Netz-Bandbreite-Label, 06 Cache-Label,
+07 alte Wiki-Links nicht mehr verfügbar, 08 alle 13
+Setup-XUI gültig, 09 fünf Chat-Doku-XUI gültig,
+10 Chat-Command-Schalter vorhanden, 11 alte
+Account-Seite im OGL-Kanal versteckt, 12 OpenSim-
+E-Mail-Checkbox bleibt vorhanden, 13 Upstream-
+Nicht-OGL-Pfad erhalten, 14 Quelltextregressionen,
+15 78 Branding-Tests, 16 230 Python-Tests, 17
+41 native CTests, 18 voller Linux-Build und 18
+geänderte XUI-Quellen bytegleich im Paket, 19 echter
+DE-Xvfb-Login-Smoke/Exit 0, 20 echter EN-Xvfb-
+Login-Smoke/Exit 0 sowie Altbestandkontrolle.
+Sieben vorhandene _v2-/script_copy-Pfade inventarisiert,
+aber ohne sichere Abhängigkeits-/Lizenzprüfung nicht
+gelöscht. Nutzerprofile, Secrets und Caches nicht geändert.
+
+**Nicht abgenommen:** authentifizierter Hauptgrid-Live-
+Login, Restore realer gespeicherter Passwörter,
+In-World-Shutdown, Windows-/macOS-Vollviewer-Builds
+und GUI-Tests. Die portable Grafikmodul-CI ersetzt
+diese Nachweise nicht; Beta-TLS-Hostnamenproblem nach
+vorigem Befund weiter offen, Beta-Anmeldung gesperrt.
+**P01 weiterhin 18/20; P02 formal 0/20.**
+Nächster operativer Einstieg /goal P01 Block 19/20,
+unabhängige P02-Vorarbeit bleibt möglich.
+
 ## P02 unabhängige Vorarbeit – OGL-Datenschutz bei Absturzberichten (02.11.2026)
 
 **Code-Commit: f1552bb1** (origin/ogl-develop).
