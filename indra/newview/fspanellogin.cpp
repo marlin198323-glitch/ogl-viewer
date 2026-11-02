@@ -2063,6 +2063,13 @@ void FSPanelLogin::onClickGridMgrHelp(void*)
 {
     if (sInstance)
     {
+        if (APP_NAME == "OGL")
+        {
+            // OGL has two pinned grids, not the upstream editable grid manager.
+            // A stale legacy UI callback must never open Second Life help.
+            LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite);
+            return;
+        }
         LLViewerHelp* vhelp = LLViewerHelp::getInstance();
         vhelp->showTopic(vhelp->gridMgrHelpTopic());
     }
@@ -2071,6 +2078,11 @@ void FSPanelLogin::onClickGridMgrHelp(void*)
 //static
 void FSPanelLogin::onClickGridBuilder(void*)
 {
+    // The fixed OGL grid selector cannot add arbitrary destinations. This
+    // also blocks callbacks from a migrated or alternate login skin.
+    if (APP_NAME == "OGL")
+        return;
+
     LLWeb::loadURLInternal(gSavedSettings.getString("FSGridBuilderURL"));
 }
 

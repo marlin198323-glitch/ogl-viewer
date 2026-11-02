@@ -555,6 +555,48 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertEqual(labels["APP_NAME"], "OGL Viewer")
         self.assertEqual(labels["APP_NAME_ABBR"], "OGL")
 
+    def test_ogl_grid_help_callback_routes_only_to_official_portal(self):
+        src = self.source("indra/newview/fspanellogin.cpp")
+        body = src.split("void FSPanelLogin::onClickGridMgrHelp(void*)", 1)[1].split(
+            "void FSPanelLogin::onClickGridBuilder(void*)", 1)[0]
+        self.assertIn('if (APP_NAME == "OGL")', body)
+        self.assertIn('LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite);', body)
+        self.assertLess(body.index('LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite);'),
+                        body.index('LLViewerHelp* vhelp = LLViewerHelp::getInstance();'))
+        self.assertLess(body.index('return;'),
+                        body.index('vhelp->showTopic(vhelp->gridMgrHelpTopic());'))
+
+    def test_ogl_legacy_grid_builder_callback_cannot_contact_foreign_hosts(self):
+        src = self.source("indra/newview/fspanellogin.cpp")
+        body = src.split("void FSPanelLogin::onClickGridBuilder(void*)", 1)[1].split(
+            "void FSPanelLogin::onSelectUser()", 1)[0]
+        self.assertIn('if (APP_NAME == "OGL")', body)
+        self.assertLess(body.index('return;'),
+                        body.index('LLWeb::loadURLInternal(gSavedSettings.getString("FSGridBuilderURL"));'))
+        init = src.split('LLTextBox* create_new_account_text', 1)[1].split(
+            'LLSLURL start_slurl', 1)[0]
+        self.assertIn('if (APP_NAME != "OGL")', init)
+        self.assertIn('grid_builder_text->setClickedCallback(onClickGridBuilder, NULL);', init)
+        self.assertIn('grid_mgr_help_text->setClickedCallback(onClickGridMgrHelp, NULL);', init)
+
+    def test_two_grid_login_keeps_legacy_grid_builder_hidden_in_locales(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        original = ET.parse(base / "en/panel_fs_login.xml").getroot()
+        builder = [e for e in original.iter() if e.get("name") == "grid_builder_text"]
+        self.assertEqual(len(builder), 1)
+        self.assertEqual(builder[0].get("visible"), "false")
+        for path in sorted(base.glob("*/panel_fs_login.xml")):
+            root = ET.parse(path).getroot()
+            for e in root.iter():
+                if e.get("name") == "grid_builder_text":
+                    self.assertNotEqual(e.get("visible"), "true", str(path))
+        modern = ET.parse(base / "en/panel_fs_nui_login.xml").getroot()
+        self.assertFalse(any(e.get("name") == "grid_builder_text"
+                             for e in modern.iter()))
+        grids = [e for e in modern.iter() if e.get("name") == "server_combo"]
+        self.assertEqual(len(grids), 1)
+        self.assertEqual(grids[0].get("allow_text_entry"), "false")
+
     def test_source_brand_and_translations(self):
         self.assertIn('const std::string APP_NAME = "OGL";',
                       self.source("indra/llcommon/indra_constants.h"))
