@@ -34,25 +34,29 @@ automatisch geladen.
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20**
 (Blöcke 1–18 abgeschlossen;
-`c3db484e`: Passwort-
-Klartextanzeige nach
-Konto-/Gridwechsel
-und gespeicherten
-Credential-Restores
-automatisch maskiert,
-Augenknopf bleibt
-manuell bedienbar.
-20/20 QA-Positionen,
-215 Python- und
-41 native Tests,
-DE-/FR-GUI-Starts
-grün. P02 formal 0/20;
-Hauptgrid-Live-Login,
-Passwortpersistenz,
+`b2520078`: Augenknöpfe
+für nicht entschlüsselbare
+gespeicherte Passwort-
+Platzhalter gesperrt,
+manuell eingegebene
+Passwörter weiter
+anzeigbar, nach Leeren
+wieder maskiert.
+20/20 technische Checks,
+220 Python-/41 native
+Tests, DE-Xvfb-GUI und
+EN-Xvfb-Screenshot grün;
+Hauptgrid-Gridinfo
+bestätigt, Beta-TLS-
+Zertifikat unpassend.
+Beta-GUI-Klicktest nicht
+abgeschlossen. P02 0/20;
+autorisierter Hauptgrid-
+Login, Passwortpersistenz,
 In-World-Shutdown und
 vollständige Windows-/
-macOS-Viewer-Build-
-und GUI-Tests offen).
+macOS-Viewer-GUI-/Build-
+Abnahmen noch offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

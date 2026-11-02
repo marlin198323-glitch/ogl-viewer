@@ -208,7 +208,27 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Code-Commit `c3db484e`:
+Letzter P01-Code-Commit `b2520078`:
+OGL-Augenknopf kann bei
+gespeichertem Credential
+keinen falschen
+Passwort-Platzhalter
+sichtbar machen.
+Erst manuelle Eingabe
+schaltet das Auge frei;
+Leeren maskiert erneut.
+20/20 technische Prüfungen,
+220 Python-/41 native
+Tests, DE-Linux-GUI
+und EN-Xvfb-Screenshot
+bestätigt. Main-Gridinfo
+noch gültig, Beta-TLS-
+Hostnamen-Zertifikat
+weiterhin unpassend.
+Beta-GUI-Klicktest nicht
+als erfolgreich behaupten.
+Davor:
+`c3db484e`:
 OGL maskiert zuvor
 sichtbare Passwörter
 automatisch nach jeder

@@ -32,6 +32,137 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – gespeicherter Passwortplatzhalter bleibt verborgen (20 Prüfpunkte)
+
+**Code-Commit `b2520078`** auf `ogl-develop`.
+**20/20 technische Prüfpositionen bestanden.**
+Die formale P01-Phase bleibt **18/20**,
+P02 bleibt **0/20**.
+
+**Implementiert ausschließlich in bestehenden Dateien:**
+
+- `indra/newview/fspanellogin.cpp`:
+  Bei einem gespeicherten Credential
+  steht im Passwortfeld nur der
+  maskierte, nicht entschlüsselbare
+  Anzeigetext `Enter a password`.
+  Der OGL-Augenknopf darf diesen
+  Platzhalter nicht als echtes
+  Passwort offenlegen: Beide
+  Augenknöpfe bleiben deaktiviert,
+  solange keine eigene neue
+  Passworteingabe erfolgt ist.
+  Auch ein programmgesteuerter
+  Klick auf `onShowHidePasswordClick`
+  wird in diesem Zustand abgewiesen.
+- Manuell eingegebene Passwörter
+  dürfen weiterhin über das Auge
+  angezeigt und wieder verborgen
+  werden. Nach dem vollständigen
+  Löschen des Passworts wird
+  `mShowPassword` wieder auf
+  `false` gesetzt, sodass die
+  nächste Eingabe maskiert beginnt.
+  Kontoauswahl, `setFields`,
+  Gridwechsel und direkte
+  Benutzernamenbearbeitung
+  synchronisieren Sichtbarkeit
+  und Aktivierungszustand.
+  Nicht-OGL-Kanäle behalten
+  ihre ursprüngliche
+  Augenknopf-Aktivierungslogik.
+- Fünf weitere Regressionstests
+  in der bereits vorhandenen
+  `ogl/tests/test_nexverse_grid.py`.
+  **Keine neuen Projektdateien,
+  keine vorhandenen Credentials
+  oder Nutzerdaten überschrieben.**
+  Vorhandene Altdateien mit
+  `_v2`/`script_copy` nur
+  inventarisiert, nicht blind
+  entfernt.
+
+**20 bestandene Prüfpositionen:**
+01 Branch; 02 GitHub-Synchronität;
+03 keine neuen Dateien;
+04 zwei feste Grids;
+05 öffentliche Hauptgrid-
+Auskunft bestätigt exakten
+OpenSim-HTTP-Endpunkt;
+06 Beta-Authentifizierung im
+Quellcode weiter gesperrt;
+07 gespeicherter Platzhalter
+nicht aufdeckbar;
+08 Abbruch vor Eye-Toggle;
+09 kein Credential-Store-
+Zugriff im Eye-Handler;
+10 beide Augenknöpfe
+bis zur manuellen Eingabe
+deaktiviert; 11 OGL-spezifische
+Logik ohne Upstream-
+Nebenwirkungen; 12
+Maskierung bei unerlaubter
+Freigabe; 13 Aktivierung
+nach Passworteingabe;
+14 Reset nach Löschen;
+15 UI-Sync nach `setFields`;
+16 Sync nach gespeicherter
+Kontoauswahl; 17 Sync bei
+Grid-/Benutzernamenwechsel;
+18 Linux-Vollbuild und
+220 Python-/41 native Tests;
+19 echter DE-Xvfb-GUI-Start,
+kein Login, regulärer Quit;
+20 visueller EN-Xvfb-
+Login-Screenshot.
+**20/20 bestanden.**
+
+**Netz-/Plattformnachweise:**
+`http://hg.stadt-nexverse.de:80/get_grid_info`
+lieferte HTTP 200, XML
+`platform=OpenSim`,
+`login=http://hg.stadt-nexverse.de:80/`.
+Bei `https://beta.stadt-nexverse.de/get_grid_info`
+schlug die Zertifikatsprüfung
+wegen Hostnamenabweichung
+fehl. Beta **nicht** freigeben.
+
+`bash ogl/scripts/build-test.sh`
+vollständig erfolgreich:
+**220/220 Python-Tests und
+41/41 native CTests**,
+Linux-Vollviewer kompiliert.
+Im isolierten 1280×720-Xvfb-
+Lauf **OGL Viewer Development
+7.2.5.149**, `STATE_LOGIN_WAIT`,
+kein `STATE_LOGIN_AUTH_INIT`,
+DE-Exit-Code **0**;
+EN-Login als Bild visuell
+geprüft. Der zusätzliche
+Beta-GUI-Interaktionslauf
+konnte nicht abgeschlossen
+werden und zählt ausdrücklich
+**nicht** als bestanden.
+Ebenso wurde kein gespeichertes
+echtes Passwort im angemeldeten
+Client getestet; die
+Augensymbol-Sonderfälle sind
+durch Code-/Regressionstests
+und Kompilierung belegt.
+
+**Weiter offen:** autorisierter
+Hauptgrid-Live-Login,
+tatsächliches Restore
+gespeicherter Credentials,
+In-World-Shutdown sowie
+vollständige Windows-/macOS-
+Viewer-Build-/GUI-Abnahmen.
+Nächster Einstieg bleibt
+`/goal P01 Block 19/20`,
+unabhängige P02-Vorarbeit
+parallel zulässig.
+Keine manuelle Zwischenabnahme.
+
 ## P01 Block 19 – Passwortsichtbarkeit bei Konto-/Gridwechsel zurücksetzen
 
 **Code-Commit `c3db484e`** (`ogl-develop`).

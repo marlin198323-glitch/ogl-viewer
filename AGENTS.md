@@ -22,18 +22,22 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
-Code `c3db484e`: Das
-Auge-/Klartext-Passwort wird
-bei anderer Kontoauswahl,
-getipptem Namen, Restore
-und Gridwechsel wieder
-maskiert; 20/20 technische
-Einzelprüfungen, 215
-Python-/41 native Tests,
-DE-/FR-GUI-Läufe grün.
-P02 formal 0/20; Live-Login
-und vollständige Windows-/
-macOS-Viewer-Tests noch offen),
+Code `b2520078`: Augenknopf
+darf gespeicherte Credential-
+Anzeigefüllzeichen nicht wie
+echte Passwörter aufdecken;
+erst manuelle Eingabe
+aktiviert die Reveal-Tasten,
+leeres Feld maskiert erneut.
+20/20 technische Einzelchecks,
+220 Python-/41 native Tests,
+DE-GUI-Start und EN-
+Screenshot verifiziert,
+Beta-TLS weiterhin ungültig.
+P02 formal 0/20; echter
+Live-Login sowie volle
+Windows-/macOS-Viewer-
+Abnahmen offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten
