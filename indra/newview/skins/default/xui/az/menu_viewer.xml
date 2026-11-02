@@ -81,8 +81,6 @@
 
 		<menu_item_check label="Birləşdirilmiş HUD-ları göstər" name="Show HUD Attachments"/>
 		<menu_item_check label="İstifadəçi İnterfeysini göstər" name="Show User Interface"/>
-		<menu_item_call label="'İnzibatçı' statusunu sorğula" name="Request Admin Options"/>
-		<menu_item_call label="'İnzibatçı' statusundan çıx" name="Leave Admin Options"/>
 		<menu_item_call label="[APP_NAME]-dan çıxış" name="Quit"/>
 	</menu>
 

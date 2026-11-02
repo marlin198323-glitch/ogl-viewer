@@ -80,8 +80,6 @@
 		<menu_item_call label="ツールバーボタン" name="Toolbar Buttons"/>
 		<menu_item_check label="ＨＵＤを表示" name="Show HUD Attachments"/>
 		<menu_item_check label="インターフェースを表示" name="Show User Interface"/>
-		<menu_item_call label="管理者権限のリクエスト" name="Request Admin Options"/>
-		<menu_item_call label="管理者ステータスを解除する" name="Leave Admin Options"/>
 		<menu_item_call label="[APP_NAME]を終了" name="Quit"/>
 	</menu>
 	<menu label="コミュニケーション" name="Communicate">

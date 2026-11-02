@@ -77,8 +77,6 @@
 		<menu_item_call label="工具列按鈕" name="Toolbar Buttons" />
 		<menu_item_check label="顯示 HUD 附件" name="Show HUD Attachments" />
 		<menu_item_check label="顯示使用者界面" name="Show User Interface" />
-		<menu_item_call label="請求管理員身份" name="Request Admin Options" />
-		<menu_item_call label="取消管理員身份" name="Leave Admin Options" />
 		<menu_item_call label="退出 [APP_NAME]" name="Quit" />
 	</menu>
 	<menu label="通訊" name="Communicate">

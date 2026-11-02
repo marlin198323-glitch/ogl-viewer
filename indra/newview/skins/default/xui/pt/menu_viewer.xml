@@ -78,8 +78,6 @@
 		<menu_item_call label="Botões da barra de ferramentas" name="Toolbar Buttons"/>
 		<menu_item_check label="Mostrar anexos de HUD" name="Show HUD Attachments"/>
 		<menu_item_check label="Mostrar interface do usuário" name="Show User Interface"/>
-		<menu_item_call label="Solicitar status de admin" name="Request Admin Options"/>
-		<menu_item_call label="Sair do status de admin" name="Leave Admin Options"/>
 		<menu_item_call label="Sair do [APP_NAME]" name="Quit"/>
 	</menu>
 	<menu label="Comunicar" name="Communicate">

@@ -974,6 +974,64 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertFalse(any('firestorm' in e.get('label','').lower()
                                  for e in tree.iter()),str(path))
 
+    def test_p02_admin_status_commands_are_unique_and_in_developer_menu_only(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        menus = sorted(base.glob('*/menu_viewer.xml'))
+        self.assertEqual(len(menus), 13)
+        for path in menus:
+            root = ET.parse(path).getroot()
+            avatar = next(n for n in root if n.tag == 'menu' and n.get('name') == 'Me')
+            developer = next(n for n in root if n.tag == 'menu' and n.get('name') == 'Develop')
+            for name in ('Request Admin Options', 'Leave Admin Options'):
+                self.assertFalse(any(n.get('name') == name for n in avatar),
+                                 (path, name))
+                self.assertEqual(
+                    sum(n.get('name') == name for n in developer), 1,
+                    (path, name))
+                self.assertEqual(
+                    sum(n.tag == 'menu_item_call' and n.get('name') == name
+                        for n in root.iter()), 1, (path, name))
+
+    def test_p02_admin_shortcut_keeps_single_live_handler_and_movement_shortcuts(self):
+        root = ET.parse(ROOT / 'indra/newview/skins/default/xui/en/menu_viewer.xml').getroot()
+        actions = {name: [n for n in root.iter('menu_item_call')
+                          if n.get('name') == name]
+                   for name in ('Request Admin Options', 'Leave Admin Options',
+                                'Sit Down Here', 'Stand up')}
+        for name, nodes in actions.items():
+            self.assertEqual(len(nodes), 1, name)
+        request = actions['Request Admin Options'][0]
+        self.assertEqual(request.get('shortcut'), 'control|alt|G')
+        self.assertEqual(request.find('menu_item_call.on_click').get('function'),
+                         'Advanced.RequestAdminStatus')
+        self.assertEqual(
+            actions['Leave Admin Options'][0].find('menu_item_call.on_click').get('function'),
+            'Advanced.LeaveAdminStatus')
+        for name in ('Sit Down Here', 'Stand up'):
+            self.assertEqual(actions[name][0].get('shortcut'), 'alt|shift|S')
+            self.assertIsNotNone(actions[name][0].find('menu_item_call.on_visible'))
+
+    def test_p02_toolbar_single_base_and_locale_overrides_keep_structural_names(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        paths = sorted(base.glob('*/panel_toolbar_view.xml'))
+        self.assertEqual(len(paths), 11)
+        english = ET.parse(base / 'en/panel_toolbar_view.xml').getroot()
+        self.assertEqual(english.tag, 'toolbar_view')
+        for name, tag in (('toolbar_left', 'toolbar_vertical'),
+                          ('toolbar_right', 'toolbar_vertical'),
+                          ('toolbar_bottom', 'toolbar')):
+            entries = [n for n in english.iter(tag) if n.get('name') == name]
+            self.assertEqual(len(entries), 1, name)
+        base_names = {n.get('name') for n in english.iter() if n.get('name')}
+        for path in paths:
+            root = ET.parse(path).getroot()
+            self.assertEqual(root.tag, 'toolbar_view', str(path))
+            self.assertTrue({n.get('name') for n in root.iter() if n.get('name')}
+                            <= base_names, str(path))
+            if path.parent.name != 'en':
+                self.assertFalse(any(n.tag in ('toolbar', 'toolbar_vertical')
+                                     for n in root.iter()), str(path))
+
     def test_p02_top_navigation_has_single_canonical_six_menus_in_all_locales(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         expected = ('Me', 'Communicate', 'World', 'BuildTools', 'Content', 'Help')

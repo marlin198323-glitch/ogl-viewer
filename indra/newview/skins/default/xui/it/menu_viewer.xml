@@ -73,8 +73,6 @@
 		<menu_item_call label="Pulsanti Barra Strumenti" name="Toolbar Buttons"/>
 		<menu_item_check label="Mostra gli HUD" name="Show HUD Attachments"/>
 		<menu_item_check label="Mostra interfaccia" name="Show User Interface"/>
-		<menu_item_call label="Richiedi stato Admin" name="Request Admin Options"/>
-		<menu_item_call label="Esci da stato Admin" name="Leave Admin Options"/>
 		<menu_item_call label="Esci da [APP_NAME]" name="Quit"/>
 	</menu>
 	<menu label="Comunica" name="Communicate">

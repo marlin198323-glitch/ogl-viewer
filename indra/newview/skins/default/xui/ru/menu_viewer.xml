@@ -83,8 +83,6 @@
 
 		<menu_item_check label="Показывать присоединенные HUD" name="Show HUD Attachments"/>
 		<menu_item_check label="Показывать Интерфейс Пользователя" name="Show User Interface"/>
-		<menu_item_call label="Запрос статуса 'Администратор'" name="Request Admin Options"/>
-		<menu_item_call label="Выход из статуса 'Администратор'" name="Leave Admin Options"/>
 		<menu_item_call label="Выход из [APP_NAME]" name="Quit"/>
 	</menu>
 
