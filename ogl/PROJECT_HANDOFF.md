@@ -307,6 +307,19 @@ noch Grid-Live-Login getestet.
 Formal P01 18/20, P02 0/20.
 Nächster operativer /goal P01 Block 19/20.
 
+Letzte unabhängige /goal-20er-Runde
+(02.11.2026, bfd5e2d9): OGL-
+Benutzernamenwechsel löscht Passwort-/
+Retry-Zustand auch bei leerem Feld und
+synchronisiert die Augenknöpfe.
+Drei neue/zwei angepasste Tests,
+Linux-Vollbuild 7.2.5.178,
+268 Python-/41 native Tests, 116
+Branding-/49 Gridtests, DE-/EN-GUI
+bestanden. Formal P01 18/20,
+P02 0/20; Live-/Windows-/macOS-
+Vollviewer-Abnahme weiterhin offen.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

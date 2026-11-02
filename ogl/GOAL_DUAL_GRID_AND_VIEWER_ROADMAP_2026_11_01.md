@@ -429,6 +429,18 @@ Integration getestet. Formal P01
 18/20, P02 0/20; restliche
 End-to-End-Gates bleiben offen.
 
+Unabhängige P01-Vorarbeit (02.11.2026, bfd5e2d9):
+Benutzernamenwechsel löscht Passwort-,
+Retry- und Augenknopf-Status auch bei bereits
+leerem Passwortfeld. Unbekanntes Konto
+synchronisiert die Passwortanzeige ebenfalls.
+20 Prüfpunkte; Linux-Vollbuild 7.2.5.178,
+268 Python-/41 native Tests, 116 Branding-
+/49 Gridtests, DE-720p-/EN-1080p-GUI
+bestanden. Keine realen Credentials getestet.
+Formal P01 18/20, P02 0/20;
+Live- und Plattformgates bleiben offen.
+
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.

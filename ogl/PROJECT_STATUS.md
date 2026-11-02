@@ -32,6 +32,79 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 unabhängige Vorarbeit – Benutzernamenwechsel setzt auch leeren Passwortstatus zurück (02.11.2026)
+
+Code bfd5e2d9 auf origin/ogl-develop.
+20/20 technische Prüfpunkte dieser unabhängigen
+P01-Vorarbeit, keine formale Phasenabnahme.
+Linux-Vollviewer 7.2.5.178 erfolgreich,
+268/268 Python-Tests, 41/41 native CTests,
+116/116 Branding-Tests und 49/49 Gridtests
+bestanden. Gezielte Tests auch mit
+LC_ALL=C/PYTHONUTF8=0. DE-720p- und EN-1080p-
+Xvfb-GUI-Starts bis STATE_LOGIN_WAIT,
+kein AUTH_INIT, sauberer Exit 0.
+
+Korrektur in der bestehenden Datei
+indra/newview/fspanellogin.cpp:
+Im aktiven onUsernameTextChanged den zusätzlichen
+Guard mPasswordLength != 0 entfernt. Sobald der
+Benutzername von mPreviousUsername abweicht,
+werden auch bei leerem sichtbarem Passwortfeld
+der alte Retry-Zwischenspeicher sPassword,
+die Passwortlänge, das Änderungskennzeichen,
+die Augenknöpfe und die frühere Löschfreigabe
+zurückgesetzt. Die einmalige HTTP-Zustimmung
+wird weiterhin frühzeitig invalidiert.
+Bei der Auswahl eines unbekannten Kontos
+werden die Augenknöpfe nach dem Reset
+ausdrücklich synchronisiert. Normale
+gespeicherte Konten und Nicht-OGL-Kanäle
+behalten ihr bisheriges Verhalten.
+Drei neue Regressionstests im bestehenden
+test_branding_contract.py, zwei bestehende
+Tests in test_nexverse_grid.py aktualisiert.
+Keine zusätzlichen Dateien angelegt.
+
+20 tatsächlich durchgeführte Prüfpunkte:
+01 Repository und ogl-develop geprüft;
+02 saubere Ausgangsbasis bestätigt;
+03 vorherige Code-CI erfolgreich kontrolliert;
+04 Haupt-Roadmap, Status und Handoff gelesen;
+05 aktiven onUsernameTextChanged untersucht;
+06 alten Passwortlängen-Guard als Fehler isoliert;
+07 Namensänderung unabhängig vom Passwortwert abgesichert;
+08 Passwortfeld beim Identitätswechsel geleert;
+09 temporären Retry-Speicher gelöscht;
+10 Passwortlänge auf null gesetzt;
+11 Passwort-Bearbeitungsstatus zurückgesetzt;
+12 Passwort-Anzeige-Schaltflächen synchronisiert;
+13 vorherige Konto-Löschfreigabe aufgehoben;
+14 Login-Button nach Zustandwechsel aktualisiert;
+15 One-Time-HTTP-Zustimmung weiterhin vor Reset verworfen;
+16 unbekannten Konto-Auswahlpfad ebenfalls korrigiert;
+17 drei neue und zwei aktualisierte Tests:
+   116 Branding-/49 Gridtests auch unter ASCII grün;
+18 Linux-Vollbuild 7.2.5.178,
+   268 Python-/41 native Tests grün;
+19 DE-720p-/EN-1080p-GUI ohne Authentifizierung,
+   mit sauberem Exit-Code 0;
+20 Code direkt auf GitHub gepusht, diff geprüft,
+   keine neuen Dateien; sieben bekannte
+   _v2-/script_copy-Pfade nicht blind gelöscht.
+Keine Nutzerprofile, Secrets, Caches,
+Credentials oder Serverdaten verändert.
+
+Formal P01 18/20, P02 0/20.
+Block 19/20 erfordert weiterhin autorisierten
+Live-Login, echte gespeicherte Credential-
+Wiederherstellung, In-World-Shutdown und
+vollständige Windows-/macOS-Vollviewer-
+Builds und GUI-Tests. Beta-TLS-Hostname-
+abweichung bleibt offen; keine Umgehung.
+Portabler Modultest ersetzt keine
+plattformübergreifende End-to-End-Abnahme.
+
 ## P01 unabhängige Vorarbeit – Retry-Passwort strikt von gespeichertem Platzhalter trennen (02.11.2026)
 
 Code-Commit be18b791 auf origin/ogl-develop.

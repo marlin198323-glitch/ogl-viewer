@@ -205,6 +205,18 @@ DE-720p-/EN-1080p-GUI grün.
 P01 18/20, P02 0/20, Live-
 und Plattform-Gates noch offen.
 
+Letzte unabhängige P01-/goal-Runde
+(02.11.2026, bfd5e2d9): Beim
+OGL-Benutzernamenwechsel Passwort-/
+Retry-Zustand auch bei bereits leerem
+Feld löschen, Augenknöpfe für unbekannte
+Konten synchronisieren. 20 Prüfschritte,
+Linux-Vollbuild 7.2.5.178,
+268 Python-/41 CTests, 116 Branding-
+/49 Gridtests und DE-/EN-GUI grün.
+Formal P01 18/20, P02 0/20;
+Live-/Plattform-Gates offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 
