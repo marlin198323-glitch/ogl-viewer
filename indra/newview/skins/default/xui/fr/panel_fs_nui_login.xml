@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <panel name="panel_login">
 	<panel.string name="forgot_password_url">
-		http://secondlife.com/account/request.php?lang=fr
+		https://stadt-nexverse.de/
 	</panel.string>
 	<string name="ServerComboTooltip">
-		Une grille connue ou l'URI d'une grille
+		Choisissez Stadt NexVerse ou Stadt NexVerse Beta. La connexion à la bêta n’est pas encore disponible.
 	</string>
 	<layout_stack name="ui_stack">
 		<layout_panel name="ui_container">

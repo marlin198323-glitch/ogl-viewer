@@ -566,6 +566,71 @@ class OGLBrandingContract(unittest.TestCase):
         # though the OGL startup always uses the canonical new login.
         self.assertTrue((ROOT / 'indra/newview/skins/default/xui/en/panel_fs_login.xml').is_file())
 
+    def test_active_ogl_password_accepts_opensim_length_before_grid_refresh(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        root = ET.parse(base / 'en/panel_fs_nui_login.xml').getroot()
+        password = next(e for e in root.iter('line_editor')
+                        if e.get('name') == 'password_edit')
+        self.assertEqual(password.get('max_length_chars'), '255')
+        self.assertEqual(password.get('is_password'), 'true')
+        self.assertEqual(password.get('height'), '32')
+        self.assertEqual(password.get('select_on_focus'), 'true')
+        self.assertGreaterEqual(int(password.get('text_pad_right')), 30)
+        cpp = self.source('indra/newview/fspanellogin.cpp')
+        self.assertIn('const S32 MAX_PASSWORD_OPENSIM = 255;', cpp)
+        self.assertIn('setMaxTextChars(LLGridManager::getInstance()->isInSecondLife() ? MAX_PASSWORD_SL : MAX_PASSWORD_OPENSIM)', cpp)
+        self.assertIn('if (APP_NAME == "OGL" || !gSavedSettings.getBOOL("FSUseLegacyLoginPanel"))', cpp)
+
+    def test_active_login_localizations_offer_only_pinned_grids(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        files = sorted(base.glob('*/panel_fs_nui_login.xml'))
+        self.assertEqual(len(files), 10)
+        for path in files:
+            root = ET.parse(path).getroot()
+            tooltips = [x for x in root.iter('string')
+                        if x.get('name') == 'ServerComboTooltip']
+            self.assertEqual(len(tooltips), 1, str(path))
+            text = (tooltips[0].text or '').strip()
+            self.assertIn('Stadt NexVerse', text, str(path))
+            self.assertIn('Stadt NexVerse Beta', text, str(path))
+            self.assertNotIn('URI', text, str(path))
+            self.assertNotIn('http://', text, str(path))
+            self.assertNotIn('https://', text, str(path))
+
+    def test_active_localized_login_password_help_is_official_portal(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        files = sorted(base.glob('*/panel_fs_nui_login.xml'))
+        self.assertEqual(len(files), 10)
+        for path in files:
+            root = ET.parse(path).getroot()
+            urls = [x for x in root.iter('panel.string')
+                    if x.get('name') == 'forgot_password_url']
+            self.assertLessEqual(len(urls), 1, str(path))
+            for node in urls:
+                self.assertEqual((node.text or '').strip(), 'https://stadt-nexverse.de/')
+            raw = path.read_text(encoding='utf-8')
+            for host in ('secondlife.com/account/', 'secondlife.com/my/account/',
+                         'phoenixviewer.com/app/loginV3'):
+                self.assertNotIn(host, raw, str(path))
+        self.assertIn('LLWeb::loadURLExternal(OGLNexVerseGrid::kWebsite);',
+                      self.source('indra/newview/fspanellogin.cpp'))
+
+    def test_active_login_l10n_preserves_functional_input_controls(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        required = ('username_combo', 'password_edit',
+                    'remember_check', 'remember_username_check',
+                    'start_location_combo', 'server_combo',
+                    'connect_btn', 'login_html', 'ui_stack')
+        english = ET.parse(base / 'en/panel_fs_nui_login.xml').getroot()
+        names = {x.get('name') for x in english.iter()}
+        self.assertTrue(set(required).issubset(names))
+        for path in sorted(base.glob('*/panel_fs_nui_login.xml')):
+            root = ET.parse(path).getroot()
+            localized = {x.get('name') for x in root.iter()}
+            self.assertTrue(set(localized).issubset(names),
+                            f'Unrecognized localized control: {path}')
+            self.assertEqual(root.get('name'), 'panel_login', str(path))
+
     def test_all_legacy_login_fallback_urls_remain_first_party(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         paths = sorted(base.glob('*/panel_fs_login.xml'))

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <panel name="panel_login">
     <string name="ServerComboTooltip">
-        Una griglia esistente o l'URI di una griglia
+        Seleziona Stadt NexVerse o Stadt NexVerse Beta. L’accesso alla beta non è ancora disponibile.
     </string>
     <layout_stack name="ui_stack">
         <layout_panel name="ui_container">

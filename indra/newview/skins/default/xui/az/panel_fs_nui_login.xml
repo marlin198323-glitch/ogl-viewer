@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <panel name="panel_login">
   <string name="ServerComboTooltip">
-Mövcud grid və ya grid URL-si
+Yalnız Stadt NexVerse və Stadt NexVerse Beta seçilə bilər. Beta girişi hələ aktiv deyil.
   </string>
   <layout_stack name="ui_stack">
     <layout_panel name="ui_container">

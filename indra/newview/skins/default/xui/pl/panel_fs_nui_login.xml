@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <panel name="panel_login">
 	<string name="ServerComboTooltip">
-		Istniejący świat lub URI świata
+		Wybierz Stadt NexVerse lub Stadt NexVerse Beta. Logowanie do wersji beta nie jest jeszcze dostępne.
 	</string>
 	<layout_stack name="ui_stack">
 		<layout_panel name="ui_container">

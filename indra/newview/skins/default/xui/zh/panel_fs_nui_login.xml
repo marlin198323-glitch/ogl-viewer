@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <panel name="panel_login">
 	<string name="ServerComboTooltip">
-		已知的類比網路或類比網路URI
+		請選擇 Stadt NexVerse 或 Stadt NexVerse Beta。Beta 版登入目前尚未開放。
 	</string>
 	<layout_stack name="ui_stack">
 		<layout_panel name="ui_container">
