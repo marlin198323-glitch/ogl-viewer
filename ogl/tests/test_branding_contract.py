@@ -100,6 +100,58 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
         self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
 
+    def test_ogl_im_never_adds_firestorm_support_identity_to_chat(self):
+        src = self.source("indra/newview/fsfloaterim.cpp")
+        self.assertIn('#include "indra_constants.h"', src)
+        method = src.split('void FSFloaterIM::sendMsgFromInputEditor(', 1)[1]
+        method = method.split('void FSFloaterIM::', 1)[0]
+        self.assertIn('APP_NAME != "OGL" && (chat_prefix_support || chat_prefix_testing)', method)
+        self.assertIn('FSData::getInstance()->isFirestormGroup(mSessionID)', method)
+        self.assertIn('utf8_text.insert(insert_pos,', method)
+        self.assertIn('LLIMModel::sendMessage(', src)
+
+    def test_ogl_im_hides_old_support_group_controls_and_prompts(self):
+        src = self.source("indra/newview/fsfloaterim.cpp")
+        build = src.split('bool FSFloaterIM::postBuild()', 1)[1].split(
+            'void FSFloaterIM::', 1)[0]
+        self.assertIn('const bool isFSSupportGroup = APP_NAME != "OGL"', build)
+        self.assertIn('const bool isFSTestingGroup = APP_NAME != "OGL"', build)
+        self.assertIn('childSetVisible("testing_panel", isFSTestingGroup);', build)
+        self.assertIn('childSetVisible("support_panel", isFSSupportGroup && !isFSTestingGroup);', build)
+        self.assertIn('if (isFSSupportGroup || isFSTestingGroup)', build)
+        self.assertIn('"FirstJoinSupportGroup2"', build)
+
+    def test_ogl_hides_legacy_sysinfo_button_even_when_migrated_setting_enabled(self):
+        src = self.source("indra/newview/fsfloaterim.cpp")
+        visibility = src.split(
+            'void FSFloaterIM::onSysinfoButtonVisibilityChanged(', 1)[1].split(
+            'void FSFloaterIM::', 1)[0]
+        self.assertIn('APP_NAME != "OGL" && yes.asBoolean()', visibility)
+        self.assertIn('getChild<LLUICtrl>("send_sysinfo_btn_panel")', visibility)
+        self.assertIn('gSavedSettings.getBOOL("SysinfoButtonInIM")', src)
+        self.assertIn('mSysinfoButton->setClickedCallback(', src)
+
+    def test_ogl_rejects_legacy_system_info_send_and_stale_confirmation(self):
+        src = self.source("indra/newview/fsfloaterim.cpp")
+        click = src.split('void FSFloaterIM::onSysinfoButtonClicked()', 1)[1].split(
+            'bool FSFloaterIM::onSendSysinfo(', 1)[0]
+        send = src.split('bool FSFloaterIM::onSendSysinfo(', 1)[1].split(
+            'void FSFloaterIM::onSysinfoButtonVisibilityChanged(', 1)[0]
+        self.assertLess(click.index('if (APP_NAME == "OGL")'),
+                        click.index('FSData::getSystemInfo();'))
+        self.assertLess(send.index('if (APP_NAME == "OGL")'),
+                        send.index('LLIMModel::sendMessage('))
+        self.assertIn('return false;', send)
+
+    def test_ogl_rejects_late_firestorm_prefix_dialog_callback(self):
+        src = self.source("indra/newview/fsfloaterim.cpp")
+        body = src.split('bool FSFloaterIM::enableViewerVersionCallback(', 1)[1].split(
+            'void FSFloaterIM::', 1)[0]
+        self.assertLess(body.index('if (APP_NAME == "OGL")'),
+                        body.index('gSavedSettings.setBOOL("FSSupportGroupChatPrefix3", result);'))
+        self.assertIn('return false;', body)
+        self.assertIn('gSavedSettings.setBOOL("FSSupportGroupChatPrefixTesting", result);', body)
+
     def test_chat_timestamps_do_not_resize_or_overlap_avatar_and_name(self):
         cpp = self.source("indra/newview/fschathistory.cpp")
         method = cpp.split("    void setTimeField(const LLChat& chat)", 1)[1].split(

@@ -30,6 +30,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "fsfloaterim.h"
+#include "indra_constants.h"
 
 #include "fschathistory.h"
 #include "fschatoptionsmenu.h"
@@ -416,7 +417,11 @@ void FSFloaterIM::sendMsgFromInputEditor(EChatType type)
                 // <FS:Techwolf Lupindo> Support group chat prefix
                 static LLCachedControl<bool> chat_prefix_support(gSavedSettings, "FSSupportGroupChatPrefix3");
                 static LLCachedControl<bool> chat_prefix_testing(gSavedSettings, "FSSupportGroupChatPrefixTesting");
-                if ((chat_prefix_support || chat_prefix_testing) && FSData::getInstance()->isFirestormGroup(mSessionID))
+                // OGL is a separate OpenSim client. Never append an upstream
+                // Firestorm support prefix (OS, version, skin or RLVa state)
+                // even if a migrated profile kept either legacy setting on.
+                if (APP_NAME != "OGL" && (chat_prefix_support || chat_prefix_testing)
+                    && FSData::getInstance()->isFirestormGroup(mSessionID))
                 {
                     // <FS:PP> FIRE-7075: Skin indicator
                     static LLCachedControl<std::string> FSInternalSkinCurrent(gSavedSettings, "FSInternalSkinCurrent");
@@ -768,6 +773,10 @@ bool FSFloaterIM::onChatOptionsEnableContextMenuItem(const LLSD& userdata)
 // support sysinfo button -Zi
 void FSFloaterIM::onSysinfoButtonClicked()
 {
+    // The legacy support tool is not part of OGL's IM interface.
+    if (APP_NAME == "OGL")
+        return;
+
     LLSD system_info = FSData::getSystemInfo();
     LLSD args;
     args["SYSINFO"] = system_info["Part1"].asString() + system_info["Part2"].asString();
@@ -778,6 +787,10 @@ void FSFloaterIM::onSysinfoButtonClicked()
 
 bool FSFloaterIM::onSendSysinfo(const LLSD& notification, const LLSD& response)
 {
+    // Also reject callbacks from a queued confirmation on OGL.
+    if (APP_NAME == "OGL")
+        return false;
+
     S32 option = LLNotificationsUtil::getSelectedOption(notification,response);
 
     if (option == 0)
@@ -802,7 +815,8 @@ bool FSFloaterIM::onSendSysinfo(const LLSD& notification, const LLSD& response)
 
 void FSFloaterIM::onSysinfoButtonVisibilityChanged(const LLSD& yes)
 {
-    getChild<LLUICtrl>("send_sysinfo_btn_panel")->setVisible(yes.asBoolean() /* && mIsSupportIM */);
+    getChild<LLUICtrl>("send_sysinfo_btn_panel")->setVisible(
+        APP_NAME != "OGL" && yes.asBoolean());
 }
 // support sysinfo button -Zi
 
@@ -1052,8 +1066,12 @@ bool FSFloaterIM::postBuild()
     getChild<LLButton>("send_chat")->setCommitCallback(boost::bind(&FSFloaterIM::sendMsgFromInputEditor, this, CHAT_TYPE_NORMAL));
     getChild<LLButton>("chat_search_btn")->setCommitCallback(boost::bind(&FSFloaterIM::onChatSearchButtonClicked, this));
 
-    const bool isFSSupportGroup = FSData::getInstance()->isFirestormGroup(mSessionID);
-    const bool isFSTestingGroup = FSData::getInstance()->isTestingGroup(mSessionID);
+    // Do not show upstream support-group controls or their first-join
+    // prompts in the two-grid OGL client.
+    const bool isFSSupportGroup = APP_NAME != "OGL"
+        && FSData::getInstance()->isFirestormGroup(mSessionID);
+    const bool isFSTestingGroup = APP_NAME != "OGL"
+        && FSData::getInstance()->isTestingGroup(mSessionID);
 
     //We can show the testing group button simply by checking testing group
     childSetVisible("testing_panel", isFSTestingGroup);
@@ -2330,6 +2348,11 @@ void FSFloaterIM::onClickCloseBtn(bool app_quitting)
 // <FS:Zi> Viewer version popup
 bool FSFloaterIM::enableViewerVersionCallback(const LLSD& notification,const LLSD& response)
 {
+    // Preserve migrated settings untouched, but never re-enable legacy
+    // Firestorm group disclosure via a delayed notification callback.
+    if (APP_NAME == "OGL")
+        return false;
+
     S32 option = LLNotificationsUtil::getSelectedOption(notification,response);
 
     bool result = false;
