@@ -441,6 +441,22 @@ bestanden. Keine realen Credentials getestet.
 Formal P01 18/20, P02 0/20;
 Live- und Plattformgates bleiben offen.
 
+P01 Block 19/20, technische Vorprüfung
+(02.11.2026, 263a224e): Main-Grid-
+GET /get_grid_info HTTP 200/XML; Beta-
+TLS-Hostnamenfehler 60. Authenticator-
+Reuse mit mehreren @-Trennern gesperrt,
+zehn native Sicherheitsvarianten.
+Sechs-Plattform-CI startet bei P01-
+Grid-/Login-/Startup-Codeänderungen.
+20 technische Prüfungen, Linux-Vollbuild
+7.2.5.180, 270 Python-/41 native Tests,
+116 Branding-/51 Gridtests und DE-/EN-
+GUI-Starts erfolgreich. Formales Gate
+P01 19 offen: realer Live-Login und
+volle Windows-/macOS-Vollviewer-GUI.
+Formal P01 18/20, P02 0/20.
+
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.

@@ -320,6 +320,22 @@ bestanden. Formal P01 18/20,
 P02 0/20; Live-/Windows-/macOS-
 Vollviewer-Abnahme weiterhin offen.
 
+Letzte P01-19-Vorprüfung (02.11.2026,
+263a224e): Live-Grid-GET HTTP 200/XML;
+Beta-TLS-Hostnamefehler 60. Native
+Grid-Credential-Prüfung sperrt mehrere
+@-Trenner; zehn neue C++-Prüfvarianten
+und zwei Python-Vertragstests. CI-Push-/
+PR-Trigger für Grid-, Login- und
+Startup-Code über sechs Plattformen.
+Linux-Vollbuild 7.2.5.180,
+270 Python-/41 CTests, 116 Branding-
+/51 Gridtests und DE-/EN-Xvfb-GUI
+grün. 20 technische Prüfpunkte, aber
+keine echte Live-/In-World- oder volle
+Windows-/macOS-Abnahme. Formal P01
+18/20, P02 0/20; P01 19 weiter offen.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

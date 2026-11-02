@@ -32,6 +32,96 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19/20 – Transport-/CI-/Credential-Prüfung (02.11.2026)
+
+Code-Commit 263a224e auf origin/ogl-develop.
+20/20 technische Prüfpositionen abgeschlossen;
+das **formale P01-End-to-End-Gate bleibt offen**.
+Linux-Vollviewer 7.2.5.180 gebaut,
+270/270 Python-Tests und 41/41 native CTests
+bestanden; 116/116 Branding-Tests und 51/51
+Gridtests unter LC_ALL=C/PYTHONUTF8=0
+bestanden. DE-720p-/EN-1080p-Xvfb-GUI-Starts
+bis STATE_LOGIN_WAIT ohne AUTH_INIT, sauberer Exit 0.
+
+Das reale Live-Grid-GET
+http://hg.stadt-nexverse.de:80/get_grid_info
+lieferte HTTP 200 und application/xml.
+Ein HEAD auf diesen Pfad lieferte dagegen
+405 MethodNotAllowed; dies ist kein
+erfolgreicher Live-Avatar-Login.
+Beta-GET unter
+https://beta.stadt-nexverse.de/get_grid_info
+scheiterte weiterhin an der regulären
+TLS-Hostnamevalidierung (curl Fehler 60).
+Keine Login-Credentials übertragen; keine
+TLS-Prüfung deaktiviert.
+
+Die Authenticator-Reuse-Prüfung in
+indra/newview/oglnexversegrid.h verwirft
+nun mehrdeutige Credential-Keys mit mehr
+als einem @-Trennzeichen, auch wenn der
+letzte Gridteil dem gepinnten Live- oder
+Beta-Grid entspricht. Sie lässt korrekt
+gebildete Einwort-/Zweitwort-OpenSim-
+Konten weiter zu. Zehn native Prüfvarianten
+in der bestehenden Datei
+ogl/tests/test_grid_http_policy.cpp
+ergänzt, darunter nested, doppelte und
+nachgestellte Trenner sowie gültige Konten.
+Zwei Python-Vertragstests in der bestehenden
+test_nexverse_grid.py ergänzen die
+Quellcode- und CI-Triggerprüfung.
+
+Die bestehende sechsfach CI-Matrix
+.github/workflows/ogl-portable-graphics.yml
+startet bei Push und Pull Request jetzt auch
+bei Änderungen an oglnexversegrid.h,
+fspanellogin.cpp/h, llstartup.cpp und
+llgridmanager.cpp/h. Das ist ein portabler
+nativer Testlauf, NICHT ein kompletter
+Windows-/macOS-Vollviewer-Build.
+YAML geparst, 17 Filter je Event
+und alle sechs Runner verifiziert.
+
+20 tatsächlich ausgeführte Prüfpunkte:
+01 Branch/Remote sauber;
+02 letzte Code-CI geprüft;
+03 P01-Roadmap/Projektstatus/Handoff gelesen;
+04 zentralen authenticator-Reuse-Vertrag untersucht;
+05 Main-Grid-GET HTTP 200/XML geprüft;
+06 abweichendes HEAD-Verhalten 405 separat geprüft;
+07 Beta-TLS-Fehler 60 bestätigt, kein Bypass;
+08 CI-Triggerlücke beim Grid-Header festgestellt;
+09 Push-Pfade für P01-Sicherheitsdateien erweitert;
+10 Pull-Request-Pfade analog erweitert;
+11 sechs Windows-/Linux-/macOS-Architekturen geprüft;
+12 Credential-Parsing auf genau einen Trenner beschränkt;
+13 nested/doppelte/angehängte Trenner abgewehrt;
+14 Einwort-/Zweitwort- sowie gültige Beta-
+   Authenticator-Prüfung unverändert positiv;
+15 zehn zusätzliche native Testvarianten ergänzt;
+16 zwei Python-Regressionstests,
+   51 Grid-/116 Brandingtests auch unter ASCII grün;
+17 CI-YAML mit Parser und Event-/Runner-Matrix geprüft;
+18 Linux-Vollbuild 7.2.5.180,
+   270 Python-/41 native Tests bestanden;
+19 GUI-Starts DE 720p und EN 1080p
+   bis Login, beide Exit 0;
+20 Code unmittelbar auf origin/ogl-develop
+   gepusht, diff-check und Altbestand geprüft.
+Sieben bekannte _v2-/script_copy-Pfade nicht
+unüberlegt gelöscht, keine neuen Projektdateien
+und keine Profile/Secrets/Caches bearbeitet.
+
+**Formal P01 18/20, P02 0/20.** P01 Block 19
+braucht weiter einen authentifizierten Live-Login,
+echte Credential-Wiederherstellung, In-World-
+Shutdown, volle Windows-/macOS-Vollviewer-
+Build-/GUI-Nachweise. Beta-TLS bleibt blockiert.
+Die portable CI ersetzt diese End-to-End-Gates
+nicht. Nächster /goal-Einstieg P01 Block 19/20.
+
 ## P01 unabhängige Vorarbeit – Benutzernamenwechsel setzt auch leeren Passwortstatus zurück (02.11.2026)
 
 Code bfd5e2d9 auf origin/ogl-develop.

@@ -217,6 +217,22 @@ Linux-Vollbuild 7.2.5.178,
 Formal P01 18/20, P02 0/20;
 Live-/Plattform-Gates offen.
 
+P01 Block 19 technische Vorprüfung
+(02.11.2026, 263a224e): Main-Grid-
+GET /get_grid_info HTTP 200/XML,
+Beta-TLS-Zertifikat weiter fehlerhaft.
+Credential-Reuse darf nur einen
+@-Trenner enthalten, zehn native
+Policy-Fälle ergänzt. P01-Grid-/Login-
+/Startup-Änderungen triggern jetzt
+sechs portable Plattform-CI-Jobs.
+Linux-Vollbuild 7.2.5.180,
+270 Python-/41 CTests, 116 Branding-
+/51 Gridtests, DE-/EN-GUI bestanden.
+20 Checks; keine Live- oder vollständige
+Windows-/macOS-Viewer-Abnahme.
+Formal P01 18/20, P02 0/20.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 
