@@ -1175,6 +1175,13 @@ void FSPanelLogin::loadLoginPage()
                                      params));
 
     LLMediaCtrl* web_browser = sInstance->getChild<LLMediaCtrl>("login_html");
+    if (APP_NAME == "OGL")
+    {
+        // This remote HTTPS page is visual welcome content only. It must not
+        // gain privileged viewer command-handler trust, even if a custom
+        // skin attempts to set trusted_content="true" in its XUI.
+        web_browser->setTrustedContent(false);
+    }
     if (web_browser->getCurrentNavUrl() != login_uri.asString())
     {
         LL_DEBUGS("AppInit") << "loading:    " << login_uri << LL_ENDL;

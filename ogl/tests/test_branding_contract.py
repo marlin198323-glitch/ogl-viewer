@@ -133,6 +133,43 @@ class OGLBrandingContract(unittest.TestCase):
         panel = self.source("indra/newview/skins/default/xui/en/panel_fs_nui_login.xml")
         self.assertIn('image_name="login_ogl_logo"', panel)
 
+    def test_ogl_welcome_browser_never_has_privileged_content_trust(self):
+        # Active skins have full login layouts; welcome HTML is external,
+        # display-only content and cannot authorize viewer command handlers.
+        for skin in ('default', 'starlight', 'starlightcui'):
+            path = ROOT / f'indra/newview/skins/{skin}/xui/en/panel_fs_nui_login.xml'
+            root = ET.parse(path).getroot()
+            browsers = [e for e in root.iter('web_browser')
+                        if e.get('name') == 'login_html']
+            self.assertEqual(len(browsers), 1, str(path))
+            self.assertEqual(browsers[0].get('trusted_content'), 'false', str(path))
+            self.assertEqual(browsers[0].get('start_url'), '', str(path))
+            self.assertEqual(browsers[0].get('follows'), 'all', str(path))
+            self.assertEqual(browsers[0].get('tab_stop'), 'false', str(path))
+
+    def test_runtime_rejects_skin_override_of_welcome_media_trust(self):
+        cpp = self.source('indra/newview/fspanellogin.cpp')
+        begin = cpp.index('void FSPanelLogin::loadLoginPage()')
+        end = cpp.index('void FSPanelLogin::handleMediaEvent(', begin)
+        loader = cpp[begin:end]
+        self.assertIn('OGLNexVerseGrid::kWelcomeURI', loader)
+        self.assertIn('if (APP_NAME != "OGL" && force_login_url.length() > 0)', loader)
+        self.assertIn('if (APP_NAME == "OGL")', loader)
+        self.assertIn('web_browser->setTrustedContent(false);', loader)
+        self.assertNotIn('web_browser->setTrustedContent(true);', loader)
+        self.assertLess(loader.index('web_browser->setTrustedContent(false);'),
+                        loader.index('web_browser->navigateTo('))
+        self.assertIn('web_browser->getCurrentNavUrl() != login_uri.asString()', loader)
+        self.assertIn('LLURI(APP_NAME == "OGL"', loader)
+
+    def test_untrusted_browser_blocks_privileged_slurls_in_media_control(self):
+        media = self.source('indra/newview/llmediactrl.cpp')
+        self.assertIn('trusted_content("trusted_content", false)', media)
+        self.assertIn('mTrusted(p.trusted_content)', media)
+        self.assertIn('mMediaSource->setTrustedBrowser(trusted);', media)
+        self.assertIn('LLURLDispatcher::dispatch(url, "clicked", NULL, mTrusted)', media)
+        self.assertIn('mTrusted = trusted;', media)
+
     def test_ogl_welcome_url_omits_firestorm_telemetry(self):
         cpp = self.source("indra/newview/fspanellogin.cpp")
         start = cpp.index('void FSPanelLogin::loadLoginPage()')

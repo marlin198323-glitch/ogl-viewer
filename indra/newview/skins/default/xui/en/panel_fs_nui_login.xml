@@ -18,7 +18,7 @@
   </string>
   <web_browser
     tab_stop="false"
-    trusted_content="true"
+    trusted_content="false"
     bg_opaque_color="Black"
     border_visible="false"
     follows="all"
