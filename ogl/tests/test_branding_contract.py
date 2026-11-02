@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class OGLBrandingContract(unittest.TestCase):
     def source(self, path):
-        return (ROOT / path).read_text()
+        return (ROOT / path).read_text(encoding="utf-8")
 
     def test_fixed_grids_cannot_be_reenabled_from_advanced_preferences(self):
         base=ROOT/'indra/newview/skins/default/xui'
@@ -100,6 +100,37 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
         self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
 
+    def test_legacy_second_life_help_subtree_is_absent_from_every_locale(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        files = sorted(base.glob("*/menu_viewer.xml"))
+        self.assertEqual(len(files), 13)
+        for path in files:
+            root = ET.parse(path).getroot()
+            all_names = {node.get("name") for node in root.iter()}
+            self.assertNotIn("DeprecatedHelp", all_names, str(path))
+            self.assertTrue({"Help", "Deprecated"} <= all_names, str(path))
+            if path.parent.name not in ("da", "tr"):
+                self.assertIn("Content", all_names, str(path))
+            self.assertNotIn("Bug Reporing 101", all_names, str(path))
+            self.assertNotIn("Publc Issue Tracker Help", all_names, str(path))
+            self.assertNotIn("Scripting Portal", all_names, str(path))
+            self.assertIn("Report Bug", all_names, str(path))
+        english = ET.parse(base / "en/menu_viewer.xml").getroot()
+        english_names = {n.get("name") for n in english.iter()}
+        for active in ("Script Library", "Report Bug", "NexVerse Portal",
+                       "OGL Viewer Downloads", "About Second Life"):
+            self.assertIn(active, english_names)
+
+    def test_advanced_browser_smoke_no_longer_opens_secondlife_site(self):
+        root = ET.parse(ROOT / "indra/newview/skins/default/xui/en/menu_viewer.xml").getroot()
+        items = [n for n in root.iter("menu_item_call")
+                 if n.get("name") == "Web Browser Test"]
+        self.assertEqual(len(items), 1)
+        click = items[0].find("menu_item_call.on_click")
+        self.assertIsNotNone(click)
+        self.assertEqual(click.get("function"), "Advanced.WebBrowserTest")
+        self.assertEqual(click.get("parameter"), "https://stadt-nexverse.de/")
+
     def test_ogl_network_cache_preferences_have_no_upstream_wiki_prompts(self):
         base = ROOT / "indra/newview/skins/default/xui"
         paths = sorted(base.glob("*/panel_preferences_setup.xml"))
@@ -111,7 +142,7 @@ class OGLBrandingContract(unittest.TestCase):
                 self.assertLessEqual(len(nodes), 1, str(path))
                 for node in nodes:
                     self.assertNotIn("wiki.firestormviewer.org", "".join(node.itertext()))
-            self.assertNotIn("wiki.firestormviewer.org", path.read_text(),
+            self.assertNotIn("wiki.firestormviewer.org", path.read_text(encoding="utf-8"),
                              f"Remove dead third-party documentation links from {path}")
 
     def test_ogl_chat_command_help_has_local_examples_without_firestorm_wiki(self):
@@ -210,7 +241,7 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertTrue(any(e.get('name')=='tab-extras' for e in prefs.iter()))
         self.assertTrue(any(e.get('control_name')=='RestrainedLove' for e in prefs.iter()))
         self.assertNotIn('If enabled, Firestorm will use a progressive draw distance',
-                         (base / 'en/panel_preferences_firestorm.xml').read_text())
+                         (base / 'en/panel_preferences_firestorm.xml').read_text(encoding="utf-8"))
 
     def test_nexverse_search_title_all_locales_preserves_existing_tabs(self):
         base = ROOT / 'indra/newview/skins/default/xui'
@@ -690,7 +721,7 @@ class OGLBrandingContract(unittest.TestCase):
                                 for e in en.iter("menu_item_call")))
             self.assertTrue(any(e.get("name") == "About Second Life"
                                 for e in en.iter("menu_item_call")))
-            data = (base / "en" / menu).read_text()
+            data = (base / "en" / menu).read_text(encoding="utf-8")
             self.assertIn("WebLaunchExternalTarget,https://stadt-nexverse.de/", data)
             self.assertNotIn("wiki.firestormviewer.org", data)
             self.assertNotIn("firestormviewer.org", data)
@@ -862,14 +893,14 @@ class OGLBrandingContract(unittest.TestCase):
             "indra/newview/skins/default/xui/en/panel_fs_nui_login.xml")
         for skin in ("starlight", "starlightcui"):
             file = ROOT / f"indra/newview/skins/{skin}/xui/en/panel_fs_nui_login.xml"
-            self.assertEqual(file.read_text(), canonical)
+            self.assertEqual(file.read_text(encoding="utf-8"), canonical)
             root = ET.parse(file).getroot()
             names = {n.get("name") for n in root.iter()}
             for required in ("ui_stack", "username_combo", "password_edit",
                              "connect_btn", "server_combo", "remember_check",
                              "login_html"):
                 self.assertIn(required, names)
-            self.assertNotIn("login_fs_logo", file.read_text())
+            self.assertNotIn("login_fs_logo", file.read_text(encoding="utf-8"))
 
     def test_saved_account_isolation_and_removal_regression(self):
         # No credentials are created or read by this test. Check that the

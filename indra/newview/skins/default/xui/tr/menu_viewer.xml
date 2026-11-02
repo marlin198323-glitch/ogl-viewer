@@ -465,14 +465,5 @@
 			<menu_item_call label="Fizik" name="Physics"/>
 			<menu_item_call label="Tüm Giysiler" name="All Clothes"/>
 		</menu>
-		<menu label="Yardım" name="DeprecatedHelp">
-			<menu_item_call label="Komut Dosyası Portalı" name="Scripting Portal"/>
-			<menu label="Hata Raporlama" name="Bug Reporting">
-				<menu_item_call label="Kamuya Açık Sorun İzleyicisi Yardımı" name="Publc Issue Tracker Help"/>
-				<menu_item_call label="Hata Raporlama 101" name="Bug Reporing 101"/>
-				<menu_item_call label="Güvenlik Sorunları" name="Security Issues"/>
-				<menu_item_call label="Soru ve Yanıt Wiki Sayfası" name="QA Wiki"/>
-			</menu>
-		</menu>
 	</menu>
 </menu_bar>

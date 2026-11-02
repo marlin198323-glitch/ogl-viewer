@@ -5108,7 +5108,7 @@
              name="Web Browser Test">
                 <menu_item_call.on_click
                  function="Advanced.WebBrowserTest"
-                 parameter="http://secondlife.com/app/search/slurls.html"/>
+                 parameter="https://stadt-nexverse.de/"/>
             </menu_item_call>
           <menu_item_check
            label="Region Restart Test..."
@@ -6123,61 +6123,6 @@
                  function="Edit.TakeOff"
                  parameter="all" />
             </menu_item_call>
-        </menu>
-        <menu
-         create_jump_keys="true"
-         label="Help"
-         name="DeprecatedHelp"
-         tear_off="true">
-            <menu_item_call
-             label="Scripting Portal"
-             name="Scripting Portal">
-                <menu_item_call.on_click
-                 function="PromptShowURL"
-                 name="ScriptingPortal_url"
-                 parameter="WebLaunchLSLWiki,http://wiki.secondlife.com/wiki/LSL_Portal" />
-            </menu_item_call>
-            <menu
-             create_jump_keys="true"
-             label="Bug Reporting"
-             name="Bug Reporting"
-             tear_off="true">
-                <menu_item_call
-                 label="Public Issue Tracker Help"
-                 name="Publc Issue Tracker Help">
-                    <menu_item_call.on_click
-                     function="PromptShowURL"
-                     name="PublicIssueTrackerHelp_url"
-                     parameter="WebLaunchPublicIssueHelp,http://wiki.secondlife.com/wiki/Issue_tracker" />
-                </menu_item_call>
-
-                <menu_item_separator/>
-
-                <menu_item_call
-                 label="Bug Reporting 101"
-                 name="Bug Reporing 101">
-                    <menu_item_call.on_click
-                     function="PromptShowURL"
-                     name="BugReporting101_url"
-                     parameter="WebLaunchBugReport101,http://wiki.secondlife.com/wiki/Bug_Reporting_101" />
-                </menu_item_call>
-                <menu_item_call
-                 label="Security Issues"
-                 name="Security Issues">
-                    <menu_item_call.on_click
-                     function="PromptShowURL"
-                     name="SecurityIssues_url"
-                     parameter="WebLaunchSecurityIssues,http://wiki.secondlife.com/wiki/Security_issues" />
-                </menu_item_call>
-                <menu_item_call
-                 label="QA Wiki"
-                 name="QA Wiki">
-                    <menu_item_call.on_click
-                     function="PromptShowURL"
-                     name="QAWiki_url"
-                     parameter="WebLaunchQAWiki,http://wiki.secondlife.com/wiki/QA_Portal" />
-                </menu_item_call>
-            </menu>
         </menu>
     </menu>
 </menu_bar>

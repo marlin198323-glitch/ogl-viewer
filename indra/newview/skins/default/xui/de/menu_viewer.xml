@@ -743,14 +743,5 @@
 			<menu_item_call label="Physik" name="Physics"/>
 			<menu_item_call label="Alle Kleider" name="All Clothes"/>
 		</menu>
-		<menu label="Hilfe" name="DeprecatedHelp">
-			<menu_item_call label="Scripting-Portal" name="Scripting Portal"/>
-			<menu label="Fehlermeldungen" name="Bug Reporting">
-				<menu_item_call label="Hilfe zum Allgemeinen Probleme-Tracker" name="Publc Issue Tracker Help"/>
-				<menu_item_call label="Fehlermeldungs-1x1" name="Bug Reporing 101"/>
-				<menu_item_call label="Sicherheitsprobleme" name="Security Issues"/>
-				<menu_item_call label="QA-Wiki" name="QA Wiki" />
-			</menu>
-		</menu>
 	</menu>
 </menu_bar>

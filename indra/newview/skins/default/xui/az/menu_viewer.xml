@@ -677,14 +677,5 @@
 			<menu_item_call label="Fizika" name="Physics"/>
 			<menu_item_call label="Bütün geyimlər" name="All Clothes"/>
 		</menu>
-		<menu label="Kömək" name="DeprecatedHelp">
-			<menu_item_call label="Script portalı" name="Scripting Portal"/>
-			<menu label="Xəta bildirişi" name="Bug Reporting">
-				<menu_item_call label="Ümumi problem izləmə vasitəsinə kömək" name="Publc Issue Tracker Help"/>
-				<menu_item_call label="Xəta bildirişi 101" name="Bug Reporing 101"/>
-				<menu_item_call label="Təhlükəsizlik problemləri" name="Security Issues"/>
-				<menu_item_call label="QA Wiki" name="QA Wiki"/>
-			</menu>
-		</menu>
 	</menu>
 </menu_bar>

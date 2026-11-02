@@ -687,14 +687,5 @@
 			<menu_item_call label="Propriétés physiques" name="Physics"/>
 			<menu_item_call label="Tous les habits" name="All Clothes"/>
 		</menu>
-		<menu label="Aide" name="DeprecatedHelp">
-			<menu_item_call label="Portail d&apos;écriture de scripts" name="Scripting Portal"/>
-			<menu label="Signaler un bug" name="Bug Reporting">
-				<menu_item_call label="Aide du JIRA" name="Publc Issue Tracker Help"/>
-				<menu_item_call label="Comment signaler des bugs" name="Bug Reporing 101"/>
-				<menu_item_call label="Problèmes de sécurité" name="Security Issues"/>
-				<menu_item_call label="Wiki sur l&apos;Assurance Qualité" name="QA Wiki"/>
-			</menu>
-		</menu>
 	</menu>
 </menu_bar>

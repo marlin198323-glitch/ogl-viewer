@@ -595,15 +595,6 @@
 			<menu_item_call label="Física" name="Physics"/>
 			<menu_item_call label="Todas las prendas" name="All Clothes"/>
 		</menu>
-		<menu label="Help" name="DeprecatedHelp">
-			<menu_item_call label="Scripting Portal" name="Scripting Portal"/>
-			<menu label="Informe de fallos" name="Bug Reporting">
-				<menu_item_call label="Ayuda del seguimiento público de problemas" name="Publc Issue Tracker Help"/>
-				<menu_item_call label="Informe de fallos 101" name="Bug Reporing 101"/>
-				<menu_item_call label="Problemas de seguridad" name="Security Issues"/>
-				<menu_item_call label="QA Wiki" name="QA Wiki"/>
-			</menu>
-		</menu>
 	</menu>
 	<menu label="Archivo" name="V1-File"/>
 	<menu label="Editar" name="V1-Edit"/>

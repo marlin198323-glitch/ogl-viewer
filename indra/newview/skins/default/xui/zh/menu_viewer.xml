@@ -708,14 +708,5 @@
 			<menu_item_call label="身體物理" name="Physics" />
 			<menu_item_call label="全部服裝" name="All Clothes" />
 		</menu>
-		<menu label="幫助" name="DeprecatedHelp">
-			<menu_item_call label="指令碼門戶" name="Scripting Portal" />
-			<menu label="報告問題" name="Bug Reporting">
-				<menu_item_call label="問題意見反應（JIRA）幫助" name="Publc Issue Tracker Help" />
-				<menu_item_call label="報告錯誤 " name="Bug Reporing 101" />
-				<menu_item_call label="安全問題" name="Security Issues" />
-				<menu_item_call label="QA維基" name="QA Wiki" />
-			</menu>
-		</menu>
 	</menu>
 </menu_bar>

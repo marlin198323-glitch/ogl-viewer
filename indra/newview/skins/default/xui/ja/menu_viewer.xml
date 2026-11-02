@@ -737,14 +737,5 @@
 			<menu_item_call label="物理作用" name="Physics"/>
 			<menu_item_call label="すべての衣装" name="All Clothes"/>
 		</menu>
-		<menu label="ヘルプ" name="DeprecatedHelp">
-			<menu_item_call label="スクリプトポータル" name="Scripting Portal"/>
-			<menu label="バグ報告" name="Bug Reporting">
-				<menu_item_call label="パブリック問題トラッカーヘルプ" name="Publc Issue Tracker Help"/>
-				<menu_item_call label="バグ報告の基礎知識" name="Bug Reporing 101"/>
-				<menu_item_call label="セキュリティ問題" name="Security Issues"/>
-				<menu_item_call label="品質保証ポータル" name="QA Wiki"/>
-			</menu>
-		</menu>
 	</menu>
 </menu_bar>
