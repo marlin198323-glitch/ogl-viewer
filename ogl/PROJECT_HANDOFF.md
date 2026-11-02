@@ -234,6 +234,25 @@ Formal P01 18/20, P02 0/20;
 nächster /goal-Einstieg P01 Block 19/20.
 Mehr in PROJECT_STATUS.md.
 
+Letzte unabhängige /goal-Runde (02.11.2026,
+72c8beed): Neun bestehende
+Sprach-strings.xml korrigiert, um bei
+Spanisch, Russisch, Türkisch, Chinesisch
+den alten Namen Firestorm/Second Life
+nicht anzuzeigen; aktive Grid-/System-
+Bezeichnung nutzt [CURRENT_GRID].
+Drei Regressionstests, 20 Prüfpunkte,
+vollständiger Linux-Viewer-Build,
+256 Python-/41 native Tests,
+104 Branding-Tests, 13 exakt
+staged Locale-XMLs und vier
+GUI-Login-Smokes (ES/RU/TR/ZH)
+bestanden. Vollständige In-World-/
+Windows-/macOS-Gates weiter offen,
+Beta-TLS-Sperre unverändert.
+Formal P01 18/20, P02 0/20.
+Nächster Einstieg P01 Block 19/20.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

@@ -554,6 +554,23 @@ und vollständiger Windows-/macOS-Viewer-
 Nachweis weiter offen. Formal P01 18/20,
 P02 0/20; PROJECT_STATUS.md ist maßgeblich.
 
+Unabhängige P02-Vorarbeit (02.11.2026, 72c8beed):
+In neun bestehenden Sprach-strings.xml die
+zentralen Vieweridentitäten Firestorm/Second
+Life auf OGL Viewer umgestellt und feste
+Grid-/System-Namen zu [CURRENT_GRID]
+normalisiert. Vier weitere Sprachen übernehmen
+die korrigierten englischen Basiswerte.
+Keine neuen Sprachdateien und keine Änderung
+an rechtlichen Credits. Drei Regressionstests
+ergänzt. 20 technische Prüfpunkte; Linux-
+Vollbuild 7.2.5.170, 256 Python-/41 native
+Tests, 104 Branding-Tests, 13 bytegleiche
+Staging-Sprachen und vier GUI-Voranmelde-
+Starts ES/RU/TR/ZH bestanden. Echte
+In-World-/Windows-/macOS-Gates bleiben
+offen. Formal P01 18/20, P02 0/20.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

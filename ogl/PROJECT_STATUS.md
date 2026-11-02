@@ -32,6 +32,96 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – lokalisierte OGL-/Grid-Identität (02.11.2026)
+
+Code-Commit 72c8beed direkt auf origin/ogl-develop.
+20/20 technische Prüfpositionen dieser unabhängigen
+P02-Vorarbeit abgeschlossen, ohne formale P02-
+Phasenabnahme. Linux-Vollviewer 7.2.5.170
+erfolgreich: 256/256 Python-Tests, 41/41 native
+CTests, 104/104 gezielte Branding-Regressionstests
+auch bei LC_ALL=C/PYTHONUTF8=0 bestanden.
+Alle 13 strings.xml-Sprachen bytegenau und
+wohlgeformt in der Viewer-Paketstruktur.
+Vier getrennte 1280x720-Xvfb-GUI-Starts
+ES/RU/TR/ZH bis STATE_LOGIN_WAIT,
+ohne AUTH_INIT, mit sauberem Exit-Code 0.
+
+Die ursprünglichen Sprach-Overlays hatten
+in ES/RU/ZH den Viewer-Namen Firestorm,
+in TR Second Life überschrieben.
+Chinesisches APP_NAME_ABBR war FS;
+TR-Systemchat-Label zeigte Second Life,
+ZH verwendete einen nicht aufgelösten
+lokalisierten Platzhalter; neun Sprachen
+hatten SECOND_LIFE_GRID fest auf Second
+Life gesetzt. Die existierenden XML-Dateien
+AZ/DE/EN/ES/FR/PT/RU/TR/ZH direkt
+geändert: APP_NAME und ausgeschriebene
+Variante mit OGL-Identität, Kurzname
+OGL und die beiden System-/Gridbezeichner
+verwenden [CURRENT_GRID] statt alter
+Second-Life-Texte. Die übrigen vier
+Sprachen erben die englischen Basiswerte.
+Es wurden keine neuen Assets, Dateien
+oder ersetzenden Locale-Overlays angelegt.
+Die Quelltext-Credits/Lizenzen bleiben erhalten.
+
+In ogl/tests/test_branding_contract.py
+drei zusätzliche Tests für alle 13
+Sprach-XMLs, dynamisches Grid-Label
+und die bestehenden zentralen
+LLTrans-Substitutionen aufgenommen.
+
+20 technische Arbeitsschritte/Nachweise:
+01 korrekter Branch/Remote und vorhandene CI
+   kontrolliert;
+02 systematische Inventur der 13 Sprachdateien
+   und sechs dynamischen OGL-Identitätswerte;
+03 AZ-Gridlabel bereinigt;
+04 DE-Gridlabel bereinigt;
+05 EN-Basis-Gridlabel bereinigt;
+06 ES-Vieweridentität und Gridlabel bereinigt;
+07 FR-Gridlabel bereinigt;
+08 PT-Gridlabel bereinigt;
+09 RU-Vieweridentität und Gridlabel bereinigt;
+10 TR-Vieweridentität, System- und Gridlabel;
+11 ZH-Vieweridentität, Grid-Platzhalter
+   und Kurztitel korrigiert;
+12 DA/IT/JA/PL auf Vererbung und
+   fehlende abweichende Werte geprüft;
+13 drei neue Locale-Regressionstests ergänzt;
+14 104/104 Tests mit erzwungener
+   ASCII-Systemkodierung bestanden;
+15 vollständiger Linux-Vollbuild und
+   256/256 Python-/41/41 native Tests bestanden;
+16 13/13 originale strings.xml-Quelldateien
+   bytegenau im Buildstaging nachgewiesen;
+17 isolierter ES-Login-GUI-Start/Exit 0;
+18 isolierter RU-Login-GUI-Start/Exit 0;
+19 isolierte TR- und ZH-Login-GUI-Starts/Exit 0;
+20 No-untracked/diff-check/Altbestand
+   kontrolliert, Code auf GitHub gepusht,
+   vorhandenen Projektplan aktualisiert.
+Sieben zuvor bekannte _v2-/script_copy-Pfade
+inventarisiert, nicht ungeprüft entfernt.
+Keine Nutzerprofile, Secrets, Passwörter,
+Cachedateien oder Serverkonfiguration verändert.
+
+Die GUI-Smokes bestätigen den Viewerstart,
+nicht eine authentifizierte Systemchat-
+Darstellung in beiden NexVerse-Welten.
+Offene P01-Gates: autorisierter Live-Login,
+gespeicherte Credential-Wiederherstellung,
+In-World-Shutdown und vollständige
+Windows-/macOS-Vollviewer-Build-/GUI-
+Prüfungen. Beta-TLS-Zertifikatsproblem
+weiter offen; nicht umgehen.
+Portable OS-Grafikmodultests sind keine
+komplette Viewer-Abnahme.
+Formal P01 18/20, P02 0/20.
+Nächster /goal-Einstieg P01 Block 19/20.
+
 ## P02 unabhängige Vorarbeit – Chatkopf ohne doppelte Breitenänderung (02.11.2026)
 
 Code-Commit a462330e direkt auf origin/ogl-develop.

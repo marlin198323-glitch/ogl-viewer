@@ -145,6 +145,22 @@ Login-GUI-Smokes bestanden. Formal
 P01 18/20, P02 0/20; In-World-/
 Windows-/macOS-Vollviewer-Gates offen.
 
+Letzte unabhängige P02-/goal-Runde
+(02.11.2026, 72c8beed):
+Neun existierende Sprachstrings auf
+OGL Viewer und dynamischen
+NexVerse-Gridnamen bereinigt;
+kein neues Locale/Asset erzeugt.
+20 technische Prüfschritte,
+Linux-Vollbuild 7.2.5.170,
+256 Python-/41 native Tests,
+104 Branding-Tests, 13 bytegleich
+staged Locale-Dateien und vier
+ES/RU/TR/ZH-GUI-Starts bestanden.
+Formal P01 18/20, P02 0/20;
+Live-Login/In-World/Windows-/macOS-
+Abnahmen unverändert offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 
