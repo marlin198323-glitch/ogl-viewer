@@ -219,6 +219,8 @@ zusätzliche Regressionstests,
 20/20 technische Kontrollen,
 210 Python-/41 native Tests,
 EN-/DE-GUI-Starts bestanden.
+Portable Grafik-CI 6/6
+(Lauf 41479072688) grün.
 Keine vollständige Live-Login-
 oder Plattform-Viewer-Abnahme.
 Davor:

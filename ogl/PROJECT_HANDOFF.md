@@ -44,6 +44,9 @@ Navigation, 20/20 QA-
 Positionen, 210 Python-
 und 41 native Tests,
 EN-/DE-GUI-Starts grün.
+Portable Grafik-CI 6/6
+(Lauf 41479072688) erfolgreich,
+keine vollständigen OS-Viewer.
 P02 formal 0/20.
 Weiter offen: Hauptgrid-
 Live-Login, Passwort-

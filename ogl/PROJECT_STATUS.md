@@ -32,6 +32,23 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## CI-Nachprüfung – sechs portable Plattformjobs erfolgreich
+
+GitHub Actions `ogl-portable-graphics.yml`:
+**Lauf 41479072688**, Code und
+Dokumentation bis `511f889c`,
+**6/6 Jobs erfolgreich**
+(Ubuntu x64/ARM64, Windows
+x64/ARM64, macOS Intel/ARM64).
+Bestätigt wurden Python-
+Quelltextverträge und native
+Grafikmodule auf allen sechs
+Plattformzielen. Dies ist kein
+vollständiger Windows-/macOS-
+Viewer-Build und keine
+In-World-Laufzeitabnahme.
+**P01 bleibt 18/20, P02 0/20.**
+
 ## P01 Block 19 – externe Welcome-Seite nicht mehr privilegiert (20 Prüfpunkte)
 
 **Code-Commit `3a655add` auf `ogl-develop`.**
