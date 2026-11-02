@@ -438,6 +438,15 @@ Presetdatei noch Toolbars ändern
 (`a8951b29`, im P01-Linux-Vollbuild
 geprüft). Die komplette In-World-
 Visual-/Funktionsabnahme fehlt.
+**Neue unabhängige P02-Vorarbeit (02.11.2026, \`912a7320\`):**
+OGL-Browser-Präferenz öffnet nur offizielle HTTPS-NexVerse-Websites
+über exakt definierte Hosts im integrierten Browser, statt
+Second-Life-Links. Zehn existierende Sprach-Overlays aktualisiert,
+drei erben die englische Einstellung. Linux-Vollbuild,
+222 Python-/41 native Tests und isolierter EN-Login-GUI-Start
+mit sauberem Exit bestanden. P01 bleibt 18/20, P02 bleibt
+formal 0/20. Kein Live-/Windows-/macOS-Vollviewer-Gate behauptet.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.
