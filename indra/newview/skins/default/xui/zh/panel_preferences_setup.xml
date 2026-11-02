@@ -13,7 +13,7 @@
 			<text name="Web:">網路瀏覽器：</text>
 			<radio_group name="preferred_browser_behavior">
 				<radio_item label="使用我的瀏覽器（Chrome、Firefox、Edge）打開所有連結" name="new_external" tool_tip="使用系統預設瀏覽器打開所有連結和幫助。如果您在全螢幕模式下，不建議使用此選項。" />
-				<radio_item label="僅使用內建瀏覽器打開Second Life連結" name="new_internal" tool_tip="使用預設瀏覽器打開幫助和Web連結。僅當涉及到LindenLab/SecondLife連結時才會使用內建瀏覽器。" />
+				<radio_item label="僅使用內建瀏覽器開啟 NexVerse 連結" name="new_internal" tool_tip="只有 NexVerse 官方 HTTPS 網站會在內建瀏覽器開啟；其他連結將使用系統瀏覽器。" />
 				<radio_item label="使用內建瀏覽器打開所有連結" name="new_internal_all" />
 			</radio_group>
 			<text name="numberwebfloaters_label">最大瀏覽器視窗數：</text>

@@ -55,6 +55,40 @@ class OGLBrandingContract(unittest.TestCase):
                         self.assertNotIn('Firestorm',e.get(attribute,''),str(path))
         self.assertGreaterEqual(found,65)
 
+    def test_ogl_browser_pref_uses_only_exact_https_nexverse_hosts(self):
+        policy = self.source("indra/newview/llweb.cpp").split(
+            "bool LLWeb::useExternalBrowser", 1)[1]
+        self.assertIn('if (APP_NAME == "OGL")', policy)
+        self.assertIn('if (!up.normalize())', policy)
+        self.assertIn('up.scheme() == "https"', policy)
+        self.assertIn('up.port().empty() || up.port() == "443"', policy)
+        self.assertIn('host == "stadt-nexverse.de"', policy)
+        self.assertIn('host == "marketplace.stadt-nexverse.de"', policy)
+        self.assertNotIn('host.find("stadt-nexverse.de")', policy)
+        self.assertIn('return !(ll_regex_search(uri_string, matches, pattern))', policy,
+                      "Other viewer channels must retain the original link policy")
+
+    def test_nexverse_browser_settings_across_language_overlays(self):
+        paths = sorted((ROOT / 'indra/newview/skins/default/xui').glob(
+            '*/panel_preferences_setup.xml'))
+        self.assertEqual(len(paths), 13)
+        localized = 0
+        for path in paths:
+            root = ET.parse(path).getroot()
+            choices = [x for x in root.iter('radio_item')
+                       if x.get('name') == 'new_internal']
+            self.assertLessEqual(len(choices), 1, str(path))
+            if not choices:
+                # This locale inherits the complete English base control.
+                continue
+            localized += 1
+            option = choices[0]
+            self.assertIn('NexVerse', option.get('label', ''), str(path))
+            self.assertIn('NexVerse', option.get('tool_tip', ''), str(path))
+            self.assertNotIn('Second Life', option.get('label', ''), str(path))
+            self.assertNotIn('LindenLab', option.get('tool_tip', ''), str(path))
+        self.assertEqual(localized, 10)
+
     def test_legacy_login_mode_preset_still_loads_but_uses_ogl_names(self):
         base=ROOT/'indra/newview/skins/default/xui'
         for lang in ('en','es'):

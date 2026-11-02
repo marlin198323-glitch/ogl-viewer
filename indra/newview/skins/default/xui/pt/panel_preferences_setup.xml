@@ -24,7 +24,7 @@
 			</text>
 			<radio_group name="preferred_browser_behavior">
 				<radio_item label="Usar navegador padrão do sistema" name="new_external" tool_tip="Usa o navegador padrão para ajuda, links da web etc. Não recomendado em tela cheia."/>
-				<radio_item label="Navegador interno para links do SL" name="new_internal" tool_tip="Usa o navegador integrado para abrir ajuda, links da web etc. Esse navegador abre em uma nova janela dentro do [APP_NAME]."/>
+				<radio_item label="Usar navegador integrado apenas para links NexVerse" name="new_internal" tool_tip="Somente sites HTTPS oficiais do NexVerse abrem no navegador integrado; outros links usam o navegador do sistema."/>
 				<radio_item label="Navegador interno para todos os links" name="new_internal_all" tool_tip="Usa o navegador integrado para abrir ajuda, links da web etc. Esse navegador abre em uma nova janela dentro do [APP_NAME]."/>
 			</radio_group>
 			<text name="numberwebfloaters_label">

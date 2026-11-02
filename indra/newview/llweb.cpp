@@ -243,8 +243,24 @@ bool LLWeb::useExternalBrowser(const std::string &url)
     else if (gSavedSettings.getU32("PreferredBrowserBehavior") == BROWSER_INT_LL_EXT_OTHERS)
     {
         LLUriParser up(url);
-        up.normalize();
+        if (!up.normalize())
+        {
+            return true; // Invalid URLs never qualify for the embedded browser.
+        }
         up.extractParts();
+
+        if (APP_NAME == "OGL")
+        {
+            // Only explicitly HTTPS NexVerse web sites use this preference.
+            // Host matching is exact (not a subdomain suffix); web content
+            // remains untrusted, and other viewer channels keep their policy.
+            const std::string& host = up.host();
+            const bool nexverse_web = host == "stadt-nexverse.de" ||
+                                     host == "marketplace.stadt-nexverse.de";
+            const bool default_https_port = up.port().empty() || up.port() == "443";
+            return !(up.scheme() == "https" && nexverse_web && default_https_port);
+        }
+
         std::string uri_string = up.host();
 
         // <FS:Ansariel> FIRE-20796: Grid check status page ignores opening SL links in internal browser setting
