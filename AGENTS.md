@@ -120,6 +120,17 @@ Formal P01 18/20, P02 0/20; keine
 authentifizierten In-World- oder vollständigen
 Windows-/macOS-Vollviewer-Gates behaupten.
 
+Unabhängige P02-Vorarbeit (02.11.2026,
+8deebedc): Negative Unread-Zähler in Nearby-/
+Muted-/IM-Chat auf null begrenzt; Sprach-
+Layouts und Ausgangssichtbarkeit erhalten.
+20 technische Prüfpositionen, Linux-Vollbuild,
+250 Python-/41 native Tests, 98 Chat-/Branding-
+Tests und DE-/EN-Xvfb-Login-Smokes grün.
+Beta-TLS-Zertifikatsfehler weiter offen.
+Formal P01 18/20, P02 0/20, vollständige
+In-World-/Windows-/macOS-Gates weiterhin offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

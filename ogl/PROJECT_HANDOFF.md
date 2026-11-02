@@ -204,6 +204,19 @@ Gates bleiben offen. Formal P01 18/20,
 P02 0/20, nächster operativer Block P01 19/20.
 Mehr in PROJECT_STATUS.md.
 
+Letzte unabhängige /goal-Runde (02.11.2026,
+8deebedc): Negative Unread-Zähler in Nearby-,
+Muted- und IM-Chat auf null begrenzt.
+Vorhandener initial ausgeblendeter 20-Pixel-
+Hinweis nicht unnötig überschrieben.
+20 Prüfpunkte, Linux-Build 7.2.5.166,
+250 Python-/41 native Tests, 98 Chat-/
+Branding-Tests, DE-/EN-Xvfb-GUI-Smokes
+bestanden. Beta-TLS-Hostnamenfehler
+per curl bestätigt. P01 18/20, P02 0/20;
+P01 Block 19/20 operativer Einstieg.
+In-World-/Windows-/macOS-Vollviewer-Gates offen.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

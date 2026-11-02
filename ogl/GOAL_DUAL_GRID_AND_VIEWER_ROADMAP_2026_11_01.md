@@ -525,6 +525,19 @@ Keine In-World- oder vollständigen Windows-/macOS-
 Viewer-Gates behaupten. Formal P01 18/20,
 P02 0/20. Details in PROJECT_STATUS.md.
 
+Unabhängige P02-Vorarbeit (02.11.2026, 8deebedc):
+Negative Unread-Zähler in Nearby-Chat (normaler/
+stummgeschalteter History-Cache) und IM werden vor
+Cache/Anzeige auf null begrenzt. Präferenzschalter,
+Sprachlayouts und der bereits korrekt initial
+unsichtbare Chat-Hinweis bleiben unverändert.
+20 technische Prüfpunkte, 250 Python-/41 native
+Tests, 98 Branding-/Chat-Tests, Linux-Vollbuild
+und DE-/EN-Xvfb-GUI-Smokes erfolgreich.
+Beta-TLS-Zertifikatsabweichung am 02.11. erneut
+bestätigt, Anmeldung weiterhin gesperrt.
+Formal P01 18/20, P02 0/20. Siehe Status.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

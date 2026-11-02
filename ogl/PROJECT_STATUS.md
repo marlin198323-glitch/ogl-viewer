@@ -32,6 +32,82 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – ungelesene Chatnachrichten zuverlässig zählen (02.11.2026)
+
+Code-Commit 8deebedc direkt auf origin/ogl-develop.
+20/20 technische Prüfpositionen dieser unabhängigen
+P02-Runde; keine formale P02-Phasenfreigabe.
+Linux-Vollviewer 7.2.5.166 erfolgreich:
+250/250 Python-Tests, 41/41 native CTests und
+98/98 gezielte Branding-/Chat-Regressionstests
+(auch mit LC_ALL=C/PYTHONUTF8=0) bestanden.
+Isolierte DE-/EN-Xvfb-GUI-Starts 1280x720
+bis STATE_LOGIN_WAIT ohne AUTH_INIT,
+beide mit sauberem Exit-Code 0.
+
+Änderungen nur in drei bestehenden Dateien:
+- fsfloaternearbychat.cpp: negative Eingangs-
+  zähler vor dem Speichern in getrennten regulären
+  und stummgeschalteten History-Caches auf null
+  begrenzt. Vorhandene History-Auswahl,
+  User-Präferenzen und [NUM]-Ersetzung erhalten.
+- fsfloaterim.cpp: gleiche defensive Korrektur
+  vor der IM-Anzeige. Nullwert blendet die
+  Benachrichtigung weiterhin aus.
+- ogl/tests/test_branding_contract.py: fünf
+  Regressionstests für beide C++-Pfadprüfungen,
+  korrekt verborgenen Startzustand und
+  Sprach-Overlays der Nearby-Chat-Fenster.
+  Die Ausgangsprüfung ergab: Das vorhandene
+  englische XUI startet bereits unsichtbar
+  mit 20 Pixeln Höhe – daher keine unnötige
+  Änderung an XUI-Dateien.
+
+20 tatsächlich durchgeführte Prüfpositionen:
+01 Branch/Remote-Synchronität; 02 CI-Zustände
+der Vorarbeiten geprüft; 03 Hauptprojektplan
+und P01-Blocker überprüft; 04 aktiven
+Nearby-Chat-Quellpfad untersucht;
+05 IM-Quellpfad untersucht;
+06 EN-Startzustand Nearby-Zähler geprüft;
+07 EN-Startzustand IM-Zähler geprüft;
+08 elf Nearby-Sprach-Layouts geprüft;
+09 dreizehn IM-Sprach-Layouts geprüft;
+10 negativen Nearby-Eingangszähler abgefangen;
+11 regulären Nearby-History-Zähler erhalten;
+12 separaten Muted-History-Zähler erhalten;
+13 Chat-Präferenzschalter erhalten;
+14 negativen IM-Eingangszähler abgefangen;
+15 IM-Präferenz und Nullwert-Ausblendung erhalten;
+16 fünf Regressionstests ergänzt, 98/98
+unter ASCII-Systemkodierung bestanden;
+17 Linux-Vollbuild und 250 Python-/41 native
+Tests bestanden; 18 DE-GUI bis Login/sauberer Exit;
+19 EN-GUI bis Login/sauberer Exit;
+20 Code gepusht, Altbestand und Roadmap geprüft.
+Sieben bekannte _v2-/script_copy-Pfade weiter
+inventarisiert, ohne ungesicherte Löschungen.
+Keine neuen Projektdateien, Nutzerprofile,
+Caches oder Passwörter verändert.
+
+Zusätzlicher externer Befund: TLS zu
+https://beta.stadt-nexverse.de/get_grid_info
+schlug am 02.11.2026 auf Linux Mint erneut
+wegen unpassendem Zertifikats-Hostnamen fehl
+(curl Fehler 60). Beta bleibt vor Anmeldung
+gesperrt; TLS-Prüfung nicht abgeschwächt.
+Main-Grid HTTPS-Port 443 antwortete beim
+lokalen Test nicht; kein Eingriff am
+bestehenden Main-Grid-HTTP-Vertrag.
+
+Nicht abgenommen: Authentifizierter Live-Login,
+Passwort-Persistenz, reale In-World-Chat-
+Zählung und Shutdown, vollständige
+Windows-/macOS-Vollviewer-Build-/GUI-Nachweise.
+Portable Grafikmatrix ersetzt diese Gates nicht.
+Formal P01 18/20, P02 0/20;
+nächster /goal-Einstieg P01 Block 19/20.
+
 ## P02 unabhängige Vorarbeit – alte Firestorm-IM-Datenweitergabe gesperrt (02.11.2026)
 
 **Code-Commit cfa671e4** direkt auf origin/ogl-develop.
