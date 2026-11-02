@@ -100,6 +100,70 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
         self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
 
+    def test_nearby_unread_banner_initially_hidden_with_fixed_height(self):
+        base = ROOT / "indra/newview/skins/default/xui/en"
+        nearby = ET.parse(base / "floater_fs_nearby_chat.xml").getroot()
+        holders = [e for e in nearby.iter("layout_panel")
+                   if e.get("name") == "unread_messages_holder"]
+        self.assertEqual(len(holders), 1)
+        self.assertEqual(holders[0].get("visible"), "false")
+        self.assertEqual(holders[0].get("height"), "20")
+        self.assertEqual(holders[0].get("auto_resize"), "false")
+        self.assertTrue(any(n.get("name") == "unread_messages_text"
+                            and "[NUM]" in "".join(n.itertext())
+                            for n in holders[0].iter("text")))
+
+    def test_im_and_nearby_unread_banner_initial_visibility_matches(self):
+        base = ROOT / "indra/newview/skins/default/xui/en"
+        for filename in ("floater_fs_im_session.xml", "floater_fs_nearby_chat.xml"):
+            root = ET.parse(base / filename).getroot()
+            holders = [e for e in root.iter("layout_panel")
+                       if e.get("name") == "unread_messages_holder"]
+            self.assertEqual(len(holders), 1, filename)
+            self.assertEqual(holders[0].get("visible"), "false", filename)
+            self.assertEqual(holders[0].get("height"), "20", filename)
+
+    def test_nearby_unread_callback_clamps_negative_counts_before_history_cache(self):
+        source = self.source("indra/newview/fsfloaternearbychat.cpp")
+        method = source.split(
+            'void FSFloaterNearbyChat::updateUnreadMessageNotification(', 1)[1].split(
+            'void FSFloaterNearbyChat::updateShowMutedChatHistory(', 1)[0]
+        self.assertLess(method.index('if (unread_messages < 0)'),
+                        method.index('mUnreadMessagesMuted = unread_messages;'))
+        self.assertLess(method.index('if (unread_messages < 0)'),
+                        method.index('mUnreadMessages = unread_messages;'))
+        self.assertIn('if (!show_muted_history)', method)
+        self.assertIn('if (show_muted_history)', method)
+        self.assertIn('FSNotifyUnreadChatMessages', method)
+        self.assertLess(method.index('if (unread_messages == 0'),
+                        method.index('mUnreadMessagesNotificationPanel->setVisible(true);'))
+
+    def test_im_unread_callback_clamps_negative_counts_and_honors_preferences(self):
+        source = self.source("indra/newview/fsfloaterim.cpp")
+        method = source.split(
+            'void FSFloaterIM::updateUnreadMessageNotification(', 1)[1].split(
+            'void FSFloaterIM::onAddButtonClicked(', 1)[0]
+        self.assertLess(method.index('if (unread_messages < 0)'),
+                        method.index('if (unread_messages == 0'))
+        self.assertIn('!gSavedSettings.getBOOL("FSNotifyUnreadIMMessages")', method)
+        self.assertIn('mUnreadMessagesNotificationPanel->setVisible(false);', method)
+        self.assertIn('mUnreadMessagesNotificationPanel->setVisible(true);', method)
+        self.assertIn('setTextArg("[NUM]", llformat("%d", unread_messages));', method)
+
+    def test_nearby_unread_locale_overlays_preserve_hidden_base_policy(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        paths = sorted(base.glob("*/floater_fs_nearby_chat.xml"))
+        self.assertGreaterEqual(len(paths), 10)
+        for path in paths:
+            tree = ET.parse(path).getroot()
+            holders = [e for e in tree.iter("layout_panel")
+                       if e.get("name") == "unread_messages_holder"]
+            self.assertLessEqual(len(holders), 1, str(path))
+            for holder in holders:
+                self.assertNotEqual(holder.get("visible"), "true", str(path))
+                self.assertEqual(len([e for e in holder.iter("text")
+                                      if e.get("name") == "unread_messages_text"]), 1)
+
     def test_ogl_im_never_adds_firestorm_support_identity_to_chat(self):
         src = self.source("indra/newview/fsfloaterim.cpp")
         self.assertIn('#include "indra_constants.h"', src)

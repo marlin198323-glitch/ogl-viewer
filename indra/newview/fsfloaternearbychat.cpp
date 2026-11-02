@@ -992,6 +992,11 @@ void FSFloaterNearbyChat::stopChat()
 
 void FSFloaterNearbyChat::updateUnreadMessageNotification(S32 unread_messages, bool muted_history)
 {
+    // A callback can reset its unread count while switching histories.
+    // A negative value must not turn the notification banner back on.
+    if (unread_messages < 0)
+        unread_messages = 0;
+
     bool show_muted_history = gSavedSettings.getBOOL("FSShowMutedChatHistory");
 
     if (muted_history)

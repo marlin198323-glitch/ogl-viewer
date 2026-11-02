@@ -2417,6 +2417,10 @@ boost::signals2::connection FSFloaterIM::setIMFloaterShowedCallback(const floate
 
 void FSFloaterIM::updateUnreadMessageNotification(S32 unread_messages)
 {
+    // Do not display invalid counts as unread notifications.
+    if (unread_messages < 0)
+        unread_messages = 0;
+
     if (unread_messages == 0 || !gSavedSettings.getBOOL("FSNotifyUnreadIMMessages"))
     {
         mUnreadMessagesNotificationPanel->setVisible(false);
