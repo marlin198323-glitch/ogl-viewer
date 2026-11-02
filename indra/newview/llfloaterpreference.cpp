@@ -2675,7 +2675,10 @@ void LLFloaterPreference::setPersonalInfo(const std::string& visibility, bool im
         getChildView("reset_logpath")->setEnabled(true);
     }
     // <FS:Ansariel> Keep this for OpenSim
-    if (LLGridManager::instance().isInSecondLife())
+    // The original Second Life account URL is not valid for either fixed
+    // NexVerse grid. Never reveal it in the OGL preferences; OpenSim's
+    // supported IM-to-email checkbox below remains available.
+    if (APP_NAME != "OGL" && LLGridManager::instance().isInSecondLife())
     {
         childSetEnabled("email_settings", true);
         childSetVisible("email_settings", true);

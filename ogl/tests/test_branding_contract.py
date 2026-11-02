@@ -100,6 +100,43 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
         self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
 
+    def test_ogl_network_cache_preferences_have_no_upstream_wiki_prompts(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        paths = sorted(base.glob("*/panel_preferences_setup.xml"))
+        self.assertEqual(len(paths), 13)
+        for path in paths:
+            tree = ET.parse(path).getroot()
+            for name in ("Maximum bandwidth", "cache_size_label_l"):
+                nodes = [e for e in tree.iter("text") if e.get("name") == name]
+                self.assertLessEqual(len(nodes), 1, str(path))
+                for node in nodes:
+                    self.assertNotIn("wiki.firestormviewer.org", "".join(node.itertext()))
+            self.assertNotIn("wiki.firestormviewer.org", path.read_text(),
+                             f"Remove dead third-party documentation links from {path}")
+
+    def test_ogl_chat_command_help_has_local_examples_without_firestorm_wiki(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        for lang in ("en", "de", "ja", "pl", "zh"):
+            path = base / lang / "panel_preferences_chat.xml"
+            tree = ET.parse(path).getroot()
+            docs = [node for node in tree.iter("text")
+                    if node.get("name") == "FSCmdLineDoc_txt"]
+            self.assertEqual(len(docs), 1, str(path))
+            self.assertNotIn("wiki.firestormviewer.org", "".join(docs[0].itertext()))
+            self.assertNotIn("[https://", "".join(docs[0].itertext()))
+            self.assertTrue("".join(docs[0].itertext()).strip(), str(path))
+            self.assertTrue(any(node.get("name") == "chat_cmd_toggle"
+                                for node in tree.iter("check_box")), str(path))
+
+    def test_ogl_never_exposes_secondlife_account_email_settings(self):
+        source = self.source("indra/newview/llfloaterpreference.cpp")
+        marker = 'if (APP_NAME != "OGL" && LLGridManager::instance().isInSecondLife())'
+        self.assertIn(marker, source)
+        rest = source[source.index(marker):]
+        self.assertLess(rest.index('childSetVisible("email_settings", true);'),
+                        rest.index('send_im_to_email->setVisible(true);'))
+        self.assertIn('send_im_to_email->setEnabled(true);', rest)
+
     def test_ogl_browser_pref_uses_only_exact_https_nexverse_hosts(self):
         policy = self.source("indra/newview/llweb.cpp").split(
             "bool LLWeb::useExternalBrowser", 1)[1]
