@@ -52,7 +52,67 @@ on:
 permissions:
   contents: read
 
+# A push with [windows-installer] requests a Windows test installer.
+# Normal commits only run the portable graphics verification matrix.
 jobs:
+  windows-test-installer:
+    name: OGL Windows x64 full viewer installer (unsigned)
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[windows-installer]')
+    runs-on: windows-2022
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      AUTOBUILD_VARIABLES_FILE: build-variables/variables
+      AUTOBUILD_VSVER: "170"
+    steps:
+      - name: Checkout OGL viewer
+        uses: actions/checkout@v4
+      - name: Configure Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install public tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install autobuild==3.10.2 llsd
+          choco install nsis --yes --no-progress
+      - name: Public Firestorm build variables
+        uses: actions/checkout@v4
+        with:
+          repository: FirestormViewer/fs-build-variables
+          path: build-variables
+      - name: Configure unsigned OpenSim viewer
+        shell: bash
+        run: >-
+          autobuild configure -c ReleaseFS -A64 -- --package
+          --chan "OGL Viewer Development"
+          -DOPENSIM:BOOL=ON
+          -DHAVOK_TPV:BOOL=OFF
+          -DUSE_FMODSTUDIO:BOOL=OFF
+          -DUSE_KDU:BOOL=OFF
+          -DUSE_DISCORD:BOOL=OFF
+          -DUSE_BUGSPLAT:BOOL=OFF
+          -DUSE_VELOPACK:BOOL=OFF
+          -DLL_TESTS:BOOL=OFF
+      - name: Build OGL Windows x64 full viewer
+        shell: bash
+        run: autobuild build -c ReleaseFS -A64 --no-configure
+      - name: Verify installer exists
+        shell: pwsh
+        run: |
+          $setup = @(Get-ChildItem -Path build-* -Recurse -Filter '*_Setup.exe' -File)
+          if ($setup.Count -eq 0) { throw 'Windows viewer installer missing' }
+          $setup | Select-Object FullName,Length | Format-Table -AutoSize
+      - name: Upload OGL Windows x64 installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OGL-Viewer-Windows-x64-unsigned-test-installer
+          path: build-*/newview/Release/*_Setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
   native-module:
     name: Native graphics / ${{ matrix.os }}
     strategy:

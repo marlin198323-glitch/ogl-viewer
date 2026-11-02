@@ -41,6 +41,47 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## Windows-Testinstaller – isolierter GitHub-Actions-Build (02.11.2026)
+
+Anforderung: Auch unter Windows den vollständigen OGL Viewer
+testen können. Das frühere portable Grafik-CI-Ergebnis
+enthält keinen Installer. Vor der ersten Windows-Abnahme
+existiert noch kein nachweislich installierbares .exe-Artefakt.
+
+Vorbereitet in bestehenden Dateien:
+- .github/workflows/ogl-portable-graphics.yml:
+  schwergewichtiger vollständiger Windows-2022/x64-
+  OpenSim-Viewer-Build nur bei bewusstem Push-Commit
+  mit [windows-installer] im Committext. Er installiert
+  öffentliche Autobuild-Werkzeuge und NSIS,
+  schaltet proprietäre Audio-/KDU-/Signier-
+  Komponenten für diesen Testlauf ab, soll
+  ein Setup.exe-Artefakt 14 Tage bereitstellen
+  und löscht/überschreibt keine Releases.
+  Die bisherige sechsfache Modulmatrix bleibt erhalten.
+- indra/newview/viewer_manifest.py:
+  alte NSIS-Pfad-Fehlzuordnung korrigiert;
+  OGL-Installationsname, Programmnamen und
+  GitHub-Downloadlink von Firestorm getrennt.
+- indra/newview/fs_viewer_manifest.py:
+  OGL-spezifischer Windows-Installerdateiname;
+  Originalverhalten anderer Kanäle bleibt erhalten.
+- ogl/tests/test_branding_contract.py:
+  CI-Testgate, NSIS-Compilerpfad und getrennte
+  Installeridentität durch neue Regressionstests.
+
+**Wichtig:** Dies ist zunächst ein Buildversuch, kein
+bestätigter Windows-Installer. Erst ein erfolgreiches
+Windows-CI-Artefakt und Installation/Viewer-Login
+auf einem realen Windows-Rechner erlauben die
+Windows-Vollviewer-Abnahme. Testsetup ohne
+Windows-Codesignatur erzeugt ggf. SmartScreen-
+Warnungen. Verifizierbarer Build-/Artefaktstatus
+ist auf GitHub Actions maßgeblich.
+P01 Linux 20/20 und P02 1/20 bleiben unverändert.
+Plattformfreigaben werden weiterhin separat
+in P13 bewertet.
+
 ## Phasenwechsel: P01 Linux-Abnahme / P02 Block 1 (02.11.2026)
 
 P01 unter Linux 20/20 abgeschlossen nach

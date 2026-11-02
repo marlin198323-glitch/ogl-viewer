@@ -327,6 +327,20 @@ keine echte Live-/In-World- oder volle
 Windows-/macOS-Abnahme. Formal P01
 18/20, P02 0/20; P01 19 weiter offen.
 
+Windows-Installer-Vorbereitung 02.11.2026:
+Der aktive sechsfache OGL-Grafik-Workflow enthält
+einen bewusst per Push-Committext [windows-installer]
+auslösbaren separaten Windows-2022-x64-Vollviewer-
+Build (OpenSim, unsigniert, NSIS) mit geplanten
+GitHub-Artefakten. NSIS-Pfaderkennung und
+OGL-Installer-/Programmkennung wurden in
+bestehenden Python-Dateien angepasst.
+Kein .exe als erfolgreich nachgewiesen melden,
+bevor GitHub Actions das vollständige Artefakt
+wirklich produziert hat. Windows-Installation
+und GUI-Test auf echter Hardware bleiben offen;
+P01 Linux 20/20, P02 1/20 unverändert.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

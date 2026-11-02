@@ -63,6 +63,37 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('nCrashSubmitBehavior != CRASH_BEHAVIOR_NEVER_SEND', init)
         self.assertIn('setupBreakpad();', init)
 
+    def test_windows_full_installer_job_is_gated_and_unsigned(self):
+        ci = self.source(".github/workflows/ogl-portable-graphics.yml")
+        self.assertIn("windows-test-installer:", ci)
+        self.assertIn("contains(github.event.head_commit.message, '[windows-installer]')", ci)
+        for value in ("runs-on: windows-2022", "--package", "-DOPENSIM:BOOL=ON",
+                      "-DUSE_FMODSTUDIO:BOOL=OFF", "-DUSE_KDU:BOOL=OFF",
+                      "choco install nsis", "autobuild build -c ReleaseFS -A64",
+                      "OGL-Viewer-Windows-x64-unsigned-test-installer",
+                      "if-no-files-found: error"):
+            self.assertIn(value, ci)
+        self.assertIn("native-module:", ci)
+
+    def test_windows_installer_cannot_overwrite_firestorm_identity(self):
+        manifest=self.source("indra/newview/viewer_manifest.py")
+        self.assertIn('if self.channel().startswith("OGL Viewer"):',manifest)
+        self.assertIn('return "OGLViewerDevelopment"',manifest)
+        self.assertIn('return "OGL Viewer"',manifest)
+        self.assertIn('https://github.com/marlin198323-glitch/ogl-viewer/releases',manifest)
+        self.assertIn('self.path(src=\'%s/firestorm-bin.exe\'',manifest)
+        self.assertIn('dst=self.final_exe()',manifest)
+
+    def test_windows_nsis_setup_uses_verified_tool_path(self):
+        manifest=self.source("indra/newview/viewer_manifest.py")
+        body=manifest.split("def nsis_package_finish(self):",1)[1].split("def sign(self, exe):",1)[0]
+        self.assertIn('shutil.which("makensis.exe")', body)
+        self.assertIn('self.run_command([nsis_path',body)
+        self.assertNotIn('self.run_command([possible_path',body)
+        other=self.source("indra/newview/fs_viewer_manifest.py")
+        self.assertIn('if self.channel().startswith("OGL Viewer"):',other)
+        self.assertIn('"OGL-Viewer-Windows-x64-"',other)
+
     def test_ogl_skips_bugsplat_sender_on_windows_without_skipping_base_init(self):
         win = self.source("indra/newview/llappviewerwin32.cpp")
         init = win.split("bool LLAppViewerWin32::init()", 1)[1].split(

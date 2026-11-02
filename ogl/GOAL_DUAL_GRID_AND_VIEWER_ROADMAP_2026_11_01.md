@@ -703,6 +703,19 @@ Linux-Funktionsbestätigung. Windows/macOS
 bleiben bis zum vollständigen OS-Release-Gate
 unfreigegeben.
 
+Windows-Abnahme-Vorbereitung (02.11.2026):
+Im vorhandenen OGL-GitHub-Workflow wurde ein
+manuell per markiertem Push [windows-installer]
+startbarer Windows-2022/x64-Vollviewer-
+OpenSim-Build mit unsigniertem NSIS-Setup
+als zeitlich begrenztem Artefakt vorbereitet.
+Die sechs nativen CI-Moduljobs ersetzen
+keinen installierbaren Viewer. Windows-
+Abnahme erfolgt erst nach erfolgreichem
+Installer-Build und realem Login/GUI-Test;
+spätere Plattform-Release-Gates in P13
+bleiben bestehen. P02 läuft unter Linux weiter.
+
 ### /goal P03 – Theme-System und sichere Designinstallation
 
 **Status:** geplant; 0/20 operative Blöcke abgeschlossen.

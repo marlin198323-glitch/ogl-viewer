@@ -230,6 +230,19 @@ Linux-Vollbuild 7.2.5.180,
 Windows-/macOS-Viewer-Abnahme.
 Formal P01 18/20, P02 0/20.
 
+Windows-Testinstaller (02.11.2026):
+Der vorhandene aktive OGL-portable-graphics-
+Workflow hat einen separaten Windows-2022-
+Vollviewer-Testjob, der ausschließlich bei
+Push-Committext [windows-installer] startet.
+Er soll ein unsigniertes NSIS-Setup als
+GitHub-Artefakt erzeugen, ohne Releases und
+sechsfache Modul-CI zu verändern. Vorerst
+keinen funktionierenden Windows-Installer
+behaupten, bevor der Windows-Build tatsächlich
+erfolgreich ist. P01 Linux 20/20 und P02 1/20
+bleiben unverändert. Windows-Freigabe P13.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

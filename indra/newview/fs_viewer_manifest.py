@@ -4,6 +4,8 @@ import tarfile
 
 class FSViewerManifest:
     def fs_installer_basename(self):
+        if self.channel().startswith("OGL Viewer"):
+            return "OGL-Viewer-Windows-x64-" + "-".join(self.args['version'])
         if self.fs_is_avx2():
             opt_string = "AVX2"
         else:

@@ -354,6 +354,10 @@ class ViewerManifest(LLManifest,FSViewerManifest):
         return "%(channel_vendor_base)s%(channel_variant_underscores)s_%(version_underscores)s_universal" % substitution_strings
 
     def app_name(self):
+        # Keep OGL development installer and executable names separate from
+        # legacy Firestorm installs, including their registry/shortcut entries.
+        if self.channel().startswith("OGL Viewer"):
+            return "OGLViewerDevelopment"
         global CHANNEL_VENDOR_BASE
         channel_type=self.channel_type()
         #<FS:TS> LL uses "Viewer" in the name of their release package. We use "Release".
@@ -383,6 +387,8 @@ class ViewerManifest(LLManifest,FSViewerManifest):
 
     # <FS:Ansariel> FIRE-30446: Set FriendlyAppName for protocol registrations
     def friendly_app_name(self):
+        if self.channel().startswith("OGL Viewer"):
+            return "OGL Viewer"
         global CHANNEL_VENDOR_BASE
         return CHANNEL_VENDOR_BASE
     # </FS:Ansariel>
@@ -968,6 +974,8 @@ class Windows_x86_64_Manifest(ViewerManifest):
         return result
         # </FS:Ansariel>
     def dl_url_from_channel(self):
+        if self.channel().startswith("OGL Viewer"):
+            return "https://github.com/marlin198323-glitch/ogl-viewer/releases"
         if self.channel_type() == 'release':
             return 'https://www.firestormviewer.org/choose-your-platform'
         elif self.channel_type() == 'beta':
@@ -1205,15 +1213,23 @@ class Windows_x86_64_Manifest(ViewerManifest):
         # <FS:Ansariel> Undo Github-Build stuff
         # Check two paths, one for Program Files, and one for Program Files (x86).
         # Yay 64bit windows.
-        nsis_path = "makensis.exe"
-        for program_files in '${programfiles}', '${programfiles(x86)}':
-            for nesis_path in 'NSIS', 'NSIS\\Unicode':
-                possible_path = os.path.expandvars(f"{program_files}\\{nesis_path}\\makensis.exe")
-                if os.path.exists(possible_path):
-                    nsis_path = possible_path
+        # Always use a verified NSIS location, not the final loop candidate.
+        nsis_path = shutil.which("makensis.exe")
+        if not nsis_path:
+            for variable in ("ProgramFiles(x86)", "ProgramFiles"):
+                base = os.environ.get(variable, "")
+                if not base:
+                    continue
+                for relative in ("NSIS", os.path.join("NSIS", "Unicode")):
+                    candidate = os.path.join(base, relative, "makensis.exe")
+                    if os.path.isfile(candidate):
+                        nsis_path = candidate
+                        break
+                if nsis_path:
                     break
-
-        self.run_command([possible_path, '/V2', self.dst_path_of(tempfile)])
+        if not nsis_path:
+            raise ManifestError("NSIS makensis.exe is required for Windows installers")
+        self.run_command([nsis_path, '/V2', self.dst_path_of(tempfile)])
 
         self.fs_sign_win_installer(substitution_strings) # <FS:ND/> Sign files, step two. Sign installer.
         self.fs_save_windows_symbols()
