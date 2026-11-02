@@ -13,6 +13,14 @@ on:
       - 'indra/newview/fs*.cpp'
       - 'indra/newview/fs*.h'
       - 'indra/llui/**'
+      # P01: any authentication/grid/startup change must run the six-platform
+      # native grid policy and Python login regression suite as well.
+      - 'indra/newview/oglnexversegrid.h'
+      - 'indra/newview/fspanellogin.cpp'
+      - 'indra/newview/fspanellogin.h'
+      - 'indra/newview/llstartup.cpp'
+      - 'indra/newview/llgridmanager.cpp'
+      - 'indra/newview/llgridmanager.h'
       - 'indra/newview/llpresetsmanager.cpp'
       - 'indra/newview/viewer_manifest.py'
       - 'indra/newview/app_settings/ogl/**'
@@ -26,6 +34,14 @@ on:
       - 'indra/newview/fs*.cpp'
       - 'indra/newview/fs*.h'
       - 'indra/llui/**'
+      # P01: any authentication/grid/startup change must run the six-platform
+      # native grid policy and Python login regression suite as well.
+      - 'indra/newview/oglnexversegrid.h'
+      - 'indra/newview/fspanellogin.cpp'
+      - 'indra/newview/fspanellogin.h'
+      - 'indra/newview/llstartup.cpp'
+      - 'indra/newview/llgridmanager.cpp'
+      - 'indra/newview/llgridmanager.h'
       - 'indra/newview/llpresetsmanager.cpp'
       - 'indra/newview/viewer_manifest.py'
       - 'indra/newview/app_settings/ogl/**'

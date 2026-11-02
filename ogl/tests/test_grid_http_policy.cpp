@@ -56,6 +56,31 @@ int main() {
     assert(!canReuseSavedAuthenticator(kKey, mainAccount,
                                       mainAccount + "@other-grid", true, false));
     assert(!canReuseSavedAuthenticator("other-grid", mainAccount, mainAccount, true, false));
+    // Malformed or ambiguous migrated credential keys may not be
+    // reinterpreted as entries belonging to either NexVerse world.
+    assert(!canReuseSavedAuthenticator(kKey,
+                                      "agent@hostile-grid@" + std::string(kKey),
+                                      "agent@hostile-grid@" + std::string(kKey), true, false));
+    assert(!canReuseSavedAuthenticator(OGLNexVerseGrid::kBetaKey,
+                                      "agent@hostile-grid@" + std::string(OGLNexVerseGrid::kBetaKey),
+                                      "agent@hostile-grid@" + std::string(OGLNexVerseGrid::kBetaKey), true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "agent@@" + std::string(kKey),
+                                      "agent@@" + std::string(kKey), true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "@agent@" + std::string(kKey),
+                                      "@agent@" + std::string(kKey), true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "agent@" + std::string(kKey) + "@",
+                                      "agent@" + std::string(kKey) + "@", true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "agent@" + std::string(kKey),
+                                      "agent@" + std::string(kKey) + "@stale", true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "agent@" + std::string(kKey) + "@stale",
+                                      "agent@" + std::string(kKey), true, false));
+    assert(canReuseSavedAuthenticator(kKey, "first last@" + std::string(kKey),
+                                     "first last@" + std::string(kKey), true, false));
+    assert(canReuseSavedAuthenticator(kKey, "onepart@" + std::string(kKey),
+                                     "onepart@" + std::string(kKey), true, false));
+    assert(!canReuseSavedAuthenticator(kKey, "first last@" + std::string(kKey),
+                                      "first.last@" + std::string(kKey), true, false));
+
     assert(!canReuseSavedAuthenticator(OGLNexVerseGrid::kName,
                                       "test.agent@Stadt NexVerse",
                                       "test.agent@Stadt NexVerse", true, false));

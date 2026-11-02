@@ -158,6 +158,35 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertLess(callback.index('if (credential.isNull())'),
                         callback.index('gSecAPIHandler->deleteCredential(credential)'))
 
+    def test_p01_grid_credential_policy_rejects_ambiguous_at_separators(self):
+        header = (ROOT / "indra/newview/oglnexversegrid.h").read_text(encoding="utf-8")
+        cpp = (ROOT / "ogl/tests/test_grid_http_policy.cpp").read_text(encoding="utf-8")
+        self.assertIn("requestedCredential.find('@');", header)
+        self.assertIn("requestedCredential.find('@', separator + 1) == std::string::npos", header)
+        self.assertIn("user@other-grid@our-grid", header)
+        for key in ("agent@hostile-grid@", "agent@@", "@agent@", "agent@",
+                    "first last@", "onepart@"):
+            self.assertIn(key, cpp)
+        self.assertIn("using OGLNexVerseGrid::canReuseSavedAuthenticator;", cpp)
+
+    def test_p01_credential_changes_trigger_all_six_ci_runner_jobs(self):
+        workflow = (ROOT / ".github/workflows/ogl-portable-graphics.yml").read_text(encoding="utf-8")
+        for path in ("indra/newview/oglnexversegrid.h",
+                     "indra/newview/fspanellogin.cpp",
+                     "indra/newview/fspanellogin.h",
+                     "indra/newview/llstartup.cpp",
+                     "indra/newview/llgridmanager.cpp",
+                     "indra/newview/llgridmanager.h"):
+            self.assertIn(path, workflow)
+        self.assertIn("test_grid_http_policy.cpp", (
+            ROOT / "ogl/modules/CMakeLists.txt").read_text(encoding="utf-8"))
+        for runner in ("ubuntu-24.04-arm", "ubuntu-24.04",
+                       "windows-2022", "windows-11-arm",
+                       "macos-15", "macos-15-intel"):
+            self.assertIn(runner, workflow)
+        self.assertIn("python -m unittest discover -s ogl/tests", workflow)
+        self.assertIn("ctest --test-dir build/ogl-graphics", workflow)
+
     def test_credentials_are_reused_only_after_exact_saved_account_selection(self):
         start=self.panel.index('void FSPanelLogin::getFields(')
         end=self.panel.index('bool FSPanelLogin::areCredentialFieldsDirty(',start)

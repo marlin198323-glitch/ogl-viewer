@@ -59,8 +59,13 @@ inline bool canReuseSavedAuthenticator(const std::string& currentGrid,
         return false;
     }
 
-    const size_t separator = requestedCredential.rfind('@');
+    // A protected credential name has exactly one user/grid delimiter.
+    // Without this check, an account like user@other-grid@our-grid would
+    // appear to belong to the trusted world despite containing another
+    // destination component. Do not silently normalize migrated entries.
+    const size_t separator = requestedCredential.find('@');
     return separator != std::string::npos && separator > 0 &&
+           requestedCredential.find('@', separator + 1) == std::string::npos &&
            requestedCredential.substr(separator + 1) == currentGrid;
 }
 
