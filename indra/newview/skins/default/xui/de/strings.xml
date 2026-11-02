@@ -10,7 +10,7 @@
   <string name="OGLInsecureGridLogin">Diese Grid-Anmeldeadresse ist nicht freigegeben. Bei Stadt NexVerse musst du die HTTP-Warnung vor der Anmeldung bestätigen. Andere unsichere Server bleiben gesperrt.</string>
 
 	<string name="SECOND_LIFE_GRID">
-		Second Life-Grid:
+		[CURRENT_GRID]
 	</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupLoading">

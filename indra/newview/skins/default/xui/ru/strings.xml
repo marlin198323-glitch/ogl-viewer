@@ -8,13 +8,13 @@
 		[CURRENT_GRID]
 	</string>
 	<string name="APP_NAME">
-		Firestorm
+		OGL Viewer
 	</string>
 	<string name="CAPITALIZED_APP_NAME">
-		FIRESTORM
+		OGL VIEWER
 	</string>
 	<string name="SECOND_LIFE_GRID">
-		Сеть Second Life
+		[CURRENT_GRID]
 	</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupDetectingHardware">

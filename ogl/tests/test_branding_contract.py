@@ -505,6 +505,56 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertTrue(any(e.get('name')=='panel_ls_people' for e in search.iter()))
         self.assertTrue(any(e.get('name')=='panel_ls_groups' for e in search.iter()))
 
+    def test_every_locale_identity_uses_ogl_not_firestorm_or_second_life(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        files = sorted(base.glob("*/strings.xml"))
+        self.assertGreaterEqual(len(files), 13)
+        expected = {
+            "APP_NAME": "OGL Viewer",
+            "CAPITALIZED_APP_NAME": "OGL VIEWER",
+            "APP_NAME_ABBR": "OGL",
+        }
+        for path in files:
+            data = {n.get("name"): "".join(n.itertext()).strip()
+                    for n in ET.parse(path).iter("string")}
+            for key, value in expected.items():
+                if key in data:
+                    self.assertEqual(data[key], value, f"{path}: {key}")
+        for lang in ("es", "ru", "tr", "zh"):
+            data = {n.get("name"): "".join(n.itertext()).strip()
+                    for n in ET.parse(base / lang / "strings.xml").iter("string")}
+            self.assertEqual(data["APP_NAME"], "OGL Viewer")
+            self.assertEqual(data["CAPITALIZED_APP_NAME"], "OGL VIEWER")
+
+    def test_all_locale_system_chat_source_labels_follow_active_grid(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        files = sorted(base.glob("*/strings.xml"))
+        for path in files:
+            data = {n.get("name"): "".join(n.itertext()).strip()
+                    for n in ET.parse(path).iter("string")}
+            for key in ("SECOND_LIFE", "SECOND_LIFE_GRID"):
+                if key in data:
+                    self.assertEqual(data[key], "[CURRENT_GRID]", f"{path}: {key}")
+        src = self.source("indra/newview/fschathistory.cpp")
+        self.assertIn('mFrom = LLTrans::getString("SECOND_LIFE");', src)
+        self.assertIn('if (mSourceType == CHAT_SOURCE_UNKNOWN)', src)
+        self.assertIn('if (!chat.mFromName.empty()', src)
+
+    def test_grid_name_and_viewer_identity_keep_runtime_substitution_contract(self):
+        cpp = self.source("indra/newview/llappviewer.cpp")
+        for name in ("SECOND_LIFE", "SECOND_LIFE_GRID", "CURRENT_GRID",
+                     "APP_NAME", "CAPITALIZED_APP_NAME", "APP_NAME_ABBR"):
+            self.assertIn(f'default_trans_args.insert("{name}");', cpp)
+        base = ET.parse(
+            ROOT / "indra/newview/skins/default/xui/en/strings.xml").getroot()
+        labels = {n.get("name"): "".join(n.itertext()).strip()
+                  for n in base.iter("string")}
+        self.assertEqual(labels["CURRENT_GRID"], "")
+        self.assertEqual(labels["SECOND_LIFE"], "[CURRENT_GRID]")
+        self.assertEqual(labels["SECOND_LIFE_GRID"], "[CURRENT_GRID]")
+        self.assertEqual(labels["APP_NAME"], "OGL Viewer")
+        self.assertEqual(labels["APP_NAME_ABBR"], "OGL")
+
     def test_source_brand_and_translations(self):
         self.assertIn('const std::string APP_NAME = "OGL";',
                       self.source("indra/llcommon/indra_constants.h"))

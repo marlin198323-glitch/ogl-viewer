@@ -5,16 +5,16 @@
      that are returned from one component and may appear in many places-->
 <strings>
 	<string name="SECOND_LIFE">
-		[當前伺服器]
+		[CURRENT_GRID]
 	</string>
 	<string name="APP_NAME">
-		Firestorm
+		OGL Viewer
 	</string>
 	<string name="CAPITALIZED_APP_NAME">
-		FIRESTORM
+		OGL VIEWER
 	</string>
 	<string name="SECOND_LIFE_GRID">
-		第二人生
+		[CURRENT_GRID]
 	</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<!-- Will be set in fsgridhandler.cpp / llviewernetwork.cpp -->
@@ -25,7 +25,7 @@
 		V[VERSION]
 	</string>
 	<string name="APP_NAME_ABBR">
-		FS
+		OGL
 	</string>
 	<string name="StartupLoading">
 		[APP_NAME]載入中...

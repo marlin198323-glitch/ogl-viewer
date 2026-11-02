@@ -14,7 +14,7 @@
 	<string name="SECOND_LIFE">[CURRENT_GRID]</string>
 	<string name="APP_NAME">OGL Viewer</string>
 	<string name="CAPITALIZED_APP_NAME">OGL VIEWER</string>
-	<string name="SECOND_LIFE_GRID">Second Life Grid</string>
+	<string name="SECOND_LIFE_GRID">[CURRENT_GRID]</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="DOWNLOAD_URL">https://github.com/marlin198323-glitch/ogl-viewer/releases</string>
 	<string name="CURRENT_GRID"/> <!-- Will be set in fsgridhandler.cpp / llviewernetwork.cpp -->

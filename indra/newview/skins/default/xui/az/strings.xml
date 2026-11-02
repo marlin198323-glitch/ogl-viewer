@@ -5,7 +5,7 @@
      that are returned from one component and may appear in many places-->
 <strings>
 	<string name="SECOND_LIFE_GRID">
-		Second Life şəbəkəsi
+		[CURRENT_GRID]
 	</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupDetectingHardware">
