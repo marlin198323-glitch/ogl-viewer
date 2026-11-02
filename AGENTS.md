@@ -33,8 +33,9 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-P02 Block 1 Inventur und Block 2 Navigationshierarchie
-abgeschlossen; aktiv P02 Block 3/20.
+P02 Block 1 Inventur, Block 2 Navigationshierarchie
+und Block 3 Menü-Konsolidierung abgeschlossen;
+aktiv P02 Block 4/20.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
@@ -257,6 +258,21 @@ Prelogin-GUI, 3/3 staged Menüdateien
 bestanden. Formal P02 2/20;
 Block 3 ist der nächste Schritt.
 Keine neuen Paralleltemplates erstellen.
+
+P02 Block 3 (02.11.2026, 4a2f34cc):
+Admin-Status-Befehle nur im
+Entwickler-Menü, aus elf Avatar-
+Sprachlayouts entfernt. EN-Toolbar-
+Basis und zehn Sprach-Overlays
+auf Eindeutigkeit geprüft;
+Bewegungs-Toggle-Shortcuts erhalten.
+Linux-Vollbuild 7.2.5.188,
+279 Python-/41 native Tests,
+125 Brandingtests, 13/13 staged
+Menüs und DE-/EN-/ES-GUI grün.
+P02 3/20; als Nächstes Block 4.
+Windows-Installer separat weiter
+nicht als fertig behaupten.
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.

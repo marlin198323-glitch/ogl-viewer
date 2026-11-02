@@ -8,9 +8,10 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 3/20.
-P02 Block 2 (einheitliche Navigation) wurde mit
-Linux-Build/Regression geprüft und gepusht.
+**Aktiver Block:** /goal P02 Block 4/20.
+P02 Block 3 (doppelte Admin-Status-Menüs und
+Toolbar-Vererbungsprüfung) wurde mit
+Linux-Build/Regression/GUI geprüft und gepusht.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -20,8 +21,9 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Block 1/20 Inventur und
-Block 2/20 Navigationshierarchie abgeschlossen.
+P02 Block 1/20 Inventur, Block 2/20
+Navigationshierarchie sowie Block 3/20
+Hauptmenü-Konsolidierung abgeschlossen.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
@@ -31,7 +33,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 2/20 | Block 3: Bestehende Hauptnavigation ohne Paralleltemplates konsolidieren |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 3/20 | Block 4: Untermenüs und Toolbar-Struktur konsistent gestalten |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -43,6 +45,82 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 3/20 – Admin-Untermenüs dedupliziert, Toolbar-Basis geprüft (02.11.2026)
+
+**Code-Commit 4a2f34cc, origin/ogl-develop.**
+Die bestehenden OGL-Hauptmenüs haben
+unter Avatar (Me) und Entwickler (Develop)
+denselben Admin-Status-Befehl geführt.
+Im englischen XUI war der Avatar-Eintrag
+zwar unsichtbar, aber zusätzlich mit
+Strg+Alt+G belegt. Für OGL werden
+Request Admin Options und Leave Admin
+Options jetzt nur noch unter Develop
+definiert; die Admin- und Diagnosefunktionen
+sowie ihre XUI-Callbacks bleiben nutzbar.
+
+Konkret zwei redundante Avatar-Einträge
+in elf bestehenden Menü-Sprachlayouts
+(az, de, en, es, fr, it, ja, pl,
+pt, ru, zh) entfernt. Dänisch und
+Türkisch hatten diese Doppelnavigation
+schon vorher nicht. Kein zweites
+Menüsystem, keine neuen Quelldateien.
+Einmalige Login-/Moderator- und
+Grid-Sicherheitsfreigaben wurden nicht
+verändert. Das Bewegungspaar Sit/Stand
+nutzt bewusst denselben Shortcut
+Alt+Shift+S mit gegenläufigen
+Sichtbarkeits-Callbacks und wurde
+nicht fälschlich als Duplikat entfernt.
+
+Toolbar-Inventur: Ein echtes EN-Basislayout
+mit toolbar_left, toolbar_right und
+toolbar_bottom; 10 zusätzliche
+Sprach-Overlays ohne weitere
+Toolbar-Grunddefinitionen. Bestehende
+Struktur- und Layout-Namen bleiben
+unverändert, damit Nutzeranpassungen
+und Drag-and-Drop-Belegungen weiter
+funktionieren. Drei Regressionstests
+im bestehenden test_branding_contract.py
+sichern die Admin-Eindeutigkeit,
+Callbacks/Shortcuts und Toolbar-Vererbung.
+
+**Prüfnachweise:** Linux-Vollviewer
+7.2.5.188 erfolgreich gebaut;
+279/279 Python-Tests und 41/41 native
+CTests bestanden, davon 125/125
+Branding-/Navigationstests auch unter
+LC_ALL=C/PYTHONUTF8=0. Alle 13
+menü_viewer.xml-Sprachdateien
+XML-validiert und zum gepackten
+Viewer byteweise identisch.
+GUI-Voranmelde-Smokes: DE 1280×720,
+EN 1920×1080, ES 1280×720,
+STATE_LOGIN_WAIT ohne AUTH_INIT,
+Exit 0 in allen drei Läufen.
+Kein echter In-World-Menüklick in
+einer Live-Welt getestet.
+
+**Phasenstand:** P01 Linux 20/20,
+P02 3/20. Nächster /goal:
+P02 Block 4/20 – Untermenüs und
+Toolbar konsistent gestalten;
+keine Paralleltemplates erzeugen.
+
+**Windows-Installer-CI:** Getrennte
+Windows-x64-Open-Source-Konfiguration
+aus Run 41510587323 erfolgreich;
+Windows-Vollviewer-Kompilierung
+zuletzt in_progress, aber noch
+kein Installer-Artefakt bestätigt.
+Ältere Windows-Konfigurationsfehler
+und Wiederholungsversuche bleiben
+historisch dokumentiert; erst
+fertiges .exe und Nutzer-Test
+sind Windows-Freigabenachweise.
 
 ## P02 Block 2/20 – Kanonische OGL-Navigationshierarchie (02.11.2026)
 

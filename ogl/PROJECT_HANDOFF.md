@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 3/20.
+wechseln. Neuer Einstieg: P02 Block 4/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -362,6 +362,27 @@ und Toolbars ohne Duplikate konsolidieren.
 Windows-/macOS-Vollviewer und Beta-TLS
 bleiben in den entsprechenden Phasen
 offen. Ältere Statuszahlen sind historisch.
+
+**P02 Block 3/20 abgeschlossen
+(02.11.2026, 4a2f34cc):**
+Elf Sprachlayouts mit doppelten
+Avatar-/Develop-Admin-Status-
+Befehlen bereinigt, nur Develop
+behält die originalen Admin-Callbacks
+und Strg+Alt+G. Dreizehn Menüs geprüft;
+ein gemeinsames EN-Toolbar-Basislayout
+plus zehn Sprach-Overlays ohne
+parallele Toolbar-Instanzen.
+279 Python-/41 native Tests,
+125 Branding-/Navigationstests,
+Linux-Vollbuild 7.2.5.188,
+13/13 bytegleiche Menü-Stagingdateien,
+DE-/EN-/ES-GUI-Smokes erfolgreich.
+Aktiv P02 Block 4/20; P01 Linux
+weiterhin 20/20. Windows-x64-
+Installer nicht als erfolgreich
+melden, bis GitHub ein .exe-Artefakt
+ausweist.
 
 ## Aktuelle Roadmaps
 
