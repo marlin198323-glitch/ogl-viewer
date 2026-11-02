@@ -32,6 +32,83 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – Chat-Zeitstempel stabilisieren (02.11.2026)
+
+**Code-Commit bde46c18** auf origin/ogl-develop.
+**20/20 technische Prüfpositionen**; ausdrücklich
+keine formale P02-Phasenabnahme. Linux-Vollviewer
+7.2.5.162 erfolgreich gebaut; **240/240 Python-
+Tests und 41/41 native CTests** bestanden.
+88/88 gezielte Branding-Tests bestanden, zusätzlich
+bei ASCII-Systemkodierung (LC_ALL=C,
+PYTHONUTF8=0). Isolierte deutsche und englische
+GUI-Starts bei 1280x720 bis STATE_LOGIN_WAIT,
+kein AUTH_INIT; beide Fenster sauber geschlossen,
+Exit-Code 0. Kein authentifizierter Chat-Test.
+
+**Bestehende Dateien direkt überarbeitet (sieben):**
+- indra/newview/fschathistory.cpp: Im aktiven
+  FSChatHistoryHeader dehnt die Timestamp-Zeile
+  den Text und die horizontale Namens-Layoutgruppe
+  nicht mehr dynamisch aus. Der vollständige
+  Zeitwert steht als Tooltip bereit. Ungenutzten
+  mHeaderLayoutStack-C++-Zeiger entfernt.
+  Anonymisierung, Radar-Bild, Namen und die
+  bestehende Zeit-Sichtbarkeitslogik bleiben erhalten.
+- panel_chat_header.xml (englische Basis):
+  rechts ausgerichteter Zeitbereich bleibt 72
+  Layout-Pixel breit und verwendet Ellipsen.
+- Existierende DE-, JA-, PT- und TR-Sprach-
+  Overlays: feste Demo-Uhrzeiten entfernt;
+  alle anderen Sprachen erben die englische
+  Basis oder enthalten keinen Zeit-Override.
+- ogl/tests/test_branding_contract.py: drei
+  zusätzliche Regressionstests für keine
+  Chatzeit-Layoutverschiebung, fixe/ellipsierte
+  Time-Box, unveränderte runde Avatare und
+  alle lokalisierten Zeitplatzhalter.
+
+**20 technische Prüfpunkte dieser Runde:**
+01 Branch und Ursprung kontrolliert;
+02 P01-/P02-Blocker erneut geprüft;
+03 aktive statt deaktivierter Chatklasse geprüft;
+04 Resize-Problem isoliert;
+05 unveränderte Zeitwert-Zuweisung;
+06 vollständiger Zeitstempel als Tooltip;
+07 Zeitfeld wächst nicht dynamisch;
+08 kein Verschieben der Avatar-/Namens-Layoutgruppe;
+09 toten C++-Layoutzeiger entfernt;
+10 feste EN-Zeitbox mit 72px geprüft;
+11 Ellipsenmodus geprüft;
+12 runde Avatar- und Namensdarstellung erhalten;
+13 DE-Demowert entfernt;
+14 JA-Demowert entfernt;
+15 PT-Demowert entfernt;
+16 TR-Demowert entfernt;
+17 88/88 Branding-Tests auch unter ASCII erfolgreich;
+18 Linux-Vollbuild und 240 Python-/41 native
+Tests sowie 7/7 bytegleiche XUI-Staging-Dateien;
+19 DE-/EN-Voranmelde-GUI bis STATE_LOGIN_WAIT
+und Exit-Code 0;
+20 geprüften Code auf GitHub gepusht,
+Dokumentation und Altbestand aktualisiert.
+Sieben vorhandene _v2-/script_copy-Pfade
+nicht ohne Abhängigkeits-/Lizenznachweis gelöscht;
+keine neuen Projektdateien, keine Nutzerdaten,
+Caches oder gespeicherte Zugangsdaten verändert.
+
+**Offene Gates:** Authentifizierter
+Hauptgrid-Login, echte gespeicherte
+Credential-Wiederherstellung, reale
+In-World-Chatdarstellung und Shutdown,
+kompletter Windows-/macOS-Viewer-Build
+und GUI-Test, Beta-TLS-Hostnameproblem.
+Portable Grafikmodule-CI ist kein vollständiger
+Windows-/macOS-Viewer-Test.
+**Formal P01 weiterhin 18/20, P02 0/20**;
+nächster Einstieg /goal P01 Block 19/20;
+unabhängige P02-Vorarbeiten bleiben möglich.
+
 ## P02 unabhängige Vorarbeit – OGL-Systemicons und Chatköpfe (02.11.2026)
 
 Code-Commit 6b6779fc direkt auf origin/ogl-develop.

@@ -495,6 +495,21 @@ im Build und DE-/EN-GUI-Smokes bestanden.
 Live-/Windows-/macOS-Vollviewer-Gates unverändert offen.
 Formal P01 18/20, P02 0/20; Projektstatus maßgeblich.
 
+**Unabhängige P02-Vorarbeit (02.11.2026, bde46c18):**
+Aktiver FSChatHistoryHeader behält eine feste,
+ellipsierte Zeitangabe rechts und bietet den ganzen
+Wert über den Tooltip; lange History-Zeitstempel
+können die Avatar-/Namens-Layoutgruppe nicht mehr
+dynamisch verschieben. Demo-Zeitwerte aus DE, JA,
+PT und TR entfernt; drei Regressionstests ergänzt.
+20 technische Prüfpunkte dokumentiert, 240 Python-
+/41 native Tests, Linux-Vollbuild, sieben bytegleiche
+XUI-Stagingdateien und isolierte DE-/EN-GUI-Smokes
+bestanden. Reale In-World- und vollständige
+Windows-/macOS-Vollviewer-Gates bleiben offen.
+**Formal P01 18/20, P02 0/20.**
+Details in PROJECT_STATUS.md.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

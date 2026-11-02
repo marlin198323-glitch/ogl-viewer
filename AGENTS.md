@@ -94,6 +94,19 @@ Ressourcen-Staging und DE-/EN-GUI-Smokes grün.
 Formal P01 18/20, P02 0/20; authentifizierter
 Live-Login und Windows-/macOS-Viewer-Gates offen.
 
+Unabhängige P02-/goal-Runde (02.11.2026):
+bde46c18: Chat-Timestamp auf festes rechtes
+Feld mit Ellipsen/Tooltip begrenzt; kein
+dynamisches Avatar-/Namen-Layout mehr, alte
+Demo-Zeiten in DE/JA/PT/TR gelöscht, C++-Dead
+Pointer entfernt. 20 technische Prüfpositionen,
+240 Python-/41 native Tests, 88 Branding-Tests,
+Linux-Vollbuild, sieben XUI-Staging-Dateien und
+DE-/EN-Voranmelde-GUI-Smokes bestanden.
+Formal P01 18/20 und P02 0/20 unverändert;
+authentifizierte In-World-/Plattformabnahmen
+weiter offen. Details im Projektstatus.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

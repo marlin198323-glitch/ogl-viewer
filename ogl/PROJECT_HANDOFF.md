@@ -173,6 +173,21 @@ Formaler Stand P01 18/20, P02 0/20, nächster
 operativer Block P01 19/20.
 Details im Status.
 
+**Letzte unabhängige /goal-20er-Runde (02.11.2026,
+bde46c18):** Aktive Chat-Zeitstempel verschieben
+bei langen History-Werten die Avatar-/Namensleiste
+nicht mehr. Feste rechtsbündige Anzeige mit Ellipsen
+und vollständigem Tooltip. DE-/JA-/PT-/TR-
+Demo-Zeitwerte entfernt, toten C++-Layoutzeiger
+bereinigt. 240 Python-/41 native Tests und
+88 Branding-Tests auch unter ASCII, Linux-Vollbuild,
+sieben Chat-XUI-Stagingdateien und isolierte
+DE-/EN-GUI-Starts geprüft. Keine echten
+In-World-/Windows-/macOS-Vollviewer-Gates
+behaupten. Formal P01 18/20, P02 0/20;
+nächster /goal P01 Block 19/20.
+Detailnachweise in PROJECT_STATUS.md.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
