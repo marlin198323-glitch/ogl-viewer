@@ -69,11 +69,17 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn("contains(github.event.head_commit.message, '[windows-installer]')", ci)
         for value in ("runs-on: windows-2022", "--package", "-DOPENSIM:BOOL=ON",
                       "-DUSE_FMODSTUDIO:BOOL=OFF", "-DUSE_KDU:BOOL=OFF",
-                      "choco install nsis", "autobuild build -c ReleaseFS -A64",
+                      "choco install nsis", "autobuild build -c ReleaseFS_open -A64",
                       "OGL-Viewer-Windows-x64-unsigned-test-installer",
                       "if-no-files-found: error"):
             self.assertIn(value, ci)
         self.assertIn("native-module:", ci)
+        self.assertIn("autobuild configure -c ReleaseFS_open -A64", ci)
+        # Public configuration must never choose the proprietary FMOD/KDU build.
+        self.assertNotIn("autobuild configure -c ReleaseFS -A64", ci)
+        self.assertNotIn("autobuild build -c ReleaseFS -A64", ci)
+        self.assertIn("<string>ReleaseFS_open</string>",
+                      self.source("autobuild.xml"))
         # Autobuild runs inside build-vc170-64; relative variables paths fail.
         expected = "AUTOBUILD_VARIABLES_FILE: " + chr(36) + "{{ github.workspace }}/build-variables/variables"
         self.assertIn(expected, ci)

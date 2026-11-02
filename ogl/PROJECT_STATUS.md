@@ -80,6 +80,17 @@ ein Folgefehler. Der Workflow verwendet jetzt
 einen absoluten Workspace-Pfad. Kein Installer
 aus dem ersten Lauf erzeugt.
 
+**Zweiter Windows-Buildversuch (Run 41510216092):**
+Der absolute Variablenpfad funktioniert. Danach wurde
+die ursprüngliche ReleaseFS-Konfiguration als
+Problem sichtbar: Sie übergibt intern --fmodstudio
+und --kdu und verlangt nicht-öffentliche Archive
+aus einem lokalen Cygwin-Verzeichnis.
+Der bereits in autobuild.xml vorhandene
+Buildmodus ReleaseFS_open benötigt diese
+proprietären Pakete nicht. Der Windows-Job
+verwendet ihn jetzt für Configure und Build.
+
 **Wichtig:** Dies ist zunächst ein Buildversuch, kein
 bestätigter Windows-Installer. Erst ein erfolgreiches
 Windows-CI-Artefakt und Installation/Viewer-Login

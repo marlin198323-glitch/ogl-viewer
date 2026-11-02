@@ -86,7 +86,7 @@ jobs:
       - name: Configure unsigned OpenSim viewer
         shell: bash
         run: >-
-          autobuild configure -c ReleaseFS -A64 -- --package
+          autobuild configure -c ReleaseFS_open -A64 -- --package
           --chan "OGL Viewer Development"
           -DOPENSIM:BOOL=ON
           -DHAVOK_TPV:BOOL=OFF
@@ -98,7 +98,7 @@ jobs:
           -DLL_TESTS:BOOL=OFF
       - name: Build OGL Windows x64 full viewer
         shell: bash
-        run: autobuild build -c ReleaseFS -A64 --no-configure
+        run: autobuild build -c ReleaseFS_open -A64 --no-configure
       - name: Verify installer exists
         shell: pwsh
         run: |
