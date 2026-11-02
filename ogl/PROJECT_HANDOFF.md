@@ -46,6 +46,9 @@ synchron. 20/20 technische
 Prüfpunkte, 207 Python-
 und 41 native Tests,
 DE-/FR-GUI-Starts grün.
+Portable Grafikmodul-CI
+6/6 Linux/Windows/macOS
+(Lauf 41476349998) bestanden.
 P02 formal 0/20; weiterhin
 offen: Hauptgrid-Live-Login,
 Passwortpersistenz und

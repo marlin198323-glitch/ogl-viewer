@@ -223,7 +223,10 @@ synchronisiert. 20/20
 technische QA-Positionen,
 207 Python-/41 native Tests
 sowie echte DE-/FR-GUI-
-Voranmeldeläufe erfolgreich.
+Voranmeldeläufe erfolgreich;
+portable Grafikmodul-CI
+6/6 Plattformjobs grün
+(Lauf 41476349998).
 Dies ist keine vollständige
 Live-Login-Abnahme.
 Davor:

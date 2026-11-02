@@ -32,6 +32,22 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## Plattformnachprüfung der aktiven Login-XUI – 6/6 grün
+
+GitHub-Actions-Workflow `ogl-portable-graphics.yml`
+auf dem gepushten Stand `c8359daa`,
+Lauf **41476349998**, **6/6 Jobs
+erfolgreich** (Ubuntu x64/ARM64,
+Windows x64/ARM64, macOS Intel
+und Apple Silicon). Die
+sprachübergreifenden Quelltext-
+und nativen Grafikmodule wurden
+geprüft; dies ist **kein**
+vollständiger Build der Windows-/
+macOS-Viewer oder eine Live-
+Anmelde-/In-World-Abnahme.
+**P01 bleibt 18/20, P02 0/20.**
+
 ## P01 Block 19 – aktive Login-XUI und Lokalisierungen korrigiert (20 Prüfblöcke)
 
 **Code-Commit `f76ad6f1`** (`ogl-develop`).
