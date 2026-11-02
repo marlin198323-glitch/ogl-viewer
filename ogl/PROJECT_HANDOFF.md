@@ -217,6 +217,23 @@ per curl bestätigt. P01 18/20, P02 0/20;
 P01 Block 19/20 operativer Einstieg.
 In-World-/Windows-/macOS-Vollviewer-Gates offen.
 
+Letzte unabhängige /goal-20er-Runde (02.11.2026,
+a462330e): Doppelte Verringerung der
+Chat-Namensspaltenbreite im Draw-Pfad
+entfernt; bestehende XUI trennt 72px
+Zeitstempel vom Namen. Tote Layout-
+Zustände und Aufrufe bereinigt,
+Avatar-/Name-Cache, RLVa und Teleport-
+Trennzeile erhalten. Linux-Vollviewer
+7.2.5.168 gebaut, 253 Python-/41 native
+Tests, 101 Branding-/Chatlayout-Tests
+und isolierte DE-/EN-Xvfb-GUI-Smokes
+bestanden. Kein Live-/In-World-/voller
+Windows-/macOS-Viewer-Test behauptet.
+Formal P01 18/20, P02 0/20;
+nächster /goal-Einstieg P01 Block 19/20.
+Mehr in PROJECT_STATUS.md.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

@@ -32,6 +32,88 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – Chatkopf ohne doppelte Breitenänderung (02.11.2026)
+
+Code-Commit a462330e direkt auf origin/ogl-develop.
+20/20 technische Prüfschritte dieser unabhängigen
+P02-Vorarbeit abgeschlossen; **keine formale
+P02-Phasenabnahme**. Linux-Vollviewer 7.2.5.168
+erfolgreich gebaut: 253/253 Python-Tests,
+41/41 native CTests, 101/101 Branding-
+/Chatlayout-Regressionsprüfungen auch bei
+LC_ALL=C/PYTHONUTF8=0 bestanden. DE-/EN-
+1280x720-Xvfb-Starts jeweils STATE_LOGIN_WAIT,
+kein AUTH_INIT, sauberer Exit-Code 0.
+Keine reale In-World-Chat-GUI abgenommen.
+
+Nur zwei bestehende Quelldateien aktualisiert:
+- indra/newview/fschathistory.cpp: alten
+  FSChatHistoryHeader::draw()-Sonderweg
+  entfernt, der die schon vom XUI-Layout
+  begrenzte Usernamenspalte ein zweites Mal
+  um die Zeitstempelbreite verkleinerte.
+  Die veralteten Zustände mNeedsTimeBox,
+  mMinUserNameWidth und sechs obsolete
+  updateMinUserNameWidth-Aufrufstellen
+  entfernt; die in panel_chat_header.xml
+  fest eingeteilte rechte Zeitspalte bleibt
+  maßgeblich. Die echte Zeitsetzung und
+  Tooltips, Avatarname-Cache, RLVa-Filter
+  und separate Teleport-Zeitunterdrückung
+  bleiben erhalten.
+- ogl/tests/test_branding_contract.py: drei
+  neue Regressionstests für keine doppelte
+  Größensteuerung, behaltene Namens-/RLVa-
+  und Timestamp-Funktionen, sowie XUI-
+  Spaltentrennung. Einen veralteten
+  bestehenden Test auf den neuen
+  korrekten Layoutvertrag umgestellt.
+Keine Änderungen an Benutzerprofilen,
+Authentifizierung, Netzwerken, Caches
+oder privaten Daten; keine neuen Dateien.
+
+20 tatsächlich geprüfte Arbeitsschritte:
+01 Git-Branch und Remote geprüft;
+02 bestehende CI-Stände kontrolliert;
+03 Hauptprojektplan und P01-Gates gelesen;
+04 aktive Chatklasse statt deaktivierter
+    LLChatHistory ermittelt;
+05 englisches XUI-Spaltenlayout untersucht;
+06 Zeitspalte 72px mit reserviertem rechtem
+    Layoutabstand nachgewiesen;
+07 ehemalige doppelte Namenverkleinerung
+    im Draw-Pfad isoliert;
+08 Draw-Sonderweg entfernt;
+09 überflüssige Zeit-Boolvariable entfernt;
+10 alten Namensbreitenzustand entfernt;
+11 sechs veraltete Breitenupdate-Aufrufe entfernt;
+12 Teleport-Trennzeile und ausgeblendete
+    Teleport-Zeit geprüft;
+13 Avatar-Namens-Cache/Tooltip erhalten;
+14 RLVa-Anonymisierung und Unbekannt-Icon geprüft;
+15 Zeittext/-Tooltip und alle sieben Chat-Header-
+    Sprachlayouts auf richtige Vererbung geprüft;
+16 101/101 Branding-/Layouttests auch unter
+    ASCII-Systemkodierung bestanden;
+17 Linux-Vollbuild und 253/253 Python-/41/41
+    native Tests bestanden;
+18 isolierter DE-GUI-Start bis Login und Exit 0;
+19 isolierter EN-GUI-Start bis Login und Exit 0;
+20 Code direkt gepusht; Bestands- und
+    Dokumentationsstand geprüft.
+Sieben bekannte _v2-/script_copy-Pfade
+nicht ohne Nutzungs-/Lizenzprüfung gelöscht.
+
+Offene Gates: authentifizierter Hauptgrid-
+Login, gespeicherte Credential-Wiederherstellung,
+In-World-Chat-/Avatar- und Shutdown-Prüfungen,
+vollständige Windows-/macOS-Vollviewer-Build-
+und GUI-Nachweise. Beta-TLS-Hostnameproblem
+weiter blockierend; Portable-Grafikmodul-CI
+ersetzt diese Nachweise nicht.
+**Formal P01 18/20, P02 0/20;
+operativer /goal-Einstieg bleibt P01 19/20.**
+
 ## P02 unabhängige Vorarbeit – ungelesene Chatnachrichten zuverlässig zählen (02.11.2026)
 
 Code-Commit 8deebedc direkt auf origin/ogl-develop.

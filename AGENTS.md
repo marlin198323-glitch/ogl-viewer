@@ -131,6 +131,20 @@ Beta-TLS-Zertifikatsfehler weiter offen.
 Formal P01 18/20, P02 0/20, vollständige
 In-World-/Windows-/macOS-Gates weiterhin offen.
 
+Letzte unabhängige P02-Vorarbeit (02.11.2026,
+a462330e): Alten FSChatHistoryHeader-
+Draw-Resize entfernt; die XUI reserviert
+bereits die Zeitstempel-Spalte.
+Überholte Namensbreiten-Zustände und
+Aufrufe beseitigt, Avatar-/RLVa-/
+Zeit- und Teleport-Funktionen erhalten.
+20 Prüfpositionen, Linux-Vollbuild,
+253 Python-/41 native Tests, 101
+Chatlayout-Tests und DE-/EN-Xvfb-
+Login-GUI-Smokes bestanden. Formal
+P01 18/20, P02 0/20; In-World-/
+Windows-/macOS-Vollviewer-Gates offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

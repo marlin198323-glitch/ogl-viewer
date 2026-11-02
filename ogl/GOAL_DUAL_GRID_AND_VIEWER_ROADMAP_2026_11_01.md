@@ -538,6 +538,22 @@ Beta-TLS-Zertifikatsabweichung am 02.11. erneut
 bestätigt, Anmeldung weiterhin gesperrt.
 Formal P01 18/20, P02 0/20. Siehe Status.
 
+Unabhängige P02-Vorarbeit (02.11.2026, a462330e):
+Die Chat-Header-Namensspalte wird nicht mehr
+zusätzlich zur bestehenden XUI-Zeitspalte
+dynamisch verkleinert. Alten Draw-Sonderweg,
+unbenutzte Layout-Zustände und sechs
+Breitenupdate-Aufrufe entfernt; Tooltips,
+RLVa-Anonymisierung, runde Avatare und
+Teleport-Trennzeilen erhalten. 20 technische
+Prüfschritte, 253 Python-/41 native Tests,
+101 Branding-/Chatlayout-Tests, voller
+Linux-Build sowie DE-/EN-Login-GUI-Smokes
+erfolgreich. Authentifizierter In-World-
+und vollständiger Windows-/macOS-Viewer-
+Nachweis weiter offen. Formal P01 18/20,
+P02 0/20; PROJECT_STATUS.md ist maßgeblich.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.
