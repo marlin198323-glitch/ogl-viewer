@@ -158,6 +158,21 @@ P02 0/20; nächster /goal P01 Block 19/20.
 Kein echter Live-Login oder Windows-/macOS-Vollviewer-
 Test behauptet. Details in PROJECT_STATUS.md.
 
+Letzte unabhängige /goal-20er-Runde vom 02.11.2026:
+6b6779fc: aktiver FS-Chat, Nearby-Toast und
+Benachrichtigungsansichten verwenden das vorhandene
+OGL-Systemicon statt des Second-Life-Logos.
+Demo-Name und Demo-Zeit im Chatkopf entfernt.
+Radar-/RLVa-Branches sowie Nicht-OGL-Fallback bleiben
+erhalten. Linux-Vollbuild, 237 Python-/41 native Tests,
+85 Branding-Tests auch unter ASCII, drei geprüfte
+Staging-Assets und DE-/EN-Xvfb-Login-Smokes bestanden.
+Kein Live-Grid-Chat oder kompletter Windows-/macOS-
+Viewer-Abnahmelauf behauptet.
+Formaler Stand P01 18/20, P02 0/20, nächster
+operativer Block P01 19/20.
+Details im Status.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

@@ -32,6 +32,78 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – OGL-Systemicons und Chatköpfe (02.11.2026)
+
+Code-Commit 6b6779fc direkt auf origin/ogl-develop.
+Unabhängige P02-20er-Runde; keine formale Freigabe der
+gesamten Phase. Linux-Vollviewer 7.2.5.160 erfolgreich.
+237/237 Python- und 41/41 native CTests bestanden;
+85/85 Branding-Tests zusätzlich mit LC_ALL=C und
+PYTHONUTF8=0 bestanden. Isolierte DE-/EN-1280x720-
+Xvfb-Viewerstarts bis STATE_LOGIN_WAIT und saubere
+WM-Close-/Exit-Code-0-Beendigungen geprüft.
+Keine Anmeldung, kein In-World-Test durchgeführt.
+
+Änderungen ausschließlich in sechs bestehenden Dateien:
+- textures.xml verweist OGL_System_Icon auf das
+  bereits vorhandene windows/login_ogl_logo.png;
+  kein neuer Asset oder Systemicon-Fallback gelöscht.
+- fschathistory.cpp (aktiver FS-Chat-History-Pfad):
+  normale System-/Regionmeldungen tragen im OGL-Kanal
+  OGL_System_Icon. Radar-Avatarbilder und RLVa-
+  Namensfilter-Zweige sind unverändert.
+  Die alte llchathistory.cpp ist mit #if 0 deaktiviert
+  und wird ausdrücklich nicht als aktiver Pfad gewertet.
+- llchatitemscontainerctrl.cpp (Nearby-Chat-Toast):
+  Systemmeldungen verwenden das OGL-Icon,
+  echte Avatare weiterhin ihre IDs/Bilder.
+- llnotificationlistitem.cpp:
+  eingeklappte/ausgeklappte systembezogene
+  Benachrichtigungsicons tragen dieselbe OGL-Marke.
+- panel_chat_header.xml: Test-Name und fiktive
+  Anzeigeuhrzeit aus der XUI-Basis entfernt, bevor
+  echte Chatmetadaten geliefert werden.
+- test_branding_contract.py: fünf neue Regressionstests
+  für Icon-Registry, aktive Chat-/Toast-Pfade,
+  beide Benachrichtigungsansichten und XUI-Metadaten.
+  Nicht-OGL-Kanäle behalten die vorherigen Icon-Namen.
+
+20 technische Prüfpositionen dieser Runde:
+01 korrekter Branch; 02 keine fremden lokalen Änderungen;
+03 aktive FSChatHistory statt deaktivierter LLChatHistory
+ermittelt; 04 bestehenden OGL-Asset verifiziert;
+05 Icon-Name in existierender Registry eingetragen;
+06 FS-Chat-System-/Region-Nachrichten umgestellt;
+07 Radar-Avatar-Fall unverändert; 08 RLVa-
+Anonymisierungspfad unverändert; 09 Nicht-OGL-
+Icon-Fallback erhalten; 10 Nearby-Toast-Systemicon;
+11 Nearby-Toast-Avatar-ID erhalten; 12 kompaktes
+Benachrichtigungsicon; 13 erweitertes Benachrichtigungsicon;
+14 Demo-Chatname aus XUI entfernt; 15 Demo-Zeit
+aus XUI entfernt; 16 fünf neue Regressionstests
+und 85 Branding-Tests auch unter ASCII;
+17 Linux-Vollbuild plus 237 Python-/41 native Tests;
+18 drei Ressourcen (Registry, OGL-PNG,
+Chat-XUI) bytegleich im paketierten Build;
+19 DE- und EN-GUI-Voranmelde-Starts Exit-Code 0;
+20 Code direkt gepusht, Status/Altbestand inventarisiert.
+Sieben bestehende _v2-/script_copy-Dateipfade
+nicht ohne Abhängigkeits-/Lizenznachweis gelöscht.
+Keine Nutzerprofile, Caches, Credentials oder Secrets
+verändert, keine Projektdateien neu angelegt.
+
+Offen bleiben: Hauptgrid-Live-Login mit autorisiertem
+Testkonto, echte Credential-Wiederherstellung,
+In-World-Chat-/Benachrichtigungs-Sichtprüfung
+und Shutdown, vollständige Windows-/macOS-
+Viewer-Build-/GUI-Nachweise. Beta-TLS-Fehler
+ist weiterhin ungeklärt, Beta-Login blockiert.
+Die portable Grafikmodule-CI ersetzt keine
+Vollviewer-Tests. Formal weiterhin P01 18/20,
+P02 0/20, nächster operativer Block
+/goal P01 Block 19/20. Unabhängige P02-
+Vorarbeiten können parallel fortgesetzt werden.
+
 ## P02 unabhängige Vorarbeit – 20 Blöcke Menübereinigung und Windows-CI (02.11.2026)
 
 Code-Commit ef3dc0e5 direkt auf origin/ogl-develop.

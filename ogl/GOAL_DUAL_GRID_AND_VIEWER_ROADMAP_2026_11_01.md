@@ -481,6 +481,20 @@ XUI-Staging und DE-/EN-GUI-Smokes grün. Kein vollständiger
 Windows-/macOS-Viewer- oder Live-Login-Nachweis.
 Formal P01 18/20, P02 0/20. Details im Status.
 
+Unabhängige P02-Vorarbeit (02.11.2026, 6b6779fc):
+System-/Region-Chat im aktiven FS-Chatverlauf,
+Nearby-Chat-Toasts und beide Benachrichtigungsansichten
+verwenden das vorhandene OGL-Logo statt des
+Second-Life-Systemicons. Radar-Avatare, RLVa-
+Namensfilter und Nicht-OGL-Fallbacks bleiben
+im Quellpfad erhalten. Demo-Name/-Uhrzeit
+im Chatkopf entfernt, fünf Regressionstests ergänzt.
+20 technische Prüfpunkte, 237 Python-/41 native
+Tests, kompletter Linux-Build, Ressourcengleichheit
+im Build und DE-/EN-GUI-Smokes bestanden.
+Live-/Windows-/macOS-Vollviewer-Gates unverändert offen.
+Formal P01 18/20, P02 0/20; Projektstatus maßgeblich.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

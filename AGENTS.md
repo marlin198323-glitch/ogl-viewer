@@ -83,6 +83,17 @@ Tests, 80 Branding-Tests auch mit ASCII, 13 XUI-
 Stagingdateien und DE-/EN-GUI-Smokes bestanden.
 Formal P01 18/20, P02 0/20, weitere Abnahmen offen.
 
+Unabhängige P02-Vorarbeit vom 02.11.2026:
+6b6779fc: aktiver FS-Systemchat, Nearby-Toasts
+und Notification-Listen mit bestehendem OGL-Logo,
+Demo-Name/Zeit aus Chat-XUI entfernt; Radar-/RLVa-
+und Upstream-Fallback behalten. Linux-Vollbuild,
+237 Python-/41 native Tests, 85 Branding-Tests,
+Ressourcen-Staging und DE-/EN-GUI-Smokes grün.
+20 technische Prüfpunkte dokumentiert.
+Formal P01 18/20, P02 0/20; authentifizierter
+Live-Login und Windows-/macOS-Viewer-Gates offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 
