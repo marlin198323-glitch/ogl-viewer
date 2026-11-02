@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 2/20.
+wechseln. Neuer Einstieg: P02 Block 3/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -340,6 +340,28 @@ bevor GitHub Actions das vollständige Artefakt
 wirklich produziert hat. Windows-Installation
 und GUI-Test auf echter Hardware bleiben offen;
 P01 Linux 20/20, P02 1/20 unverändert.
+
+**P02 Block 2/20 abgeschlossen (02.11.2026,
+Code 9c10de4e):** Kanonische sechs
+Hauptnavigationen für 13 XUI-Locale-Dateien:
+Avatar / Chat-Kontakte / Welt / Bauen /
+Entdecken / Hilfe. Untergeordnete
+RLVa-/Advanced-/Developer-/Admin-Menüs
+erhalten; spanische acht zusätzliche
+V1-Hauptmenüs entfernt, fehlende
+lokale Content-Labels Dänisch Opdag und
+Türkisch Keşfet ergänzt.
+Drei neue Regressionstests,
+Linux-Vollbuild 7.2.5.186,
+276/276 Python- und 41/41 native Tests,
+ES-/DA-/TR-GUI-Starts sowie
+3/3 paketierte XUI-Dateien bestätigt.
+P01 Linux 20/20, P02 jetzt 2/20;
+nächster Block 3/20, Bestandshauptmenüs
+und Toolbars ohne Duplikate konsolidieren.
+Windows-/macOS-Vollviewer und Beta-TLS
+bleiben in den entsprechenden Phasen
+offen. Ältere Statuszahlen sind historisch.
 
 ## Aktuelle Roadmaps
 

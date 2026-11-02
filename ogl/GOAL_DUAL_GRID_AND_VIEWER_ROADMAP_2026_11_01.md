@@ -494,12 +494,22 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 1/20 abgeschlossen.
+**Aktueller Status:** P02 aktiv, 2/20 abgeschlossen.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
-13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater
-und alle betroffenen XMLs erfolgreich geparst.
-Nächster Schritt: Block 2, OGL-Navigationshierarchie.
+13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
+Block 2 (02.11.2026, 9c10de4e): kanonische
+Hauptmenü-Reihenfolge Avatar, Chat/Kontakte,
+Welt, Bauen, Entdecken, Hilfe über alle 13
+Sprachen. Acht ungenutzte V1-Menüs in ES
+entfernt, Content-Label DA/TR lokalisiert.
+RLVa, Advanced, Develop und Admin erhalten.
+Linux-Vollbuild 7.2.5.186, 276 Python-/41
+native Tests, drei XUI-Stagingdateien und
+ES-/DA-/TR-Login-GUI bestanden.
+Nächster Schritt: Block 3/20,
+bestehende Menüs/Toolbar ohne
+Paralleltemplates konsolidieren.
 Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,

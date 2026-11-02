@@ -8,7 +8,9 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 2/20.
+**Aktiver Block:** /goal P02 Block 3/20.
+P02 Block 2 (einheitliche Navigation) wurde mit
+Linux-Build/Regression geprüft und gepusht.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -18,7 +20,8 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Block 1/20 Inventur abgeschlossen.
+P02 Block 1/20 Inventur und
+Block 2/20 Navigationshierarchie abgeschlossen.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
@@ -28,7 +31,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 1/20 | Block 2: OGL-Navigation konsolidieren |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 2/20 | Block 3: Bestehende Hauptnavigation ohne Paralleltemplates konsolidieren |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -40,6 +43,73 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 2/20 – Kanonische OGL-Navigationshierarchie (02.11.2026)
+
+**Code-Commit 9c10de4e auf origin/ogl-develop.**
+Feste funktionale Hauptmenü-Reihenfolge für
+alle vorhandenen 13 Sprach-Layouts:
+1. Me / Avatar (Profil, Aussehen, Inventar)
+2. Communicate / Chat & Kontakte (Nahchat,
+   Direktnachrichten, Gruppen und Freunde)
+3. World / Welt (Navigation, Regionen, Karte)
+4. BuildTools / Bauen (Objekt- und Bauwerkzeuge)
+5. Content / Entdecken (Suche, Skriptbibliothek,
+   NexVerse-Nachrichten)
+6. Help / Hilfe & Support (Portal, Fehlerbericht,
+   Downloads, rechtlich erforderliche Hinweise)
+
+RLVa, Advanced, Develop und Admin bleiben
+als vorhandene separate Spezialmenüs erhalten;
+die bestehenden technischen Namen und
+Viewer-Event-Callbacks werden nicht geändert.
+Die Menüdefinition liegt weiterhin in den
+vorhandenen menu_viewer.xml-Dateien und
+deren englischer Vererbungsbasis; kein neues
+Menü-, Skin- oder C++-Parallelsystem.
+
+**Tatsächliche Änderungen:**
+- Spanisch: acht leere bzw. unbenutzte
+  zusätzliche V1-Hauptmenü-Overlays inklusive
+  altem V1-Menus-Schalter entfernt; die
+  funktionale Hauptmenü-Struktur bleibt erhalten.
+- Dänisch: Content-Overlay mit dem Label Opdag
+  ergänzt; englische Funktionsmenü-Unterelemente
+  werden weiter geerbt.
+- Türkisch: Content-Overlay mit Keşfet ergänzt;
+  englische Funktionsmenü-Unterelemente werden
+  weiter geerbt. Französisch hatte bereits
+  ein korrektes Contenu-Menü und blieb unverändert.
+- Drei Regressionstests im bestehenden
+  test_branding_contract.py hinzugefügt.
+
+**Nachweise:** Linux-Vollviewer 7.2.5.186
+kompiliert; 276/276 Python-Tests,
+41/41 native CTests bestanden. Alle
+13/13 vorhandenen Hauptmenüs als XML
+geparst; Reihenfolge, Eindeutigkeit
+und Abwesenheit von V1-Hauptmenüs
+überprüft. Die drei geänderten XUI-Dateien
+wurden mit dem im Linux-Viewer-Paket
+enthaltenen Stand byteweise verglichen
+(3/3 identisch). Isolierte GUI-Starts
+ES/DA/TR bei 1280×720 bis Login-Wait,
+ohne Authentifizierung, jeweils Exit 0.
+Kein In-World-Interaktionstest mit
+diesen drei Sprachen behauptet.
+Es wurden keine neuen Projektdateien
+oder Benutzereinstellungen erzeugt;
+die bekannten sieben historischen
+_v2-/script_copy-Pfade bleiben bis zur
+geprüften Nutzungs-/Lizenzanalyse erhalten.
+
+**Formaler Stand:** P01 Linux 20/20;
+P02 2/20. Nächster /goal-Schritt:
+**P02 Block 3/20**: Bestand der bereits
+vorhandenen Hauptnavigation/Untermenüs
+und Toolbar gezielt konsolidieren,
+ohne zusätzliche Template-Dateien
+oder doppelte Navigationswege.
 
 ## Windows-Testinstaller – isolierter GitHub-Actions-Build (02.11.2026)
 

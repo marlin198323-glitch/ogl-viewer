@@ -33,7 +33,8 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-Aktiv P02 Block 2/20 (Inventur Block 1 erledigt).
+P02 Block 1 Inventur und Block 2 Navigationshierarchie
+abgeschlossen; aktiv P02 Block 3/20.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
@@ -242,6 +243,20 @@ keinen funktionierenden Windows-Installer
 behaupten, bevor der Windows-Build tatsächlich
 erfolgreich ist. P01 Linux 20/20 und P02 1/20
 bleiben unverändert. Windows-Freigabe P13.
+
+P02 Navigation (02.11.2026, 9c10de4e):
+Hauptmenüreihenfolge Me/Communicate/
+World/BuildTools/Content/Help ist
+verbindlich für alle 13 Sprachlayouts;
+RLVa/Advanced/Develop/Admin bleiben
+erhalten. Spanische V1-Altmenüs entfernt,
+DA/TR Content-Labels lokalisiert.
+Linux-Vollbuild 7.2.5.186,
+276 Python-/41 native Tests, ES/DA/TR-
+Prelogin-GUI, 3/3 staged Menüdateien
+bestanden. Formal P02 2/20;
+Block 3 ist der nächste Schritt.
+Keine neuen Paralleltemplates erstellen.
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
