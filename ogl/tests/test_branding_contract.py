@@ -100,6 +100,48 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
         self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
 
+    def test_chat_timestamps_do_not_resize_or_overlap_avatar_and_name(self):
+        cpp = self.source("indra/newview/fschathistory.cpp")
+        method = cpp.split("    void setTimeField(const LLChat& chat)", 1)[1].split(
+            "    void fetchAvatarName()", 1)[0]
+        self.assertIn('mTimeBoxTextBox->setValue(chat.mTimeStr);', method)
+        self.assertIn('mTimeBoxTextBox->setToolTip(chat.mTimeStr);', method)
+        for forbidden in ('reshapeToFitText', 'translate(', 'reshape(',
+                          'mHeaderLayoutStack', 'user_name'):
+            self.assertNotIn(forbidden, method)
+        self.assertNotIn('mHeaderLayoutStack', cpp)
+        self.assertIn('if (mNeedsTimeBox && !mTimeBoxTextBox->getVisible()', cpp)
+
+    def test_chat_header_timestamp_fixed_width_ellipses_and_tooltip(self):
+        root = ET.parse(ROOT /
+            "indra/newview/skins/default/xui/en/panel_chat_header.xml").getroot()
+        fields = [e for e in root.iter() if e.get("name") == "time_box"]
+        self.assertEqual(len(fields), 1)
+        timestamp = fields[0]
+        self.assertEqual(timestamp.get("halign"), "right")
+        self.assertEqual(timestamp.get("follows"), "right")
+        self.assertEqual(timestamp.get("use_ellipses"), "true")
+        self.assertEqual(timestamp.get("width"), "72")
+        self.assertEqual(timestamp.get("value"), "")
+        names = [e for e in root.iter() if e.get("name") == "user_name"]
+        self.assertEqual(len(names), 1)
+        self.assertEqual(names[0].get("use_ellipses"), "true")
+        portraits = [e for e in root.iter() if e.get("name") == "avatar_icon"]
+        self.assertEqual(len(portraits), 1)
+        self.assertEqual(portraits[0].get("circular"), "true")
+
+    def test_translated_chat_header_does_not_restore_fake_timestamp(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        files = sorted(base.glob("*/panel_chat_header.xml"))
+        self.assertGreaterEqual(len(files), 2)
+        for path in files:
+            root = ET.parse(path).getroot()
+            timestamp = [e for e in root.iter() if e.get("name") == "time_box"]
+            self.assertLessEqual(len(timestamp), 1, str(path))
+            for node in timestamp:
+                self.assertEqual(node.get("value"), "", str(path))
+        self.assertIn("de", [p.parent.name for p in files])
+
     def test_ogl_system_icon_reuses_existing_logo_without_new_assets(self):
         textures = ROOT / "indra/newview/skins/default/textures"
         registry = ET.parse(textures / "textures.xml").getroot()

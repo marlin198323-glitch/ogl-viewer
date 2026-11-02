@@ -140,7 +140,6 @@ public:
         mUserNameTextBox(NULL),
         mNeedsTimeBox(true),
         mTimeBoxTextBox(NULL),
-        mHeaderLayoutStack(NULL),
         mAvatarNameCacheConnection(),
         mInsertMentionCallback(NULL),
         mTime(0)
@@ -674,7 +673,6 @@ public:
 
         mUserNameTextBox = getChild<LLTextBox>("user_name");
         mTimeBoxTextBox = getChild<LLTextBox>("time_box");
-        mHeaderLayoutStack = getChild<LLLayoutStack>("header_ls");
 
         mInfoCtrl = LLUICtrlFactory::getInstance()->createFromFile<LLUICtrl>("inspector_info_ctrl.xml", this, LLPanel::child_registry_t::instance());
         if (mInfoCtrl)
@@ -1182,24 +1180,12 @@ protected:
 private:
     void setTimeField(const LLChat& chat)
     {
-        LLRect rect_before = mTimeBoxTextBox->getRect();
-
+        // A server history timestamp can include a full date and timezone.
+        // Never expand the timestamp into the avatar/name layout: on narrow
+        // chat windows that makes the name collapse or overlap the portrait.
+        // The XUI supplies a fixed right-aligned, ellipsized timestamp field.
         mTimeBoxTextBox->setValue(chat.mTimeStr);
-
-        // set necessary textbox width to fit all text
-        mTimeBoxTextBox->reshapeToFitText();
-        LLRect rect_after = mTimeBoxTextBox->getRect();
-
-        // move rect to the left to correct position...
-        S32 delta_pos_x = rect_before.getWidth() - rect_after.getWidth();
-        S32 delta_pos_y = rect_before.getHeight() - rect_after.getHeight();
-        mTimeBoxTextBox->translate(delta_pos_x, delta_pos_y);
-
-        //... & change width of the name control
-        //const LLRect& user_rect = mUserNameTextBox->getRect();
-        //mUserNameTextBox->reshape(user_rect.getWidth() + delta_pos_x, user_rect.getHeight());
-        const LLRect& layoutstack_rect = mHeaderLayoutStack->getRect();
-        mHeaderLayoutStack->reshape(layoutstack_rect.getWidth() + delta_pos_x, layoutstack_rect.getHeight());
+        mTimeBoxTextBox->setToolTip(chat.mTimeStr);
     }
 
     void fetchAvatarName()
@@ -1265,7 +1251,6 @@ protected:
     const LLFontGL*     mUserNameFont;
     LLTextBox*          mUserNameTextBox;
     LLTextBox*          mTimeBoxTextBox;
-    LLLayoutStack*      mHeaderLayoutStack;
 
     LLStyle::Params     mNameStyleParams;
 

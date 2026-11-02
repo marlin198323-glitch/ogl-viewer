@@ -69,6 +69,7 @@
     font="SansSerifSmall"
     follows="right"
     halign="right"
+    use_ellipses="true"
     height="13"
     layout="topleft"
     left_pad="5"
