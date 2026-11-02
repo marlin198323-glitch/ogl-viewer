@@ -1199,6 +1199,49 @@ class OGLBrandingContract(unittest.TestCase):
                 self.assertIn(required, names)
             self.assertNotIn("login_fs_logo", file.read_text(encoding="utf-8"))
 
+    def test_ogl_unlisted_startup_credential_never_renders_reusable_password_filler(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        part = cpp.split('void FSPanelLogin::setFields(', 1)[1].split(
+            'void FSPanelLogin::getFields(', 1)[0]
+        missing = part.split('if (!username_combo->selectByValue(cred_name))', 1)[1].split(
+            'sInstance->mPreviousUsername = username_combo->getValue().asString();\n    sInstance->addFavorites', 1)[0]
+        self.assertIn('if (APP_NAME == "OGL")', missing)
+        for line in ('sCredentialSet = false;', 'sPassword.clear();',
+                     'sInstance->mPasswordModified = false;',
+                     'sInstance->mPasswordLength = 0;',
+                     'sInstance->syncShowHidePasswordButton();',
+                     'sInstance->updateLoginButtons();',
+                     'getChild<LLLineEditor>("password_edit")->clear();'):
+            self.assertIn(line, missing)
+        self.assertLess(missing.index('getChild<LLLineEditor>("password_edit")->clear();'),
+                        missing.index('return;'))
+        self.assertLess(part.index('return;\n        }\n        sInstance->mPasswordModified = true;'),
+                        part.index('const std::string filler("Enter a password")'))
+
+    def test_ogl_startup_credential_without_saved_selection_shows_account_identifier(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        part = cpp.split('void FSPanelLogin::setFields(', 1)[1].split(
+            'void FSPanelLogin::getFields(', 1)[0]
+        self.assertIn('identifier["type"].asString() == "account"', part)
+        self.assertIn('login_id = identifier["account_name"].asString();', part)
+        self.assertIn('username_combo->setTextEntry(login_id);', part)
+        self.assertIn('sInstance->mUsernameLength = sInstance->mPreviousUsername.length();', part)
+        self.assertIn('sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(false);', part)
+
+    def test_ogl_valid_saved_account_still_uses_secured_credential_restore(self):
+        cpp = self.source("indra/newview/fspanellogin.cpp")
+        set_fields = cpp.split('void FSPanelLogin::setFields(', 1)[1].split(
+            'void FSPanelLogin::getFields(', 1)[0]
+        self.assertIn('if (!username_combo->selectByValue(cred_name))', set_fields)
+        self.assertIn('LLSD authenticator = credential->getAuthenticator();', set_fields)
+        self.assertIn('gSecAPIHandler->loadCredential(cred_name)', set_fields)
+        self.assertIn('sInstance->syncShowHidePasswordButton();', set_fields)
+        get_fields = cpp.split('void FSPanelLogin::getFields(', 1)[1].split(
+            'bool FSPanelLogin::areCredentialFieldsDirty()', 1)[0]
+        self.assertIn('OGLNexVerseGrid::canReuseSavedAuthenticator(', get_fields)
+        self.assertIn('!selected_account.isUndefined()', get_fields)
+        self.assertIn('sInstance->mPasswordModified', get_fields)
+
     def test_saved_account_isolation_and_removal_regression(self):
         # No credentials are created or read by this test. Check that the
         # real authentication callbacks retain their secure storage calls.

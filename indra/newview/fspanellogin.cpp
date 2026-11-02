@@ -664,14 +664,37 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
             login_id += lastname;
         }
     }
+    else if (APP_NAME == "OGL" && identifier["type"].asString() == "account")
+    {
+        // OpenSim also supports one-part account identifiers. A transient
+        // startup credential must display the account name, not a blank field.
+        login_id = identifier["account_name"].asString();
+    }
 
     const std::string cred_name = credential->getCredentialName();
     LLComboBox* username_combo = sInstance->getChild<LLComboBox>("username_combo");
     if (!username_combo->selectByValue(cred_name))
     {
         username_combo->setTextEntry(login_id);
-        sInstance->mPasswordModified = true;
         sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(false);
+        if (APP_NAME == "OGL")
+        {
+            // A transient startup credential is not a user-selected saved
+            // account. Never show the saved-password filler as if the secret
+            // could be reused; it could otherwise be submitted literally.
+            sCredentialSet = false;
+            sInstance->getChild<LLLineEditor>("password_edit")->clear();
+            sPassword.clear();
+            sInstance->mPasswordLength = 0;
+            sInstance->mPasswordModified = false;
+            sInstance->mPreviousUsername = username_combo->getValue().asString();
+            sInstance->mUsernameLength = sInstance->mPreviousUsername.length();
+            sInstance->syncShowHidePasswordButton();
+            sInstance->updateLoginButtons();
+            LL_WARNS("Credentials") << "Saved login is not in the account list; enter a new password." << LL_ENDL;
+            return;
+        }
+        sInstance->mPasswordModified = true;
     }
     sInstance->mPreviousUsername = username_combo->getValue().asString();
     sInstance->addFavoritesToStartLocation();

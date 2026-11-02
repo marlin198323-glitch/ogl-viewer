@@ -276,8 +276,14 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('if (from_startup)',restore)
         self.assertIn('sInstance->mPasswordModified = true;',restore)
         self.assertIn('sInstance->syncShowHidePasswordButton();',restore)
+        # Rejected/unlisted accounts must disable reveal before returning;
+        # valid saved accounts resync after their remember checkbox.
+        rejected=restore.split('if (!username_combo->selectByValue(cred_name))',1)[1].split(
+            'sInstance->mPasswordModified = true;',1)[0]
+        self.assertLess(rejected.index('sInstance->syncShowHidePasswordButton();'),
+                        rejected.index('return;'))
         self.assertLess(restore.index('sInstance->getChild<LLUICtrl>("remember_check")->setValue(remember);'),
-                        restore.index('sInstance->syncShowHidePasswordButton();'))
+                        restore.rindex('sInstance->syncShowHidePasswordButton();'))
         choice=self.panel[self.panel.index('void FSPanelLogin::onSelectUser()'):
                           self.panel.index('void FSPanelLogin::updateServerCombo()')]
         self.assertLess(choice.index('sInstance->mPasswordModified = false;'),
