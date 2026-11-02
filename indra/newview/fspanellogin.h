@@ -100,6 +100,7 @@ private:
     void onLocationSLURL();
     void onUsernameTextChanged();
     void syncShowHidePasswordButton();          // Update which button is shown based on mShowPassword
+    void resetOGLPasswordVisibility();        // Never show the next account's password in plaintext
 
     static void onClickConnect(void*);
     static void onClickNewAccount(void*);

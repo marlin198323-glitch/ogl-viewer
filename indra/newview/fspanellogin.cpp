@@ -635,6 +635,12 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
         ++sOGLLoginFormRevision; // loading saved credentials changes the form
         OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
     }
+    // A newly loaded identity must not inherit the prior account's
+    // "show password" preference, even if both are on the same grid.
+    if (APP_NAME == "OGL")
+    {
+        sInstance->resetOGLPasswordVisibility();
+    }
     // A rejected credential must never mark the login as initialized.
     if (sInstance->mInitialized)
     {
@@ -1510,6 +1516,17 @@ void FSPanelLogin::onShowHidePasswordClick(void*)
 }
 
 
+void FSPanelLogin::resetOGLPasswordVisibility()
+{
+    if (APP_NAME == "OGL" && mShowPassword)
+    {
+        // Password visibility is only for the current account and grid.
+        // Any new identity starts masked, regardless of the last eye toggle.
+        mShowPassword = false;
+        syncShowHidePasswordButton();
+    }
+}
+
 void FSPanelLogin::syncShowHidePasswordButton()
 {   // Show or hide the two 'eye' buttons for password visibility
     LLButton* show_password_btn = sInstance->findChild<LLButton>("password_show_btn");
@@ -1615,6 +1632,7 @@ void FSPanelLogin::clearLoginFieldsForGridChange()
     {
         ++sOGLLoginFormRevision;
         OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+        resetOGLPasswordVisibility();
     }
     // This applies to both manual grid changes and grid-bearing SLURLs.
     // Never reuse a plaintext entry or a saved-password filler from the
@@ -2008,6 +2026,7 @@ void FSPanelLogin::onSelectUser()
     {
         ++sOGLLoginFormRevision;
         OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();
+        sInstance->resetOGLPasswordVisibility();
     }
 
     LLSD combo_val = combo->getSelectedValue();
@@ -2224,6 +2243,12 @@ void FSPanelLogin::onUsernameTextChanged()
         // account's masked password against the new identity.
         const std::string current_name =
             getChild<LLUICtrl>("username_combo")->getValue().asString();
+        if (current_name != mPreviousUsername)
+        {
+            // Includes transitions where the password is currently empty:
+            // the next value entered for a different account must be masked.
+            resetOGLPasswordVisibility();
+        }
         if (current_name != mPreviousUsername && mPasswordLength != 0)
         {
             getChild<LLLineEditor>("password_edit")->clear();

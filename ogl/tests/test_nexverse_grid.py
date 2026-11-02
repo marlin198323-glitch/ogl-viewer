@@ -233,6 +233,67 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('return;', code[code.index('Ignored credential from non-current grid.'):
                                       code.index('identifier = credential->getIdentifier()')])
 
+    def test_ogl_password_mask_reset_keeps_nonogl_unchanged(self):
+        header=(ROOT/'indra/newview/fspanellogin.h').read_text(encoding='utf-8')
+        self.assertIn('void resetOGLPasswordVisibility();',header)
+        start=self.panel.index('void FSPanelLogin::resetOGLPasswordVisibility()')
+        end=self.panel.index('void FSPanelLogin::syncShowHidePasswordButton()',start)
+        code=self.panel[start:end]
+        self.assertIn('APP_NAME == "OGL" && mShowPassword',code)
+        self.assertLess(code.index('mShowPassword = false;'),
+                        code.index('syncShowHidePasswordButton();'))
+        self.assertNotIn('password_edit")->clear()',code)
+        self.assertNotIn('sPassword.clear()',code)
+        showhide=self.panel[self.panel.index('void FSPanelLogin::syncShowHidePasswordButton()'):
+                            self.panel.index('void FSPanelLogin::onClickHelp(')]
+        self.assertIn('setVisible(!mShowPassword)',showhide)
+        self.assertIn('setVisible(mShowPassword)',showhide)
+        self.assertIn('setDrawAsterixes(!mShowPassword)',showhide)
+
+    def test_ogl_grid_change_masks_next_password_before_clearing(self):
+        start=self.panel.index('void FSPanelLogin::clearLoginFieldsForGridChange()')
+        end=self.panel.index('void FSPanelLogin::onSelectServer()',start)
+        body=self.panel[start:end]
+        self.assertIn('if (APP_NAME == "OGL")',body)
+        self.assertIn('resetOGLPasswordVisibility();',body)
+        self.assertLess(body.index('resetOGLPasswordVisibility();'),
+                        body.index('getChild<LLLineEditor>("password_edit")->clear();'))
+        self.assertLess(body.index('resetOGLPasswordVisibility();'),
+                        body.index('addUsersToCombo(true);'))
+        self.assertIn('mPasswordModified = false;',body)
+        self.assertIn('sPassword.clear();',body)
+
+    def test_ogl_new_account_selection_masks_visible_password(self):
+        start=self.panel.index('void FSPanelLogin::onSelectUser()')
+        end=self.panel.index('void FSPanelLogin::updateServerCombo()',start)
+        body=self.panel[start:end]
+        self.assertIn('sInstance->resetOGLPasswordVisibility();',body)
+        self.assertLess(body.index('sInstance->resetOGLPasswordVisibility();'),
+                        body.index('LLSD combo_val = combo->getSelectedValue();'))
+        self.assertIn('clearLoginFieldsForGridChange();',body)
+        self.assertIn('sInstance->setFields(credential);',body)
+
+    def test_ogl_username_typing_masks_before_next_secret_entry(self):
+        start=self.panel.index('void FSPanelLogin::onUsernameTextChanged()')
+        end=self.panel.index('void FSPanelLogin::onModeChange(',start)
+        body=self.panel[start:end]
+        self.assertIn('if (current_name != mPreviousUsername)',body)
+        self.assertIn('resetOGLPasswordVisibility();',body)
+        self.assertLess(body.index('resetOGLPasswordVisibility();'),
+                        body.index('getChild<LLLineEditor>("password_edit")->clear();'))
+        self.assertIn('if (current_name != mPreviousUsername && mPasswordLength != 0)',body)
+        self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();',body)
+
+    def test_ogl_loaded_saved_credential_is_never_auto_revealed(self):
+        start=self.panel.index('void FSPanelLogin::setFields(')
+        end=self.panel.index('void FSPanelLogin::getFields(',start)
+        body=self.panel[start:end]
+        self.assertIn('sInstance->resetOGLPasswordVisibility();',body)
+        self.assertLess(body.index('sInstance->resetOGLPasswordVisibility();'),
+                        body.index('credential->getAuthenticator()'))
+        self.assertIn('Ignored credential from non-current grid.',body)
+        self.assertIn('const std::string filler("Enter a password");',body)
+
     def test_editing_saved_username_clears_password_before_connect(self):
         start = self.panel.index('void FSPanelLogin::onUsernameTextChanged()')
         end = self.panel.index('void FSPanelLogin::onModeChange(', start)
