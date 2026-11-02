@@ -351,7 +351,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('resetOGLPasswordVisibility();',body)
         self.assertLess(body.index('resetOGLPasswordVisibility();'),
                         body.index('getChild<LLLineEditor>("password_edit")->clear();'))
-        self.assertIn('if (current_name != mPreviousUsername && mPasswordLength != 0)',body)
+        self.assertNotIn('current_name != mPreviousUsername && mPasswordLength != 0',body)
         self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();',body)
 
     def test_ogl_loaded_saved_credential_is_never_auto_revealed(self):
@@ -368,7 +368,7 @@ class StadtNexVerseGridTests(unittest.TestCase):
         start = self.panel.index('void FSPanelLogin::onUsernameTextChanged()')
         end = self.panel.index('void FSPanelLogin::onModeChange(', start)
         body = self.panel[start:end]
-        self.assertIn('current_name != mPreviousUsername && mPasswordLength != 0', body)
+        self.assertNotIn('current_name != mPreviousUsername && mPasswordLength != 0', body)
         self.assertIn('getChild<LLLineEditor>("password_edit")->clear()', body)
         self.assertIn('sPassword.clear()', body)
         self.assertIn('mPasswordLength = 0;', body)

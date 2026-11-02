@@ -2154,6 +2154,7 @@ void FSPanelLogin::onSelectUser()
                 sPassword.clear();
                 sInstance->mPasswordLength = 0;
                 sInstance->mPasswordModified = false;
+                sInstance->syncShowHidePasswordButton();
             }
         }
         sInstance->addFavoritesToStartLocation();
@@ -2364,8 +2365,11 @@ void FSPanelLogin::onUsernameTextChanged()
             // the next value entered for a different account must be masked.
             resetOGLPasswordVisibility();
         }
-        if (current_name != mPreviousUsername && mPasswordLength != 0)
+        if (current_name != mPreviousUsername)
         {
+            // Reset the identity-bound state even if the visible password
+            // is already empty: a saved filler or a previous failed retry
+            // can otherwise leave the hidden password state armed.
             getChild<LLLineEditor>("password_edit")->clear();
             sPassword.clear();
             mPasswordLength = 0;

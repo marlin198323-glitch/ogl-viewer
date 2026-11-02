@@ -1241,6 +1241,50 @@ class OGLBrandingContract(unittest.TestCase):
                 self.assertIn(required, names)
             self.assertNotIn("login_fs_logo", file.read_text(encoding="utf-8"))
 
+    def test_ogl_username_change_clears_cached_retry_even_when_password_empty(self):
+        src = self.source("indra/newview/fspanellogin.cpp")
+        body = src.split("void FSPanelLogin::onUsernameTextChanged()",1)[1].split(
+            "void FSPanelLogin::onModeChange(",1)[0]
+        self.assertEqual(body.count('if (current_name != mPreviousUsername)'),2)
+        self.assertNotIn('current_name != mPreviousUsername && mPasswordLength != 0',body)
+        self.assertLess(body.index('resetOGLPasswordVisibility();'),
+                        body.index('getChild<LLLineEditor>("password_edit")->clear();'))
+        checks=('getChild<LLLineEditor>("password_edit")->clear();',
+                'sPassword.clear();', 'mPasswordLength = 0;',
+                'mPasswordModified = false;', 'syncShowHidePasswordButton();',
+                'getChild<LLButton>("remove_user_btn")->setEnabled(false);')
+        for value in checks:
+            self.assertIn(value,body)
+        self.assertLess(body.index('sPassword.clear();'),
+                        body.index('updateLoginButtons();'))
+
+    def test_ogl_typed_unknown_account_syncs_password_reveal_to_reset_state(self):
+        src=self.source("indra/newview/fspanellogin.cpp")
+        body=src.split("void FSPanelLogin::onSelectUser()",1)[1].split(
+            "void FSPanelLogin::updateServerCombo()",1)[0]
+        branch=body.split('if (combo_val.isUndefined())',1)[1].split(
+            'const std::string cred_name',1)[0]
+        for value in ('sPassword.clear();','sInstance->mPasswordLength = 0;',
+                      'sInstance->mPasswordModified = false;',
+                      'sInstance->syncShowHidePasswordButton();',
+                      'sInstance->updateLoginButtons();',
+                      'getChild<LLButton>("remove_user_btn")->setEnabled(false);'):
+            self.assertIn(value,branch)
+        self.assertLess(branch.index('sInstance->mPasswordModified = false;'),
+                        branch.index('sInstance->syncShowHidePasswordButton();'))
+        self.assertLess(branch.index('sInstance->syncShowHidePasswordButton();'),
+                        branch.index('sInstance->updateLoginButtons();'))
+
+    def test_ogl_account_change_invalidates_http_approval_before_new_password(self):
+        src=self.source("indra/newview/fspanellogin.cpp")
+        body=src.split("void FSPanelLogin::onUsernameTextChanged()",1)[1].split(
+            "void FSPanelLogin::onModeChange(",1)[0]
+        self.assertIn('++sOGLLoginFormRevision;',body)
+        self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();',body)
+        self.assertLess(body.index('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();'),
+                        body.index('getChild<LLLineEditor>("password_edit")->clear();'))
+        self.assertIn('mUsernameLength = getChild<LLUICtrl>("username_combo")',body)
+
     def test_ogl_saved_password_filler_never_enters_transient_retry_cache(self):
         source = self.source("indra/newview/fspanellogin.cpp")
         get_fields = source.split("void FSPanelLogin::getFields(", 1)[1].split(
