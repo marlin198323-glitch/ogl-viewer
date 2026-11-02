@@ -33,32 +33,25 @@ automatisch geladen.
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20**
-(Blöcke 1–18 abgeschlossen.
-`7ab16aaf`: OGL-Credential-Reuse
-nur nach exakt ausgewähltem
-gespeichertem Konto auf gleichem
-kanonischen Grid; manuelle
-Passwörter bleiben unabhängig,
-fehlende Credentials/alte
-Maskierung scheitern geschlossen.
-16 native Prüffälle, 203 Python-
-und 41 CTests, Linux-Vollviewer
-und Hauptgrid-/Beta-GUI-Smokes
-erfolgreich; portable Grafik-
-CI 6/6 auf Linux/Windows/macOS
-(Lauf 41340630759); 20/20
-Einzelprüfpositionen bestanden.
-P02 formal 0/20; echter
-Hauptgrid-Live-Login,
-Passwortpersistenz, In-World-
-Shutdown, vollständige Windows-/
-macOS-Viewer-Build-/GUI-Tests
-weiter offen).
-P02 formal 0/20.
-Noch offen: autorisierter Hauptgrid-
-Live-Login, Passwortpersistenz,
-In-World-Shutdown und vollständige
-Windows-/macOS-Viewer-Build-/GUI-Tests).
+(Blöcke 1–18 abgeschlossen;
+`f76ad6f1`: das aktive OGL-
+Passwortfeld unterstützt 255
+Zeichen, Login-Hinweise in
+zehn Sprachen nennen nur die
+zwei NexVerse-Grids; alte
+SL-Passwortlinks FR/PT/JA
+bereinigt und beide
+vorhandenen Starlight-Layouts
+synchron. 20/20 technische
+Prüfpunkte, 207 Python-
+und 41 native Tests,
+DE-/FR-GUI-Starts grün.
+P02 formal 0/20; weiterhin
+offen: Hauptgrid-Live-Login,
+Passwortpersistenz und
+In-World-Shutdown sowie
+vollständige Windows-/macOS-
+Viewer-Builds und GUI-Tests).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

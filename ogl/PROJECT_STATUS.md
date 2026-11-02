@@ -1,6 +1,6 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 01.11.2026
+Stand: 02.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
@@ -31,6 +31,113 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P01 Block 19 – aktive Login-XUI und Lokalisierungen korrigiert (20 Prüfblöcke)
+
+**Code-Commit `f76ad6f1`** (`ogl-develop`).
+**20/20 unabhängige Entwicklungs- und
+Prüfpositionen bestanden.** P01 bleibt
+**formal 18/20**, P02 **formal 0/20**,
+da reale autorisierte Anmeldung und
+volle Windows-/macOS-Viewer-Abnahme
+noch ausstehen.
+
+**Umgesetzt, nur vorhandene Dateien bearbeitet:**
+
+- Die wirklich verwendete
+  `skins/default/xui/en/panel_fs_nui_login.xml`
+  hatte `max_length_chars="16"` für das
+  Passwort; auf `255` erhöht. Dies entspricht
+  dem bestehenden OpenSim-Laufzeitwert
+  `MAX_PASSWORD_OPENSIM=255`.
+  Maskierung, Auge-Buttons,
+  Fokussteuerung und grafisches
+  OGL-Welcome-Fenster bleiben erhalten.
+- Die zehn vorhandenen aktiven
+  Login-Sprachen AZ, DE, EN, FR, IT,
+  JA, PL, PT, RU und ZH werben
+  nicht mehr für beliebige
+  Grid-URIs, sondern erläutern
+  die feste Auswahl **Stadt NexVerse**
+  und **Stadt NexVerse Beta** und
+  die noch gesperrte Beta-Anmeldung.
+  Die alten Second-Life-
+  Passwortlinks in FR/PT/JA
+  wurden auf das offizielle
+  `https://stadt-nexverse.de/`
+  zurückgeführt. Ein eigener
+  bestätigter Passwort-Reset-
+  Endpoint ist weiterhin nicht
+  angegeben und wurde
+  deshalb **nicht** erfunden.
+- Die zwei bereits existierenden
+  vollständigen Login-XUI-
+  Varianten `starlight` und
+  `starlightcui` auf denselben
+  EN-Stand gebracht; sie werden
+  **nicht** als neue Skins
+  angelegt oder ersetzt.
+  Vier weitere Regressionstests
+  in der vorhandenen
+  `ogl/tests/test_branding_contract.py`.
+  Keine neuen Quell-/Projektdateien.
+  Alte `_v2`-/`script_copy`-
+  Ressourcen lediglich überprüft,
+  nicht ohne Nachweis gelöscht.
+
+**20 bestandene Prüfblöcke:**
+01 Branch; 02 Remote-Sync; 03 keine
+neuen Projektdateien; 04
+valide OGL-Login-Basis;
+05 255-stelliges Passwortfeld;
+06 Maskierung/Auge;
+07 OpenSim-Laufzeitlimit;
+08 alle zehn Lokalisierungen valide;
+09 beide Grids genannt;
+10 keine frei wählbaren URI-Grids
+beworben; 11 Beta-Einschränkung
+erkennbar; 12 DE/EN-Hilfe erhalten;
+13 vorhandene Passwort-Links
+zur offiziellen Domain;
+14 FR/PT/JA ohne Second Life;
+15 Bedienelemente/Callbacks
+vorhanden; 16 Starlight/
+Starlight-CUI identisch zur Basis;
+17 elf geänderte XUI-Dateien
+bytegleich im Staging;
+18 Linux-Vollbuild, 207 Python
+und 41 native Tests;
+19 deutscher GUI-Start;
+20 französischer GUI-Start.
+**20/20 bestanden.**
+
+**Nachweis:** `bash ogl/scripts/build-test.sh`
+vollständig erfolgreich, **207/207
+Python-Tests, 41/41 native CTests**,
+Linux-Vollviewer. Zwei isolierte
+1280×720-Xvfb-GUI-Starts in
+DE und FR: Fenster **OGL Viewer
+Development 7.2.5.141**, Status
+`STATE_LOGIN_WAIT`, kein
+`STATE_LOGIN_AUTH_INIT`, sauberes
+Strg+Q, Exit-Code **0**.
+Die neue Eingabegrenze und alle
+Lokalisierungswerte wurden
+durch XML-/Build-Tests geprüft;
+ein interaktiver 255-Zeichen-
+Passwort-Login mit realem Account
+wurde **nicht** durchgeführt.
+
+**Offene formale P01-Gates:**
+autorisierter Hauptgrid-Live-Login,
+Passwortwiederherstellung/Persistenz
+nach erfolgreicher Anmeldung,
+In-World-Shutdown und vollständige
+Windows-/macOS-Viewer-Builds/GUI-
+Tests. Nächster operativer Einstieg
+`/goal P01 Block 19/20`,
+parallel unabhängige P02-Vorarbeiten.
+Keine manuelle Zwischenabnahme.
 
 ## Nachprüfung – plattformübergreifende Grafikmodul-CI
 

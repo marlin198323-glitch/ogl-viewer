@@ -22,19 +22,21 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
-Code `7ab16aaf`: OGL darf
-gespeicherte Authenticatoren nur
-nach ausdrücklicher exakter
-Konto-/Grid-Auswahl erneut verwenden,
-kein altes Passwort für bloß
-eingetippte Namen oder veraltete
-Passwortmasken. 20/20
-Prüfpositionen, 203 Python-/41
-native Tests, Hauptgrid-/Beta-
-GUI-Negativläufe grün.
-P02 formal 0/20; autorisierter
+Code `f76ad6f1`: OpenSim-
+Passwortfeld in aktiver Login-XUI
+auf 255 Zeichen korrigiert,
+zehn bestehende Lokalisierungen
+nennen nur die festen
+NexVerse-Grids, alte FR/PT/JA-
+Passwortlinks bereinigt,
+bestehende Starlight-Varianten
+synchronisiert; 20/20
+technische Prüfpunkte,
+207 Python-/41 native Tests,
+DE-/FR-GUI-Smokes grün.
+P02 formal 0/20; realer
 Live-Login und vollständige
-Plattform-Viewer-Builds noch offen),
+Plattform-Viewer-Builds offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten

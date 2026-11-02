@@ -208,7 +208,26 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Code-Commit `7ab16aaf`:
+Letzter P01-Code-Commit `f76ad6f1`:
+Passwortfeld der aktiven
+OpenSim-Login-XUI initial
+255 statt 16 Zeichen;
+feste Gridauswahl und
+Beta-Einschränkung in
+zehn vorhandenen Sprachen
+lokalisiert, alte SL-
+Passwortlinks FR/PT/JA
+entfernt, bestehende
+Starlight-Loginvarianten
+synchronisiert. 20/20
+technische QA-Positionen,
+207 Python-/41 native Tests
+sowie echte DE-/FR-GUI-
+Voranmeldeläufe erfolgreich.
+Dies ist keine vollständige
+Live-Login-Abnahme.
+Davor:
+`7ab16aaf`:
 Gepinnte NexVerse-Credentials
 dürfen nur bei exakter bewusster
 Kontenauswahl auf dem aktuellen
