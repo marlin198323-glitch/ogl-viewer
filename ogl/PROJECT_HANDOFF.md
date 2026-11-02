@@ -113,14 +113,14 @@ ohne neue Dateien oder redundante Kopien; zu jedem
   das neue Update noch nicht installiert wurde.
 
 **Letzte unabhängige P02-Vorarbeit (02.11.2026):**
-\`912a7320\` aktualisiert die Einstellung des eingebetteten
+`912a7320` aktualisiert die Einstellung des eingebetteten
 Browsers auf offizielle HTTPS-NexVerse-Hosts mit exakter
 Host-/Portprüfung und Bewahrung der Nicht-OGL-Policy.
 Zehn existierende Sprach-Overlays + zwei Regressionstests.
 Linux-Vollbuild, 222 Python-/41 native Tests und isolierter
 EN-Xvfb-GUI-Lauf mit Exit 0 bestanden.
 **P01 bleibt 18/20, P02 formal 0/20; nächster Block P01 19/20.**
-Details in \`ogl/PROJECT_STATUS.md\`.
+Details in `ogl/PROJECT_STATUS.md`.
 
 ## Aktuelle Roadmaps
 

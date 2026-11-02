@@ -50,11 +50,11 @@ aktiv ist und keine echten Abhängigkeiten blockieren.**
 Bei Chatende den nächsten Block dokumentieren; keine
 asynchrone Fortsetzung ohne aktive Aufgabe versprechen.
 Zusätzliche unabhängige P02-Vorarbeit vom 02.11.2026:
-\`912a7320\` (OGL-interner Browser für offizielle HTTPS-NexVerse-
+`912a7320` (OGL-interner Browser für offizielle HTTPS-NexVerse-
 Seiten, aktualisierte Sprachoptionen); Linux-Vollbuild,
 222 Python-/41 native Tests und isolierter EN-GUI-Start bestanden.
 **Formaler Stand bleibt P01 18/20, P02 0/20.** Verbindliche
-Detailnachweise stehen in \`ogl/PROJECT_STATUS.md\`.
+Detailnachweise stehen in `ogl/PROJECT_STATUS.md`.
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.

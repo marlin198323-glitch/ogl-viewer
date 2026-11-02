@@ -438,7 +438,7 @@ Presetdatei noch Toolbars ändern
 (`a8951b29`, im P01-Linux-Vollbuild
 geprüft). Die komplette In-World-
 Visual-/Funktionsabnahme fehlt.
-**Neue unabhängige P02-Vorarbeit (02.11.2026, \`912a7320\`):**
+**Neue unabhängige P02-Vorarbeit (02.11.2026, `912a7320`):**
 OGL-Browser-Präferenz öffnet nur offizielle HTTPS-NexVerse-Websites
 über exakt definierte Hosts im integrierten Browser, statt
 Second-Life-Links. Zehn existierende Sprach-Overlays aktualisiert,

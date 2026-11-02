@@ -34,17 +34,17 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 
 ## P02 unabhängige Vorarbeit – eingebetteter NexVerse-Webbrowser (02.11.2026)
 
-**Code-Commit:** \`912a7320\` auf \`origin/ogl-develop\`.
+**Code-Commit:** `912a7320` auf `origin/ogl-develop`.
 **Vollständiger Linux-Vollviewer-Build erfolgreich; 222/222 Python-
 und 41/41 native CTests grün.** Formale Phasenstände bleiben
 **P01 18/20, P02 0/20**: Diese einzelne, vollständig getestete
 P02-Vorarbeit ist kein Ersatz für eine Welt-/Plattformabnahme.
 
 **Implementiert, ausschließlich in 12 vorhandenen Quelldateien:**
-- \`indra/newview/llweb.cpp\`: Die vorhandene Browser-Präferenz
-  \`PreferredBrowserBehavior=1\` öffnet im OGL-Kanal nur noch
+- `indra/newview/llweb.cpp`: Die vorhandene Browser-Präferenz
+  `PreferredBrowserBehavior=1` öffnet im OGL-Kanal nur noch
   explizite HTTPS-Adressen der exakt zugelassenen Hosts
-  \`stadt-nexverse.de\` und \`marketplace.stadt-nexverse.de\`
+  `stadt-nexverse.de` und `marketplace.stadt-nexverse.de`
   im internen Webbrowser (Standard-HTTPS-Port oder 443).
   Ungültige URLs, HTTP, fremde Hosts, Subdomain-Täuschungen und
   andere Ports fallen auf den externen Systembrowser zurück.
@@ -52,14 +52,14 @@ P02-Vorarbeit ist kein Ersatz für eine Welt-/Plattformabnahme.
   und die Präferenzwerte bleiben kompatibel.
   Diese Linkauswahl erteilt Webseiten **keine** erhöhten
   Browserrechte; die vorhandene Web-Floater-Vorgabe bleibt
-  \`trusted_content=false\`.
-- In 10 bestehenden \`panel_preferences_setup.xml\`-Sprachdateien
+  `trusted_content=false`.
+- In 10 bestehenden `panel_preferences_setup.xml`-Sprachdateien
   sind Beschriftung und Tooltip der vorhandenen Option auf
-  NexVerse aktualisiert. Die Overlays \`da\`, \`es\` und \`tr\`
-  definieren keinen eigenen \`new_internal\`-Eintrag und
+  NexVerse aktualisiert. Die Overlays `da`, `es` und `tr`
+  definieren keinen eigenen `new_internal`-Eintrag und
   übernehmen daher unverändert die englische Basis.
 - Zwei neue Regressionstests in der **bestehenden**
-  \`ogl/tests/test_branding_contract.py\`; insgesamt
+  `ogl/tests/test_branding_contract.py`; insgesamt
   70/70 Branding-Tests bestanden.
 
 **20 überprüfte technische QA-Positionen (keine formalen
@@ -73,12 +73,12 @@ vor Änderung; 03 nur Bestandsdateien; 04 URI-Parser-Prüfung;
 Beschriftungen; 16 drei sprachliche Vererbungen; 17 gültiges
 XUI und Bytegleichheit aller zehn gestagten XML-Dateien;
 18 222 Python-Tests und 41 native CTests; 19 isolierter
-1280×720-EN-Xvfb-Viewerstart bis \`STATE_LOGIN_WAIT\`;
+1280×720-EN-Xvfb-Viewerstart bis `STATE_LOGIN_WAIT`;
 20 Fenster per WM-Close beendet, Exit-Code 0.
 Einzelfälle der Hostprüfung sind bislang durch Quelltext-
 Regression und Vollkompilierung, **nicht** als native
 Browser-Klick-Matrix geprüft. Inventur fand sieben alte
-\`_v2\`-/\`script_copy\`-Dateipfade; keine davon ohne
+`_v2`-/`script_copy`-Dateipfade; keine davon ohne
 Abhängigkeits- und Lizenzprüfung gelöscht.
 
 **Offene Blocker unverändert:** Hauptgrid-Live-Login mit
@@ -86,7 +86,7 @@ autorisiertem Konto, Wiederherstellung echter gespeicherter
 Credentials, In-World-Shutdown, vollständige Windows-/
 macOS-Viewer-Builds und GUI-Abnahmen; Beta-TLS nach
 vorherigem Befund ungeklärt und Anmeldung dort gesperrt.
-**Nächster operativer Block: \`/goal P01 Block 19/20\`.**
+**Nächster operativer Block: `/goal P01 Block 19/20`.**
 Unabhängige P02-Vorarbeit darf parallel weitergehen.
 
 ## P01 Block 19 – gespeicherter Passwortplatzhalter bleibt verborgen (20 Prüfpunkte)
