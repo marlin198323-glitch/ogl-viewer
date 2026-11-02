@@ -70,6 +70,16 @@ Vorbereitet in bestehenden Dateien:
   CI-Testgate, NSIS-Compilerpfad und getrennte
   Installeridentität durch neue Regressionstests.
 
+**Erster Windows-Buildversuch (GitHub Actions Run 41509897607):**
+Checkout, Python, Autobuild, NSIS und öffentliche
+Firestorm-Buildvariablen erfolgreich. Der eigentliche
+Konfigurationsschritt scheiterte an einem relativen
+AUTOBUILD_VARIABLES_FILE-Pfad, weil Autobuild aus
+build-vc170-64 arbeitet. Fehler bei ogg_vorbis war
+ein Folgefehler. Der Workflow verwendet jetzt
+einen absoluten Workspace-Pfad. Kein Installer
+aus dem ersten Lauf erzeugt.
+
 **Wichtig:** Dies ist zunächst ein Buildversuch, kein
 bestätigter Windows-Installer. Erst ein erfolgreiches
 Windows-CI-Artefakt und Installation/Viewer-Login

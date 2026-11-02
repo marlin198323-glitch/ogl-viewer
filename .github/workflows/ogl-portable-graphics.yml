@@ -63,7 +63,7 @@ jobs:
     permissions:
       contents: read
     env:
-      AUTOBUILD_VARIABLES_FILE: build-variables/variables
+      AUTOBUILD_VARIABLES_FILE: ${{ github.workspace }}/build-variables/variables
       AUTOBUILD_VSVER: "170"
     steps:
       - name: Checkout OGL viewer

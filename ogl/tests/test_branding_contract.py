@@ -74,6 +74,9 @@ class OGLBrandingContract(unittest.TestCase):
                       "if-no-files-found: error"):
             self.assertIn(value, ci)
         self.assertIn("native-module:", ci)
+        # Autobuild runs inside build-vc170-64; relative variables paths fail.
+        expected = "AUTOBUILD_VARIABLES_FILE: " + chr(36) + "{{ github.workspace }}/build-variables/variables"
+        self.assertIn(expected, ci)
 
     def test_windows_installer_cannot_overwrite_firestorm_identity(self):
         manifest=self.source("indra/newview/viewer_manifest.py")
