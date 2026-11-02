@@ -208,7 +208,21 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Code-Commit `f76ad6f1`:
+Letzter P01-Code-Commit `3a655add`:
+Der externe OGL-Welcome-Browser
+ist in allen drei vorhandenen
+Login-Skins nicht privilegiert.
+Der C++-Loader erzwingt
+`setTrustedContent(false)`
+vor jeder Navigation; drei
+zusätzliche Regressionstests,
+20/20 technische Kontrollen,
+210 Python-/41 native Tests,
+EN-/DE-GUI-Starts bestanden.
+Keine vollständige Live-Login-
+oder Plattform-Viewer-Abnahme.
+Davor:
+`f76ad6f1`:
 Passwortfeld der aktiven
 OpenSim-Login-XUI initial
 255 statt 16 Zeichen;

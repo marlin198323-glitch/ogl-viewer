@@ -32,6 +32,98 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – externe Welcome-Seite nicht mehr privilegiert (20 Prüfpunkte)
+
+**Code-Commit `3a655add` auf `ogl-develop`.**
+**20/20 einzeln nachgewiesene technische Prüfpositionen bestanden.**
+Formaler P01-Stand bleibt **18/20**, P02 **0/20**.
+
+**Implementiert in bereits vorhandenen Dateien:**
+- Das reguläre Loginlayout
+  `skins/default/xui/en/panel_fs_nui_login.xml`
+  und die bereits vorhandenen Varianten
+  `starlight` und `starlightcui`
+  setzen `trusted_content="false"`
+  für den externen Welcome-Webbrowser.
+  OGL-Logo, Splash-Seite, Eingabefelder
+  und Schaltflächen bleiben erhalten.
+- `indra/newview/fspanellogin.cpp`
+  erzwingt beim Laden der OGL-
+  Welcome-Seite zusätzlich
+  `web_browser->setTrustedContent(false)`
+  **vor** jeder Navigation. Damit kann
+  selbst eine künftige Skin-Überlagerung
+  den Fremdinhalt nicht erneut als
+  privilegiert markieren. Die
+  unveränderte `LLMediaCtrl`-Basis
+  gibt den Trustwert an die Media-
+  Engine und den SLURL-Dispatcher
+  weiter. Die fest eingetragene
+  HTTPS-Welcome-Adresse, der
+  `ForceLoginURL`-Schutz und die
+  vorhandene sparsame
+  Browsertelemetrie bleiben erhalten.
+- Drei neue Python-Regressionstests
+  in der bestehenden Datei
+  `ogl/tests/test_branding_contract.py`.
+  **Keine neuen Projektdateien.**
+  Alte `_v2`-/`script_copy`-Namen
+  wurden geprüft, aber ohne sichere
+  Abhängigkeitsprüfung nicht gelöscht.
+
+**20 erfolgreiche Kontrollen:**
+01 Branch, 02 Remote-Sync,
+03 keine neuen Dateien,
+04–06 Standard-, Starlight-
+und Starlight-CUI-Browser ohne
+Privilegien, 07 fehlender
+Tastaturfokus, 08 responsive
+Fensteranbindung, 09 feste
+Welcome-URL, 10 gesperrter
+URL-Override, 11 beschränkte
+Browsertelemetrie, 12 C++-
+Enforcement, 13 Enforcement
+vor Navigation, 14 kein
+Regrant, 15 Trustweitergabe
+an Engine, 16 Trustweitergabe
+an SLURL-Dispatcher,
+17 bytegleiches Linux-Staging
+aller drei Skins, 18 Vollbuild
+mit Python-/Native-Tests,
+19 englischer GUI-Start
+und 20 deutscher GUI-Start.
+**20/20 bestanden.**
+
+**Nachweise:** Vollständiger Linux-
+Viewer-Build über
+`bash ogl/scripts/build-test.sh`,
+**210/210 Python-Tests,
+41/41 native CTests** bestanden.
+Zwei echte isolierte 1280×720-
+Xvfb-GUI-Starts: **OGL Viewer
+Development 7.2.5.144**,
+`STATE_LOGIN_WAIT`, keine
+`STATE_LOGIN_AUTH_INIT`,
+sauberer Strg+Q-Abschluss mit
+**Exit-Code 0** (EN und DE).
+Der Vertrauensentzug wurde durch
+Quellcode, XML, Paketinhalte und
+Regressionstests geprüft. Es wurde
+**kein** externer Angriff simuliert
+und keine Live-Grid-Anmeldung
+durchgeführt.
+
+**Weiterer Einstieg:** P01 Block 19/20,
+parallel unabhängige P02-Vorarbeit.
+Für formalen P01-Abschluss fehlen
+weiterhin ein autorisierter
+Hauptgrid-Live-Login, echte
+Passwortwiederherstellung und
+In-World-Shutdown sowie vollständige
+Windows-/macOS-Viewer-Build- und
+GUI-Tests. Keine manuelle
+Zwischenabnahme erforderlich.
+
 ## Plattformnachprüfung der aktiven Login-XUI – 6/6 grün
 
 GitHub-Actions-Workflow `ogl-portable-graphics.yml`

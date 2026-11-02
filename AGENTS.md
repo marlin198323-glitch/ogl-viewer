@@ -22,21 +22,18 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
-Code `f76ad6f1`: OpenSim-
-Passwortfeld in aktiver Login-XUI
-auf 255 Zeichen korrigiert,
-zehn bestehende Lokalisierungen
-nennen nur die festen
-NexVerse-Grids, alte FR/PT/JA-
-Passwortlinks bereinigt,
-bestehende Starlight-Varianten
-synchronisiert; 20/20
-technische Prüfpunkte,
-207 Python-/41 native Tests,
-DE-/FR-GUI-Smokes grün.
-P02 formal 0/20; realer
-Live-Login und vollständige
-Plattform-Viewer-Builds offen),
+Code `3a655add`: eingebetteter
+NexVerse-Welcome-Webbrowser
+ist im OGL-Loginlayout und
+beiden bestehenden Starlight-
+Varianten nicht mehr privilegiert,
+C++ erzwingt untrusted vor
+Navigation. 20/20 technische
+Prüfungen, 210 Python-/41 native
+Tests, EN-/DE-GUI-Starts grün.
+P02 formal 0/20; Live-Login
+und vollständige Windows-/
+macOS-Viewer-Tests noch offen),
 danach den nächsten Block aus ogl/PROJECT_STATUS.md übernehmen.
 Alte Phasen A–I sind fachliche Referenzen, keine separate
 Bearbeitungsreihenfolge. Jede Phase in 20 realen Schritten

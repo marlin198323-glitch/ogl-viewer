@@ -34,27 +34,23 @@ automatisch geladen.
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20**
 (Blöcke 1–18 abgeschlossen;
-`f76ad6f1`: das aktive OGL-
-Passwortfeld unterstützt 255
-Zeichen, Login-Hinweise in
-zehn Sprachen nennen nur die
-zwei NexVerse-Grids; alte
-SL-Passwortlinks FR/PT/JA
-bereinigt und beide
-vorhandenen Starlight-Layouts
-synchron. 20/20 technische
-Prüfpunkte, 207 Python-
+Code `3a655add`: Externe
+NexVerse-Welcome-Seite in
+Standard-, Starlight- und
+Starlight-CUI-Loginlayouts
+als untrusted markiert;
+C++-Trust-Entzug vor
+Navigation, 20/20 QA-
+Positionen, 210 Python-
 und 41 native Tests,
-DE-/FR-GUI-Starts grün.
-Portable Grafikmodul-CI
-6/6 Linux/Windows/macOS
-(Lauf 41476349998) bestanden.
-P02 formal 0/20; weiterhin
-offen: Hauptgrid-Live-Login,
-Passwortpersistenz und
-In-World-Shutdown sowie
-vollständige Windows-/macOS-
-Viewer-Builds und GUI-Tests).
+EN-/DE-GUI-Starts grün.
+P02 formal 0/20.
+Weiter offen: Hauptgrid-
+Live-Login, Passwort-
+persistenz, In-World-
+Shutdown und vollständige
+Windows-/macOS-Viewer-
+Build-/GUI-Abnahmen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 
