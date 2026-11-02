@@ -216,6 +216,46 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('return false;', body)
         self.assertIn('gSavedSettings.setBOOL("FSSupportGroupChatPrefixTesting", result);', body)
 
+    def test_chat_header_uses_xui_layout_without_second_name_resize_on_draw(self):
+        src = self.source("indra/newview/fschathistory.cpp")
+        header = src.split("class FSChatHistoryHeader: public LLPanel", 1)[1].split(
+            "FSChatHistory::FSChatHistory(", 1)[0]
+        for dead in ("mMinUserNameWidth", "mNeedsTimeBox",
+                     "updateMinUserNameWidth()", "mUserNameTextBox->reshape(",
+                     "mUserNameTextBox->setRect(", "user_name_rect.mRight"):
+            self.assertNotIn(dead, header)
+        self.assertIn("the layout stack already reserves", header.lower())
+        self.assertIn('mTimeBoxTextBox->setVisible(false);', header)
+
+    def test_chat_header_rendering_preserves_live_avatar_name_and_tooltip(self):
+        src = self.source("indra/newview/fschathistory.cpp")
+        header = src.split("class FSChatHistoryHeader: public LLPanel", 1)[1].split(
+            "FSChatHistory::FSChatHistory(", 1)[0]
+        self.assertIn('mUserNameTextBox->setValue( LLSD(mFrom) );', header)
+        self.assertIn('mUserNameTextBox->setToolTip( av_name.getUserName() );', header)
+        self.assertIn('mUserNameTextBox->appendText(" - " + av_name.getUserNameForDisplay()', header)
+        self.assertIn('mTimeBoxTextBox->setToolTip(chat.mTimeStr);', header)
+        self.assertIn('if (!chat.mRlvNamesFiltered)', header)
+        self.assertIn('icon->setValue(LLSD("Unknown_Icon"));', header)
+
+    def test_chat_header_layout_reserves_nonoverlapping_timestamp_column(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        root = ET.parse(base / "en/panel_chat_header.xml").getroot()
+        names = [n for n in root.iter() if n.get("name") == "user_name"]
+        stacks = [n for n in root.iter("layout_stack") if n.get("name") == "header_ls"]
+        times = [n for n in root.iter() if n.get("name") == "time_box"]
+        self.assertEqual((len(names),len(stacks),len(times)),(1,1,1))
+        self.assertEqual(stacks[0].get("right"), "-84")
+        self.assertEqual(times[0].get("right"), "-8")
+        self.assertEqual(times[0].get("width"), "72")
+        self.assertEqual(times[0].get("use_ellipses"), "true")
+        self.assertEqual(names[0].get("use_ellipses"), "true")
+        for path in sorted(base.glob("*/panel_chat_header.xml")):
+            root = ET.parse(path).getroot()
+            for n in root.iter():
+                if n.get("name") in ("user_name", "header_ls", "time_box"):
+                    self.assertNotEqual(n.get("use_ellipses"), "false", str(path))
+
     def test_chat_timestamps_do_not_resize_or_overlap_avatar_and_name(self):
         cpp = self.source("indra/newview/fschathistory.cpp")
         method = cpp.split("    void setTimeField(const LLChat& chat)", 1)[1].split(
@@ -226,7 +266,8 @@ class OGLBrandingContract(unittest.TestCase):
                           'mHeaderLayoutStack', 'user_name'):
             self.assertNotIn(forbidden, method)
         self.assertNotIn('mHeaderLayoutStack', cpp)
-        self.assertIn('if (mNeedsTimeBox && !mTimeBoxTextBox->getVisible()', cpp)
+        self.assertNotIn('mNeedsTimeBox', cpp)
+        self.assertNotIn('mUserNameTextBox->reshape(', cpp)
 
     def test_chat_header_timestamp_fixed_width_ellipses_and_tooltip(self):
         root = ET.parse(ROOT /

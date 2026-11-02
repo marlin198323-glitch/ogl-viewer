@@ -135,10 +135,8 @@ public:
         mFrom(),
         mSessionID(),
         mCreationTime(time_corrected()),
-        mMinUserNameWidth(0),
         mUserNameFont(NULL),
         mUserNameTextBox(NULL),
-        mNeedsTimeBox(true),
         mTimeBoxTextBox(NULL),
         mAvatarNameCacheConnection(),
         mInsertMentionCallback(NULL),
@@ -799,9 +797,7 @@ public:
             && chat.mChatStyle == CHAT_STYLE_TELEPORT_SEP)
         {
             mFrom = chat.mFromName;
-            mNeedsTimeBox = false;
             mUserNameTextBox->setValue(mFrom);
-            updateMinUserNameWidth();
             LLUIColor sep_color = LLUIColorTable::instance().getColor("ChatTeleportSeparatorColor");
             setTransparentColor(sep_color);
             mTimeBoxTextBox->setVisible(false);
@@ -826,7 +822,6 @@ public:
                 }
             }
             mUserNameTextBox->setValue(mFrom);
-            updateMinUserNameWidth();
         }
         else if ((mSourceType == CHAT_SOURCE_AGENT || (mSourceType == CHAT_SOURCE_SYSTEM && mType == CHAT_TYPE_RADAR))
                  && !mAvatarID.isNull()
@@ -854,7 +849,6 @@ public:
                 mUserNameTextBox->setValue(mFrom);
                 mUserNameTextBox->setToolTip(mFrom);
                 setToolTip(mFrom);
-                updateMinUserNameWidth();
             }
 // [/RLVa:KB]
         }
@@ -877,7 +871,6 @@ public:
                 // If the agent's chat was subject to @shownames=n we should display their anonimized name
                 mFrom = chat.mFromName;
                 mUserNameTextBox->setValue(mFrom);
-                updateMinUserNameWidth();
             }
         }
         else
@@ -885,7 +878,6 @@ public:
             // ...from an object, just use name as given
             mFrom = chat.mFromName;
             mUserNameTextBox->setValue(mFrom);
-            updateMinUserNameWidth();
         }
 
 
@@ -977,36 +969,11 @@ public:
         }
     }
 
-    /*virtual*/ void draw()
-    {
-        LLRect user_name_rect = mUserNameTextBox->getRect();
-        S32 user_name_width = user_name_rect.getWidth();
-        S32 time_box_width = mTimeBoxTextBox->getRect().getWidth();
-
-        if (mNeedsTimeBox && !mTimeBoxTextBox->getVisible() && user_name_width > mMinUserNameWidth)
-        {
-            user_name_rect.mRight -= time_box_width;
-            mUserNameTextBox->reshape(user_name_rect.getWidth(), user_name_rect.getHeight());
-            mUserNameTextBox->setRect(user_name_rect);
-
-            mTimeBoxTextBox->setVisible(true);
-        }
-
-        LLPanel::draw();
-    }
-
-    void updateMinUserNameWidth()
-    {
-        if (mUserNameFont)
-        {
-            const LLWString& text = mUserNameTextBox->getWText();
-            mMinUserNameWidth = mUserNameFont->getWidth(text.c_str()) + PADDING;
-        }
-    }
+    // The fixed right-hand time box is laid out by panel_chat_header.xml.
+    // Never shrink the name twice when the panel is drawn or resized;
+    // the layout stack already reserves the entire timestamp column.
 
 protected:
-    static const S32 PADDING = 20;
-
     void showContextMenu(S32 x,S32 y)
     {
 // [RLVa:KB] - Checked: 2010-04-22 (RLVa-1.2.2a) | Added: RLVa-1.2.0f
@@ -1224,7 +1191,6 @@ private:
         }
         setToolTip( av_name.getUserName() );
         // name might have changed, update width
-        updateMinUserNameWidth();
     }
 
 protected:
@@ -1247,14 +1213,12 @@ protected:
     bool                mShowInfoCtrl;
 // [/RLVa:KB]
 
-    S32                 mMinUserNameWidth;
     const LLFontGL*     mUserNameFont;
     LLTextBox*          mUserNameTextBox;
     LLTextBox*          mTimeBoxTextBox;
 
     LLStyle::Params     mNameStyleParams;
 
-    bool                mNeedsTimeBox;
 
 private:
     boost::signals2::connection mAvatarNameCacheConnection;
