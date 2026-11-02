@@ -161,6 +161,21 @@ Formal P01 18/20, P02 0/20;
 Live-Login/In-World/Windows-/macOS-
 Abnahmen unverändert offen.
 
+Letzte unabhängige P01-Sicherheitsrunde
+(02.11.2026, 4ff7e7cb): Fehlende gespeicherte
+Kontoauswahl bei Startup-Credentials
+führt zu Passwort-Neueingabe statt zu
+verwendbarem maskierten Fülltext.
+Zustände für Login/Augenknöpfe bereinigt,
+One-part-OpenSim-Kontoanzeigen ergänzt.
+20 Prüfpunkte, Linux-Vollbuild,
+259 Python-/41 native Tests, 107
+Branding-/49 Gridtests (ASCII) und
+DE-/EN-Voranmelde-GUI bestanden.
+Keine echten Credentials getestet.
+P01 formal 18/20, P02 0/20;
+Live-Login und alle Plattform-Gates offen.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

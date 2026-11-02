@@ -32,6 +32,109 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 unabhängige Vorarbeit – verwaiste Start-Credentials nicht als Passwort übernehmen (02.11.2026)
+
+Code-Commit 4ff7e7cb direkt auf origin/ogl-develop.
+20/20 technische Prüfpositionen dieser unabhängigen
+P01-Sicherheitsrunde; keine formale P01-Abnahme.
+Linux-Vollviewer 7.2.5.172 gebaut:
+259/259 Python-Tests, 41/41 native CTests,
+107/107 Branding-Tests und 49/49 Gridtests
+auch unter LC_ALL=C/PYTHONUTF8=0 bestanden.
+Isolierte DE-/EN-Xvfb-GUI-Starts 1280x720
+bis STATE_LOGIN_WAIT ohne AUTH_INIT, Exit-Code 0.
+Kein Test mit echten gespeicherten Credentials.
+
+Konkreter Fehler in FSPanelLogin::setFields:
+Wenn eine beim Startup gelieferte Credential auf
+dem aktuellen festen NexVerse-Grid liegt, aber
+nicht in der gespeicherten Kontenauswahl vorkommt,
+wurde sie dennoch mit einem Passwort-Fülltext
+angezeigt und als manuelle Passwortänderung
+markiert. Dadurch konnte der Platzhalter im
+späteren Loginversuch irrtümlich wie ein echtes
+Passwort verwendet werden.
+
+Implementierung in bestehenden Dateien:
+- indra/newview/fspanellogin.cpp: Fehlende
+  Kontoauswahl verzweigt unter OGL vor dem
+  Passwort-Fülltext in einen sicheren Rückfall.
+  Passwortfeld und sPassword leeren, Status
+  sCredentialSet zurücknehmen, Passwortlänge
+  und Änderungskennzeichen zurücksetzen,
+  Vorname/Accountname und Länge zur
+  freiwilligen Neueingabe korrekt führen,
+  Augenknöpfe und Login-Schaltfläche
+  synchronisieren, kein automatisches
+  Credential-Reuse. One-part OpenSim-
+  Kontoidentifikatoren werden angezeigt,
+  statt leer zu erscheinen. Normale
+  gespeicherte Kontoauswahl und Nicht-OGL-
+  Kanäle behalten ihren bisherigen Ablauf.
+- ogl/tests/test_branding_contract.py:
+  drei zusätzliche Source-Contract-Prüfungen
+  zum sicheren Rückfall, Kontoanzeigenamen
+  und weiterhin vorhandenen sicheren
+  Credential-Reuse des gültigen Listeneintrags.
+- ogl/tests/test_nexverse_grid.py:
+  bestehenden Regressionstest konkretisiert:
+  frühzeitiges Maskieren beim verworfenen
+  Konto sowie abschließende Aktualisierung
+  beim gültigen gesicherten Konto müssen
+  jeweils unabhängig passieren.
+Keine neuen Projektdateien; keine Änderungen
+an Secure-Store, Einstellungen, Nutzerdaten,
+Serverdaten, Cache oder Secrets.
+
+20 technische Prüfpositionen:
+01 korrektes Repository und ogl-develop;
+02 saubere Ausgangsbasis;
+03 P01-Blockade und Roadmap gelesen;
+04 vorherige GitHub-CI ausgewertet;
+05 setFields-Startuprichtung überprüft;
+06 feste NexVerse-Gridprüfung erhalten;
+07 Unterscheidung gültiger/fehlender
+   Dropdown-Credential nachgezeichnet;
+08 problematischen Fülltextpfad isoliert;
+09 OpenSim-Einwort-Kontonamen zurückgegeben;
+10 bei fehlender gespeicherter Auswahl
+   echte Passworteingabe erzwungen;
+11 Passwortfeld und statischen Passwort-
+   Zwischenspeicher im Rückfall geleert;
+12 sCredentialSet deaktiviert;
+13 Passwortlänge und geändertes-Passwort-
+   Kennzeichen zurückgesetzt;
+14 Username, Löschen-Button und
+   Eingabelängen zur Neueingabe abgeglichen;
+15 Augenknöpfe und Login-Button beim
+   Rückfall synchronisiert;
+16 unveränderten gültigen Credential-
+   Auswahl-/Secure-Store-Weg geprüft;
+17 drei neue Branding-Tests sowie
+   bestehenden Gridtest auf beide
+   Wiederherstellungsfälle angepasst;
+18 107 Branding- und 49 Gridtests unter
+   ASCII, kompletter Linux-Build 259
+   Python-/41 native Tests bestanden;
+19 isolierter DE- und EN-GUI-Start und
+   sauberer Exit ohne Authentifizierung;
+20 Code gepusht; Altdateien, keine
+   untracked Dateien, Projektstatus geprüft.
+Sieben bekannte _v2-/script_copy-Pfade
+nicht ohne Lizenz-/Nutzungsprüfung gelöscht.
+
+Offen bleiben: reale validierte Credential-
+Wiederherstellung im autorisierten
+Hauptgrid, Live-Login und echter In-World-
+Shutdown, Beta-TLS-Zertifikat sowie
+vollständige Windows-/macOS-Vollviewer-
+Builds und GUI-Tests. Die portable
+Grafikmodul-CI ist kein Vollviewer-Nachweis.
+Formal weiterhin P01 18/20, P02 0/20;
+nächster operativer /goal-Block P01 19/20.
+Diese Vorarbeit zählt nicht als Abschluss
+des fehlenden End-to-End-Gates.
+
 ## P02 unabhängige Vorarbeit – lokalisierte OGL-/Grid-Identität (02.11.2026)
 
 Code-Commit 72c8beed direkt auf origin/ogl-develop.

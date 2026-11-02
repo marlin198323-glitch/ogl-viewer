@@ -253,6 +253,24 @@ Beta-TLS-Sperre unverändert.
 Formal P01 18/20, P02 0/20.
 Nächster Einstieg P01 Block 19/20.
 
+Letzte unabhängige /goal-20er-Runde
+(02.11.2026, 4ff7e7cb): P01-Login-Sicherheit,
+verwaiste Startup-Credentials ohne
+Dropdown-Auswahl können nicht mehr den
+Passwortfülltext als echte Eingabe
+verwenden; Passwortstatus/Augenknöpfe/
+Loginbutton zurückgesetzt, Einwort-
+OpenSim-Konto angezeigt. Gültige
+gespeicherte Konten bleiben unberührt.
+259 Python-/41 native Tests, 107 Branding-
+und 49 Gridtests unter ASCII, Linux-
+Vollbuild 7.2.5.172, DE-/EN-Xvfb-
+Voranmelde-GUI erfolgreich.
+Kein echter gespeicherter Login/Windows-/
+macOS-Vollviewer-Test behaupten.
+P01 formal 18/20, P02 0/20,
+nächster Einstieg P01 Block 19/20.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

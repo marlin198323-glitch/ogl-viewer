@@ -371,6 +371,25 @@ Alle früheren Commits/Ergebnisse dokumentiert in
 Keine manuelle Zwischenabnahme; P02 erst nach dem
 tatsächlich erfüllten P01-Abschluss-Gate.
 
+Unabhängige P01-Vorarbeit (02.11.2026,
+4ff7e7cb): Wenn eine Startup-Credential
+zwar zum festen Grid gehört, aber nicht
+als gespeichertes Konto gewählt werden kann,
+verbietet OGL künftig Passwort-Fülltext und
+automatische Wiederverwendung. Alle
+Passwort- und Login-Zustände werden zur
+manuellen Neueingabe zurückgesetzt,
+auch Einwort-OpenSim-Kontonamen
+korrekt angezeigt. Gültige gespeicherte
+Konten und Nicht-OGL-Kanäle bleiben erhalten.
+20 technische Prüfpositionen, 259 Python-
+/41 native Tests, 107 Branding-/49 Grid-
+Tests unter ASCII und DE-/EN-Xvfb-Login-
+Smokes bestanden. Keine echten Credentials
+getestet oder verändert; Live-Login und
+Windows-/macOS-Vollviewer-Gates offen.
+Formal P01 18/20, P02 0/20.
+
 **Technischer Zielzustand:** OGL-Identität / sichere Anmeldung.
 
 1. Bestehende Login-XUI, C++-Callbacks und OGL-Markenbestände inventarisieren.
