@@ -61,7 +61,7 @@
              translate="false"
              use_ellipses="true"
              valign="top"
-             value="TestString PleaseIgnore" />
+             value="" />
         </layout_panel>
     </layout_stack>
   <text
@@ -75,6 +75,6 @@
     name="time_box"
     right="-8"
     top="11"
-    value="23:30"
+    value=""
     width="72" />
 </panel>

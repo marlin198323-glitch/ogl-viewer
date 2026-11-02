@@ -629,8 +629,12 @@ bool LLTransactionNotificationListItem::postBuild()
 
     mAvatarIcon = getChild<LLAvatarIconCtrl>("avatar_icon");
     mAvatarIconExp = getChild<LLAvatarIconCtrl>("avatar_icon_exp");
-    mAvatarIcon->setValue("System_Notification");
-    mAvatarIconExp->setValue("System_Notification");
+    // The OGL notification list must not show the original SL brand.
+    // Retain the upstream icon for channels other than OGL.
+    const std::string system_icon = APP_NAME == "OGL"
+        ? "OGL_System_Icon" : "System_Notification";
+    mAvatarIcon->setValue(system_icon);
+    mAvatarIconExp->setValue(system_icon);
     // <FS:Ansariel> Unscrew avatar icon for transaction messages
     mGroupIcon = getChild<LLGroupIconCtrl>("group_icon");
     mGroupIconExp = getChild<LLGroupIconCtrl>("group_icon_exp");

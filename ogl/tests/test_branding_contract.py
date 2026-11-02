@@ -100,6 +100,54 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
         self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
 
+    def test_ogl_system_icon_reuses_existing_logo_without_new_assets(self):
+        textures = ROOT / "indra/newview/skins/default/textures"
+        registry = ET.parse(textures / "textures.xml").getroot()
+        defs = [node for node in registry.iter("texture")
+                if node.get("name") == "OGL_System_Icon"]
+        self.assertEqual(len(defs), 1)
+        self.assertEqual(defs[0].get("file_name"),
+                         "windows/login_ogl_logo.png")
+        logo = textures / defs[0].get("file_name")
+        self.assertTrue(logo.is_file())
+        self.assertEqual(logo.read_bytes()[:8], bytes.fromhex("89504e470d0a1a0a"))
+        self.assertEqual(len([node for node in registry.iter("texture")
+                              if node.get("name") == "SL_Logo"]), 1)
+
+    def test_active_fs_chat_history_uses_ogl_system_icon_but_preserves_radar(self):
+        source = self.source("indra/newview/fschathistory.cpp")
+        self.assertIn('APP_NAME == "OGL" ? "OGL_System_Icon" : "SL_Logo"', source)
+        self.assertIn('if(chat.mChatType == CHAT_TYPE_RADAR)', source)
+        self.assertIn('icon->setValue(chat.mFromID);', source)
+        self.assertIn('icon->setValue(LLSD("Unknown_Icon"));', source)
+        cmake = self.source("indra/newview/CMakeLists.txt")
+        self.assertIn('    fschathistory.cpp', cmake)
+
+    def test_nearby_chat_toasts_keep_avatar_icon_and_brand_system_messages(self):
+        source = self.source("indra/newview/llchatitemscontainerctrl.cpp")
+        self.assertIn('mSourceType == CHAT_SOURCE_SYSTEM', source)
+        self.assertIn('APP_NAME == "OGL" ? "OGL_System_Icon" : "SL_Logo"', source)
+        self.assertIn('icon->setValue(mFromID);', source)
+
+    def test_notification_list_uses_ogl_system_icon_for_both_presentations(self):
+        source = self.source("indra/newview/llnotificationlistitem.cpp")
+        self.assertIn('APP_NAME == "OGL"', source)
+        self.assertIn('? "OGL_System_Icon" : "System_Notification"', source)
+        self.assertIn('mAvatarIcon->setValue(system_icon);', source)
+        self.assertIn('mAvatarIconExp->setValue(system_icon);', source)
+
+    def test_chat_header_does_not_flicker_sample_name_or_timestamp(self):
+        root = ET.parse(ROOT /
+            "indra/newview/skins/default/xui/en/panel_chat_header.xml").getroot()
+        users = [n for n in root.iter() if n.get("name") == "user_name"]
+        times = [n for n in root.iter() if n.get("name") == "time_box"]
+        self.assertEqual(len(users), 1)
+        self.assertEqual(len(times), 1)
+        self.assertEqual(users[0].get("value"), "")
+        self.assertEqual(times[0].get("value"), "")
+        self.assertTrue(any(n.get("name") == "avatar_icon"
+                            and n.get("circular") == "true" for n in root.iter()))
+
     def test_legacy_second_life_help_subtree_is_absent_from_every_locale(self):
         base = ROOT / "indra/newview/skins/default/xui"
         files = sorted(base.glob("*/menu_viewer.xml"))

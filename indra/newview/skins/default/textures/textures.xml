@@ -790,6 +790,8 @@ with the same filename but different name
 
   <texture name="login_fs_logo"  file_name="windows/login_fs_logo.png" preload="true" />
   <texture name="login_ogl_logo" file_name="windows/login_ogl_logo.png" preload="true" />
+  <!-- Reuse the existing OGL artwork for viewer system messages and notices. -->
+  <texture name="OGL_System_Icon" file_name="windows/login_ogl_logo.png" preload="true" />
   <texture name="login_sl_logo"  file_name="windows/login_sl_logo.png" preload="true" />
   <texture name="login_sl_logo_horizontal"  file_name="windows/login_sl_logo_horizontal.png" preload="true" />
   <texture name="login_sl_logo_small"  file_name="windows/login_sl_logo_small.png" preload="true" />

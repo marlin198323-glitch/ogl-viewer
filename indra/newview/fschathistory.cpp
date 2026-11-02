@@ -940,7 +940,9 @@ public:
                 }
                 else
                 {
-                    icon->setValue(LLSD("SL_Logo"));
+                    // Use the OGL identity only for system/region messages.
+                    // Radar avatar icons and RLV name filtering stay unchanged.
+                    icon->setValue(LLSD(APP_NAME == "OGL" ? "OGL_System_Icon" : "SL_Logo"));
                 }
                 // FS:LO FIRE-1439 - Clickable avatar names on local chat radar crossing reports
                 break;
