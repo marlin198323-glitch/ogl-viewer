@@ -974,6 +974,60 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertFalse(any('firestorm' in e.get('label','').lower()
                                  for e in tree.iter()),str(path))
 
+    def test_p02_top_navigation_has_single_canonical_six_menus_in_all_locales(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        expected = ('Me', 'Communicate', 'World', 'BuildTools', 'Content', 'Help')
+        files = sorted(base.glob('*/menu_viewer.xml'))
+        self.assertEqual(len(files), 13)
+        for path in files:
+            root = ET.parse(path).getroot()
+            self.assertEqual(root.tag, 'menu_bar', str(path))
+            top = [node.get('name') for node in root if node.tag == 'menu']
+            self.assertEqual([name for name in top if name in expected],
+                             list(expected), str(path))
+            for name in expected:
+                self.assertEqual(top.count(name), 1, (path, name))
+            self.assertFalse(any(name.startswith('V1-') for name in top),
+                             str(path))
+            self.assertEqual(len(top), len(set(top)), str(path))
+
+    def test_p02_localized_discover_inherits_live_actions_without_duplicate_menu(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        for locale, label in (('da', 'Opdag'), ('tr', 'Keşfet'),
+                              ('fr', 'Contenu')):
+            menu = ET.parse(base / locale / 'menu_viewer.xml').getroot()
+            discover = [node for node in menu if node.tag == 'menu'
+                        and node.get('name') == 'Content']
+            self.assertEqual(len(discover), 1, locale)
+            self.assertEqual(discover[0].get('label'), label, locale)
+        english = ET.parse(base / 'en/menu_viewer.xml').getroot()
+        discover = next(node for node in english if node.get('name') == 'Content')
+        for name in ('Search', 'Script Library', 'NexVerse News'):
+            self.assertTrue(any(node.get('name') == name
+                                for node in discover.iter()), name)
+        # No new event names, keyboard shortcuts, or duplicated action handlers.
+        for locale in ('da', 'tr'):
+            menu = ET.parse(base / locale / 'menu_viewer.xml').getroot()
+            discover = next(node for node in menu if node.get('name') == 'Content')
+            self.assertEqual(len(discover), 0, locale)
+
+    def test_p02_spanish_v1_empty_menus_removed_without_affecting_real_navigation(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        menu = ET.parse(base / 'es/menu_viewer.xml').getroot()
+        names = {node.get('name') for node in menu.iter()}
+        for name in ('V1-File', 'V1-Edit', 'V1-View', 'V1-World',
+                     'V1-Tools', 'V1-Help', 'V1-Firestorm',
+                     'V1-Advanced', 'V1 Menus'):
+            self.assertNotIn(name, names)
+        for name in ('Me', 'Communicate', 'World', 'BuildTools',
+                     'Content', 'Help', 'Advanced', 'Develop', 'Admin'):
+            self.assertIn(name, names)
+        english = ET.parse(base / 'en/menu_viewer.xml').getroot()
+        for name in ('Nearby Chat', 'Conversations', 'World Map',
+                     'MarketplaceListings', 'Report Bug'):
+            self.assertTrue(any(node.get('name') == name for node in english.iter()),
+                            name)
+
     def test_ogl_main_menu_navigation_labels_preserve_callback_names_and_shortcuts(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         labels = {

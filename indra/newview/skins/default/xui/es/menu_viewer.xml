@@ -596,14 +596,4 @@
 			<menu_item_call label="Todas las prendas" name="All Clothes"/>
 		</menu>
 	</menu>
-	<menu label="Archivo" name="V1-File"/>
-	<menu label="Editar" name="V1-Edit"/>
-	<menu label="Ver" name="V1-View"/>
-	<menu label="Mundo" name="V1-World"/>
-	<menu label="Herramientas" name="V1-Tools"/>
-	<menu label="Ayuda" name="V1-Help"/>
-	<menu label="NexVerse" name="V1-Firestorm"/>
-	<menu label="Avanzado" name="V1-Advanced">
-		<menu_item_check label="Usar menús V1" name="V1 Menus"/>
-	</menu>
 </menu_bar>
