@@ -1262,7 +1262,9 @@ bool LLAppViewerWin32::init()
     // Win7 is no longer supported
     bool is_win_7_or_below = LLOSInfo::getInstance()->mMajorVer <= 6 && LLOSInfo::getInstance()->mMajorVer <= 1;
 
-    if (!is_win_7_or_below)
+    // OGL must not construct the legacy BugSplat sender. Keep ordinary
+    // LLAppViewer initialization and local diagnostics below intact.
+    if (!is_win_7_or_below && APP_NAME != "OGL")
     {
         success = LLAppViewer::init();
         if (!success)

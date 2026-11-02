@@ -42,6 +42,7 @@
 // <FS:TJ> Launch new instance option from macOS dock
 #include <unordered_map>
 #include "linden_common.h"
+#include "indra_constants.h"
 #include "lltrans.h"
 // </FS:TJ>
 
@@ -80,23 +81,27 @@
     constructViewer();
 
 #if defined(LL_BUGSPLAT)
-    infos("bugsplat setup");
-    // Engage BugSplat *before* calling initViewer() to handle
-    // any crashes during initialization.
-    // https://www.bugsplat.com/docs/platforms/os-x#initialization
+    // No OGL crash-upload contract exists: never register the upstream
+    // BugSplat sender on macOS, including migrated installations.
+    if (APP_NAME != "OGL")
+    {
+        infos("bugsplat setup");
+        // Engage BugSplat *before* calling initViewer() to handle
+        // any crashes during initialization.
+        // https://www.bugsplat.com/docs/platforms/os-x#initialization
 
-    // Initialize BugSplat
-    [[BugSplat shared] setDelegate:self];
-    [[BugSplat shared] setAutoSubmitCrashReport:NO];
-    [[BugSplat shared] setPersistUserDetails:NO];
-    [[BugSplat shared] setAskUserDetails:YES];
-    [BugSplat shared].expirationTimeInterval = 0;
-    [[BugSplat shared] start];
+        // Initialize BugSplat
+        [[BugSplat shared] setDelegate:self];
+        [[BugSplat shared] setAutoSubmitCrashReport:NO];
+        [[BugSplat shared] setPersistUserDetails:NO];
+        [[BugSplat shared] setAskUserDetails:YES];
+        [BugSplat shared].expirationTimeInterval = 0;
+        [[BugSplat shared] start];
 
-    // Optionally, add some attributes to your crash reports.
-    // Attributes are artibrary key/value pairs that are searchable in the BugSplat dashboard.
-    // [[BugSplat shared] setValue:@"Value of Plain Attribute" forAttribute:@"PlainAttribute"];
-
+        // Optionally, add some attributes to your crash reports.
+        // Attributes are artibrary key/value pairs that are searchable in the BugSplat dashboard.
+        // [[BugSplat shared] setValue:@"Value of Plain Attribute" forAttribute:@"PlainAttribute"];
+    }
 #endif
     infos("post-bugsplat setup");
 

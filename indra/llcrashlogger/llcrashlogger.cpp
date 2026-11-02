@@ -682,6 +682,15 @@ bool LLCrashLogger::init()
 {
     LL_DEBUGS("CRASHREPORT") << LL_ENDL;
 
+    // Defense in depth: never let a separately invoked legacy crash-logger
+    // upload OGL user logs, even if old per-user settings say "always send".
+    // OGL reporting needs its own audited, explicitly consented endpoint.
+    if (APP_NAME == "OGL")
+    {
+        LL_WARNS("CRASHREPORT") << "OGL automatic crash upload is unavailable." << LL_ENDL;
+        return false;
+    }
+
     LLCore::LLHttp::initialize();
 
     // We assume that all the logs we're looking for reside on the current drive

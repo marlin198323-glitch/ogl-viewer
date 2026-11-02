@@ -237,7 +237,10 @@ bool LLAppViewerLinux::init()
     S32 nCrashSubmitBehavior = gCrashSettings.getS32("CrashSubmitBehavior");
 
     // For the first version we just consider always send and create a nice dialog for CRASH_BEHAVIOR_ASK later.
-    if (success && nCrashSubmitBehavior != CRASH_BEHAVIOR_NEVER_SEND )
+    // OGL has no approved crash-upload endpoint. Never start the legacy
+    // Firestorm/third-party reporter, even with migrated user preferences.
+    if (success && APP_NAME != "OGL" &&
+        nCrashSubmitBehavior != CRASH_BEHAVIOR_NEVER_SEND )
     {
         if( nCrashSubmitBehavior == CRASH_BEHAVIOR_ASK )
             gCrashBehavior = "ask";

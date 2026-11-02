@@ -55,6 +55,51 @@ class OGLBrandingContract(unittest.TestCase):
                         self.assertNotIn('Firestorm',e.get(attribute,''),str(path))
         self.assertGreaterEqual(found,65)
 
+    def test_ogl_never_starts_unapproved_crash_upload_on_linux(self):
+        linux = self.source("indra/newview/llappviewerlinux.cpp")
+        init = linux.split("bool LLAppViewerLinux::init()", 1)[1].split(
+            "bool LLAppViewerLinux::restoreErrorTrap", 1)[0]
+        self.assertIn('success && APP_NAME != "OGL"', init)
+        self.assertIn('nCrashSubmitBehavior != CRASH_BEHAVIOR_NEVER_SEND', init)
+        self.assertIn('setupBreakpad();', init)
+
+    def test_ogl_skips_bugsplat_sender_on_windows_without_skipping_base_init(self):
+        win = self.source("indra/newview/llappviewerwin32.cpp")
+        init = win.split("bool LLAppViewerWin32::init()", 1)[1].split(
+            "bool LLAppViewerWin32::cleanup()", 1)[0]
+        self.assertIn('if (!is_win_7_or_below && APP_NAME != "OGL")', init)
+        self.assertIn('sBugSplatSender = new MiniDmpSender(', init)
+        self.assertIn('if( !success )\n        success = LLAppViewer::init();', init)
+
+    def test_ogl_skips_macos_legacy_crash_sender_initialization(self):
+        mac = self.source("indra/newview/llappdelegate-objc.mm")
+        launch = mac.split('- (void) applicationDidFinishLaunching:', 1)[1].split(
+            '- (void) applicationDidBecomeActive:', 1)[0]
+        self.assertIn('#include "indra_constants.h"', mac)
+        self.assertIn('if (APP_NAME != "OGL")', launch)
+        self.assertIn('[[BugSplat shared] start];', launch)
+        self.assertLess(launch.index('if (APP_NAME != "OGL")'),
+                        launch.index('[[BugSplat shared] start];'))
+        self.assertIn('if (initViewer())', launch)
+
+    def test_ogl_crash_logger_blocks_direct_legacy_sender_process(self):
+        logger = self.source("indra/llcrashlogger/llcrashlogger.cpp")
+        start = logger.split('bool LLCrashLogger::init()', 1)[1]
+        self.assertIn('if (APP_NAME == "OGL")', start)
+        self.assertLess(start.index('if (APP_NAME == "OGL")'),
+                        start.index('LLCore::LLHttp::initialize();'))
+        self.assertLess(start.index('return false;'),
+                        start.index('LLCore::LLHttp::initialize();'))
+
+    def test_ogl_does_not_offer_nonexistent_third_party_crash_submission(self):
+        prefs = self.source("indra/newview/llfloaterpreference.cpp")
+        section = prefs.split('// [SL:KB] - Patch: Viewer-CrashReporting', 1)[1]
+        section = section.split('// [/SL:KB]', 1)[0]
+        self.assertIn('const bool hide_crash_reports = APP_NAME == "OGL"', section)
+        self.assertIn('const bool hide_crash_reports = true;', section)
+        self.assertIn('pTabContainer->removeTabPanel(pCrashReportPanel);', section)
+        self.assertIn('#if LL_SEND_CRASH_REPORTS', section)
+
     def test_ogl_browser_pref_uses_only_exact_https_nexverse_hosts(self):
         policy = self.source("indra/newview/llweb.cpp").split(
             "bool LLWeb::useExternalBrowser", 1)[1]
