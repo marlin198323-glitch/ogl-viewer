@@ -233,6 +233,70 @@ class StadtNexVerseGridTests(unittest.TestCase):
         self.assertIn('return;', code[code.index('Ignored credential from non-current grid.'):
                                       code.index('identifier = credential->getIdentifier()')])
 
+    def test_ogl_saved_authenticator_placeholder_cannot_be_revealed(self):
+        start=self.panel.index('void FSPanelLogin::onShowHidePasswordClick(void*)')
+        end=self.panel.index('void FSPanelLogin::resetOGLPasswordVisibility()',start)
+        handler=self.panel[start:end]
+        self.assertIn('APP_NAME == "OGL"',handler)
+        self.assertIn('!sInstance->mPasswordModified',handler)
+        self.assertIn('sInstance->mPasswordLength == 0',handler)
+        self.assertLess(handler.index('return;'),
+                        handler.index('sInstance->mShowPassword = !sInstance->mShowPassword;'))
+        self.assertIn('sInstance->syncShowHidePasswordButton();',handler)
+        self.assertNotIn('gSecAPIHandler->loadCredential(',handler)
+
+    def test_ogl_password_eye_buttons_reflect_actual_manual_secret(self):
+        start=self.panel.index('void FSPanelLogin::syncShowHidePasswordButton()')
+        end=self.panel.index('void FSPanelLogin::onClickHelp(',start)
+        body=self.panel[start:end]
+        self.assertIn('APP_NAME != "OGL" || (mPasswordModified && mPasswordLength != 0)',body)
+        self.assertIn('if (!reveal_allowed)',body)
+        self.assertLess(body.index('mShowPassword = false;'),body.index('setDrawAsterixes(!mShowPassword)'))
+        self.assertEqual(body.count('setEnabled(reveal_allowed);'),2)
+        self.assertIn('show_password_btn->setVisible(!mShowPassword)',body)
+        self.assertIn('hide_password_btn->setVisible(mShowPassword)',body)
+
+    def test_ogl_password_eye_controls_update_on_typing_or_erase(self):
+        start=self.panel.index('void FSPanelLogin::onPassKey(')
+        end=self.panel.index('void FSPanelLogin::updateServer()',start)
+        body=self.panel[start:end]
+        self.assertIn('self->mPasswordModified = true;',body)
+        self.assertIn('self->mPasswordLength = password_edit->getText().length();',body)
+        self.assertIn('if (self->mPasswordLength == 0)',body)
+        self.assertLess(body.index('self->resetOGLPasswordVisibility();'),
+                        body.index('self->syncShowHidePasswordButton();'))
+        self.assertLess(body.index('self->syncShowHidePasswordButton();'),
+                        body.index('self->updateLoginButtons();'))
+
+    def test_ogl_saved_secret_and_transient_startup_reset_eye_controls(self):
+        start=self.panel.index('void FSPanelLogin::setFields(')
+        end=self.panel.index('void FSPanelLogin::getFields(',start)
+        restore=self.panel[start:end]
+        self.assertIn('const std::string filler("Enter a password")',restore)
+        self.assertIn('if (from_startup)',restore)
+        self.assertIn('sInstance->mPasswordModified = true;',restore)
+        self.assertIn('sInstance->syncShowHidePasswordButton();',restore)
+        self.assertLess(restore.index('sInstance->getChild<LLUICtrl>("remember_check")->setValue(remember);'),
+                        restore.index('sInstance->syncShowHidePasswordButton();'))
+        choice=self.panel[self.panel.index('void FSPanelLogin::onSelectUser()'):
+                          self.panel.index('void FSPanelLogin::updateServerCombo()')]
+        self.assertLess(choice.index('sInstance->mPasswordModified = false;'),
+                        choice.index('sInstance->syncShowHidePasswordButton();',choice.index('sInstance->setFields(credential);')))
+
+    def test_ogl_grid_and_name_changes_disable_eye_until_password_entry(self):
+        clear=self.panel[self.panel.index('void FSPanelLogin::clearLoginFieldsForGridChange()'):
+                         self.panel.index('void FSPanelLogin::onSelectServer()')]
+        self.assertIn('mPasswordModified = false;',clear)
+        self.assertIn('sPassword.clear();',clear)
+        self.assertLess(clear.index('mPasswordModified = false;'),
+                        clear.index('syncShowHidePasswordButton();'))
+        typed=self.panel[self.panel.index('void FSPanelLogin::onUsernameTextChanged()'):
+                         self.panel.index('void FSPanelLogin::onModeChange(')]
+        self.assertLess(typed.index('mPasswordModified = false;'),
+                        typed.index('syncShowHidePasswordButton();'))
+        self.assertIn('OGLNexVerseGrid::consumeOneTimeHTTPLoginApproval();',typed)
+        self.assertIn('getChild<LLButton>("remove_user_btn")->setEnabled(false)',typed)
+
     def test_ogl_password_mask_reset_keeps_nonogl_unchanged(self):
         header=(ROOT/'indra/newview/fspanellogin.h').read_text(encoding='utf-8')
         self.assertIn('void resetOGLPasswordVisibility();',header)

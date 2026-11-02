@@ -730,6 +730,12 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
         remember = gSavedSettings.getBOOL("RememberPassword");
     }
     sInstance->getChild<LLUICtrl>("remember_check")->setValue(remember);
+    if (APP_NAME == "OGL")
+    {
+        // A stored authenticator is represented by a masked placeholder;
+        // the eye button must not claim that it can reveal that secret.
+        sInstance->syncShowHidePasswordButton();
+    }
 }
 
 
@@ -1508,6 +1514,14 @@ void FSPanelLogin::onShowHidePasswordClick(void*)
 {
     if (sInstance)
     {  // mShowPassword is not saved between sessions, it's just for short-term use
+        if (APP_NAME == "OGL" &&
+            (!sInstance->mPasswordModified || sInstance->mPasswordLength == 0))
+        {
+            // A stored saved-login filler is not the saved password.
+            // Only a freshly typed secret may be revealed.
+            sInstance->syncShowHidePasswordButton();
+            return;
+        }
         sInstance->mShowPassword = !sInstance->mShowPassword;
         LL_INFOS("AppInit") << "Showing password text now " << (sInstance->mShowPassword ? "on" : "off") << LL_ENDL;
 
@@ -1529,15 +1543,32 @@ void FSPanelLogin::resetOGLPasswordVisibility()
 
 void FSPanelLogin::syncShowHidePasswordButton()
 {   // Show or hide the two 'eye' buttons for password visibility
+    // Saved credentials contain an authenticator, not a readable password.
+    // Do not offer to reveal the display-only masked placeholder in OGL.
+    const bool reveal_allowed =
+        APP_NAME != "OGL" || (mPasswordModified && mPasswordLength != 0);
+    if (!reveal_allowed)
+    {
+        mShowPassword = false;
+    }
+
     LLButton* show_password_btn = sInstance->findChild<LLButton>("password_show_btn");
     if (show_password_btn)
     {
         show_password_btn->setVisible(!mShowPassword);
+        if (APP_NAME == "OGL")
+        {
+            show_password_btn->setEnabled(reveal_allowed);
+        }
     }
     LLButton* hide_password_btn = sInstance->findChild<LLButton>("password_hide_btn");
     if (hide_password_btn)
     {
         hide_password_btn->setVisible(mShowPassword);
+        if (APP_NAME == "OGL")
+        {
+            hide_password_btn->setEnabled(reveal_allowed);
+        }
     }
 
     // Update the edit field to replace password text with dots ... or not.  Will redraw
@@ -1580,6 +1611,15 @@ void FSPanelLogin::onPassKey(LLLineEditor* caller, void* user_data)
 
     LLLineEditor* password_edit(self->getChild<LLLineEditor>("password_edit"));
     self->mPasswordLength = password_edit->getText().length();
+    if (APP_NAME == "OGL")
+    {
+        // Emptying an exposed password must mask the next entry.
+        if (self->mPasswordLength == 0)
+        {
+            self->resetOGLPasswordVisibility();
+        }
+        self->syncShowHidePasswordButton();
+    }
     self->updateLoginButtons();
 }
 
@@ -1647,6 +1687,10 @@ void FSPanelLogin::clearLoginFieldsForGridChange()
     mPasswordLength = 0;
     mPasswordModified = false;
     sPassword.clear();
+    if (APP_NAME == "OGL")
+    {
+        syncShowHidePasswordButton();
+    }
     getChild<LLButton>("remove_user_btn")->setEnabled(false);
     updateLoginButtons();
 }
@@ -2106,6 +2150,10 @@ void FSPanelLogin::onSelectUser()
     }
     sInstance->setFields(credential);
     sInstance->mPasswordModified = false;
+    if (APP_NAME == "OGL")
+    {
+        sInstance->syncShowHidePasswordButton();
+    }
     sInstance->getChild<LLButton>("remove_user_btn")->setEnabled(true);
 
     size_t arobase = cred_name.find("@");
@@ -2255,6 +2303,7 @@ void FSPanelLogin::onUsernameTextChanged()
             sPassword.clear();
             mPasswordLength = 0;
             mPasswordModified = false;
+            syncShowHidePasswordButton();
             getChild<LLButton>("remove_user_btn")->setEnabled(false);
         }
     }
