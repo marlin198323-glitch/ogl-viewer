@@ -34,26 +34,25 @@ automatisch geladen.
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
 wechseln. Aktueller Einstieg: **P01, Block 19/20**
 (Blöcke 1–18 abgeschlossen;
-Code `3a655add`: Externe
-NexVerse-Welcome-Seite in
-Standard-, Starlight- und
-Starlight-CUI-Loginlayouts
-als untrusted markiert;
-C++-Trust-Entzug vor
-Navigation, 20/20 QA-
-Positionen, 210 Python-
-und 41 native Tests,
-EN-/DE-GUI-Starts grün.
-Portable Grafik-CI 6/6
-(Lauf 41479072688) erfolgreich,
-keine vollständigen OS-Viewer.
-P02 formal 0/20.
-Weiter offen: Hauptgrid-
-Live-Login, Passwort-
-persistenz, In-World-
-Shutdown und vollständige
-Windows-/macOS-Viewer-
-Build-/GUI-Abnahmen).
+`c3db484e`: Passwort-
+Klartextanzeige nach
+Konto-/Gridwechsel
+und gespeicherten
+Credential-Restores
+automatisch maskiert,
+Augenknopf bleibt
+manuell bedienbar.
+20/20 QA-Positionen,
+215 Python- und
+41 native Tests,
+DE-/FR-GUI-Starts
+grün. P02 formal 0/20;
+Hauptgrid-Live-Login,
+Passwortpersistenz,
+In-World-Shutdown und
+vollständige Windows-/
+macOS-Viewer-Build-
+und GUI-Tests offen).
 Den letzten tatsächlich erledigten Block und Commit immer
 in [PROJECT_STATUS.md](PROJECT_STATUS.md) fortschreiben.
 

@@ -32,6 +32,109 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P01 Block 19 – Passwortsichtbarkeit bei Konto-/Gridwechsel zurücksetzen
+
+**Code-Commit `c3db484e`** (`ogl-develop`).
+**20/20 technische Arbeits- und Einzelprüfpositionen bestanden.**
+Die formalen P01-Phasenblöcke bleiben **18/20**,
+P02 bleibt **0/20** bis zu echten Live-/
+Plattform-Viewer-Abnahmen.
+
+**Entwicklung ausschließlich in vorhandenen Dateien:**
+- In `indra/newview/fspanellogin.cpp` und
+  `fspanellogin.h` ist
+  `resetOGLPasswordVisibility()` ergänzt.
+  Das zuvor per Auge eingeblendete
+  Klartext-Passwort wird beim Wechsel
+  des gespeicherten Kontos, beim
+  direkten Bearbeiten des Benutzernamens,
+  beim Laden eines anderen Credentials
+  und beim Gridwechsel automatisch
+  wieder maskiert. Nach dem Wechsel
+  muss die Sichtbarkeit bewusst erneut
+  aktiviert werden.
+- Der vorhandene Augenknopf bleibt
+  für die **aktuell bearbeitete**
+  Eingabe funktionsfähig. Das Reset
+  wird ausschließlich im OGL-Kanal
+  und nur bei zuvor aktiviertem
+  Klartextmodus durchgeführt.
+  Passwortinhalt, gesicherte
+  Credentials und benutzerdefinierte
+  Speicherung bleiben unangetastet.
+  Bestehende HTTP-Einmalfreigaben
+  werden bei Grid-/Kontoänderung
+  weiterhin invalidiert.
+- Fünf neue Regressionstests in
+  `ogl/tests/test_nexverse_grid.py`.
+  Keine weiteren Projektdateien
+  erzeugt. Alte `_v2`-/`script_copy`
+  Ressourcen auf Namen geprüft,
+  nicht ohne Abhängigkeitsbeweis
+  entfernt.
+
+**20 bestandene Prüfblöcke:** 01
+Branch; 02 origin-Sync; 03
+keine neuen Dateien; 04
+Maskierungshelper; 05
+nur OGL und zuvor aktivierte
+Sichtbarkeit; 06 synchroner
+Augenknopf-Reset; 07 kein
+Löschen von Secrets; 08
+manuelles Anzeigen bleibt
+verfügbar; 09 beide Augenknöpfe;
+10 Textmaskierung;
+11 Laden gespeicherter
+Konten; 12 Gridwechsel
+vor Feldlöschung; 13
+HTTP-Freigabe nach Gridwechsel
+ungültig; 14 andere
+Kontoauswahl; 15 direkte
+Benutzernamenbearbeitung;
+16 gleiche Kontoauswahl
+behält bewusst aktivierten
+Sichtbarkeitsmodus; 17
+Nicht-OGL-Kompatibilität;
+18 Linux-Vollbuild und Tests;
+19 deutscher GUI-Start;
+20 französischer GUI-Start.
+**20/20 erfolgreich.**
+
+**Nachweise:** vollständiger
+`bash ogl/scripts/build-test.sh`
+mit **215/215 Python-Tests
+und 41/41 nativen CTests**,
+Linux-Mint-Vollviewer
+erfolgreich gebaut.
+Zwei isolierte 1280×720-
+Xvfb-GUI-Starts des
+**OGL Viewer Development
+7.2.5.147** in DE/FR:
+`STATE_LOGIN_WAIT`, keine
+`STATE_LOGIN_AUTH_INIT`,
+Strg+Q mit **Exit-Code 0**.
+Ein interaktiver End-to-End-
+Klicktest der Augentasten nach
+Kontowechsel steht weiter aus;
+die konkrete Zustandslogik
+ist durch Regressionstests,
+Kompilierung und Quelltext-
+Prüfungen abgesichert.
+
+**P01 weiterhin formal
+blockiert:** autorisierter
+Hauptgrid-Live-Login,
+echte Wiederherstellung
+gespeicherter Passwörter,
+In-World-Shutdown und
+vollständige Windows-/
+macOS-Viewer-Build-/GUI-
+Abnahmen. Operativer Einstieg
+bleibt `/goal P01 Block 19/20`;
+unabhängige P02-Vorarbeit
+ist zulässig. Keine manuelle
+Zwischenabnahme.
+
 ## CI-Nachprüfung – sechs portable Plattformjobs erfolgreich
 
 GitHub Actions `ogl-portable-graphics.yml`:

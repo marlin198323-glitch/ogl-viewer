@@ -208,7 +208,23 @@ bei jeder Phase übernehmen und nicht erneut implementieren.
 
 **Status:** **P01 aktiv, 18/20 Phasenblöcke**, derzeit
 Block 19 – Grid-Login-/Plattformregression.
-Letzter P01-Code-Commit `3a655add`:
+Letzter P01-Code-Commit `c3db484e`:
+OGL maskiert zuvor
+sichtbare Passwörter
+automatisch nach jeder
+Konto- und Gridänderung,
+einschließlich getippter
+Benutzernamen und gespeicherter
+Credential-Wiederherstellung.
+20/20 technische Prüfpunkte,
+215 Python-/41 native
+Tests, DE-/FR-GUI-
+Negativstarts bestanden.
+Klartext-Augenschalter
+bleibt für aktuelle
+Eingabe verfügbar.
+Davor:
+`3a655add`:
 Der externe OGL-Welcome-Browser
 ist in allen drei vorhandenen
 Login-Skins nicht privilegiert.

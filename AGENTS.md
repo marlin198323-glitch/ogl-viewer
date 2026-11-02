@@ -22,15 +22,15 @@ ungefragt überschreiben.
 
 **Operativer /goal-Ablauf:** Die einzig gültige Arbeitsreihenfolge
 sind P01–P13 im Hauptprojektplan. Aktuell P01 Block 19/20 (1–18 abgeschlossen;
-Code `3a655add`: eingebetteter
-NexVerse-Welcome-Webbrowser
-ist im OGL-Loginlayout und
-beiden bestehenden Starlight-
-Varianten nicht mehr privilegiert,
-C++ erzwingt untrusted vor
-Navigation. 20/20 technische
-Prüfungen, 210 Python-/41 native
-Tests, EN-/DE-GUI-Starts grün.
+Code `c3db484e`: Das
+Auge-/Klartext-Passwort wird
+bei anderer Kontoauswahl,
+getipptem Namen, Restore
+und Gridwechsel wieder
+maskiert; 20/20 technische
+Einzelprüfungen, 215
+Python-/41 native Tests,
+DE-/FR-GUI-Läufe grün.
 P02 formal 0/20; Live-Login
 und vollständige Windows-/
 macOS-Viewer-Tests noch offen),
