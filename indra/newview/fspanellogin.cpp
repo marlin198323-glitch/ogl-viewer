@@ -697,6 +697,12 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
         sInstance->mPasswordModified = true;
     }
     sInstance->mPreviousUsername = username_combo->getValue().asString();
+    if (APP_NAME == "OGL" && !from_startup)
+    {
+        // Picking a saved account ends any prior manual-login attempt.
+        // Do not retain another account's plaintext retry password.
+        sPassword.clear();
+    }
     sInstance->addFavoritesToStartLocation();
     // if the password exists in the credential, set the password field with
     // a filler to get some stars
@@ -734,10 +740,23 @@ void FSPanelLogin::setFields(LLPointer<LLCredential> credential, bool from_start
                 stored_credential->getAuthenticator().size() == 0 ||
                 (stored_credential->getAuthenticator().has("secret") && stored_credential->getAuthenticator()["secret"].asString() != authenticator["secret"].asString()))
             {
-                sInstance->getChild<LLLineEditor>("password_edit")->setText(sPassword);
-                sInstance->mPasswordLength = sPassword.length();
-                sInstance->updateLoginButtons();
-                sInstance->mPasswordModified = true;
+                // Only a genuinely typed password may be restored after a
+                // failed attempt. In particular, never use a previously
+                // displayed saved-credential filler as a retry password.
+                if (APP_NAME == "OGL" && sPassword.empty())
+                {
+                    sInstance->getChild<LLLineEditor>("password_edit")->clear();
+                    sInstance->mPasswordLength = 0;
+                    sInstance->mPasswordModified = false;
+                    sInstance->updateLoginButtons();
+                }
+                else
+                {
+                    sInstance->getChild<LLLineEditor>("password_edit")->setText(sPassword);
+                    sInstance->mPasswordLength = sPassword.length();
+                    sInstance->updateLoginButtons();
+                    sInstance->mPasswordModified = true;
+                }
             }
         }
     }
@@ -831,7 +850,20 @@ void FSPanelLogin::getFields(LLPointer<LLCredential>& credential,
         username = username.substr(0, arobase);
     }
     std::string password = sInstance->getChild<LLUICtrl>("password_edit")->getValue().asString();
-    sPassword = password;
+    if (APP_NAME == "OGL")
+    {
+        // Never cache the visible saved-password filler as a retry secret.
+        // A failed manual attempt may reuse only the password actually typed
+        // for that attempt; saved authenticators stay in the protected store.
+        if (sInstance->mPasswordModified)
+            sPassword = password;
+        else
+            sPassword.clear();
+    }
+    else
+    {
+        sPassword = password;
+    }
 
     if (APP_NAME != "OGL")
     {

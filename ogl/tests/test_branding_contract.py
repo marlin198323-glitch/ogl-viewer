@@ -1241,6 +1241,42 @@ class OGLBrandingContract(unittest.TestCase):
                 self.assertIn(required, names)
             self.assertNotIn("login_fs_logo", file.read_text(encoding="utf-8"))
 
+    def test_ogl_saved_password_filler_never_enters_transient_retry_cache(self):
+        source = self.source("indra/newview/fspanellogin.cpp")
+        get_fields = source.split("void FSPanelLogin::getFields(", 1)[1].split(
+            "bool FSPanelLogin::areCredentialFieldsDirty()", 1)[0]
+        manual = get_fields.index('if (sInstance->mPasswordModified)')
+        self.assertLess(manual, get_fields.index('sPassword = password;'))
+        self.assertLess(get_fields.index('sPassword.clear();', manual),
+                        get_fields.index('if (APP_NAME != "OGL")'))
+        self.assertIn('credential = gSecAPIHandler->createCredential(', get_fields)
+
+    def test_ogl_failed_transient_login_restores_only_actual_manual_retry(self):
+        source = self.source("indra/newview/fspanellogin.cpp")
+        set_fields = source.split("void FSPanelLogin::setFields(", 1)[1].split(
+            "void FSPanelLogin::getFields(", 1)[0]
+        retry = set_fields.split('if (from_startup)', 1)[1].split(
+            'if (from_startup)', 1)[0]
+        self.assertIn('if (APP_NAME == "OGL" && sPassword.empty())', retry)
+        self.assertIn('sInstance->getChild<LLLineEditor>("password_edit")->clear();', retry)
+        self.assertIn('sInstance->mPasswordLength = 0;', retry)
+        self.assertIn('sInstance->mPasswordModified = false;', retry)
+        self.assertIn('sInstance->getChild<LLLineEditor>("password_edit")->setText(sPassword);', retry)
+        self.assertIn('sInstance->mPasswordModified = true;', retry)
+        self.assertLess(retry.index('if (APP_NAME == "OGL" && sPassword.empty())'),
+                        retry.index('setText(sPassword)'))
+
+    def test_selecting_saved_login_clears_prior_manual_retry_but_not_startup_retry(self):
+        source = self.source("indra/newview/fspanellogin.cpp")
+        set_fields = source.split("void FSPanelLogin::setFields(", 1)[1].split(
+            "void FSPanelLogin::getFields(", 1)[0]
+        self.assertIn('if (APP_NAME == "OGL" && !from_startup)', set_fields)
+        clear_index = set_fields.index('sPassword.clear();', set_fields.index(
+            'if (APP_NAME == "OGL" && !from_startup)'))
+        self.assertLess(clear_index, set_fields.index('sInstance->addFavoritesToStartLocation();'))
+        self.assertIn('const std::string filler("Enter a password");', set_fields)
+        self.assertIn('gSecAPIHandler->loadCredential(cred_name)', set_fields)
+
     def test_ogl_unlisted_startup_credential_never_renders_reusable_password_filler(self):
         cpp = self.source("indra/newview/fspanellogin.cpp")
         part = cpp.split('void FSPanelLogin::setFields(', 1)[1].split(
