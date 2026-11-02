@@ -188,6 +188,22 @@ behaupten. Formal P01 18/20, P02 0/20;
 nächster /goal P01 Block 19/20.
 Detailnachweise in PROJECT_STATUS.md.
 
+**Letzte unabhängige /goal-Runde vom 02.11.2026,
+cfa671e4:** Im aktiven FSFloaterIM keine
+Firestorm-Supportgruppen-Präfixe (OS/Version/
+Skin/RLVa), Schalter, Popup oder Sysinfo-
+Bestätigungswege mehr im OGL-Kanal.
+Normale IM-Funktionen und Nicht-OGL-Kanäle
+erhalten. 20 technische Prüfpunkte,
+245 Python-/41 native Tests, 93 Branding-
+Tests auch unter ASCII, vollständiger Linux-
+Viewer-Build, DE-/EN-Xvfb-Login-Smokes
+bestanden; GitHub-Code direkt gepusht.
+Live-In-World- und Windows-/macOS-Vollviewer-
+Gates bleiben offen. Formal P01 18/20,
+P02 0/20, nächster operativer Block P01 19/20.
+Mehr in PROJECT_STATUS.md.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

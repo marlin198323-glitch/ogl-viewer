@@ -510,6 +510,21 @@ Windows-/macOS-Vollviewer-Gates bleiben offen.
 **Formal P01 18/20, P02 0/20.**
 Details in PROJECT_STATUS.md.
 
+**Unabhängige P02-Vorarbeit (02.11.2026, cfa671e4):**
+OGL-spezifische Abschaltung der alten Firestorm-
+Supportgruppen-Präfixe mit OS-/Viewer-/Skin-/
+RLVa-Metadaten sowie der alten Schalter,
+Beitritts-Dialoge und Sysinfo-IM-Sendefunktion,
+einschließlich verzögerter Bestätigungen.
+Nicht-OGL-Verhalten und normale IM-Sendefunktion
+bleiben erhalten. 20 dokumentierte technische
+Prüfpositionen, Linux-Vollbuild, 245 Python-/
+41 native Tests, 93 Branding-Tests (auch unter
+ASCII), DE-/EN-Login-GUI-Smokes erfolgreich.
+Keine In-World- oder vollständigen Windows-/macOS-
+Viewer-Gates behaupten. Formal P01 18/20,
+P02 0/20. Details in PROJECT_STATUS.md.
+
 **Technischer Zielzustand:** Einheitliche sichtbare Viewer-Oberfläche.
 
 1. Vorhandene Navigation, Menüs und Floater im Nutzungsfluss inventarisieren.

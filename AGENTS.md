@@ -107,6 +107,19 @@ Formal P01 18/20 und P02 0/20 unverändert;
 authentifizierte In-World-/Plattformabnahmen
 weiter offen. Details im Projektstatus.
 
+Unabhängige P02-Vorarbeit (02.11.2026,
+cfa671e4): Im OGL-Kanal automatische
+Firestorm-Supportgruppen-Metadatenpräfixe
+sowie Legacy-Sysinfo-/Versionsdialoge und
+auch verzögerte Bestätigungen gesperrt.
+Normale IM-Sendewege erhalten.
+20 technische Prüfpositionen, Linux-Vollbuild,
+245 Python-/41 native Tests, 93 Branding-Tests
+und DE-/EN-Xvfb-Voranmelde-GUI bestanden.
+Formal P01 18/20, P02 0/20; keine
+authentifizierten In-World- oder vollständigen
+Windows-/macOS-Vollviewer-Gates behaupten.
+
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.
 

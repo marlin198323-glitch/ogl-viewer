@@ -32,6 +32,88 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P02 unabhängige Vorarbeit – alte Firestorm-IM-Datenweitergabe gesperrt (02.11.2026)
+
+**Code-Commit cfa671e4** direkt auf origin/ogl-develop.
+**20/20 technische Prüfpositionen dieser unabhängigen
+P02-Runde**, keine formale P02-Phasenabnahme.
+Linux-Vollviewer 7.2.5.164 erfolgreich gebaut:
+245/245 Python-Tests, 41/41 native CTests,
+93/93 Branding-/Datenschutz-Regressionstests
+(einschließlich LC_ALL=C/PYTHONUTF8=0) bestanden.
+DE-/EN-Xvfb-GUI-Starts jeweils bis
+STATE_LOGIN_WAIT ohne AUTH_INIT, sauberer
+Fenster-Close, Exit-Code 0.
+Neue plattformübergreifende GitHub-CI wurde
+durch den Push angestoßen, ihr Abschluss ist
+noch separat zu prüfen. Native Portabilitäts-
+Modultests ersetzen keine Windows-/macOS-
+Vollviewer-Builds.
+
+**Änderungen nur an zwei bestehenden Dateien:**
+- indra/newview/fsfloaterim.cpp:
+  Die Firestorm-Supportgruppenpräfixe dürfen im
+  OGL-Kanal auch bei migrierten aktivierten
+  Einstellungen weder Viewer-Metadaten, OS,
+  Skin noch RLVa-Status an die IM-Nachricht
+  anhängen. Ursprüngliche Sendelogik für
+  normale Nachrichten bleibt unverändert.
+  Die Firestorm-Support-/Testgruppen-Schalter
+  und ihre Beitritts-Popups erscheinen in OGL
+  nicht. Das alte Sysinfo-Sendeelement ist
+  unabhängig von migrierten Einstellungen
+  in OGL ausgeblendet; direkte Klick-
+  und verzögerte Bestätigungs-Callbacks
+  sind ebenfalls blockiert. Auch ein später
+  Firestorm-Versionsdialog-Callback darf die
+  alten Einstellungen in OGL nicht wieder
+  aktivieren. Non-OGL-Kanäle behalten die
+  vorherigen Funktionen.
+- ogl/tests/test_branding_contract.py:
+  fünf zusätzliche source-contract Regressionstests
+  für Präfix, Gruppen-UI, verstecktes Sysinfo-
+  Element, Klick-/Bestätigungs-Callbacks
+  und verspäteten Versionsdialog.
+
+**20 konkrete Prüfpositionen:**
+01 Branch/Remote und saubere Ausgangsbasis;
+02 vorherige Matrix-CI erfolgreich;
+03 aktiven FSFloaterIM-Sendepfad gelesen;
+04 migrierte Support-Flags im Quellcode geprüft;
+05 kein Firestorm-Präfix im OGL-Sendepfad;
+06 normaler LLIMModel-Nachrichtenversand erhalten;
+07 Supportgruppen-Unterscheidung in OGL unterdrückt;
+08 Testgruppen-Unterscheidung in OGL unterdrückt;
+09 Support-/Test-Schalter im OGL verborgen;
+10 Legacy-Beitrittsdialog im OGL nicht mehr erreichbar;
+11 Sysinfo-Button trotz Nutzer-Altwert verborgen;
+12 direkter Sysinfo-Klick in OGL gesperrt;
+13 verzögerter Sysinfo-Sende-Callback gesperrt;
+14 späterer Versions-Prompt-Callback gesperrt;
+15 Einstellungen in settings.xml nicht überschrieben
+und Nicht-OGL-Verhalten erhalten;
+16 fünf neue Tests, 93/93 Branding-Tests
+auch unter ASCII-Systemkodierung erfolgreich;
+17 Linux-Vollbuild und 245/245 Python-/41/41
+native Tests erfolgreich;
+18 isolierter DE-Login-GUI-Start/Exit 0;
+19 isolierter EN-Login-GUI-Start/Exit 0;
+20 Commit gepusht, Status/Altbestand kontrolliert.
+Sieben vorhandene _v2-/script_copy-Pfade
+inventarisiert, ohne ungesicherte Löschungen.
+Keine neuen Projektdateien, keine echten Nutzer-
+Credentials, Serverdaten, Caches oder Secrets verändert.
+
+**Offene Gates:** Autorisierter Live-Login,
+Passwort-Persistenzprüfung, In-World-Chat-Test
+der Datenschutzfunktion, Viewer-Shutdown und
+vollständige Windows-/macOS-Viewer-Build-/GUI-
+Prüfungen; Beta-TLS-Hostnameabweichung weiter
+ungeklärt, Beta-Login gesperrt.
+**Formal P01 18/20, P02 0/20; nächster operativer
+/goal-Einstieg P01 Block 19/20.** Unabhängige
+P02-Vorarbeiten dürfen weiterlaufen.
+
 ## P02 unabhängige Vorarbeit – Chat-Zeitstempel stabilisieren (02.11.2026)
 
 **Code-Commit bde46c18** auf origin/ogl-develop.
