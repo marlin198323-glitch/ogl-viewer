@@ -1,5 +1,17 @@
 # OGL RTX – optional Vulkan ray tracing backend
 
+## Current renderer boundary (P04/1 inventory, 2026-11-04)
+
+The 3D world is still rendered by the OpenGL LLPipeline
+in llviewerdisplay.cpp and pipeline.cpp. The optional
+Vulkan module offers GPU capability, scene/ray/RT
+diagnostics and explicit opt-in shadow experiments
+whose output can be composited into existing OpenGL
+targets. This is not a complete selectable Vulkan
+world renderer. macOS has no active module-host path.
+The historical 2026-10-31 milestones below do not
+supersede the current P04 roadmap/status.
+
 ## Implemented and tested (2026-10-31)
 
 - Module `ogl_rtx.so` uses the OGL versioned native C ABI v1.

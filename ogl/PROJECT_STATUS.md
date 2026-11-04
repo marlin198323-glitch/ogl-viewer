@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P04 Block 1/20.
+**Aktiver Block:** /goal P04 Block 2/20.
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -50,7 +50,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
 | P03 – Theme-System und sichere Designinstallation | Linux-Code/QA abgeschlossen | 20/20 | Vollviewer-Windows/macOS, Signaturen und Asset-Erweiterungen bleiben separate Gates |
-| P04 – Renderer-Abstraktion und OpenGL-Fallback | aktiv | 0/20 | Block 1: vorhandene OpenGL/Vulkan-Module und Diagnosepfade inventarisieren |
+| P04 – Renderer-Abstraktion und OpenGL-Fallback | aktiv | 1/20 | Block 2: Renderer-Backend-Schnittstelle, Lebenszyklus und Fallback definieren |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
 | P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
@@ -60,6 +60,88 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P04 Block 1/20 – OpenGL-/Vulkan-Renderer-Inventur (04.11.2026)
+
+**Commit c2aade42 auf origin/ogl-develop.**
+Die eigentliche 3D-Darstellung
+liegt weiterhin bei
+indra/newview/llviewerdisplay.cpp
+und LLPipeline in
+indra/newview/pipeline.cpp.
+Wichtige reale Renderaufrufe:
+gPipeline.renderGeomDeferred,
+gPipeline.renderDeferredLighting,
+gPipeline.renderFinalize. OpenGL-
+Status, Shader und Vertexbuffer
+bleiben in indra/llrender/llgl.cpp,
+llvertexbuffer.cpp,
+llviewershadermgr.cpp und
+dem bisherigen Pipeline-Code.
+Grafiksettings enthalten
+RenderMaxOpenGLVersion;
+keine auswählbare Engine
+in den bisherigen Preferences.
+
+Optionale Vulkan-/RTX-Diagnose:
+indra/newview/llappviewer.cpp
+ruft ogl_init_rtx_module bei
+Start und ogl_shutdown_rtx_module
+beim Ende. oglrtxhost.cpp lädt
+nur Linux/Windows gebündeltes
+ogl_rtx.so bzw. ogl_rtx.dll
+und prüft ID, ABI und Version.
+Mac-Host aktuell Stub.
+ogl/modules/rtx/ogl_rtx_module.cpp
+prüft Vulkan-Systembibliothek,
+GPU-Fähigkeiten, sammelt
+Kamera-/Szene-/Shadowdaten;
+das zweite Modul
+ogl_gpu_probe liefert
+Diagnosedaten. CMake staged
+beide Module. Vulkan-
+Hardwareerkennung ist
+NICHT ein aktivierter
+vollwertiger Vulkan-
+3D-Weltrenderer:
+OpenGL bleibt Standard
+und aktiver Weltpfad.
+Experimentelle Vulkan-
+Schattenmasken können nur
+bei explizitem opt-in
+in einzelne OpenGL-
+Targets eingeblendet
+werden. Sie ersetzen
+nicht die vollständige
+Renderer-Pipeline.
+
+Neue Baseline-Regression
+in vorhandenem
+ogl/tests/test_public_graphics.py:
+prüft GL-Frame-Aufrufe,
+Modulstart und -shutdown,
+Module-Bundle/ABI,
+Diagnose-Flags und
+nicht vorhandene Engine-
+Umschaltung. **314/314
+Python-Tests bestanden**.
+P03-Vollviewer 7.2.5.214
+und 41/41 CTests
+waren zuvor erfolgreich;
+P04/1 hat keinen
+neuen C++-Renderer
+erstellt. Windows/macOS
+Full-Viewer-Installer
+weiter offen.
+
+**P04 jetzt 1/20;
+weiter Block 2/20:**
+Backend-Vertrag,
+Lebenszyklus und
+sicheres OpenGL-
+Fallback spezifizieren,
+ohne Debugmodule
+als Engine auszugeben.
 
 ## P03 Blöcke 19–20/20 – Linux-Build, portable Theme-Sicherheit und Übergang P04 (04.11.2026)
 

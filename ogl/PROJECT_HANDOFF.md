@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P04 Block 1/20.
+wechseln. Neuer Einstieg: P04 Block 2/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -782,6 +782,33 @@ OpenGL-/Vulkan-
 Rendererbestand
 inventarisieren.**
 
+**P04 Block 1
+(04.11.2026, c2aade42):**
+Renderer-Bestandsinventur:
+OpenGL-Welt via
+llviewerdisplay.cpp,
+LLPipeline/pipeline.cpp,
+LLShader und LLGL.
+oglrtxhost.cpp lädt
+optional Vulkan-RT-
+Hardware-/Shadow-Probe,
+ogl_gpu_probe als
+zweites Diagnostikmodul.
+Die opt-in Schatten-
+Compositor-Versuche
+arbeiten IN der
+OpenGL-Pipeline,
+sind keine vollständige
+Vulkan-Weltengine.
+Mac-Modulhost Stub,
+keine Engine-Auswahl.
+Regression in
+test_public_graphics.py
+ergänzt, 314 Python-
+Tests bestanden.
+P04 1/20, Block 2
+Backend-Schnittstelle
+und Fallback-Grenzen.
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

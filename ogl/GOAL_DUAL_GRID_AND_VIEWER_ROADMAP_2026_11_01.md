@@ -1103,7 +1103,32 @@ P04 Block 1/20 aktiv.
 
 ### /goal P04 – Renderer-Abstraktion und OpenGL-Fallback
 
-**Status:** aktiv; 0/20 operative Blöcke abgeschlossen.
+**Status:** aktiv; 1/20 operative Blöcke abgeschlossen.
+**P04 Block 1
+(04.11.2026, c2aade42):**
+OpenGL-Weltpfad
+(display, LLPipeline)
+und Vulkan-/RTX-
+Module mit GPU-Probe,
+Szenen- und opt-in
+Schatten-Diagnostik
+inventarisiert.
+Kein vollständig
+auswählbarer Vulkan-
+Welt-Renderer und
+keine Engine-Umschaltung,
+OpenGL bleibt
+Standard. Mac-
+Modulhost noch Stub.
+Baseline-Test in
+vorhandener Python-
+Datei ergänzt, 314
+Tests bestanden.
+Nächster Block 2:
+gemeinsame Backend-
+Funktionen/Fallback.
+
+
 **Technischer Zielzustand:** Saubere Backend-Auswahl und Baseline.
 
 1. OpenGL-Renderpfad und Vulkan-Diagnosemodule vollständig inventarisieren.

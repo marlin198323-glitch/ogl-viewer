@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P04 Block 1/20:
+Aktive Phase P04 Block 2/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -135,6 +135,29 @@ Gates getrennt.
 Ab jetzt P04 Block 1:
 Renderer-OpenGL-/
 Vulkan-Inventur.
+P04 Block 1 Commit
+c2aade42 abgeschlossen:
+Welt-Renderer ist
+OpenGL LLPipeline,
+Vulkan/RTX und
+ogl_gpu_probe nur
+optionale Modul-
+Diagnostik, opt-in
+Schatten-Compositing
+weiter in OpenGL.
+Voll-Vulkan-Engine
+und UI-Auswahl
+fehlen, macOS-
+Host Stub. Kein
+C++-Renderer geändert.
+Bestehende public-
+graphics Tests
+um Baseline erweitert,
+314 Python grün.
+P04 Block 2:
+Backend-Vertrag/
+Lebenszyklus definieren,
+GL-Fallback erhalten.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
