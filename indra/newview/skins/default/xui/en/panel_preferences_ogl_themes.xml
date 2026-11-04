@@ -18,6 +18,8 @@
      follows="left|top" layout="topleft" />
     <button name="ogl_theme_folder" left="308" top="138" width="181" height="24"
      follows="left|top" layout="topleft" label="Open theme folder" />
+    <button name="ogl_theme_install" left="22" top="168" width="275" height="24"
+     follows="left|top" layout="topleft" label="Install selected theme" />
     <button name="ogl_theme_select_file" left="308" top="168" width="181" height="24"
      follows="left|top" layout="topleft" label="Select .ogltheme" />
     <view_border name="ogl_theme_divider" bevel_style="in" follows="left|top"
@@ -37,13 +39,15 @@
      image_unselected="Blank" image_selected="Blank" label="Chat" />
     <text name="ogl_theme_readonly_notice" left="22" top="320" width="460" height="36"
      follows="left|top" layout="topleft" font="SansSerifSmall">
-        Only verified color themes are supported.
-        Preview is read-only; changes are saved on activation.
+        Only local, unsigned, manifest-only color themes are supported.
+        Install requires a separate click; activation changes your colors.
     </text>
     <button name="ogl_theme_activate" left="22" top="383" width="178" height="27"
      follows="left|top" layout="topleft" label="Activate design" />
     <button name="ogl_theme_reset" left="211" top="383" width="190" height="27"
      follows="left|top" layout="topleft" label="Restore original" />
+    <button name="ogl_theme_remove" left="410" top="383" width="79" height="27"
+     follows="left|top" layout="topleft" font="SansSerifSmall" label="Remove" />
     <text name="ogl_theme_status" left="22" top="432" width="471" height="43"
      follows="left|top" layout="topleft" font="SansSerifSmall">
         Built-in OGL Standard is the default.
@@ -58,6 +62,10 @@
     <string name="ogl_status_reset_error">Could not restore original palette; check user files.</string>
     <string name="ogl_status_folder">Install verified packages with the OGL theme manager.</string>
     <string name="ogl_status_folder_error">Could not open portable theme directory.</string>
-    <string name="ogl_status_selected">Package selected, NOT installed: </string>
+    <string name="ogl_status_selected">Selected but not installed. Unsigned local theme: </string>
+    <string name="ogl_status_installed">Color theme installed. Activate it separately to apply colors.</string>
+    <string name="ogl_status_install_error">Theme refused: only a safe local theme.json is permitted.</string>
+    <string name="ogl_status_removed">Inactive theme removed.</string>
+    <string name="ogl_status_remove_error">Cannot remove active, default or modified theme; restore first.</string>
     <string name="ogl_status_selection_error">Only local, regular .ogltheme packages up to 16 MiB may be selected.</string>
 </panel>

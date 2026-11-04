@@ -150,7 +150,75 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
         self.assertNotIn("extract(",method)
         de=ET.parse(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_ogl_themes.xml").getroot()
         self.assertTrue(any(n.get("name")=="ogl_theme_select_file" for n in de))
-        self.assertIn("NOT installed",XUI.read_text())
+        self.assertIn("Selected but not installed",XUI.read_text())
+
+    def test_native_theme_package_import_is_explicit_restricted_and_atomic(self):
+        cpp=CPP
+        hdr=HDR
+        en=ET.parse(XUI).getroot()
+        de=ET.parse(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_ogl_themes.xml").getroot()
+        for panel in (en,de):
+            self.assertEqual(sum(node.get("name")=="ogl_theme_select_file" for node in panel),1)
+            self.assertEqual(sum(node.get("name")=="ogl_theme_install" for node in panel),1)
+            self.assertEqual(sum(node.get("name")=="ogl_theme_activate" for node in panel),1)
+        self.assertIn('void onOglThemeInstallPackage();',hdr)
+        self.assertIn('std::string mOglPendingPackage;',hdr)
+        select=cpp.split("void LLPanelPreferenceOglThemes::onOglThemeSelectPackage()",1)[1].split(
+            "void LLPanelPreferenceOglThemes::onOglThemeInstallPackage()",1)[0]
+        install=cpp.split("void LLPanelPreferenceOglThemes::onOglThemeInstallPackage()",1)[1].split(
+            "void LLPanelPreferenceOglThemes::onOglThemeFolder()",1)[0]
+        self.assertNotIn("ogl_pref_themes::install_local_package(",select)
+        self.assertIn("mOglPendingPackage=filename_utf8;",select)
+        self.assertIn("ogl_pref_themes::install_local_package(package);",install)
+        self.assertIn("refreshOglThemes();",install)
+        self.assertIn("previewOglTheme();",install)
+        self.assertNotIn("ogl_pref_themes::activate(",install)
+        self.assertIn("getString(\"ogl_status_installed\")",install)
+        reader=cpp.split("static bj::object inspect_local_package(",1)[1].split(
+            "static std::string install_local_package(",1)[0]
+        for text in ('mz_zip_reader_open_file(', 'mz_zip_reader_entry_get_info(',
+                     'mz_zip_reader_entry_read(', 'mz_zip_reader_entry_close(',
+                     'mz_zip_reader_goto_next_entry(', 'MZ_END_OF_LIST',
+                     'std::strcmp(entry->filename,"theme.json")!=0',
+                     'MZ_ZIP_FLAG_ENCRYPTED','MZ_COMPRESS_METHOD_DEFLATE',
+                     'entry->uncompressed_size>16384','entry->external_fa'):
+            self.assertIn(text,reader)
+        self.assertIn("reject_duplicate_json_keys(payload);",reader)
+        self.assertIn('static void reject_duplicate_json_keys(',cpp)
+        self.assertIn('Duplicate theme JSON key',cpp)
+        installer=cpp.split("static std::string install_local_package(",1)[1].split(
+            "static std::string active()",1)[0]
+        self.assertLess(installer.index("inspect_local_package(package)"),
+                        installer.index("fs::create_directories(themes);"))
+        self.assertIn('fs::rename(staging,final);',installer)
+        self.assertIn('fs::remove_all(staging,ignored);',installer)
+        self.assertIn('fs::is_symlink(themes)',installer)
+        self.assertNotIn('system(',installer)
+        self.assertNotIn('unzip ',installer)
+        self.assertNotIn('exec(',installer)
+
+    def test_native_theme_remove_rejects_active_modified_or_other_folders(self):
+        import_source = CPP
+        for panel in (
+            ET.parse(XUI).getroot(),
+            ET.parse(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_ogl_themes.xml").getroot()):
+            self.assertEqual(sum(x.get("name")=="ogl_theme_remove" for x in panel),1)
+        self.assertIn("void onOglThemeRemovePackage();",HDR)
+        remove=import_source.split("static void remove_local_theme(",1)[1].split(
+            "static bj::object checked_backup();",1)[0]
+        self.assertIn("active()==id",remove)
+        self.assertIn("installed_folder(id)",remove)
+        self.assertIn("manifest(id);",remove)
+        self.assertIn("fs::is_symlink(file)",remove)
+        self.assertIn("fs::directory_iterator(folder)",remove)
+        self.assertIn("fs::remove(file)",remove)
+        self.assertIn("fs::remove(folder)",remove)
+        self.assertNotIn("fs::remove_all",remove)
+        callback=import_source.split("void LLPanelPreferenceOglThemes::onOglThemeRemovePackage()",1)[1].split(
+            "void LLPanelPreferenceOglThemes::onOglThemeFolder()",1)[0]
+        self.assertIn("remove_local_theme(mOglSelected)",callback)
+        self.assertIn("refreshOglThemes();",callback)
+        self.assertIn('getString("ogl_status_removed")',callback)
 
     def test_strict_cpp_semver_matches_portable_manifest_policy(self):
         self.assertIn("static bool valid_semver(",CPP)

@@ -5217,6 +5217,14 @@ void LLPanelPreferenceCrashReports::cancel(const std::vector<std::string> settin
 // Installed .ogltheme archives are validated/extracted by manage_themes.py.
 #include "lluicolortable.h"
 #include <boost/json.hpp>
+#include <minizip-ng/mz.h>
+#include <minizip-ng/mz_strm.h>
+#include <minizip-ng/mz_zip.h>
+#include <minizip-ng/mz_zip_rw.h>
+#include <cstring>
+#include <memory>
+#include <cctype>
+#include <vector>
 #include <fstream>
 #include <cstdlib>
 #include <map>
@@ -5358,8 +5366,7 @@ static LLColor4 color(const std::string& value) {
     return LLColor4(component(1),component(3),component(5),
                     value.size()==9 ? component(7):1.f);
 }
-static bj::object manifest(const std::string& id) {
-    const auto value=read_json(installed_folder(id)/"theme.json");
+static bj::object validate_manifest(const bj::value& value,const std::string& id) {
     if (!value.is_object()) throw std::runtime_error("Invalid theme manifest");
     const auto& doc=value.as_object();
     if (doc.size()!=7 || !doc.contains("id") || !doc.at("id").is_string() ||
@@ -5399,6 +5406,142 @@ static bj::object manifest(const std::string& id) {
     }
     return doc;
 }
+static bj::object manifest(const std::string& id) {
+    return validate_manifest(read_json(installed_folder(id)/"theme.json"),id);
+}
+
+// Normalize the source manifest only after detecting duplicate object keys.
+// A parser that silently chooses the first/last repeated JSON property would
+// disagree with a separate CLI validator and hide a changed permissions map.
+static void reject_duplicate_json_keys(const std::string& contents) {
+    std::vector<std::pair<bool,std::set<std::string>>> nested;
+    for (std::size_t i=0; i<contents.size();) {
+        const char c=contents[i];
+        if (c=='{' || c=='[') {
+            nested.emplace_back(c=='{',std::set<std::string>{});
+            ++i;
+        } else if (c=='}' || c==']') {
+            if (nested.empty()) throw std::runtime_error("Broken theme JSON structure");
+            nested.pop_back();
+            ++i;
+        } else if (c=='"') {
+            const std::size_t start=i++;
+            bool escaped=false;
+            for (;i<contents.size();++i) {
+                if (escaped) { escaped=false; continue; }
+                if (contents[i]=='\\') { escaped=true; continue; }
+                if (contents[i]=='"') { ++i; break; }
+            }
+            if (i>contents.size() || contents[i-1]!='"')
+                throw std::runtime_error("Invalid JSON string");
+            std::size_t next=i;
+            while (next<contents.size() && std::isspace(
+                     static_cast<unsigned char>(contents[next]))) ++next;
+            if (!nested.empty() && nested.back().first &&
+                next<contents.size() && contents[next]==':') {
+                const auto decoded=bj::parse(contents.substr(start,i-start));
+                const std::string key(decoded.as_string());
+                if (!nested.back().second.insert(key).second)
+                    throw std::runtime_error("Duplicate theme JSON key");
+            }
+        } else {
+            ++i;
+        }
+    }
+    if (!nested.empty()) throw std::runtime_error("Unterminated theme JSON");
+}
+// Permission model: user-selected unsigned, LOCAL COLOR-ONLY manifests.
+// No scripts, network resources, executable assets, XUI or native modules.
+// ZIP is opened with the existing linked minizip-ng, never a subprocess.
+static bj::object inspect_local_package(const fs::path& package) {
+    if (package.extension()!=".ogltheme" || fs::is_symlink(package) ||
+        !fs::is_regular_file(package) || fs::file_size(package)>16u*1024u*1024u)
+        throw std::runtime_error("Invalid local theme package");
+    void* handle=mz_zip_reader_create();
+    if (!handle) throw std::runtime_error("Cannot initialize ZIP reader");
+    const auto dispose=[](void* reader) { mz_zip_reader_delete(&reader); };
+    std::unique_ptr<void,decltype(dispose)> zip(handle,dispose);
+    const auto encoded=package.u8string();
+    const std::string native_path(reinterpret_cast<const char*>(encoded.data()),encoded.size());
+    if (mz_zip_reader_open_file(zip.get(),native_path.c_str())!=MZ_OK ||
+        mz_zip_reader_goto_first_entry(zip.get())!=MZ_OK)
+        throw std::runtime_error("Invalid theme ZIP");
+    mz_zip_file* entry=nullptr;
+    if (mz_zip_reader_entry_get_info(zip.get(),&entry)!=MZ_OK ||
+        !entry || !entry->filename ||
+        entry->filename_size!=std::strlen(entry->filename) ||
+        std::strcmp(entry->filename,"theme.json")!=0 ||
+        entry->uncompressed_size<=0 || entry->uncompressed_size>16384 ||
+        entry->compressed_size<=0 ||
+        entry->uncompressed_size>200*entry->compressed_size ||
+        (entry->flag & MZ_ZIP_FLAG_ENCRYPTED) || entry->aes_version ||
+        entry->linkname ||
+        (entry->compression_method!=MZ_COMPRESS_METHOD_STORE &&
+         entry->compression_method!=MZ_COMPRESS_METHOD_DEFLATE))
+        throw std::runtime_error("Only one plain theme.json is permitted");
+    // Check Unix entries for symlinks, directories, sockets and devices.
+    const unsigned kind=(entry->external_fa>>16)&0170000;
+    if (kind!=0 && kind!=0100000)
+        throw std::runtime_error("Non-regular theme ZIP entry");
+    if (mz_zip_reader_entry_open(zip.get())!=MZ_OK)
+        throw std::runtime_error("Cannot open ZIP manifest");
+    std::string payload(static_cast<std::size_t>(entry->uncompressed_size),'\0');
+    std::size_t offset=0;
+    while (offset<payload.size()) {
+        const int count=mz_zip_reader_entry_read(zip.get(),payload.data()+offset,
+                               static_cast<int32_t>(payload.size()-offset));
+        if (count<=0) throw std::runtime_error("Truncated ZIP manifest");
+        offset+=static_cast<std::size_t>(count);
+    }
+    if (mz_zip_reader_entry_close(zip.get())!=MZ_OK ||
+        mz_zip_reader_goto_next_entry(zip.get())!=MZ_END_OF_LIST ||
+        mz_zip_reader_close(zip.get())!=MZ_OK)
+        throw std::runtime_error("Corrupt ZIP, unsupported additional entries or checksum");
+    reject_duplicate_json_keys(payload);
+    const auto value=bj::parse(payload);
+    if (!value.is_object() || !value.as_object().contains("id") ||
+        !value.as_object().at("id").is_string())
+        throw std::runtime_error("Manifest identifier missing");
+    const std::string id(value.as_object().at("id").as_string());
+    if (!safe_id(id)) throw std::runtime_error("Unsafe theme identifier");
+    // The stored manifest will be canonicalized, avoiding ambiguous JSON
+    // property representations in later readers.
+    return validate_manifest(value,id);
+}
+
+static std::string install_local_package(const fs::path& package) {
+    // Preflight the complete archive before any user-state mutation.
+    const auto doc=inspect_local_package(package);
+    const std::string id(doc.at("id").as_string());
+    const std::string serialized=bj::serialize(doc)+"\n";
+    if (serialized.size()>16384) throw std::runtime_error("Oversized canonical theme");
+    const auto base=root();
+    check_root(base,true);
+    const auto themes=base/"themes";
+    if (fs::is_symlink(themes)) throw std::runtime_error("Symlinked themes directory");
+    fs::create_directories(themes);
+    const auto final=themes/id;
+    if (fs::exists(final) || fs::is_symlink(final))
+        throw std::runtime_error("Theme already installed");
+    const auto staging=themes/(".ogltheme-"+LLUUID::generateNewID().asString());
+    if (!fs::create_directory(staging))
+        throw std::runtime_error("Cannot stage theme");
+    try {
+        std::ofstream out(staging/"theme.json",std::ios::binary|std::ios::trunc);
+        if (!out || !(out<<serialized) || !(out.flush()))
+            throw std::runtime_error("Cannot write theme manifest");
+        out.close();
+        if (!out) throw std::runtime_error("Cannot close theme manifest");
+        if (fs::exists(final) || fs::is_symlink(final))
+            throw std::runtime_error("Theme installed concurrently");
+        fs::rename(staging,final); // same-volume atomic publish
+    } catch (...) {
+        std::error_code ignored;
+        fs::remove_all(staging,ignored);
+        throw;
+    }
+    return id;
+}
 static std::string active() {
     const auto dir=root();
     if (dir.empty() || !fs::exists(dir/"active-theme.json")) return "";
@@ -5412,6 +5555,23 @@ static std::string active() {
     if (!id.is_string() || !safe_id(std::string(id.as_string())))
         throw std::runtime_error("Unsafe active theme ID");
     return std::string(id.as_string());
+}
+static void remove_local_theme(const std::string& id) {
+    if (!safe_id(id) || active()==id)
+        throw std::runtime_error("Active or invalid themes cannot be removed");
+    // Refuse to recursively delete anything. Only delete a checked local
+    // theme folder containing its sole canonical manifest.
+    const auto folder=installed_folder(id);
+    manifest(id); // Validates the installed manifest again.
+    const auto file=folder/"theme.json";
+    if (fs::is_symlink(file) || !fs::is_regular_file(file))
+        throw std::runtime_error("Theme contains unsafe manifest");
+    auto first=fs::directory_iterator(folder);
+    if (first==fs::directory_iterator{} || first->path()!=file ||
+        ++first!=fs::directory_iterator{})
+        throw std::runtime_error("Cannot remove theme with additional files");
+    if (!fs::remove(file) || !fs::remove(folder))
+        throw std::runtime_error("Theme cannot be safely removed");
 }
 static bj::object checked_backup();
 static void snapshot_original() {
@@ -5751,6 +5911,10 @@ bool LLPanelPreferenceOglThemes::postBuild()
         boost::bind(&LLPanelPreferenceOglThemes::onOglThemeFolder,this));
     getChild<LLButton>("ogl_theme_select_file")->setCommitCallback(
         boost::bind(&LLPanelPreferenceOglThemes::onOglThemeSelectPackage,this));
+    getChild<LLButton>("ogl_theme_install")->setCommitCallback(
+        boost::bind(&LLPanelPreferenceOglThemes::onOglThemeInstallPackage,this));
+    getChild<LLButton>("ogl_theme_remove")->setCommitCallback(
+        boost::bind(&LLPanelPreferenceOglThemes::onOglThemeRemovePackage,this));
     refreshOglThemes();
 
     return LLPanelPreference::postBuild();
@@ -5870,9 +6034,9 @@ void LLPanelPreferenceOglThemes::onOglThemeReset()
 
 void LLPanelPreferenceOglThemes::onOglThemeSelectPackage()
 {
-    // Native, cross-platform file selection only. A selected ZIP must never
-    // be automatically loaded or extracted: the next security phase adds
-    // the native package validator and atomic installer.
+    // Choosing a package does not install it. The second explicit button
+    // invokes the native, restricted manifest-only validator and importer.
+    mOglPendingPackage.clear();
     LLFilePicker& picker = LLFilePicker::instance();
     if (!picker.getOpenFile(LLFilePicker::FFLOAD_ALL))
     {
@@ -5890,11 +6054,51 @@ void LLPanelPreferenceOglThemes::onOglThemeSelectPackage()
         {
             throw std::runtime_error("Invalid theme package selection");
         }
+        mOglPendingPackage=filename_utf8;
         oglThemeStatus(getString("ogl_status_selected") + package.filename().string());
     }
     catch (const std::exception&)
     {
         oglThemeStatus(getString("ogl_status_selection_error"));
+    }
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeInstallPackage()
+{
+    if (mOglPendingPackage.empty()) {
+        oglThemeStatus(getString("ogl_status_selection_error"));
+        return;
+    }
+    try {
+        const std::filesystem::path package(
+            reinterpret_cast<const char8_t*>(mOglPendingPackage.c_str()));
+        const std::string id=ogl_pref_themes::install_local_package(package);
+        mOglPendingPackage.clear();
+        refreshOglThemes();
+        mOglSelected=id;
+        if (mOglThemeCombo) mOglThemeCombo->setSelectedByValue(id,true);
+        previewOglTheme();
+        // Installation is separate from activation; no user colors changed.
+        oglThemeStatus(getString("ogl_status_installed"));
+    } catch (const std::exception&) {
+        mOglPendingPackage.clear();
+        oglThemeStatus(getString("ogl_status_install_error"));
+    }
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeRemovePackage()
+{
+    if (mOglSelected.empty()) {
+        oglThemeStatus(getString("ogl_status_remove_error"));
+        return;
+    }
+    try {
+        ogl_pref_themes::remove_local_theme(mOglSelected);
+        mOglSelected.clear();
+        refreshOglThemes();
+        oglThemeStatus(getString("ogl_status_removed"));
+    } catch (const std::exception&) {
+        oglThemeStatus(getString("ogl_status_remove_error"));
     }
 }
 

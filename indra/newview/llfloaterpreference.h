@@ -550,6 +550,8 @@ public:
     void onOglThemeReset();
     void onOglThemeFolder();
     void onOglThemeSelectPackage();
+    void onOglThemeInstallPackage();
+    void onOglThemeRemovePackage();
     void refreshOglThemes();
     void previewOglTheme();
     void oglThemeStatus(const std::string& message);
@@ -559,6 +561,7 @@ private:
     LLButton*   mOglTextPreview = nullptr;
     LLButton*   mOglChatPreview = nullptr;
     std::string mOglSelected;
+    std::string mOglPendingPackage;
 };
 
 // [SL:KB] - Patch: Viewer-CrashReporting | Checked: 2010-10-21 (Catznip-2.6.0a) | Added: Catznip-2.2.0c

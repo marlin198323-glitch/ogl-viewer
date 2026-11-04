@@ -8,16 +8,18 @@
     <text name="ogl_theme_choose">Installierte Designs</text>
     <button name="ogl_theme_folder" label="Designordner öffnen" />
     <button name="ogl_theme_select_file" label=".ogltheme auswählen" />
+    <button name="ogl_theme_install" label="Design installieren" />
     <text name="ogl_theme_preview_label">Farbvorschau (ändert den Viewer nicht)</text>
     <button name="ogl_theme_color_bg" label="Fenster" />
     <button name="ogl_theme_color_text" label="Text" />
     <button name="ogl_theme_color_chat" label="Chat" />
     <text name="ogl_theme_readonly_notice">
-        Nur geprüfte Farbdesigns werden unterstützt.
-        Die Vorschau ist unverbindlich; aktiviert wird per Schaltfläche.
+        Nur lokale, unsignierte Farbdesigns ohne Programmcode.
+        Installation und Aktivierung benötigen getrennte Klicks.
     </text>
     <button name="ogl_theme_activate" label="Design aktivieren" />
     <button name="ogl_theme_reset" label="Original wiederherstellen" />
+    <button name="ogl_theme_remove" label="Entfernen" />
     <text name="ogl_theme_status">
         OGL Standard ist voreingestellt.
     </text>
@@ -31,6 +33,10 @@
     <string name="ogl_status_reset_error">Originalfarben konnten nicht wiederhergestellt werden.</string>
     <string name="ogl_status_folder">Geprüfte Pakete über den OGL-Theme-Manager installieren.</string>
     <string name="ogl_status_folder_error">Designordner konnte nicht geöffnet werden.</string>
-    <string name="ogl_status_selected">Paket ausgewählt, NICHT installiert: </string>
+    <string name="ogl_status_selected">Ausgewählt, nicht installiert. Unsigniertes lokales Design: </string>
+    <string name="ogl_status_installed">Farbdesign installiert. Farben werden erst mit „Aktivieren“ angewendet.</string>
+    <string name="ogl_status_install_error">Design abgelehnt: nur sicheres lokales theme.json ist zulässig.</string>
+    <string name="ogl_status_removed">Inaktives Design entfernt.</string>
+    <string name="ogl_status_remove_error">Aktives, verändertes oder Standarddesign kann nicht entfernt werden.</string>
     <string name="ogl_status_selection_error">Nur lokale reguläre .ogltheme-Dateien bis 16 MiB auswählbar.</string>
 </panel>
