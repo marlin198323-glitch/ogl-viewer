@@ -400,7 +400,9 @@ void FSFloaterIMContainer::addFloater(LLFloater* floaterp,
 
     LLUUID session_id = floaterp->getKey();
     mSessions[session_id] = floaterp;
-    floaterp->mCloseSignal.connect(boost::bind(&FSFloaterIMContainer::onCloseFloater, this, session_id));
+    // Bind to the floater identity rather than the initial session UUID.
+    // Conference/ad-hoc sessions can receive a new session UUID later.
+    floaterp->mCloseSignal.connect(boost::bind(&FSFloaterIMContainer::onCloseFloater, this, floaterp));
 }
 
 void FSFloaterIMContainer::addNewSession(LLFloater* floaterp, EInstantMessage type)
@@ -446,6 +448,15 @@ void FSFloaterIMContainer::removeFloater(LLFloater* floaterp)
 
     mFlashingTabStates.erase(floaterp);
 
+    // A tab being torn off or removed must not remain the target of the
+    // voice-status refresh. Its tab image no longer belongs to this container.
+    if (mActiveVoiceFloater == floaterp)
+    {
+        mActiveVoiceFloater = nullptr;
+        mCurrentVoiceState = VOICE_STATE_NONE;
+        mForceVoiceStateUpdate = true;
+    }
+
     LLMultiFloater::removeFloater(floaterp);
 }
 // [/SL:KB]
@@ -462,19 +473,42 @@ bool FSFloaterIMContainer::hasFloater(LLFloater* floaterp)
     return false;
 }
 
-void FSFloaterIMContainer::onCloseFloater(LLUUID& id)
+void FSFloaterIMContainer::onCloseFloater(LLFloater* closed_floater)
 {
-    LLFloater* session_floater = mSessions[id];
-    bool was_session_shown = session_floater && session_floater->isShown();
+    if (!closed_floater)
+    {
+        return;
+    }
 
-    mSessions.erase(id);
+    // Find the current session key by floater identity. The UUID can change
+    // after an ad-hoc session is initialized; the close handler must not keep
+    // using a captured, obsolete UUID and leave stale navigation/status.
+    const auto found = std::find_if(mSessions.begin(), mSessions.end(),
+        [closed_floater](const auto& entry) { return entry.second == closed_floater; });
+    const LLUUID session_id = found != mSessions.end()
+        ? found->first : closed_floater->getKey().asUUID();
+    const bool was_session_shown = closed_floater->isShown();
+
+    mFlashingTabStates.erase(closed_floater);
+    const auto end = std::remove(mFlashingSessions.begin(), mFlashingSessions.end(), session_id);
+    if (end != mFlashingSessions.end())
+    {
+        mFlashingSessions.erase(end, mFlashingSessions.end());
+        checkFlashing();
+    }
+
+    if (found != mSessions.end())
+    {
+        mSessions.erase(found);
+    }
+
     if (was_session_shown && isShown())
     {
         setFocus(true);
     }
     else if (isMinimized())
     {
-        setMinimized(true); // Make sure console output that needs to be shown is still doing so
+        setMinimized(true); // Keep console output visible while minimized.
     }
 }
 
@@ -522,9 +556,21 @@ void FSFloaterIMContainer::setVisible(bool b)
 {
     LLMultiFloater::setVisible(b);
 
-    if (b)
+    // Showing conversations does not mean the user has read all background
+    // sessions. Acknowledge only the currently visible conversation; keep
+    // other sessions flashing until selected or closed.
+    if (b && !isMinimized() && mTabContainer)
     {
-        mFlashingSessions.clear();
+        if (LLFloater* selected = getActiveFloater())
+        {
+            const LLUUID session_id = selected->getKey().asUUID();
+            const auto end = std::remove(mFlashingSessions.begin(), mFlashingSessions.end(), session_id);
+            if (end != mFlashingSessions.end())
+            {
+                mFlashingSessions.erase(end, mFlashingSessions.end());
+            }
+        }
+        checkFlashing();
     }
 }
 
@@ -712,16 +758,40 @@ void FSFloaterIMContainer::addFlashingSession(const LLUUID& session_id)
 
 void FSFloaterIMContainer::checkFlashing()
 {
-    gToolBarView->flashCommand(LLCommandId("chat"), !mFlashingSessions.empty(), isMinimized());
+    if (gToolBarView)
+    {
+        gToolBarView->flashCommand(LLCommandId("chat"), !mFlashingSessions.empty(), isMinimized());
+    }
 }
 
 void FSFloaterIMContainer::sessionIDUpdated(const LLUUID& old_session_id, const LLUUID& new_session_id)
 {
+    if (old_session_id == new_session_id || new_session_id.isNull())
+    {
+        return;
+    }
+
     if (avatarID_panel_map_t::iterator found = mSessions.find(old_session_id); found != mSessions.end())
     {
         LLFloater* floaterp = found->second;
         mSessions.erase(found);
         mSessions[new_session_id] = floaterp;
+    }
+
+    // Ad-hoc sessions receive their final UUID after initialization. Migrate
+    // pending status along with the tab so it can be acknowledged and closed.
+    const auto old_flashing = std::find(mFlashingSessions.begin(), mFlashingSessions.end(), old_session_id);
+    if (old_flashing != mFlashingSessions.end())
+    {
+        if (std::find(mFlashingSessions.begin(), mFlashingSessions.end(), new_session_id) == mFlashingSessions.end())
+        {
+            *old_flashing = new_session_id;
+        }
+        else
+        {
+            mFlashingSessions.erase(old_flashing);
+        }
+        checkFlashing();
     }
 }
 
@@ -729,7 +799,27 @@ void FSFloaterIMContainer::tabOpen(LLFloater* opened_floater, bool from_click)
 {
     LLEmojiHelper::instance().hideHelper(nullptr, true);
 
+    // Background tab selection can occur automatically while the container
+    // is hidden or minimized. Only an actually visible tab was read.
+    if (!opened_floater || !isShown() || isMinimized())
+    {
+        return;
+    }
+
     mFlashingTabStates.erase(opened_floater);
+    // Stop the actual tab-button animation as well as its bookkeeping.
+    // Otherwise the selected tab can continue to blink after being read.
+    LLMultiFloater::setFloaterFlashing(opened_floater, false);
+
+    // Acknowledging one tab clears only that session's unread/toolbar alert.
+    // Keep all other conversation indicators, including group and ad-hoc IMs.
+    const LLUUID session_id = opened_floater->getKey().asUUID();
+    const auto end = std::remove(mFlashingSessions.begin(), mFlashingSessions.end(), session_id);
+    if (end != mFlashingSessions.end())
+    {
+        mFlashingSessions.erase(end, mFlashingSessions.end());
+        checkFlashing();
+    }
 }
 
 void FSFloaterIMContainer::startFlashingTab(LLFloater* floater, const std::string& message)

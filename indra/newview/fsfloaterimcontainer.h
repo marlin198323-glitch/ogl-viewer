@@ -45,7 +45,7 @@ public:
     bool postBuild() override;
     void onOpen(const LLSD& key) override;
     void onClose(bool app_quitting) override;
-    void onCloseFloater(LLUUID& id);
+    void onCloseFloater(LLFloater* closed_floater);
     void draw() override;
     void addFloater(LLFloater* floaterp, 
                     bool select_added_floater,

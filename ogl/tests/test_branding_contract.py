@@ -256,6 +256,73 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('return false;', body)
         self.assertIn('gSavedSettings.setBOOL("FSSupportGroupChatPrefixTesting", result);', body)
 
+    def test_p02_switching_im_tabs_only_acknowledges_selected_session(self):
+        src = self.source("indra/newview/fsfloaterimcontainer.cpp")
+        start = src.split("void FSFloaterIMContainer::tabOpen(", 1)[1].split(
+            "void FSFloaterIMContainer::startFlashingTab(", 1)[0]
+        self.assertIn("if (!opened_floater || !isShown() || isMinimized())", start)
+        self.assertIn("mFlashingTabStates.erase(opened_floater);", start)
+        self.assertIn("LLMultiFloater::setFloaterFlashing(opened_floater, false);", start)
+        self.assertIn('opened_floater->getKey().asUUID()', start)
+        self.assertIn("std::remove(mFlashingSessions.begin(), mFlashingSessions.end(), session_id)", start)
+        self.assertIn("checkFlashing();", start)
+        self.assertNotIn("mFlashingSessions.clear()", start)
+        visible = src.split("void FSFloaterIMContainer::setVisible(bool b)", 1)[1].split(
+            "void FSFloaterIMContainer::setMinimized(", 1)[0]
+        self.assertIn("if (b && !isMinimized() && mTabContainer)", visible)
+        self.assertIn("getActiveFloater()", visible)
+        self.assertIn("checkFlashing();", visible)
+        self.assertNotIn("mFlashingSessions.clear();", visible)
+
+    def test_p02_session_id_migration_preserves_unread_status_without_duplicates(self):
+        src = self.source("indra/newview/fsfloaterimcontainer.cpp")
+        body = src.split("void FSFloaterIMContainer::sessionIDUpdated(", 1)[1].split(
+            "void FSFloaterIMContainer::tabOpen(", 1)[0]
+        self.assertIn("old_session_id == new_session_id || new_session_id.isNull()", body)
+        self.assertIn("mSessions[new_session_id] = floaterp;", body)
+        self.assertIn('onCloseFloater, this, floaterp));', src)
+        self.assertIn("std::find(mFlashingSessions.begin(), mFlashingSessions.end(), old_session_id)", body)
+        self.assertIn("std::find(mFlashingSessions.begin(), mFlashingSessions.end(), new_session_id)", body)
+        self.assertIn("*old_flashing = new_session_id;", body)
+        self.assertIn("mFlashingSessions.erase(old_flashing);", body)
+        self.assertIn("checkFlashing();", body)
+
+    def test_p02_active_tab_switch_preserves_hidden_unread_sessions(self):
+        src = self.source("indra/newview/fsfloaterimcontainer.cpp")
+        tab = src.split("void FSFloaterIMContainer::tabOpen(", 1)[1].split(
+            "void FSFloaterIMContainer::startFlashingTab(", 1)[0]
+        self.assertIn("!isShown() || isMinimized()", tab)
+        self.assertIn('opened_floater->getKey().asUUID()', tab)
+        self.assertNotIn('mFlashingSessions.clear()', tab)
+        closing = src.split("void FSFloaterIMContainer::onCloseFloater(", 1)[1].split(
+            "void FSFloaterIMContainer::onNewMessageReceived(", 1)[0]
+        self.assertIn("const LLUUID session_id = found != mSessions.end()", closing)
+        self.assertIn("found->first : closed_floater->getKey().asUUID()", closing)
+        self.assertIn("if (was_session_shown && isShown())", closing)
+        header = self.source("indra/newview/fsfloaterimcontainer.h")
+        self.assertIn("void onCloseFloater(LLFloater* closed_floater);", header)
+        self.assertNotIn("void onCloseFloater(LLUUID& id);", header)
+
+    def test_p02_closing_im_cleans_stale_alerts_and_voice_floater_pointer(self):
+        src = self.source("indra/newview/fsfloaterimcontainer.cpp")
+        closing = src.split("void FSFloaterIMContainer::onCloseFloater(", 1)[1].split(
+            "void FSFloaterIMContainer::onNewMessageReceived(", 1)[0]
+        self.assertIn("std::find_if(mSessions.begin(), mSessions.end()", closing)
+        self.assertIn("entry.second == closed_floater", closing)
+        self.assertNotIn("mSessions[id]", closing)
+        self.assertIn("mFlashingTabStates.erase(closed_floater);", closing)
+        self.assertIn("std::remove(mFlashingSessions.begin(), mFlashingSessions.end(), session_id)", closing)
+        self.assertIn("checkFlashing();", closing)
+        removed = src.split("void FSFloaterIMContainer::removeFloater(", 1)[1].split(
+            "bool FSFloaterIMContainer::hasFloater(", 1)[0]
+        self.assertIn("if (mActiveVoiceFloater == floaterp)", removed)
+        self.assertIn("mActiveVoiceFloater = nullptr;", removed)
+        self.assertIn("mCurrentVoiceState = VOICE_STATE_NONE;", removed)
+        self.assertIn("mForceVoiceStateUpdate = true;", removed)
+        self.assertLess(removed.index("mActiveVoiceFloater = nullptr;"),
+                        removed.index("LLMultiFloater::removeFloater(floaterp);"))
+        self.assertIn("if (gToolBarView)", src)
+
     def test_p02_im_session_row_has_no_design_time_name(self):
         base = ROOT / "indra/newview/skins/default/xui/en"
         root = ET.parse(base / "panel_fs_activeim_row.xml").getroot()
