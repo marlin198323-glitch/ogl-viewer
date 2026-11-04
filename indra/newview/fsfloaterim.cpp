@@ -205,7 +205,13 @@ bool FSFloaterIM::focusFirstItem(bool prefer_text_fields, bool focus_flash)
 
 void FSFloaterIM::onFocusLost()
 {
-    LLIMModel::getInstance()->resetActiveSessionID();
+    // Losing focus on an older IM must not clear a different conversation
+    // that has already become active during a fast tab switch.
+    LLIMModel* model = LLIMModel::getInstance();
+    if (model->getActiveSessionID() == mSessionID)
+    {
+        model->resetActiveSessionID();
+    }
 
     LLChicletBar::getInstance()->getChicletPanel()->setChicletToggleState(mSessionID, false);
 
@@ -216,16 +222,20 @@ void FSFloaterIM::onFocusLost()
 
 void FSFloaterIM::onFocusReceived()
 {
-    LLIMModel::getInstance()->setActiveSessionID(mSessionID);
-
-    LLChicletBar::getInstance()->getChicletPanel()->setChicletToggleState(mSessionID, true);
-
-    if (getVisible())
+    // A hosted background tab must not take the active-session identity,
+    // dismiss its unread counter or replace the currently focused mention
+    // source. Torn-off P2P/group IMs retain the standalone focus semantics.
+    FSFloaterIMContainer* container = FSFloaterIMContainer::findInstance();
+    const bool hosted = isChatMultiTab() && container && getHost() == container;
+    const bool active = getVisible() && (!hosted ||
+        (container->getActiveFloater() == this && !container->isMinimized()));
+    if (active)
     {
+        LLIMModel::getInstance()->setActiveSessionID(mSessionID);
+        LLChicletBar::getInstance()->getChicletPanel()->setChicletToggleState(mSessionID, true);
         LLIMModel::instance().sendNoUnreadMessages(mSessionID);
+        LLFloaterChatMentionPicker::updateParticipantSource(this);
     }
-
-    LLFloaterChatMentionPicker::updateParticipantSource(this);
 
     LLTransientDockableFloater::onFocusReceived();
 }
@@ -1161,6 +1171,12 @@ void FSFloaterIM::fetchAvatarName(LLUUID& agent_id)
 void FSFloaterIM::onAvatarNameCache(const LLUUID& agent_id,
                                     const LLAvatarName& av_name)
 {
+    // A response from a superseded P2P conversation must never relabel
+    // a newly selected recipient or group session.
+    if (agent_id != mOtherParticipantUUID)
+    {
+        return;
+    }
     mAvatarNameCacheConnection.disconnect();
 
     std::string name = av_name.getCompleteName();

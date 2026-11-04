@@ -26,6 +26,7 @@
      top="5"
      width="300">
         <avatar_icon
+         circular="true"
          follows="right"
          height="18"
          image_name="Generic_Person"
@@ -68,7 +69,7 @@
          top="7"
          translate="false"
          use_ellipses="true"
-         value="TestString PleaseIgnore (testing plsignore)"
+         value=""
          width="172" />
 	 <!-- TIME STAMP -->
         <text

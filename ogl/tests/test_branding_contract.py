@@ -287,6 +287,67 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn("mFlashingSessions.erase(old_flashing);", body)
         self.assertIn("checkFlashing();", body)
 
+    def test_p02_im_tab_focus_keeps_other_active_session_and_drafts(self):
+        source = self.source("indra/newview/fsfloaterim.cpp")
+        lost = source.split("void FSFloaterIM::onFocusLost()",1)[1].split(
+            "void FSFloaterIM::onFocusReceived()",1)[0]
+        gained = source.split("void FSFloaterIM::onFocusReceived()",1)[1].split(
+            "void FSFloaterIM::onClose(",1)[0]
+        self.assertIn("model->getActiveSessionID() == mSessionID",lost)
+        self.assertIn("model->resetActiveSessionID();",lost)
+        self.assertIn("const bool hosted = isChatMultiTab()",gained)
+        self.assertIn("container->getActiveFloater() == this",gained)
+        self.assertIn("!container->isMinimized()",gained)
+        self.assertIn("if (active)",gained)
+        self.assertIn("sendNoUnreadMessages(mSessionID)",gained)
+        self.assertIn("LLFloaterChatMentionPicker::updateParticipantSource(this)",gained)
+        self.assertIn('mInputEditor->setFocus(true);',source)
+
+    def test_p02_group_and_p2p_share_chat_history_and_privacy(self):
+        source = self.source("indra/newview/fsfloaterim.cpp")
+        self.assertIn('chat_args["show_time"] = gSavedSettings.getBOOL("FSShowTimestampsIM")',source)
+        self.assertIn('chat_args["show_names_for_p2p_conv"]',source)
+        self.assertIn('chat_args["is_p2p"] = pIMSession->isP2PSessionType()',source)
+        self.assertIn("case IM_SESSION_CONFERENCE_START:",source)
+        self.assertIn("case IM_SESSION_GROUP_START:",source)
+        self.assertIn("LLFloaterChatMentionPicker::removeParticipantSource(this)",source)
+        history = self.source("indra/newview/fschathistory.cpp")
+        self.assertIn("chat.mRlvNamesFiltered",history)
+        self.assertIn("circular",self.source("indra/newview/skins/default/xui/en/panel_chat_header.xml"))
+        changed = source.split("void FSFloaterIM::onAvatarNameCache(",1)[1].split(
+            "void FSFloaterIM::timedUpdate()",1)[0]
+        self.assertIn("if (agent_id != mOtherParticipantUUID)",changed)
+        self.assertLess(changed.index("if (agent_id != mOtherParticipantUUID)"),
+                        changed.index("updateSessionName(name, name);"))
+
+    def test_p02_toast_im_has_no_fake_resident_and_round_avatar(self):
+        root = ET.parse(ROOT / "indra/newview/skins/default/xui/en/panel_instant_message.xml").getroot()
+        header = next(n for n in root.iter() if n.get("name") == "im_header")
+        username = next(n for n in header.iter() if n.get("name") == "user_name")
+        avatar = next(n for n in header.iter("avatar_icon") if n.get("name") == "avatar_icon")
+        self.assertEqual(username.get("value"),"")
+        self.assertEqual(avatar.get("circular"),"true")
+        self.assertEqual(avatar.get("height"),avatar.get("width"))
+        self.assertIn('buildFromFile( "panel_instant_message.xml");',
+                      self.source("indra/newview/lltoastimpanel.cpp"))
+
+    def test_p02_im_de_en_input_and_unread_labels_inherited(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        english = ET.parse(base / "en/floater_fs_im_session.xml").getroot()
+        german = ET.parse(base / "de/floater_fs_im_session.xml").getroot()
+        for name in ("chat_history","chat_editor","unread_messages_text","send_chat"):
+            self.assertEqual(sum(n.get("name")==name for n in english.iter()),1,name)
+        editor = next(n for n in english.iter() if n.get("name") == "chat_editor")
+        self.assertEqual(editor.get("wrap"),"true")
+        self.assertEqual(editor.get("is_expandable"),"true")
+        self.assertIn("right",editor.get("follows"))
+        self.assertEqual(next(n for n in german.iter() if n.get("name")=="send_chat").get("label"),"Senden")
+        self.assertIn("Ungelesene Nachrichten:",
+                      "".join(next(n for n in german.iter()
+                                   if n.get("name")=="unread_messages_text").itertext()))
+        self.assertIn("VOICE_STATUS_UPDATE_INTERVAL",
+                      self.source("indra/newview/fsfloaterimcontainer.cpp"))
+
     def test_p02_active_tab_switch_preserves_hidden_unread_sessions(self):
         src = self.source("indra/newview/fsfloaterimcontainer.cpp")
         tab = src.split("void FSFloaterIMContainer::tabOpen(", 1)[1].split(
