@@ -1481,6 +1481,7 @@ bool LLAppViewer::init()
 #endif
     // OGL: hardware RTX inspection only; OpenGL remains the actual renderer.
     ogl_init_rtx_module();
+    ogl_report_world_backend_startup();
     LL_PROFILER_FRAME_END;
     return true;
 }
@@ -2009,6 +2010,7 @@ void LLAppViewer::flushLFSIO()
 
 bool LLAppViewer::cleanup()
 {
+    ogl_report_world_backend_shutdown();
     ogl_shutdown_rtx_module();
 #if LL_VELOPACK
     // Apply any pending Velopack update before shutdown

@@ -434,7 +434,7 @@ protected:
     bool hasDirtyChilds();
 
 private:
-
+    void onOglRendererEngineChanged();
     void onPresetsListChange();
     LOG_CLASS(LLPanelPreferenceGraphics);
 };

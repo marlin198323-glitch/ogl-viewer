@@ -42,9 +42,11 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("ogl_rtx_stage",cmake)
         self.assertIn("ogl_gpu_probe_stage",cmake)
         self.assertIn("<key>RenderMaxOpenGLVersion</key>",settings)
-        # No app-level engine switch exists in legacy graphics preferences.
+        # The graphics UI now exposes the future engine, but cannot enable
+        # Vulkan world rendering until the actual P05 pipeline exists.
         panel=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text()
-        self.assertNotIn('name="ogl_renderer_engine"',panel)
+        self.assertIn('name="ogl_renderer_engine"',panel)
+        self.assertIn('label="Vulkan (not implemented)"',panel)
 
     def test_p04_backend_contract_is_fail_closed_and_platform_neutral(self):
         header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
@@ -66,6 +68,74 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("vkQueuePresentKHR(",header)
         self.assertNotIn("gSavedSettings",header)
         self.assertNotIn("LLRenderTarget",header)
+
+    def test_p04_frame_lifecycle_preserves_real_opengl_world_present(self):
+        source=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
+        self.assertIn('constexpr auto world_renderer = ogl_current_world_backend()',source)
+        self.assertIn('world_renderer.active == OGLWorldBackend::OpenGL',source)
+        self.assertIn('gPipeline.renderGeomDeferred(',source)
+        self.assertIn('gPipeline.renderDeferredLighting()',source)
+        swap=source.split('void swap()\n{',1)[1].split('\nvoid ',1)[0]
+        self.assertIn('gViewerWindow->getWindow()->swapBuffers()',swap)
+        self.assertLess(swap.index('swapBuffers()'),swap.index('ogl_record_world_frame_presented()'))
+        startup=(ROOT/"indra/newview/llappviewer.cpp").read_text()
+        self.assertIn('ogl_report_world_backend_startup();',startup)
+        self.assertIn('ogl_report_world_backend_shutdown();',startup)
+        self.assertIn('ogl_shutdown_rtx_module();',startup)
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        self.assertIn('void ogl_record_world_frame_presented();',header)
+
+    def test_p04_graphics_engine_selector_is_explicitly_fail_closed(self):
+        en=ET.parse(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").getroot()
+        de=ET.parse(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_graphics1.xml").getroot()
+        for lang,root in (("en",en),("de",de)):
+            panels=[v for v in root.iter("panel") if v.get("name")=="ogl_renderer_panel"]
+            self.assertEqual(len(panels),1,lang)
+            self.assertEqual(sum(v.get("name")=="ogl_renderer_engine" for v in panels[0].iter()),1)
+            entries=[v for v in panels[0].iter("combo_box.item")]
+            self.assertEqual({v.get("value") for v in entries},{"opengl","vulkan"})
+        cpp=(ROOT/"indra/newview/llfloaterpreference.cpp").read_text()
+        self.assertIn('renderer->setEnabledByValue("vulkan", false)',cpp)
+        self.assertIn('renderer->setSelectedByValue("opengl", true)',cpp)
+        self.assertIn('void LLPanelPreferenceGraphics::onOglRendererEngineChanged()',cpp)
+        self.assertIn('combo->getValue().asString() != "opengl"',cpp)
+        self.assertIn('gSavedSettings.setString("OGLWorldRequestedEngine", "opengl");',cpp)
+        self.assertIn('renderer_panel->getString("ogl_renderer_vram_label")',cpp)
+        self.assertIn('renderer_panel->getString("ogl_renderer_unknown")',cpp)
+        self.assertIn("if (version.size() > 80) version.resize(80)",cpp)
+        self.assertIn('getChild<LLTextBox>("ogl_renderer_gpu")',cpp)
+
+    def test_p04_requested_and_last_working_backend_settings_are_separate(self):
+        settings=(ROOT/"indra/newview/app_settings/settings.xml").read_text()
+        root=ET.fromstring(settings)
+        entries=root.find("map")
+        data={el.text:val for el,val in zip(entries[0::2],entries[1::2])}
+        self.assertIn("OGLWorldRequestedEngine",data)
+        self.assertIn("OGLWorldLastWorkingEngine",data)
+        for name in ("OGLWorldRequestedEngine","OGLWorldLastWorkingEngine"):
+            prop=data[name]
+            tags={k.text:v for k,v in zip(prop[0::2],prop[1::2])}
+            self.assertEqual(tags["Type"].text,"String")
+            self.assertEqual(tags["Persist"].text,"1")
+            self.assertEqual(tags["Value"].text,"opengl" if name.endswith("RequestedEngine") else None)
+
+    def test_p04_gpu_log_is_diagnostic_not_a_vulkan_world_toggle(self):
+        source=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        self.assertIn("struct OGLWorldCapabilities",header)
+        self.assertIn("caps.vulkan_world_pipeline_complete = false",source)
+        self.assertIn("caps.vulkan_device_usable = ogl_rtx_hardware_supported()",source)
+        self.assertIn("gGLManager.mVRAMDetected > 0",source)
+        self.assertIn('gSavedSettings.getU32("RenderMaxVRAMBudget")',source)
+        self.assertIn("gGLManager.mDriverVersionVendorString",source)
+        self.assertIn("world-pipeline-unavailable",source)
+        self.assertIn("effective_VRAM_MB=",source)
+        self.assertIn("caps.gl_context_ready = gGLManager.mInited",source)
+        self.assertIn('World backend: OpenGL (actual)',source)
+        self.assertIn('OpenGL world frame presented; last working engine saved.',source)
+        self.assertIn('if (ogl_world_frame_reported || !gGLManager.mInited) return;',source)
+        self.assertIn('gSavedSettings.setString("OGLWorldLastWorkingEngine", "opengl")',source)
+        self.assertNotIn("gSavedSettings.setString(\"RenderMaxOpenGLVersion\"",source)
 
     def test_universal_preset_is_bundled_without_any_personal_settings(self):
         root = ET.parse(BUILTIN).getroot()

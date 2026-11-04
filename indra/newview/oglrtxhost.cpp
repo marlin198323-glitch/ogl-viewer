@@ -1,6 +1,8 @@
 #include "llviewerprecompiledheaders.h"
 #include "oglrtxhost.h"
 #include "llglheaders.h"
+#include "llgl.h"
+#include "llviewercontrol.h"
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
 #include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h"
 
@@ -77,6 +79,68 @@ void host_log(int severity, const char *message) {
 }
 }  // namespace
 #endif
+
+namespace {
+bool ogl_world_started = false;
+bool ogl_world_frame_reported = false;
+}
+
+// Startup diagnostics are separate from the optional RTX plugin. Reporting
+// hardware capability does NOT switch the world renderer or load a swapchain.
+void ogl_report_world_backend_startup() {
+    if (ogl_world_started) return;
+    ogl_world_started = true;
+    const std::string requested = gSavedSettings.getString("OGLWorldRequestedEngine");
+    const bool asked_for_vulkan = requested == "vulkan";
+    OGLWorldCapabilities caps{};
+    caps.gl_context_ready = gGLManager.mInited;
+    caps.vulkan_device_usable = ogl_rtx_hardware_supported();
+    caps.vulkan_world_pipeline_complete = false; // P05 NOT implemented
+    // Native GL/OS report and configured texture budget are distinct;
+    // a VRAM override is not proof of a bigger physical device.
+    caps.detected_vram_mb = gGLManager.mVRAMDetected > 0 ?
+                            static_cast<std::uint32_t>(gGLManager.mVRAMDetected) : 0;
+    const auto effective_vram_mb = gGLManager.mVRAM;
+    const auto texture_budget_mb = gSavedSettings.getU32("RenderMaxVRAMBudget");
+    caps.gl_version_major = static_cast<std::uint32_t>(gGLManager.mGLVersion);
+    const auto decision = ogl_choose_world_backend(
+        asked_for_vulkan ? OGLWorldBackend::Vulkan : OGLWorldBackend::OpenGL,
+        caps);
+    const char* fallback = decision.fallback == OGLWorldFallback::NoFallback ?
+        "none" : decision.fallback == OGLWorldFallback::WorldPipelineUnavailable ?
+        "world-pipeline-unavailable" : "device-unavailable";
+    LL_INFOS("OGLRenderer")
+        << "World backend: OpenGL (actual), requested=" << requested
+        << ", last_working=" << gSavedSettings.getString("OGLWorldLastWorkingEngine")
+        << ", GL_version=" << gGLManager.mGLVersionString
+        << ", GL_driver=" << gGLManager.mDriverVersionVendorString
+        << ", detected_VRAM_MB=" << caps.detected_vram_mb
+        << ", effective_VRAM_MB=" << effective_vram_mb
+        << ", configured_texture_budget_MB=" << texture_budget_mb
+        << ", RTX_diagnostic_capability=" << (caps.vulkan_device_usable ? "yes":"no")
+        << ", Vulkan_world_pipeline=unavailable"
+        << ", fallback=" << fallback
+        << ". Keeping existing GL world/GUI/present." << LL_ENDL;
+}
+
+void ogl_record_world_frame_presented() {
+    // Never write settings per frame or from a diagnostic ray-query result.
+    if (ogl_world_frame_reported || !gGLManager.mInited) return;
+    ogl_world_frame_reported = true;
+    if (gSavedSettings.getString("OGLWorldLastWorkingEngine") != "opengl")
+        gSavedSettings.setString("OGLWorldLastWorkingEngine", "opengl");
+    LL_INFOS("OGLRenderer") << "OpenGL world frame presented; last working engine saved."
+                            << LL_ENDL;
+}
+
+void ogl_report_world_backend_shutdown() {
+    if (!ogl_world_started) return;
+    ogl_world_started = false;
+    ogl_world_frame_reported = false;
+    LL_INFOS("OGLRenderer")
+        << "World renderer shutdown: existing OpenGL context/LLPipeline owned by viewer."
+        << LL_ENDL;
+}
 
 void ogl_init_rtx_module() {
 #if LL_LINUX || LL_WINDOWS

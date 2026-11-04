@@ -27811,6 +27811,24 @@ Change of this parameter will affect the layout of buttons in notification toast
       </array>
     </map>
     <!-- </FS:TP> -->
+    <!-- Renderer preference and last proven present are deliberately
+         independent; the current viewer can present only with OpenGL. -->
+    <key>OGLWorldRequestedEngine</key>
+    <map>
+      <key>Comment</key>
+      <string>Requested 3D renderer on next launch (currently only opengl is implemented).</string>
+      <key>Persist</key><integer>1</integer>
+      <key>Type</key><string>String</string>
+      <key>Value</key><string>opengl</string>
+    </map>
+    <key>OGLWorldLastWorkingEngine</key>
+    <map>
+      <key>Comment</key>
+      <string>Last engine which actually presented a frame; never infer Vulkan success from a GPU probe.</string>
+      <key>Persist</key><integer>1</integer>
+      <key>Type</key><string>String</string>
+      <key>Value</key><string></string>
+    </map>
     <key>OGLRememberPinnedHTTPLoginURI</key>
     <map>
       <key>Comment</key>

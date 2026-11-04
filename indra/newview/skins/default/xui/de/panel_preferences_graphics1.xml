@@ -137,6 +137,22 @@
 		<button tool_tip="Standardeinstellungen neu laden" name="Defaults"/>
 	</panel>
 
+	<panel name="ogl_renderer_panel" label="Renderer">
+		<string name="ogl_renderer_unknown">unbekannt</string>
+		<string name="ogl_renderer_vram_label">Grafikspeicher</string>
+		<text name="ogl_renderer_heading">Grafik-Engine</text>
+		<text name="ogl_renderer_explanation">OpenGL ist die aktive und kompatible Engine für die 3D-Welt.
+Vulkan kann erst nach Fertigstellung der vollständigen 3D-Pipeline und Swapchain ausgewählt werden.</text>
+		<text name="ogl_renderer_label">Renderer (Enginewechsel erfordert Neustart)</text>
+		<combo_box name="ogl_renderer_engine">
+			<combo_box.item name="opengl" label="OpenGL (aktiv)" value="opengl"/>
+			<combo_box.item name="vulkan" label="Vulkan (noch nicht implementiert)" value="vulkan"/>
+		</combo_box>
+		<text name="ogl_renderer_gpu">Grafikdiagnose wird geladen.</text>
+		<text name="ogl_renderer_warning">Die Vulkan-/RTX-GPU-Diagnose ist keine fertige Vulkan-Weltgrafik.
+OpenGL, die Grafikprofile und alle Benutzereinstellungen bleiben erhalten.
+Ein späterer Enginewechsel erfordert einen geordneten Neustart.</text>
+	</panel>
 	<panel label="Hardware" name="Hardware Settings">
 		<check_box label="Anisotropische Filterung (langsamer, wenn aktiviert)" name="ani" tool_tip="Aktiviert anisotropischen Filter, wodurch die Qualität von Texturen verbessert wird, wenn sie im relativ großen Winkel in Abhängigkeit der Kameraposition betrachtet werden. Üblicherweise erscheinen sie dadurch in größerer Entfernung weniger verwaschen."/>
 		<text name="tc label">

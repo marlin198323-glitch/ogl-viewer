@@ -490,6 +490,12 @@ static void update_tp_display(bool minimized)
 // Paint the display!
 void display(bool rebuild, F32 zoom_factor, int subfield, bool for_snapshot)
 {
+    // P04/3: Bind the existing real-world frame entry point to the backend
+    // contract. There is only a complete OpenGL world/present backend today.
+    // No experimental Vulkan diagnostic is allowed to intercept this frame.
+    constexpr auto world_renderer = ogl_current_world_backend();
+    static_assert(world_renderer.active == OGLWorldBackend::OpenGL,
+                  "Vulkan world frames require a real P05 pipeline/swapchain");
     LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("Render");
     LL_PROFILE_GPU_ZONE("Render");
 
@@ -1723,6 +1729,7 @@ void swap()
     if (gDisplaySwapBuffers)
     {
         gViewerWindow->getWindow()->swapBuffers();
+        ogl_record_world_frame_presented();
     }
     gDisplaySwapBuffers = true;
 }

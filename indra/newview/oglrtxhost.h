@@ -63,6 +63,46 @@ static_assert(ogl_current_world_backend().active == OGLWorldBackend::OpenGL);
 static_assert(ogl_choose_world_backend(
     OGLWorldBackend::Vulkan, false, true).active == OGLWorldBackend::OpenGL);
 
+// Cross-platform capability snapshot: no vendor/CPU family is hard-coded.
+// GL version and detected VRAM are diagnostics, NOT Vulkan readiness.
+// Until P05 delivers the full world renderer and swapchain, the
+// world_pipeline_complete bit MUST remain false even with RTX support.
+struct OGLWorldCapabilities {
+    bool gl_context_ready = false;
+    bool vulkan_device_usable = false;
+    bool vulkan_world_pipeline_complete = false;
+    std::uint32_t detected_vram_mb = 0;
+    std::uint32_t gl_version_major = 0;
+    std::uint32_t gl_version_minor = 0;
+};
+
+constexpr OGLWorldBackendDecision ogl_choose_world_backend(
+    OGLWorldBackend requested, const OGLWorldCapabilities& caps) noexcept
+{
+    return ogl_choose_world_backend(requested,
+        caps.vulkan_world_pipeline_complete, caps.vulkan_device_usable);
+}
+
+// OpenGL never depends on the presence of the optional Vulkan probe.
+static_assert(ogl_choose_world_backend(
+    OGLWorldBackend::OpenGL, OGLWorldCapabilities{}).active == OGLWorldBackend::OpenGL);
+static_assert(ogl_choose_world_backend(
+    OGLWorldBackend::Vulkan,
+    OGLWorldCapabilities{true, true, false, 8192, 4, 6}).fallback ==
+    OGLWorldFallback::WorldPipelineUnavailable);
+
+// Lifecycle ownership contract: OpenGL world/present/context state is owned
+// by the existing Firestorm window/LLPipeline on the viewer main thread.
+// The separate RTX module owns its diagnostic device and must shut down
+// before the viewer destroys its GL context. No runtime engine hot-switch.
+// The optional status call is non-rendering and never mutates user settings.
+void ogl_report_world_backend_startup();
+void ogl_report_world_backend_shutdown();
+// Call only AFTER actual existing OpenGL swapBuffers returns; idempotent.
+// A GPU probe, diagnostics sample or login screen is never a Vulkan frame.
+void ogl_record_world_frame_presented();
+
+
 /* Optional Linux Vulkan/RTX module lifecycle; safe no-op on other platforms. */
 void ogl_init_rtx_module();
 void ogl_shutdown_rtx_module();

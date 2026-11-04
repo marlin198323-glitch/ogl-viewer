@@ -35,6 +35,7 @@
 
 #include "llfloaterpreference.h"
 #include "llfilepicker.h"
+#include "oglrtxhost.h"
 
 #include "message.h"
 #include "llfloaterautoreplacesettings.h"
@@ -4012,6 +4013,28 @@ bool LLPanelPreferenceGraphics::postBuild()
 #endif
     // </FS:Ansariel>
 
+    // P04/8-13: the existing graphics tab exposes the planned engine
+    // choice but cannot enable a renderer which cannot present world frames.
+    // Vulkan capability probing is not enough: the complete P05 world
+    // pipeline/swapchain is absent on every platform.
+    LLComboBox* renderer = getChild<LLComboBox>("ogl_renderer_engine");
+    renderer->setSelectedByValue("opengl", true);
+    renderer->setEnabledByValue("vulkan", false);
+    renderer->setCommitCallback(
+        boost::bind(&LLPanelPreferenceGraphics::onOglRendererEngineChanged, this));
+
+    LLTextBox* diagnostics = getChild<LLTextBox>("ogl_renderer_gpu");
+    LLPanel* renderer_panel = getChild<LLPanel>("ogl_renderer_panel");
+    std::string version = gGLManager.mGLVersionString.empty() ?
+                          renderer_panel->getString("ogl_renderer_unknown") :
+                          gGLManager.mGLVersionString;
+    if (version.size() > 80) version.resize(80);
+    diagnostics->setText("OpenGL " + version + "\n" +
+        renderer_panel->getString("ogl_renderer_vram_label") + ": " +
+        (gGLManager.mVRAM ?
+        std::to_string(gGLManager.mVRAM) + " MB" :
+        renderer_panel->getString("ogl_renderer_unknown")));
+
     resetDirtyChilds();
     setPresetText();
 
@@ -4028,6 +4051,19 @@ bool LLPanelPreferenceGraphics::postBuild()
 
     return LLPanelPreference::postBuild();
 }
+void LLPanelPreferenceGraphics::onOglRendererEngineChanged()
+{
+    LLComboBox* combo = getChild<LLComboBox>("ogl_renderer_engine");
+    if (combo->getValue().asString() != "opengl")
+    {
+        // Never persist or hot-swap a non-existent Vulkan world renderer.
+        combo->setSelectedByValue("opengl", true);
+        return;
+    }
+    // User's existing GL quality settings are left entirely untouched.
+    gSavedSettings.setString("OGLWorldRequestedEngine", "opengl");
+}
+
 void LLPanelPreferenceGraphics::draw()
 {
     LLPanelPreference::draw();

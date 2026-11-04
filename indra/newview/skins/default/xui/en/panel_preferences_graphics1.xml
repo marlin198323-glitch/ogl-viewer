@@ -943,6 +943,41 @@
         </button>
     </panel>
 
+<!-- OGL Renderer: extend this existing graphics panel, not a parallel skin. -->
+    <panel name="ogl_renderer_panel" label="Renderer" layout="topleft"
+     follows="all" top_pad="5" bottom="-1" left="1" right="-1">
+      <string name="ogl_renderer_unknown">unknown</string>
+      <string name="ogl_renderer_vram_label">Graphics memory</string>
+      <text name="ogl_renderer_heading" left="20" top="20" right="-20" height="25"
+       follows="top|left|right" font="SansSerifLarge" layout="topleft">
+        Graphics engine
+      </text>
+      <text name="ogl_renderer_explanation" left="20" top="58" right="-20" height="48"
+       follows="top|left|right" layout="topleft" font="SansSerifSmall">
+        OpenGL is the active, compatible world renderer.
+        Vulkan is planned but not selectable until the complete 3D pipeline and swapchain exist.
+      </text>
+      <text name="ogl_renderer_label" left="20" top="117" right="-20" height="20"
+       follows="top|left|right" layout="topleft" font="SansSerifSmallBold">
+        Renderer (requires restart to change)
+      </text>
+      <combo_box name="ogl_renderer_engine" left="20" top="143" width="290" height="25"
+       follows="left|top" layout="topleft">
+        <combo_box.item name="opengl" label="OpenGL (active)" value="opengl"/>
+        <combo_box.item name="vulkan" label="Vulkan (not implemented)" value="vulkan"/>
+      </combo_box>
+      <text name="ogl_renderer_gpu" left="20" top="191" right="-20" height="65"
+       follows="top|left|right" word_wrap="true" layout="topleft" font="SansSerifSmall">
+        Graphics diagnostics will appear here.
+      </text>
+      <text name="ogl_renderer_warning" left="20" top="276" right="-20" height="85"
+       follows="top|left|right" layout="topleft" font="SansSerifSmall">
+        Vulkan/RTX hardware diagnostics do not mean Vulkan world rendering is available.
+        OpenGL, existing graphics presets, and personal settings are preserved.
+        Switching a completed renderer later will require a clean restart.
+      </text>
+    </panel>
+
 <!--Hardware Settings-->
     <panel
      top_pad="5"
