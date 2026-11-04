@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 9/20.
+**Aktiver Block:** /goal P03 Block 1/20.
 P02 Block 8 (gelesener/ungelesener
 Sitzungswechsel, Tab-Blinkanzeigen,
 Sitzungs-ID-Migration und Voice-Status)
@@ -38,8 +38,8 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 8/20 | Block 9: Fensterfokus, ungelesene Nachrichten und Eingabe bei IM-Wechsel prüfen |
-| P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
+| P03 – Theme-System und sichere Designinstallation | aktiv | 0/20 | Block 1: vorhandenen Theme-Manager und UI inventarisieren |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
@@ -50,6 +50,102 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Blöcke 9–20/20 – Chat-Fokus, UI-Gleichlauf, Prüfung und Abschluss (04.11.2026)
+
+**Code-Commit 68e50e2b** auf origin/ogl-develop.
+In FSFloaterIM::onFocusLost wird der aktive
+Sitzungszustand nur zurückgesetzt, wenn
+die aktuell aktive Session tatsächlich die
+fokusverlierende Session ist. onFocusReceived
+übernimmt aktive Session, Chiclet und
+Mention-Picker für gehostete IMs nur bei
+tatsächlich sichtbarem, nicht minimiertem,
+ausgewähltem Fenster. Für losgelöste
+Einzel-/Gruppenfenster bleibt die
+Standalone-Nutzung erhalten.
+Das asynchrone P2P-Namens-Callback
+ignoriert fremde Empfänger-IDs.
+Das bereits verwendete IM-Toast-XUI
+panel_instant_message.xml hat keinen
+fest codierten Demobenutzernamen mehr,
+und der Avatar wird rund gerendert.
+
+**12 Einzelblock-Nachweise, ohne
+jeweils neue Parallel-Dateien:**
+- 09: IM-Fokus, aktive Sitzung,
+  Nachrichteneingabe/Unread geprüft
+  und in C++ tatsächlich korrigiert.
+- 10: Gruppen- und Einzelchat
+  verwenden dieselbe FSChatHistory-
+  Nachrichtenstruktur (inkl.
+  is_p2p-Kontext) – im Bestand geprüft.
+- 11: Reale runde Avatar-Icons
+  in Chat-Header und IM-Toast
+  geprüft, Toast-Icon korrigiert.
+- 12: Absendername und Uhrzeit
+  im Chat-Header zur Laufzeit
+  gebunden, keine Demotexte.
+- 13: Nachrichtenfeld/-bereich
+  mit wrap, is_expandable und
+  rechter/unterer Layoutbindung
+  als responsive Basis geprüft.
+- 14: Kontakte und aktive
+  Sitzungsnavigation inklusive
+  Tab-Reihenfolge und Unread-
+  Markierungen geprüft.
+- 15: RLVa-Avatar-Namensschutz
+  und fremde Avatar-Cache-IDs
+  geprüft, letzteres korrigiert.
+- 16: Voice-Status/Call-Buttons
+  und Gruppen-Sprecherliste
+  im Bestand erhalten/geprüft.
+- 17: DE/EN-IM-Texte,
+  Nachrichteneingabe und
+  vorhandene Tastatur-/Fokus-
+  Bedienung geprüft.
+- 18: Aktiven, sichtbaren
+  Test-Placeholder aus IM-Toast
+  entfernt, weitere historische
+  XUI-/script_copy-Dateien
+  ohne Abhängigkeitsprüfung
+  ausdrücklich nicht gelöscht.
+- 19: Linux-Vollviewer
+  Version 7.2.5.200 gebaut;
+  299/299 Python-Tests, davon
+  145 Branding-/UI-Tests,
+  und 41/41 native CTests
+  bestanden. Zwei DE-/EN-
+  Xvfb-Prelogin-GUI-Starts
+  mit Exit 0, gepackte
+  IM-Toast-Datei bytegleich
+  mit Quelle.
+- 20: Code auf ogl-develop
+  veröffentlicht; Dokumentation
+  aktualisiert und Übergang zu
+  P03 ohne Nutzerabnahmestopp.
+
+**P02-Abschluss:** 20/20 als
+technische Linux-Code-/Quellen-
+Regressionsphase nachgewiesen;
+**nicht** als vollständige,
+authentifizierte In-World-
+Funktions-/Voice-/DPI-Abnahme.
+Reale Live-GUI, Windows/macOS-
+Vollviewer-Installer und
+Windows/macOS-GUI gehören zu
+P13. Diese externen Gates
+werden nicht fingiert.
+
+**P03 eröffnet:** existierender
+Theme-Manager in
+llfloaterpreference.cpp,
+panel_preferences_ogl_themes.xml,
+validate_theme.py und manage_themes.py
+wird gemäß P03/1–20
+weiterentwickelt. Erst die
+Sicherheits- und Aktivierungsprüfungen
+entscheiden über P03-Blockabschluss.
 
 ## P02 Block 8/20 – IM-Fensterwechsel und Sitzungs-/Voice-Status (04.11.2026)
 

@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 9/20.
+wechseln. Neuer Einstieg: P03 Block 1/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -516,6 +516,32 @@ Nachrichteneingabe und
 Unread-Counter beim Wechsel.
 Windows-Installer weiter nicht
 als Download verfügbar.
+
+**P02/9–20 technisch abgeschlossen
+(04.11.2026, 68e50e2b):**
+IM-Fokus/aktive Sitzung beim
+Tabwechsel abgesichert,
+asynchrone P2P-Namensantworten
+über Absender-ID geprüft,
+sichtbare Demotexte aus IM-Toast
+entfernt, runder Avatar.
+Restliche Gruppenchat-, responsive
+Feld-/Zeitstempel-, Kontakte-,
+RLVa-, Voice- und DE/EN-Verträge
+an bestehenden realen UI-
+Funktionspfaden geprüft.
+Linux-Vollbuild 7.2.5.200,
+299 Python-/41 native Tests,
+145 Branding-/UI-Tests,
+zwei DE-/EN-GUI-Prelogin-Smokes,
+gepacktes IM-Toast-XUI identisch.
+P02 20/20 Linux-Code/Tests,
+kein echter In-World-Chat-/Voice-
+oder Windows/macOS-Viewer-Test.
+P03 jetzt 0/20 eröffnet:
+bestehende Themes und CLI zuerst
+inventarisieren, dann native
+Auswahl-/Sicherheitsarbeit.
 
 ## Aktuelle Roadmaps
 

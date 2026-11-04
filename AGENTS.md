@@ -33,12 +33,15 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-P02 Blöcke 1–8 Inventur, Navigation,
-Menü-/Toolbar-Konsolidierung, OGL-
-Infofenster, Chat-/Avatar-Header,
-IM-Gesprächsliste und Sitzungs-/
-Blink-Status konsolidiert; aktiv
-P02 Block 9/20.
+P02 Blöcke 1–20 Linux-Code-/Regressions-
+Phase abgeschlossen (abschließender
+Commit 68e50e2b, Viewer 7.2.5.200,
+299 Python-/41 native Tests,
+DE-/EN-GUI-Smokes). Live-In-World-
+Chat, Voice, DPI und Windows/macOS-
+Vollviewer bleiben P13-Gates.
+Aktive Phase P03 Block 1/20:
+Theme-System und sichere Designs.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

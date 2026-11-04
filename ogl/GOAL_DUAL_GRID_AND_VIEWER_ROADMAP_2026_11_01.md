@@ -494,7 +494,9 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 8/20 abgeschlossen.
+**Aktueller Status:** P02 Linux-Code/Regression
+20/20 abgeschlossen; offene authentifizierte
+In-World- und Plattform-GUI-Gates in P13.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
 13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
@@ -589,10 +591,35 @@ Linux-Vollbuild 7.2.5.198,
 141 Brandingtests, DE-/EN-
 Prelogin-GUI-Smokes bestanden.
 Kein Live-IM-/Voice-Wechseltest.
-Nächster Block 9/20: Fokus,
-Chat-Eingabe und Unread-Counter.
-Windows-Installer-Artefakt
-bleibt gesondert offen.
+Blöcke 9–20 (04.11.2026, 68e50e2b):
+Aktive IM-Sitzung beim Fokusverlust
+nur für dieselbe Session zurücksetzen;
+bei verborgenem/nicht aktivem Tab
+keine fremde Session aktivieren oder
+Unread-Counter löschen.
+Asynchrone P2P-Avatar-Namen nur
+bei passender Empfänger-ID.
+IM-Toast-Testname aus bestehendem
+XUI entfernt und runden Avatar
+gesetzt. Die elf weiteren P02-
+Prüfschwerpunkte: gleiches
+Chat-/Gruppen-Nachrichtenschema,
+Avatar-/Name-/Zeitstempel,
+responsive Eingabe, Kontakte,
+RLVa, Voice, DE/EN, verwaister
+sichtbarer Demotext, Linux-
+Vollbuild/QA und GitHub-Push
+wurden anhand bestehender
+Funktionspfade geprüft.
+Linux-Viewer 7.2.5.200,
+299 Python-/41 native Tests,
+145 Brandingtests, DE-/EN-
+Prelogin-GUI-Smokes bestanden.
+P02 als Linux-Quell-/Regression
+20/20 abgeschlossen; echte
+In-World-/Plattform-Abnahme
+nicht behauptet. P03/1 startet
+ohne Nutzerabnahmestopp.
 Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,
