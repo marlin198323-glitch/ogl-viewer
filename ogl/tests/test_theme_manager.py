@@ -101,6 +101,63 @@ class ThemeManagementTests(unittest.TestCase):
                 with self.assertRaises(UnsafeTheme):
                     manager.active_id(root)
 
+    def test_reject_nonregular_unix_fifo_and_symlink_entries(self):
+        from validate_theme import validate_theme
+        for kind in (stat.S_IFIFO, stat.S_IFLNK, stat.S_IFSOCK):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as t:
+                p=Path(t)/"nonregular.ogltheme"
+                with zipfile.ZipFile(p,"w") as package:
+                    package.writestr("theme.json",json.dumps(EXAMPLE))
+                    info=zipfile.ZipInfo("assets/bad.png")
+                    info.create_system=3
+                    info.external_attr=(kind | 0o644)<<16
+                    package.writestr(info,b"invalid")
+                with self.assertRaises(UnsafeTheme):
+                    validate_theme(p)
+
+    def test_reject_duplicate_json_properties_and_semver_overflow(self):
+        from validate_theme import validate_theme
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t)/"duplicate.ogltheme"
+            text=json.dumps(EXAMPLE)
+            duplicate=text.replace('"schema_version": 1',
+                                   '"schema_version": 1, "schema_version": 1',1)
+            with zipfile.ZipFile(p,"w") as package:
+                package.writestr("theme.json",duplicate)
+            with self.assertRaises(UnsafeTheme):
+                validate_theme(p)
+            huge=dict(EXAMPLE,version="1."+"1"*35+".0")
+            with self.assertRaises(UnsafeTheme):
+                validate_theme(archive(t,doc=huge))
+
+    def test_reject_unsupported_zip_method_and_extra_oversize_archive_bytes(self):
+        from validate_theme import validate_theme
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t)/"bzip.ogltheme"
+            with zipfile.ZipFile(p,"w") as package:
+                info=zipfile.ZipInfo("theme.json")
+                info.compress_type=zipfile.ZIP_BZIP2
+                package.writestr(info,json.dumps(EXAMPLE))
+            with self.assertRaises(UnsafeTheme):
+                validate_theme(p)
+            p=archive(t)
+            with p.open("ab") as f:
+                f.write(b"x"*(16*1024*1024))
+            with self.assertRaises(UnsafeTheme):
+                validate_theme(p)
+
+    def test_reject_case_collisions_and_parent_traversal(self):
+        from validate_theme import validate_theme
+        with tempfile.TemporaryDirectory() as t:
+            p=archive(t,files=[
+                ("assets/Name.png", b""),
+                ("assets/name.PNG", b"")])
+            with self.assertRaises(UnsafeTheme):
+                validate_theme(p)
+            p=archive(t,files=[("assets/../evil.png",b"")])
+            with self.assertRaises(UnsafeTheme):
+                validate_theme(p)
+
     def test_paths_are_user_scoped_on_each_os(self):
         import unittest.mock
         with unittest.mock.patch.object(manager.sys,"platform","darwin"):

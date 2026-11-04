@@ -34,6 +34,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llfloaterpreference.h"
+#include "llfilepicker.h"
 
 #include "message.h"
 #include "llfloaterautoreplacesettings.h"
@@ -5329,6 +5330,26 @@ static bool valid_hex(const std::string& text) {
     }
     return true;
 }
+// Same strict major.minor.patch contract used by validate_theme.py.
+// No prerelease identifiers or unbounded numeric/leading-zero components.
+static bool valid_semver(const std::string& version) {
+    if (version.empty() || version.size()>32) return false;
+    std::size_t segment_start=0;
+    int dots=0;
+    for (std::size_t i=0; i<version.size(); ++i) {
+        const char c=version[i];
+        if (c=='.') {
+            if (i==segment_start || (i-segment_start>1 && version[segment_start]=='0'))
+                return false;
+            segment_start=i+1;
+            ++dots;
+        } else if (c<'0' || c>'9') {
+            return false;
+        }
+    }
+    return dots==2 && segment_start<version.size() &&
+        !(version.size()-segment_start>1 && version[segment_start]=='0');
+}
 static LLColor4 color(const std::string& value) {
     if (!valid_hex(value)) throw std::runtime_error("Invalid theme color");
     const auto component=[&](std::size_t at) {
@@ -5352,7 +5373,7 @@ static bj::object manifest(const std::string& id) {
         throw std::runtime_error("Unsupported installed theme");
     if (doc.at("name").as_string().empty() ||
         doc.at("name").as_string().size()>70 ||
-        doc.at("version").as_string().size()>32)
+        !valid_semver(std::string(doc.at("version").as_string())))
         throw std::runtime_error("Oversized theme metadata");
     for (const char c:doc.at("name").as_string()) {
         if (static_cast<unsigned char>(c)<32 ||
@@ -5728,6 +5749,8 @@ bool LLPanelPreferenceOglThemes::postBuild()
         boost::bind(&LLPanelPreferenceOglThemes::onOglThemeReset,this));
     getChild<LLButton>("ogl_theme_folder")->setCommitCallback(
         boost::bind(&LLPanelPreferenceOglThemes::onOglThemeFolder,this));
+    getChild<LLButton>("ogl_theme_select_file")->setCommitCallback(
+        boost::bind(&LLPanelPreferenceOglThemes::onOglThemeSelectPackage,this));
     refreshOglThemes();
 
     return LLPanelPreference::postBuild();
@@ -5744,7 +5767,7 @@ void LLPanelPreferenceOglThemes::refreshOglThemes()
 {
     if (!mOglThemeCombo) return;
     mOglThemeCombo->clearRows();
-    mOglThemeCombo->add("Original Firestorm (default)","");
+    mOglThemeCombo->add("OGL Standard (default)","");
     try {
         const auto root=ogl_pref_themes::root();
         const auto themes=root/"themes";
@@ -5792,9 +5815,9 @@ void LLPanelPreferenceOglThemes::previewOglTheme()
 {
     // An active theme may have already changed live UIColorTable values.
     // The "Original Firestorm" swatches must come from the saved baseline.
-    LLColor4 bg=ogl_pref_themes::backed_up_color("FloaterDefaultBackgroundColor");
-    LLColor4 fg=ogl_pref_themes::backed_up_color("TextDefaultColor");
-    LLColor4 chat=ogl_pref_themes::backed_up_color("ChatHistoryBgColor");
+    LLColor4 bg=ogl_pref_themes::backed_up_color(ogl_pref_themes::TOKEN_COLORS.at("window.background"));
+    LLColor4 fg=ogl_pref_themes::backed_up_color(ogl_pref_themes::TOKEN_COLORS.at("window.text"));
+    LLColor4 chat=ogl_pref_themes::backed_up_color(ogl_pref_themes::TOKEN_COLORS.at("chat.background"));
     if (!mOglSelected.empty()) {
         try {
             const auto doc=ogl_pref_themes::manifest(mOglSelected);
@@ -5842,6 +5865,36 @@ void LLPanelPreferenceOglThemes::onOglThemeReset()
         oglThemeStatus(getString("ogl_status_reset"));
     } catch(const std::exception&) {
         oglThemeStatus(getString("ogl_status_reset_error"));
+    }
+}
+
+void LLPanelPreferenceOglThemes::onOglThemeSelectPackage()
+{
+    // Native, cross-platform file selection only. A selected ZIP must never
+    // be automatically loaded or extracted: the next security phase adds
+    // the native package validator and atomic installer.
+    LLFilePicker& picker = LLFilePicker::instance();
+    if (!picker.getOpenFile(LLFilePicker::FFLOAD_ALL))
+    {
+        return;
+    }
+    try
+    {
+        const std::string filename_utf8 = picker.getFirstFile();
+        const std::filesystem::path package(
+            reinterpret_cast<const char8_t*>(filename_utf8.c_str()));
+        if (package.extension() != ".ogltheme" ||
+            std::filesystem::is_symlink(package) ||
+            !std::filesystem::is_regular_file(package) ||
+            std::filesystem::file_size(package) > 16u * 1024u * 1024u)
+        {
+            throw std::runtime_error("Invalid theme package selection");
+        }
+        oglThemeStatus(getString("ogl_status_selected") + package.filename().string());
+    }
+    catch (const std::exception&)
+    {
+        oglThemeStatus(getString("ogl_status_selection_error"));
     }
 }
 

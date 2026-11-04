@@ -52,7 +52,8 @@ def validate_manifest(doc: object)->dict:
         raise UnsafeTheme("Invalid theme name")
     if any(ord(c)<32 or ord(c)==127 for c in doc["name"]):
         raise UnsafeTheme("Control characters in theme name")
-    if not isinstance(doc["version"],str) or not SEMVER.fullmatch(doc["version"]):
+    if (not isinstance(doc["version"],str) or len(doc["version"])>32 or
+        not SEMVER.fullmatch(doc["version"])):
         raise UnsafeTheme("Invalid theme semantic version")
     if (not isinstance(doc["platforms"],list) or
         len(doc["platforms"])!=3 or
@@ -70,6 +71,10 @@ def validate_manifest(doc: object)->dict:
 
 def validate_theme(path: Path)->dict:
     try:
+        # Reject appended payloads, malformed oversized ZIPs, and accidental
+        # attempts to process arbitrary huge files before opening the archive.
+        if path.stat().st_size > 16 * 1024 * 1024:
+            raise UnsafeTheme("Compressed theme archive is too large")
         with zipfile.ZipFile(path) as archive:
             infos=archive.infolist()
             if not infos or len(infos)>MAX_FILES:
@@ -96,9 +101,13 @@ def validate_theme(path: Path)->dict:
                 if folded in names:
                     raise UnsafeTheme("Duplicate case-insensitive archive path")
                 names.add(folded)
-                if (stat.S_IFMT(info.external_attr>>16)==stat.S_IFLNK or
-                    info.flag_bits & 1):
-                    raise UnsafeTheme("Symlinks and encrypted entries forbidden")
+                # Reject all non-regular Unix file types, not just symlinks
+                # (including FIFOs, block devices, sockets and directories).
+                kind=stat.S_IFMT(info.external_attr >> 16)
+                if (kind not in (0, stat.S_IFREG) or info.flag_bits & 1):
+                    raise UnsafeTheme("Non-regular, symlinked or encrypted theme entries forbidden")
+                if info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                    raise UnsafeTheme("Unsupported ZIP compression method")
                 if info.file_size>MAX_FILE_SIZE or info.file_size<0:
                     raise UnsafeTheme("Oversized theme entry")
                 if info.file_size and (info.file_size/max(info.compress_size,1))>MAX_COMPRESSION_RATIO:
@@ -115,13 +124,23 @@ def validate_theme(path: Path)->dict:
             if info.file_size>MAX_MANIFEST:
                 raise UnsafeTheme("Oversized theme manifest")
             try:
-                doc=json.loads(archive.read(info).decode("utf-8"))
+                # A duplicate JSON property is ambiguous across runtimes and
+                # must not be interpreted differently by the native viewer.
+                def no_duplicate_keys(pairs):
+                    result={}
+                    for key,value in pairs:
+                        if key in result:
+                            raise UnsafeTheme("Duplicate theme manifest property")
+                        result[key]=value
+                    return result
+                doc=json.loads(archive.read(info).decode("utf-8"),
+                               object_pairs_hook=no_duplicate_keys)
             except (UnicodeError,ValueError) as e:
                 raise UnsafeTheme("Invalid UTF-8 JSON manifest") from e
             # A future installer must independently verify PNG/WebP
             # decoding and signatures before writing any file to disk.
             return validate_manifest(doc)
-    except (zipfile.BadZipFile, OSError) as e:
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, RuntimeError, EOFError) as e:
         raise UnsafeTheme("Unreadable theme archive") from e
 
 def main(argv:list[str])->int:

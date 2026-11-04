@@ -549,6 +549,7 @@ public:
     void onOglThemeActivate();
     void onOglThemeReset();
     void onOglThemeFolder();
+    void onOglThemeSelectPackage();
     void refreshOglThemes();
     void previewOglTheme();
     void oglThemeStatus(const std::string& message);

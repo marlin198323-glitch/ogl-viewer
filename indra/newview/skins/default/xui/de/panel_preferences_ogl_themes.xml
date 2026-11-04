@@ -3,10 +3,11 @@
     <text name="ogl_heading">OGL-Designs</text>
     <text name="ogl_description">
         Optionale Farbdesigns für Chat und Viewer-Fenster.
-        Das originale Firestorm-Design bleibt der Standard.
+        OGL Standard ist voreingestellt. Klassische Designs bleiben optional.
     </text>
     <text name="ogl_theme_choose">Installierte Designs</text>
     <button name="ogl_theme_folder" label="Designordner öffnen" />
+    <button name="ogl_theme_select_file" label=".ogltheme auswählen" />
     <text name="ogl_theme_preview_label">Farbvorschau (ändert den Viewer nicht)</text>
     <button name="ogl_theme_color_bg" label="Fenster" />
     <button name="ogl_theme_color_text" label="Text" />
@@ -18,9 +19,9 @@
     <button name="ogl_theme_activate" label="Design aktivieren" />
     <button name="ogl_theme_reset" label="Original wiederherstellen" />
     <text name="ogl_theme_status">
-        Das originale Firestorm-Design ist der Standard.
+        OGL Standard ist voreingestellt.
     </text>
-    <string name="ogl_status_loaded">Designs geladen. Firestorm bleibt Standard.</string>
+    <string name="ogl_status_loaded">Designs geladen. OGL Standard ist voreingestellt.</string>
     <string name="ogl_status_invalid">Ungültige Designdaten. Original verfügbar.</string>
     <string name="ogl_status_preview">Nur Vorschau. Zum Speichern aktivieren. Neustart empfohlen.</string>
     <string name="ogl_status_invalid_preview">Ungültiges oder entferntes Design. Nichts geändert.</string>
@@ -30,4 +31,6 @@
     <string name="ogl_status_reset_error">Originalfarben konnten nicht wiederhergestellt werden.</string>
     <string name="ogl_status_folder">Geprüfte Pakete über den OGL-Theme-Manager installieren.</string>
     <string name="ogl_status_folder_error">Designordner konnte nicht geöffnet werden.</string>
+    <string name="ogl_status_selected">Paket ausgewählt, NICHT installiert: </string>
+    <string name="ogl_status_selection_error">Nur lokale reguläre .ogltheme-Dateien bis 16 MiB auswählbar.</string>
 </panel>

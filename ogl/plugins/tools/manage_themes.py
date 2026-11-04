@@ -182,7 +182,7 @@ def main(argv:list[str])->int:
             activate(args.data_dir,args.id);print("Selected:",args.id)
         elif args.command=="reset":
             safe_themes(args.data_dir)
-            write_active(args.data_dir,None);print("Selected: built-in Firestorm")
+            write_active(args.data_dir,None);print("Selected: OGL Standard")
         elif args.command=="remove":
             remove(args.data_dir,args.id);print("Removed:",args.id)
     except (UnsafeTheme, OSError) as exc:

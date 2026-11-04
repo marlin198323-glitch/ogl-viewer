@@ -6,6 +6,14 @@
   <color name="OGLLoginAccent" value="0.30 0.82 0.99 1" />
   <color name="OGLLoginLink" value="0.58 0.88 1.0 1" />
 
+  <!-- OGL/NexVerse base palette. Other skins and user overrides remain
+       selectable; these are shared references, not a parallel skin. -->
+  <color name="OGLThemeAccent" value="0.20 0.70 0.90 1.0" />
+  <color name="OGLThemeAccentLight" value="0.54 0.83 0.96 1.0" />
+  <color name="OGLThemeSelection" value="0.29 0.63 0.89 1.0" />
+  <color name="OGLThemeSchemeDark" value="0.10 0.16 0.25 1.0" />
+  <color name="OGLThemeSchemeLightest" value="0.29 0.39 0.52 1.0" />
+
 	<!--  Colors in this scheme  -->
 	<!-- 
    var. 1 = #8F5B3F = rgb(143,91,63) 0.56 0.36 0.25
@@ -25,20 +33,16 @@
 	 name="AccentColor"
 	 value="0.75 0.92 0.49 1.0" />
 	<color
-	 name="EmphasisColor"
-	 value="0.56 0.36 0.25 1.0" />
+	 name="EmphasisColor" reference="OGLThemeAccent" />
 	<color
-	 name="EmphasisColorLight"             
-	 value="0.86 0.66 0.55 1.0" />
+	 name="EmphasisColorLight" reference="OGLThemeAccentLight" />
 	<color
-	 name="SchemeLightest"
-	 value="0.76 0.58 0.49 1.0" />
+	 name="SchemeLightest" reference="OGLThemeSchemeLightest" />
 	<color
 	 name="SchemeLightest_35"
 	 value="0.76 0.58 0.49 0.35" />
 	<color 
-	 name="SchemeDark"
-	 value="0.49 0.33 0.25 1.0" />
+	 name="SchemeDark" reference="OGLThemeSchemeDark" />
 	<color
 	 name="EmphasisColor_13"
 	 value="0.950 0.412 0.173 0.13" />
@@ -46,8 +50,7 @@
 	 name="EmphasisColor_35"
 	 value="0.950 0.412 0.173 0.35" />
     <color
-     name="SelectionColor"
-     value="0.706 0.851 1 1" />
+     name="SelectionColor" reference="OGLThemeSelection" />
     <color
      name="ScrollHoveredColor"
      value="0.18 0.26 0.33 1" />

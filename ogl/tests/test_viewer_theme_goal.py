@@ -109,10 +109,66 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
         self.assertIn('original-palette.json',CPP)
         self.assertNotIn("system(",CPP[CPP.index("namespace ogl_pref_themes"):CPP.index("} // namespace ogl_pref_themes")])
 
+    def test_ogl_default_palette_is_shared_and_compatible_fallback_exists(self):
+        palette=ET.parse(ROOT/"indra/newview/skins/default/colors.xml").getroot()
+        colors={n.get("name"):n for n in palette.iter("color")}
+        references={
+            "EmphasisColor":"OGLThemeAccent",
+            "EmphasisColorLight":"OGLThemeAccentLight",
+            "SelectionColor":"OGLThemeSelection",
+            "SchemeDark":"OGLThemeSchemeDark",
+            "SchemeLightest":"OGLThemeSchemeLightest",
+        }
+        for name,target in references.items():
+            self.assertEqual(colors[name].get("reference"),target,name)
+            self.assertIn("value",colors[target].attrib,target)
+        self.assertIn("OGL Standard (default)",CPP)
+        self.assertIn("Original user palette",XUI.read_text())
+        self.assertIn("snapshot_original();",CPP)
+        self.assertIn("restore_original();",CPP)
+        self.assertTrue((ROOT/"ogl/plugins/examples/classic-firestorm/theme.json").exists())
+
+    def test_native_file_chooser_is_safe_selection_only(self):
+        ui=ET.parse(XUI).getroot()
+        controls=[n for n in ui if n.get("name")=="ogl_theme_select_file"]
+        self.assertEqual(len(controls),1)
+        self.assertIn("onOglThemeSelectPackage();",HDR)
+        method=CPP.split("void LLPanelPreferenceOglThemes::onOglThemeSelectPackage()",1)[1].split(
+            "void LLPanelPreferenceOglThemes::onOglThemeFolder()",1)[0]
+        for value in ('LLFilePicker::instance()', 'getOpenFile(LLFilePicker::FFLOAD_ALL)',
+                      'package.extension() != ".ogltheme"',
+                      'std::filesystem::is_symlink(package)',
+                      'std::filesystem::is_regular_file(package)',
+                      'std::filesystem::file_size(package)',
+                      'ogl_status_selected'):
+            self.assertIn(value,method)
+        self.assertIn('reinterpret_cast<const char8_t*>(filename_utf8.c_str())',method)
+        self.assertNotIn("std::filesystem::u8path(",method)
+        self.assertNotIn("std::system(",method)
+        self.assertNotIn("ogl_pref_themes::activate(",method)
+        self.assertNotIn("std::filesystem::copy",method)
+        self.assertNotIn("extract(",method)
+        de=ET.parse(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_ogl_themes.xml").getroot()
+        self.assertTrue(any(n.get("name")=="ogl_theme_select_file" for n in de))
+        self.assertIn("NOT installed",XUI.read_text())
+
+    def test_strict_cpp_semver_matches_portable_manifest_policy(self):
+        self.assertIn("static bool valid_semver(",CPP)
+        self.assertIn("!valid_semver(std::string(doc.at",CPP)
+        from importlib.util import spec_from_file_location,module_from_spec
+        source=ROOT/"ogl/plugins/tools/validate_theme.py"
+        spec=spec_from_file_location("ogl_validator_p03",source)
+        mod=module_from_spec(spec);spec.loader.exec_module(mod)
+        for version in ("0.0.1","1.2.3","10.0.200"):
+            self.assertTrue(mod.SEMVER.fullmatch(version))
+        for version in ("01.2.3","1.02.3","1.2.03","1.2","1.2.3-rc1"):
+            self.assertFalse(bool(mod.SEMVER.fullmatch(version)))
+        self.assertIn("TOKEN_COLORS.at",CPP)
+
     def test_original_skin_callbacks_and_default_kept(self):
         self.assertIn("LLPanelPreferenceSkins::onSkinChanged()",CPP)
         self.assertIn("LLPanelPreferenceSkins::onSkinThemeChanged()",CPP)
-        self.assertIn("Original Firestorm (default)",CPP)
+        self.assertIn("OGL Standard (default)",CPP)
         for name in ("onOglThemeChanged","onOglThemeActivate",
                      "onOglThemeReset","onOglThemeFolder","refreshOglThemes"):
             self.assertIn(name+"();",HDR) if name.startswith("on") else self.assertIn(name+"();",HDR)
