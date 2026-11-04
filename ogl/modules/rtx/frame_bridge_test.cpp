@@ -38,13 +38,18 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
     const auto world_sync = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
+    const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
+        dlsym(library, "ogl_vulkan_world_upload_triangles"));
+    const auto world_gpu_count = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library, "ogl_vulkan_world_gpu_triangle_count"));
     const auto window_attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_attach_x11_window"));
     const auto window_ready = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
-    assert(window_attach && window_ready && window_detach && world_sync);
+    assert(window_attach && window_ready && window_detach &&
+           world_sync && world_upload && world_gpu_count);
     assert(start && stop && status && submit && count && world_device &&
            submit_geometry && triangle_count &&
            geometry_revision && copy_geometry && submit_depth && copy_depth);
@@ -53,8 +58,10 @@ int main(int argc, char** argv) {
     // consent. The full world/swapchain renderer is still unavailable.
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
+    unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
     assert(start(&host) == 0);
     assert(world_sync()==0);
+    assert(world_gpu_count()==0);
     assert(world_device() == 0);
     assert(window_ready() == 0);
     assert(window_attach(nullptr,0,0,0)==0); // never fabricate a surface
@@ -72,6 +79,34 @@ int main(int argc, char** argv) {
     assert(world_sync()==(ready ? 2u : 0u));
     unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
     assert(world_sync()==0);
+    // Vertex/index GPU buffer ownership is independent of RTX. A missing
+    // Vulkan GPU or missing host-coherent memory must fail closed.
+    ogl_rtx_triangle world_triangle{};
+    world_triangle.position[3]=1.f;
+    world_triangle.position[7]=1.f;
+    assert(world_upload(&world_triangle,1)==0); // opt-in is required
+    assert(setenv("OGL_VULKAN_WORLD_MESH_UPLOAD","1",1)==0);
+    const int uploaded=world_upload(&world_triangle,1);
+    assert(uploaded==0 || uploaded==1);
+    if (uploaded) {
+        assert(world_gpu_count()==1);
+        auto bad=world_triangle;
+        bad.position[0]=std::numeric_limits<float>::quiet_NaN();
+        assert(world_upload(&bad,1)==0);
+        assert(world_gpu_count()==1); // rejected upload never clears old scene
+        std::vector<ogl_rtx_triangle> all(8192,world_triangle);
+        assert(world_upload(all.data(),8192)==1);
+        assert(world_gpu_count()==8192);
+        assert(world_upload(all.data(),8193)==0);
+        assert(world_gpu_count()==8192);
+        assert(world_upload(nullptr,0)==1);
+        assert(world_gpu_count()==0); // region-clear frees GPU buffers
+    } else {
+        assert(world_gpu_count()==0);
+    }
+    unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+    assert(world_upload(&world_triangle,1)==0);
+    assert(world_gpu_count()==0);
     assert(window_ready() == 0);
     assert(window_attach(nullptr,0,1920,1080)==0);
     assert(window_ready() == 0);

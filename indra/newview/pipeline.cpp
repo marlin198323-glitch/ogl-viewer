@@ -9443,7 +9443,9 @@ void LLPipeline::renderDeferredLighting()
         // sun direction to the trusted Vulkan module. This transfers no
         // geometry and performs no ray tracing/compositing yet. OpenGL
         // continues to render every pixel; non-RTX systems are untouched.
-        if (!gCubeSnapshot && ogl_rtx_hardware_supported() && gViewerWindow)
+        if (!gCubeSnapshot &&
+            (ogl_rtx_hardware_supported() ||
+             ogl_vulkan_world_mesh_staging_enabled()) && gViewerWindow)
         {
             const LLRect viewport = gViewerWindow->getWorldViewRectRaw();
             const LLVector3 sun = LLEnvironment::instance().getSunDirection();
@@ -9561,8 +9563,12 @@ void LLPipeline::renderDeferredLighting()
             // spending time walking extra objects or building big BLAS data.
             static const U32 ogl_triangle_budget = []() -> U32 {
                 const char* mode = std::getenv("OGL_RTX_SCENE_PROBE");
-                return mode && std::strcmp(mode,"1")==0 ?
-                    OGL_RTX_MAX_SCENE_TRIANGLES : 1024u;
+                const char* world = std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+                // Vulkan vertex/index staging must work on ordinary Vulkan
+                // GPUs with no RTX/ray-query support.
+                const bool enabled=(mode && std::strcmp(mode,"1")==0) ||
+                    (world && std::strcmp(world,"1")==0);
+                return enabled ? OGL_RTX_MAX_SCENE_TRIANGLES : 1024u;
             }();
             if (ogl_triangle_budget>1024) {
                 // Per-frame pose refresh (cheap map lookup, no mesh walk),
@@ -10145,7 +10151,9 @@ void LLPipeline::renderDeferredLighting()
                             std::chrono::steady_clock::now()-
                             ogl_scan_started).count()
                         << LL_ENDL;
-                if (publish_geometry) {
+                if (publish_geometry && !triangles.empty()) {
+                    // Never dereference an empty capture on a non-RTX
+                    // Vulkan-only GPU: region loading can yield no triangles.
                     ogl_rtx_submit_world_triangles(
                         triangles.front().position,
                         static_cast<unsigned>(triangles.size()));

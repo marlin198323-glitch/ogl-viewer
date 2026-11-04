@@ -147,6 +147,32 @@ struct WorldGraphicsDevice {
     bool xlib_surface_extension = false;
     bool swapchain_probe_ready = false;
 
+    // P05/4: private Vulkan world-geometry data, not an RTX BLAS/TLAS and
+    // not a completed draw pipeline. Both buffers belong to this VkDevice.
+    VkBuffer mesh_vertices = VK_NULL_HANDLE;
+    VkDeviceMemory mesh_vertex_memory = VK_NULL_HANDLE;
+    VkBuffer mesh_indices = VK_NULL_HANDLE;
+    VkDeviceMemory mesh_index_memory = VK_NULL_HANDLE;
+    uint32_t mesh_triangle_count = 0;
+    PFN_vkDestroyBuffer destroy_buffer = nullptr;
+    PFN_vkFreeMemory free_memory = nullptr;
+
+    void clear_mesh() {
+        if (device && destroy_buffer) {
+            if (mesh_vertices) destroy_buffer(device,mesh_vertices,nullptr);
+            if (mesh_indices) destroy_buffer(device,mesh_indices,nullptr);
+        }
+        mesh_vertices=VK_NULL_HANDLE;
+        mesh_indices=VK_NULL_HANDLE;
+        if (device && free_memory) {
+            if (mesh_vertex_memory) free_memory(device,mesh_vertex_memory,nullptr);
+            if (mesh_index_memory) free_memory(device,mesh_index_memory,nullptr);
+        }
+        mesh_vertex_memory=VK_NULL_HANDLE;
+        mesh_index_memory=VK_NULL_HANDLE;
+        mesh_triangle_count=0;
+    }
+
     void detach_window() {
         // No acquire/present or GPU queue submit is issued by the WSI probe.
         // Do not let either native handle outlive the borrowed SDL/X11 window.
@@ -160,6 +186,7 @@ struct WorldGraphicsDevice {
     }
     void close() {
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
+        clear_mesh();     // Vertex/index buffers never outlive VkDevice.
         if (device && destroy_device) destroy_device(device, nullptr);
         device = VK_NULL_HANDLE;
         queue = VK_NULL_HANDLE;
@@ -173,6 +200,8 @@ struct WorldGraphicsDevice {
         destroy_swapchain = nullptr;
         instance_proc = nullptr;
         device_proc = nullptr;
+        destroy_buffer = nullptr;
+        free_memory = nullptr;
         xlib_surface_extension = false;
         if (loader) close_vulkan_loader(loader);
         loader = nullptr;
@@ -322,6 +351,12 @@ bool init_world_graphics_device() {
             world_device.queue=queue;
             world_device.physical_device=gpus[i];
             world_device.queue_family=q;
+            world_device.destroy_buffer=
+                reinterpret_cast<PFN_vkDestroyBuffer>(
+                    get_device_proc(device,"vkDestroyBuffer"));
+            world_device.free_memory=
+                reinterpret_cast<PFN_vkFreeMemory>(
+                    get_device_proc(device,"vkFreeMemory"));
             return true;
         }
     }
@@ -608,6 +643,125 @@ uint32_t submit_world_sync_probe() {
     if (logger && submitted==2)
         logger(1,"P05 Vulkan graphics queue: 2 command buffers and 2 GPU fence waits validated; NO world/present.");
     return submitted==2 ? 2u : 0u;
+}
+
+// P05/4 Vulkan vertex/index buffer staging from the existing real OpenSim
+// triangle ABI. Not tied to NVIDIA/RTX/ray queries or to GL rendering.
+// Opt-in until a complete Vulkan render pass + shader pipeline exists.
+int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
+    const char* enabled=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+    if (!enabled || std::strcmp(enabled,"1")!=0 ||
+        !world_device.device || !world_device.device_proc ||
+        !world_device.instance_proc || !world_device.physical_device ||
+        !world_device.destroy_buffer || !world_device.free_memory ||
+        count>OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangles))
+        return 0;
+    if (count==0) {
+        world_device.clear_mesh(); // region/scene cleared, no stale vertices
+        return 1;
+    }
+    for (uint32_t i=0;i<count;++i)
+        if (!ogl::is_valid_triangle(triangles[i]))
+            return 0; // atomic rejection, old GPU buffers remain intact
+
+    static_assert(sizeof(ogl_rtx_triangle)==sizeof(float)*9,
+        "World triangle ABI must be tightly packed XYZ positions");
+    const uint32_t vertex_count=count*3u;
+    const VkDeviceSize vertex_bytes=VkDeviceSize(count)*sizeof(ogl_rtx_triangle);
+    const VkDeviceSize index_bytes=VkDeviceSize(vertex_count)*sizeof(uint32_t);
+    std::vector<uint32_t> indices(vertex_count);
+    for (uint32_t i=0;i<vertex_count;++i) indices[i]=i;
+
+    const auto get_device=[&](const char* name) {
+        return world_device.device_proc(world_device.device,name);
+    };
+    const auto create=reinterpret_cast<PFN_vkCreateBuffer>(get_device("vkCreateBuffer"));
+    const auto get_requirements=reinterpret_cast<PFN_vkGetBufferMemoryRequirements>(
+        get_device("vkGetBufferMemoryRequirements"));
+    const auto allocate=reinterpret_cast<PFN_vkAllocateMemory>(get_device("vkAllocateMemory"));
+    const auto bind=reinterpret_cast<PFN_vkBindBufferMemory>(get_device("vkBindBufferMemory"));
+    const auto map=reinterpret_cast<PFN_vkMapMemory>(get_device("vkMapMemory"));
+    const auto unmap=reinterpret_cast<PFN_vkUnmapMemory>(get_device("vkUnmapMemory"));
+    const auto properties=reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(
+        world_device.instance_proc(world_device.instance,
+                                   "vkGetPhysicalDeviceMemoryProperties"));
+    if (!create || !get_requirements || !allocate || !bind ||
+        !map || !unmap || !properties)
+        return 0;
+
+    VkPhysicalDeviceMemoryProperties gpu_memory{};
+    properties(world_device.physical_device,&gpu_memory);
+    VkBuffer vertex=VK_NULL_HANDLE,index=VK_NULL_HANDLE;
+    VkDeviceMemory vertex_memory=VK_NULL_HANDLE,index_memory=VK_NULL_HANDLE;
+    auto dispose=[&]() {
+        if (vertex) world_device.destroy_buffer(world_device.device,vertex,nullptr);
+        if (index) world_device.destroy_buffer(world_device.device,index,nullptr);
+        if (vertex_memory) world_device.free_memory(world_device.device,vertex_memory,nullptr);
+        if (index_memory) world_device.free_memory(world_device.device,index_memory,nullptr);
+    };
+    auto create_upload=[&](const void* data,VkDeviceSize bytes,
+                           VkBufferUsageFlags usage,
+                           VkBuffer& buffer,VkDeviceMemory& memory) {
+        VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        info.size=bytes;
+        info.usage=usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        info.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+        if (create(world_device.device,&info,nullptr,&buffer)!=VK_SUCCESS ||
+            !buffer)
+            return false;
+        VkMemoryRequirements req{};
+        get_requirements(world_device.device,buffer,&req);
+        uint32_t chosen=UINT32_MAX;
+        for (uint32_t i=0;i<gpu_memory.memoryTypeCount && i<32;++i) {
+            const VkMemoryPropertyFlags flags=gpu_memory.memoryTypes[i].propertyFlags;
+            if ((req.memoryTypeBits&(1u<<i)) &&
+                (flags&(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) ==
+                        (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+                chosen=i;
+                break;
+            }
+        }
+        if (chosen==UINT32_MAX || req.size<bytes) return false;
+        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocation.allocationSize=req.size;
+        allocation.memoryTypeIndex=chosen;
+        if (allocate(world_device.device,&allocation,nullptr,&memory)!=VK_SUCCESS ||
+            !memory)
+            return false;
+        if (bind(world_device.device,buffer,memory,0)!=VK_SUCCESS)
+            return false;
+        void* mapped=nullptr;
+        if (map(world_device.device,memory,0,bytes,0,&mapped)!=VK_SUCCESS ||
+            !mapped)
+            return false;
+        std::memcpy(mapped,data,static_cast<size_t>(bytes));
+        unmap(world_device.device,memory);
+        return true;
+    };
+
+    if (!create_upload(triangles,vertex_bytes,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                       vertex,vertex_memory) ||
+        !create_upload(indices.data(),index_bytes,VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                       index,index_memory)) {
+        dispose();
+        return 0;
+    }
+    // Publish only after BOTH GPU buffers are allocated, bound and copied.
+    // Never release existing valid scene buffers on partial upload failure.
+    world_device.clear_mesh();
+    world_device.mesh_vertices=vertex;
+    world_device.mesh_indices=index;
+    world_device.mesh_vertex_memory=vertex_memory;
+    world_device.mesh_index_memory=index_memory;
+    world_device.mesh_triangle_count=count;
+    if (logger)
+        logger(1,(std::string("P05 Vulkan vertex/index upload: triangles=")+
+                  std::to_string(count)+" vertices="+
+                  std::to_string(vertex_count)+
+                  "; GPU buffers ready, no world draw.").c_str());
+    return 1;
 }
 
 void gpu_probe_cleanup() {
@@ -1225,6 +1379,14 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     last_depth_stats = {};
     depth_debug_valid = false;
     logger = nullptr;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_upload_triangles(
+    const ogl_rtx_triangle* triangles, uint32_t count)
+{
+    return upload_world_geometry(triangles,count);
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count() {
+    return world_device.mesh_triangle_count;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe() {
     return submit_world_sync_probe();

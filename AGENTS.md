@@ -217,6 +217,17 @@ kein vkAcquireNextImageKHR/vkQueuePresentKHR
 und keine Vulkan-Weltdarstellung; Projekt
 bleibt formal P05 2/20, Block 3 offen.
 
+P05/4 Vorarbeit (04.11.2026): Vulkan-VkBuffer
+für Vertex/Index mit echten GPU-Speicherallocations
+aus vorhandener OpenSim-Dreiecks-ABI, nur Developer-
+Opt-in, RTX-unabhängig, 8192-Dreiecke-Grenze,
+transaktionaler Fehler-/Cleanup-Pfad.
+Real-GPU-Test, 326 Python/41 native Tests,
+Linux-Vollbuild und GL-GUI-Test erfolgreich.
+Kein Vulkan-Welt-Draw, kein Frame-Present und
+keine authentifizierte OpenSim-Abnahme; P05
+bleibt 2/20 bis Block 3 abgeschlossen ist.
+
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

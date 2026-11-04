@@ -242,6 +242,38 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("vkQueuePresentKHR(",module)
         self.assertNotIn("vkAcquireNextImageKHR(",module)
 
+    def test_p05_vertex_index_world_upload_is_bounded_and_rt_independent(self):
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        for symbol in ("ogl_vulkan_world_upload_triangles",
+                       "ogl_vulkan_world_gpu_triangle_count"):
+            self.assertIn(symbol,api)
+            self.assertIn(symbol,module)
+            self.assertIn(symbol,native)
+        self.assertIn('std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD")',module)
+        self.assertIn('std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD")',host)
+        self.assertIn("VK_BUFFER_USAGE_VERTEX_BUFFER_BIT",module)
+        self.assertIn("VK_BUFFER_USAGE_INDEX_BUFFER_BIT",module)
+        self.assertIn("VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT",module)
+        self.assertIn("VK_MEMORY_PROPERTY_HOST_COHERENT_BIT",module)
+        self.assertIn("ogl::is_valid_triangle(triangles[i])",module)
+        self.assertIn("world_device.clear_mesh();",module)
+        self.assertIn("count>OGL_RTX_MAX_SCENE_TRIANGLES",module)
+        self.assertIn("world_device.mesh_triangle_count=count",module)
+        self.assertIn("world_upload(&bad,1)==0",native)
+        self.assertIn("world_upload(all.data(),8192)==1",native)
+        self.assertIn("world_upload(nullptr,0)==1",native)
+        self.assertIn("if (!rtx_submit_geometry || !rtx_hardware_ready) return;",host)
+        self.assertIn("if (world_upload_geometry && staging &&",host)
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        self.assertIn("ogl_vulkan_world_mesh_staging_enabled()",pipeline)
+        self.assertIn('std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD")',pipeline)
+        self.assertIn("if (publish_geometry && !triangles.empty())",pipeline)
+        self.assertIn("bool ogl_vulkan_world_mesh_staging_enabled()",host)
+        self.assertNotIn("vkQueuePresentKHR(",module)
+
     def test_p05_persistent_optin_vulkan_world_device_and_cleanup(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

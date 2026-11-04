@@ -67,6 +67,17 @@ typedef struct ogl_rtx_triangle {
 OGL_MODULE_EXPORT int ogl_rtx_submit_geometry(const ogl_rtx_triangle *triangles,
                                                uint32_t count);
 OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void);
+/* P05/4 opt-in Vulkan vertex/index buffer upload independent of ray tracing.
+ * Requires OGL_VULKAN_WORLD_BOOTSTRAP=1 and OGL_VULKAN_WORLD_MESH_UPLOAD=1.
+ * Copies the existing bounded OpenSim XYZ triangle ABI into VkBuffers and
+ * host-coherent VkDeviceMemory, with sequential 32-bit indices.
+ * On invalid input or partial failure, retains the last valid GPU scene.
+ * count=0 explicitly clears scene/region resources.
+ * This only stages GPU geometry, it does NOT render world triangles.
+ */
+OGL_MODULE_EXPORT int ogl_vulkan_world_upload_triangles(
+    const ogl_rtx_triangle* triangles, uint32_t count);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count(void);
 
 /* Prototype per-object registry for incremental RT geometry/transform
  * tracking. IDs are the full 16 UUID bytes; object vertices are LOCAL.

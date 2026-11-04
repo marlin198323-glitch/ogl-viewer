@@ -1239,6 +1239,20 @@ Vulkan-Swapchain-Acquire/Present, GPU-Renderpass,
 World-Images und UI-Compositing ausstehend;
 P05 bleibt 2/20, Block 3 offen.
 
+**P05 Block 4 vorbereitend umgesetzt (04.11.2026):**
+GPU-Vertex- und Indexbuffer für die bestehende
+OpenSim-Triangle-ABI (maximal 8192 Dreiecke),
+über host-kohärente Vulkan-Memory-Allocations,
+transactional Update, NaN-/Overlimit-Ablehnung
+und Region-/Shutdown-Cleanup. Developer-Opt-in
+auf nicht-RTX Vulkan-Geräten. Reale GPU-Tests
+und 326 Python-/41 native Tests bestanden;
+Linux-Vollviewer/GL-Login-Regression okay.
+Noch keine Vulkan-Welt-Draws, keine
+angemeldete OpenSim-Szene, kein Bild-Present.
+Block 3 und vollständige Block-4-Darstellung
+weiter offen, Phasenfortschritt formal 2/20.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

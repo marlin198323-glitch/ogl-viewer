@@ -79,6 +79,23 @@ Linux-Vollbuild, 325 Python-/41 CTests grün.
 P05 weiter 2/20: echter Image-Acquire/
 Present und Vulkan-3D-Welt fehlen.
 
+**P05/4 GPU-Geometriestaging (04.11.2026,
+noch keine Vulkan-Welt):** Native Vertex-/Index-
+VkBuffer samt HOST_VISIBLE|COHERENT VkDeviceMemory
+für bestehende OpenSim-XYZ-Dreiecke, bis 8192
+Dreiecke/24576 Vertices, RT-unabhängig.
+Transaktionales Update, invalides NaN/Overlimit
+abgewiesen, Region-Clear und Modul-Shutdown
+geben Ressourcen frei. Entwickler-Opt-in
+OGL_VULKAN_WORLD_MESH_UPLOAD=1 bei laufendem
+OGL_VULKAN_WORLD_BOOTSTRAP=1. Die bestehende
+Szenenerfassung kann dadurch auch Vulkan-Geräte
+ohne RTX bedienen, nur im Entwicklerbetrieb.
+Real-GPU-Test, Linux-Vollbuild, 326 Python-/
+41 native Tests und isolierter GUI-Smoke bestanden.
+In-World-Szene und Vulkan-Draws nicht geprüft.
+P05 weiter 2/20, Block 3 Present offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

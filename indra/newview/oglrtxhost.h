@@ -109,6 +109,9 @@ void ogl_shutdown_rtx_module();
 // Capability is not rendering: reporting RTX hardware does not enable raytracing.
 bool ogl_rtx_hardware_supported();
 bool ogl_rtx_rendering_active();
+// P05/4: true for developer-opted-in Vulkan geometry staging on any
+// usable graphics VkDevice; ray tracing capability is not required.
+bool ogl_vulkan_world_mesh_staging_enabled();
 // Actual Firestorm frame/camera bridge for opt-in Vulkan diagnostics.
  // The active OpenGL world renderer remains unchanged.
 // Triangles are copied synchronously; never retained by the host.

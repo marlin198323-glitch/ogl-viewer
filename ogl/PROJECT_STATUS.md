@@ -91,6 +91,46 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P05 Block 4/20 – realer GPU-Vertex-/Indexbuffer-Stagingpfad; Welt-Draw OFFEN (04.11.2026)
+
+Die bereits vorhandenen Dateien ogl_rtx_module.cpp, ogl_rtx_api.h,
+oglrtxhost.cpp/.h und pipeline.cpp wurden für eine getrennte,
+nicht-Raytracing-gebundene Vulkan-Geometrieablage erweitert.
+Über OGL_VULKAN_WORLD_BOOTSTRAP=1 und
+OGL_VULKAN_WORLD_MESH_UPLOAD=1 kopiert
+ogl_vulkan_world_upload_triangles() die validierten,
+auf maximal 8192 begrenzten bestehenden OpenSim-
+Dreiecke in echte VkBuffer mit VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+bzw. VK_BUFFER_USAGE_INDEX_BUFFER_BIT und gebundenem
+HOST_VISIBLE|HOST_COHERENT VkDeviceMemory. Sequentielle
+32-Bit-Indizes werden für drei Eckpunkte pro Dreieck erzeugt.
+Fehlerhafte/übergroße Pakete werden abgelehnt, ohne die
+vorherige GPU-Szene zu überschreiben. count=0, Modulstop
+und Device-Neustart geben GPU-Speicher vollständig frei.
+Das bisherige RTX-Verhalten bleibt unabhängig und unverändert.
+Der bestehende CPU-Szenencollector ist nun explizit auch
+auf nicht-RTX-Vulkan-Geräten mit Opt-in aktivierbar.
+Eine zusätzliche Leermengenprüfung schützt vor front()
+auf einer noch leeren OpenSim-Region.
+
+**Real nachgewiesen:** VkBuffer/VkDeviceMemory auf
+Vulkan-Gerät für 1 Dreieck und 8192 Dreiecke mit
+24576 Vertices, Ablehnung von NaN und >8192,
+Zählersicherheit und kompletter Cleanup. Native CTest
+mit/ohne Vulkan-ICD erfolgreich. Linux-Vollviewer
+erneut kompiliert/gelinkt, 326/326 Python-Tests und
+41/41 native CTests bestanden, isolierter DE-GUI-
+Start mit Opt-in, OpenGL aktiv, Login-Wait und Exit 0.
+
+**Nicht behaupten:** Im anonymen Prelogin-GUI-Smoke
+gab es noch keine echte OpenSim-Szene; der End-to-End-
+Upload aus angemeldeter 3D-Welt wurde deshalb NICHT
+nachgewiesen. Es gibt noch keine GPU Draw Calls,
+VkRenderPass/Viewport/Shader, keinen Vulkan-Present
+und keine Anzeige von Meshes/Terrain/Avataren.
+P05 verbleibt formal bei 2/20; Block 3 Present
+weiter offen, Block 4 ist verifizierte Vorarbeit.
+
 ## P05 Block 3/20 – echte GPU-Queue-/Fence-Prüfung; Vulkan-Present weiterhin OFFEN (04.11.2026)
 
 Der bestehende Vulkan-Modulcode enthält nun einen

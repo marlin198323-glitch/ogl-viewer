@@ -59,6 +59,12 @@ using ogl_rtx_submit_frame_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_rtx_submit_frame_fn rtx_submit_frame = nullptr;
 using ogl_rtx_submit_geometry_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
+// P05/4 Vulkan graphics data is independent of RTX capability; the optional
+// staging ABI uses the same triangulated OpenSim scene format.
+using ogl_world_upload_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
+ogl_world_upload_fn world_upload_geometry = nullptr;
+using ogl_world_device_ready_fn = int (*)();
+ogl_world_device_ready_fn world_device_ready = nullptr;
 using ogl_track_object_fn = int (*)(const uint8_t*,const ogl_rtx_triangle*,
                                      uint32_t,const float*);
 using ogl_track_pose_fn = int (*)(const uint8_t*,const float*);
@@ -239,6 +245,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_frame"));
     rtx_submit_geometry = reinterpret_cast<ogl_rtx_submit_geometry_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
+    world_upload_geometry = reinterpret_cast<ogl_world_upload_fn>(
+        ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_upload_triangles"));
+    world_device_ready = reinterpret_cast<ogl_world_device_ready_fn>(
+        ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_device_bootstrapped"));
     rtx_track_object = reinterpret_cast<ogl_track_object_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_rtx_track_object"));
     rtx_track_pose = reinterpret_cast<ogl_track_pose_fn>(
@@ -379,6 +389,8 @@ void ogl_shutdown_rtx_module() {
     rtx_rendering_enabled = false;
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
+    world_upload_geometry = nullptr;
+    world_device_ready = nullptr;
     rtx_track_object = nullptr;
     rtx_track_pose = nullptr;
     rtx_forget_object = nullptr;
@@ -402,6 +414,23 @@ bool ogl_rtx_hardware_supported() {
 bool ogl_rtx_rendering_active() {
 #if LL_LINUX || LL_WINDOWS
     return rtx_rendering_enabled;
+#else
+    return false;
+#endif
+}
+
+bool ogl_vulkan_world_mesh_staging_enabled() {
+#if LL_LINUX || LL_WINDOWS
+    // Only explicit developer sessions collect additional scene geometry;
+    // do not make normal users pay the CPU mesh traversal cost.
+    static const bool requested=[] {
+        const char* bootstrap=std::getenv("OGL_VULKAN_WORLD_BOOTSTRAP");
+        const char* upload=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+        return bootstrap && upload &&
+            std::strcmp(bootstrap,"1")==0 && std::strcmp(upload,"1")==0;
+    }();
+    return requested && world_upload_geometry && world_device_ready &&
+        world_device_ready()==1;
 #else
     return false;
 #endif
@@ -439,11 +468,16 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
 
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 #if LL_LINUX || LL_WINDOWS
-    if (!rtx_submit_geometry || !rtx_hardware_ready ||
-        count > OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangle_xyz)) return;
-    // Geometry data layout is 9 tightly packed floats per triangle.
+    if (count > OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangle_xyz)) return;
+    // Existing scene ABI: exact, tightly packed XYZ floats per triangle.
     static_assert(sizeof(ogl_rtx_triangle) == 9 * sizeof(float), "RTX ABI padding mismatch");
-    rtx_submit_geometry(reinterpret_cast<const ogl_rtx_triangle*>(triangle_xyz), count);
+    const auto* triangles=reinterpret_cast<const ogl_rtx_triangle*>(triangle_xyz);
+    const char* staging=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+    if (world_upload_geometry && staging && std::strcmp(staging,"1")==0)
+        world_upload_geometry(triangles,count);
+    // The historical RTX diagnostic path retains its feature/opt-in gating.
+    if (!rtx_submit_geometry || !rtx_hardware_ready) return;
+    rtx_submit_geometry(triangles,count);
 #endif
 }
 
