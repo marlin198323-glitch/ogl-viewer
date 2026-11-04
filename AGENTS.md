@@ -33,9 +33,10 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-P02 Blöcke 1–4 Inventur, Navigation,
-Menü- und Toolbar-Konsolidierung abgeschlossen;
-aktiv P02 Block 5/20.
+P02 Blöcke 1–5 Inventur, Navigation,
+Menü-/Toolbar-Konsolidierung und OGL-
+Infofenster-Branding abgeschlossen;
+aktiv P02 Block 6/20.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
@@ -288,6 +289,24 @@ Smokes erfolgreich. P02 4/20,
 nächster Block 5. Windows-Installer
 nicht verfügbar: NSIS-Output im CI-
 Log, Artefakt-Upload fehlgeschlagen.
+
+P02 Block 5 (04.11.2026, 8c274734):
+OGL-kanalspezifisches "Über"-Fenster
+mit bestehendem OGL_System_Icon,
+GitHub-Supportziel, originalem
+Copy-Handler und lokalisiertem
+Buttontext in 13 Sprachen.
+Firestorm-/Linden-Credits und
+Nicht-OGL-Verhalten unverändert.
+Linux-Vollviewer 7.2.5.192,
+285 Python-/41 native Tests,
+131 Brandingtests, 14 XUI-
+Stagingvergleiche und DE-/EN-
+Prelogin-GUI bestanden. Kein
+echter About-In-World-Klick.
+P02 5/20; nächster Block 6.
+Windows-Installer noch nicht
+herunterladbar (Upload scheiterte).
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.

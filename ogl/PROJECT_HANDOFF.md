@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 5/20.
+wechseln. Neuer Einstieg: P02 Block 6/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -403,6 +403,34 @@ Windows-Installer-CI hatte NSIS-
 Paketerzeugung im Log, aber kein
 verifiziertes Download-Artefakt;
 alter Firestorm-OGL-Kanal noch offen.
+
+**P02 Block 5/20 abgeschlossen
+(04.11.2026, 8c274734):**
+Der alte Firestorm-Supporthinweis
+im Infofenster wird nur für OGL
+durch aktuelle GitHub-Viewerinfos
+ersetzt; OGL_System_Icon zeigt
+im bestehenden "Über"-Kopf ein
+OGL-Symbol, die originale
+Kopieren-Schaltfläche hat
+lokalisierten OGL-Text. Zwei
+neue String-Namen je bereits
+bestehender XUI-Sprache (13)
+und drei Regressionstests.
+Linden-/Firestorm-Credits,
+Lizenznachweise und andere
+Channels bleiben erhalten.
+Linux-Vollbuild 7.2.5.192,
+285 Python-/41 native Tests,
+131 Brandingtests, 14/14
+geänderte XUI-Dateien bytegleich
+im Viewer-Paket, DE-/EN-Login-
+GUI-Smokes bestanden. Kein
+In-World-About-Klick getestet.
+P02 5/20, nächster Block 6/20:
+bestehende Avatar-/Chat-Kopfbereiche
+vereinheitlichen. Windows-Setup
+weiter ohne Download-Artefakt.
 
 ## Aktuelle Roadmaps
 

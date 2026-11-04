@@ -494,7 +494,7 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 4/20 abgeschlossen.
+**Aktueller Status:** P02 aktiv, 5/20 abgeschlossen.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
 13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
@@ -528,10 +528,23 @@ Linux-Vollbuild 7.2.5.190,
 128 Brandingtests, alle 24 XUI
 und vier Paketvergleiche gültig;
 vier ES/DE/PT/ZH-GUI-Smokes grün.
-Nächster Block 5/20: Titel, Icons
-und Buttons zu OGL/NexVerse
-vereinheitlichen. Windows-Installer-
-Artefakt bleibt gesondert offen.
+Block 5 (04.11.2026, 8c274734):
+OGL-"Über"-Fenster zeigt im OGL-
+Kanal GitHub-Support-Info, eigenes
+OGL-Symbol und lokalisierten Text
+auf der bestehenden Kopieren-Taste.
+13 Sprachen; rechtliche Credits und
+andere Viewerkanäle unverändert.
+Linux-Vollbuild 7.2.5.192,
+285 Python-/41 native Tests,
+131 Brandingtests, 14 XUI-
+Paketdateien und DE-/EN-GUI-
+Smokes bestanden. Kein In-World-
+About-Interaktionstest.
+Nächster Block 6/20: Avatar-/Chat-
+Kopfbereiche und Fensterverhalten.
+Windows-Installer-Artefakt bleibt
+separat offen.
 Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,

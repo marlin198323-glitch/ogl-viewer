@@ -1,6 +1,6 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 02.11.2026
+Stand: 04.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
@@ -8,10 +8,11 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 5/20.
-P02 Block 3 (doppelte Admin-Status-Menüs und
-Toolbar-Vererbungsprüfung) wurde mit
-Linux-Build/Regression/GUI geprüft und gepusht.
+**Aktiver Block:** /goal P02 Block 6/20.
+P02 Block 5 (OGL-Infofenster, Symbol, Supporttext
+und Kopieren-Schaltfläche) ist mit Linux-Build,
+Regression, Sprachressourcen- und GUI-Prüfung
+abgeschlossen und auf ogl-develop gepusht.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -21,9 +22,10 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Block 1/20 Inventur, Block 2/20
-Navigationshierarchie sowie Block 3/20
-Hauptmenü-Konsolidierung abgeschlossen.
+P02 Blöcke 1–5 abgeschlossen: Inventur,
+Navigation, Hauptmenü-/Untermenü-/
+Toolbar-Konsolidierung sowie OGL-
+Fenster-/Icon-/Button-Branding.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
@@ -33,7 +35,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 4/20 | Block 5: Fenstertitel, Icons und Buttons zu OGL/NexVerse vereinheitlichen |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 5/20 | Block 6: Avatar-/Chat-Kopfbereiche im bestehenden Fenster vereinheitlichen |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -45,6 +47,77 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 5/20 – OGL-Infofenster, Symbol und Kopieren-Schaltfläche (04.11.2026)
+
+**Code:** 8c274734 auf origin/ogl-develop.
+
+Im bestehenden "Über den Viewer"-Fenster wurde
+der sichtbare Infobereich für den OGL-Kanal
+modernisiert, ohne das Panel zu duplizieren:
+- In llfloaterabout.cpp ersetzt eine
+  APP_NAME == "OGL"-Verzweigung den alten
+  Firestorm-Supporttext durch einen
+  OGL-GitHub-Support-/Updatehinweis.
+  Andere Kanäle behalten ihren Alttext.
+- Im bereits vorhandenen EN-floater_about.xml
+  ist ein zunächst verstecktes OGL-Icon
+  am rechten Rand des Infokopfs ergänzt.
+  Zur Laufzeit ist es nur für OGL sichtbar;
+  Bildressource OGL_System_Icon verweist
+  auf die bereits vorhandene OGL-Grafik.
+- Die vorhandene Schaltfläche copy_btn
+  erhält im OGL-Kanal eine passende
+  Beschriftung; sie behält ihre echte
+  onClickCopyToClipboard-Implementierung.
+- OGLAboutSupport und OGLAboutCopy sind
+  in allen 13 bereits bestehenden
+  strings.xml-Sprachressourcen übersetzt
+  (AZ, DA, DE, EN, ES, FR, IT, JA,
+  PL, PT, RU, TR, ZH).
+- Fenstertitel "About [APP_NAME]" und
+  separate Credits für Linden/Firestorm,
+  Lizenzhinweise und Contributor-Angaben
+  bleiben erhalten; rechtlich erforderliche
+  Herkunftsnachweise werden nicht verdeckt.
+- Drei neue Regressionstests im vorhandenen
+  ogl/tests/test_branding_contract.py
+  prüfen kanalabhängige C++-Verdrahtung,
+  existierende Icon-Ressource, 13
+  Sprachtexte und unveränderte Credits.
+
+**Testnachweise:** Linux-Vollviewer
+7.2.5.192 erfolgreich kompiliert,
+285/285 Python-Tests, darunter
+131/131 Branding-Tests auch unter
+LC_ALL=C/PYTHONUTF8=0, und
+41/41 native CTests bestanden.
+13/13 bearbeitete strings.xml-Dateien
+und EN-floater_about.xml bytegleich
+im Linux-Viewer-Paket; vorhandene
+OGL_System_Icon-Textur registriert.
+Isolierte Prelogin-GUI-Smokes
+DE 1280×720 und EN 1920×1080 bis
+STATE_LOGIN_WAIT, jeweils Exit 0.
+Nicht durchgeführt: authentifizierte
+In-World-Öffnung und visuelle
+Prüfung des Infofensters selbst.
+Keine neuen Projektdateien,
+Benutzerprofile oder Secrets geändert.
+
+**Formal:** P01 Linux 20/20,
+P02 5/20. Nächster /goal-Einstieg:
+P02 Block 6/20 – Avatar-/Chat-Kopfbereiche
+und bestehende Fensterfunktionen
+weiter vereinheitlichen.
+
+**Windows-Installer:** Run 41510587323
+blieb ohne herunterladbares Installer-
+Artefakt. NSIS meldete eine Setup.exe,
+aber die anschließende Artefaktsuche
+scheiterte; getrennt nachzuholen.
+Windows/macOS-Vollviewer-Freigabe
+nicht erteilt.
 
 ## P02 Block 4/20 – Entwickler-Untermenüs und Toolbar-Overlays konsolidiert (04.11.2026)
 
