@@ -36,13 +36,15 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_copy_depth_debug"));
     const auto world_device = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
+    const auto world_sync = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
     const auto window_attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_attach_x11_window"));
     const auto window_ready = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
-    assert(window_attach && window_ready && window_detach);
+    assert(window_attach && window_ready && window_detach && world_sync);
     assert(start && stop && status && submit && count && world_device &&
            submit_geometry && triangle_count &&
            geometry_revision && copy_geometry && submit_depth && copy_depth);
@@ -50,7 +52,9 @@ int main(int argc, char** argv) {
     // A Vulkan world-device bootstrap never runs without explicit developer
     // consent. The full world/swapchain renderer is still unavailable.
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
+    unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
     assert(start(&host) == 0);
+    assert(world_sync()==0);
     assert(world_device() == 0);
     assert(window_ready() == 0);
     assert(window_attach(nullptr,0,0,0)==0); // never fabricate a surface
@@ -61,6 +65,13 @@ int main(int argc, char** argv) {
     assert(start(&host) == 0);
     const int ready = world_device(); // 0 on OpenGL-only/CI adapters, 1 when available
     assert(ready == 0 || ready == 1);
+    // Two genuine GPU queue submits and completion fences, when supported;
+    // otherwise explicitly no-op on Vulkan-less CI machines.
+    assert(world_sync()==0);
+    assert(setenv("OGL_VULKAN_FRAME_SYNC_PROBE", "1", 1)==0);
+    assert(world_sync()==(ready ? 2u : 0u));
+    unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
+    assert(world_sync()==0);
     assert(window_ready() == 0);
     assert(window_attach(nullptr,0,1920,1080)==0);
     assert(window_ready() == 0);

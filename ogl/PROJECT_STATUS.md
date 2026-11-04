@@ -91,6 +91,42 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P05 Block 3/20 – echte GPU-Queue-/Fence-Prüfung; Vulkan-Present weiterhin OFFEN (04.11.2026)
+
+Der bestehende Vulkan-Modulcode enthält nun einen
+expliziten, nicht nutzerseitig aktivierten Test für
+OGL_VULKAN_FRAME_SYNC_PROBE=1. Das reale VkDevice
+erzeugt VkCommandPool, ZWEI unabhängige primäre
+Command Buffers und VkFences. Vulkan vkQueueSubmit
+reicht beide Befehle ein; vkWaitForFences prüft
+deren GPU-Fertigstellung jeweils mit einem
+begrenzten 2-Sekunden-Wait. Fehler sperren weitere
+Diagnose-Submissions und blockieren nicht per
+unbegrenztem vkQueueWaitIdle den GL-Viewer.
+Keine Weltobjekte, uninitialisierten Swapchain-Pixel,
+Bild-Acquires oder Vulkan-Presents werden verwendet.
+Die C-ABI-Funktion ogl_vulkan_world_submit_sync_probe
+liefert nur 2 für zwei echte fertige GPU-Submissions,
+ansonsten 0. Die OpenGL-Engine bleibt unverändert.
+
+**Realer Nachweis:** Isolierter nativer Modul-/GPU-
+Test 2/2, ohne gesetztes Opt-in 0/2 und mit
+absichtlich ungültigem Vulkan-Treiber 0/2.
+Zwei tatsächliche Linux-Viewerstarts auf
+eigenem Xvfb bei GPU 2/2 und invalidem ICD 0/2
+mit OpenGL-Backend, Login-Wait und Exit 0.
+Linux-Vollviewer neu kompiliert und gepackt.
+325 Python-Tests / 41 native CTests bestanden,
+inklusive zusätzlichem Native-Test mit und ohne
+gültige Vulkan-GPU sowie Python-Vertragsprüfung.
+
+**P05-Fortschritt bleibt ausdrücklich 2/20.**
+Block 3 benötigt noch echten Swapchain-Acquire,
+Vulkan-Bildaufbau/Renderpass, GPU-Frame-Semaphore-
+Synchronisation und vkQueuePresentKHR. Nur
+Zwei-Fence-Submissions sind nicht gleichzusetzen
+mit einem gerenderten Vulkan-Weltframe.
+
 ## P05 Block 2/20 – persistente Vulkan-Swapchain, SDL-Resize und Shutdown (04.11.2026)
 
 Die bestehenden llwindowsdl2.cpp/.h und oglrtxhost.cpp erhalten

@@ -207,6 +207,16 @@ Linux-Vollbuild, 324 Python-/41 native Tests grün.
 P05 2/20, nächster Block 3 GPU-Frame-Synchronisation.
 Keine vollständige Vulkan-Welt-Engine behaupten.
 
+P05/3 Vorarbeit (04.11.2026): Vulkan-Queue-
+Submit mit zwei echten GPU-Fence-Waits, nur
+mit OGL_VULKAN_FRAME_SYNC_PROBE=1. 2/2
+bei GPU, 0/2 ohne Treiber. Zwei isolierte
+OGL-GUI-Smokes, Linux-Vollbuild, 325 Python-
+und 41 native Tests grün. Das ist noch
+kein vkAcquireNextImageKHR/vkQueuePresentKHR
+und keine Vulkan-Weltdarstellung; Projekt
+bleibt formal P05 2/20, Block 3 offen.
+
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

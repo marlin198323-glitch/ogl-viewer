@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <limits>
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <chrono>
 #include <cstdlib>
@@ -497,6 +498,118 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
 #endif
 }
 
+ogl_log_fn logger = nullptr;
+// P05/3 foundation: exercise the REAL Vulkan graphics queue with two
+// independent primary command buffers and completion fences. NO swapchain
+// acquisition/presentation, render passes, shaders or OpenGL resources.
+// This diagnostic cannot satisfy the full Vulkan world-frame acceptance gate.
+uint32_t submit_world_sync_probe() {
+    // If a real driver reports a lost/stalled submission, do not reissue
+    // work. The tiny probe resources remain quarantined until device
+    // teardown rather than blocking the GL viewer on vkQueueWaitIdle.
+    static bool disabled_after_gpu_timeout=false;
+    if (disabled_after_gpu_timeout) return 0;
+    const char* enabled=std::getenv("OGL_VULKAN_FRAME_SYNC_PROBE");
+    if (!enabled || std::strcmp(enabled,"1")!=0 ||
+        !world_device.device || !world_device.queue ||
+        world_device.queue_family==UINT32_MAX || !world_device.device_proc)
+        return 0;
+    const auto proc=[&](const char* name) {
+        return world_device.device_proc(world_device.device,name);
+    };
+    const auto create_pool=reinterpret_cast<PFN_vkCreateCommandPool>(
+        proc("vkCreateCommandPool"));
+    const auto destroy_pool=reinterpret_cast<PFN_vkDestroyCommandPool>(
+        proc("vkDestroyCommandPool"));
+    const auto alloc=reinterpret_cast<PFN_vkAllocateCommandBuffers>(
+        proc("vkAllocateCommandBuffers"));
+    const auto begin=reinterpret_cast<PFN_vkBeginCommandBuffer>(
+        proc("vkBeginCommandBuffer"));
+    const auto end=reinterpret_cast<PFN_vkEndCommandBuffer>(
+        proc("vkEndCommandBuffer"));
+    const auto create_fence=reinterpret_cast<PFN_vkCreateFence>(
+        proc("vkCreateFence"));
+    const auto destroy_fence=reinterpret_cast<PFN_vkDestroyFence>(
+        proc("vkDestroyFence"));
+    const auto submit=reinterpret_cast<PFN_vkQueueSubmit>(
+        proc("vkQueueSubmit"));
+    const auto wait=reinterpret_cast<PFN_vkWaitForFences>(
+        proc("vkWaitForFences"));
+    if (!create_pool || !destroy_pool || !alloc || !begin || !end ||
+        !create_fence || !destroy_fence || !submit || !wait)
+        return 0;
+    VkCommandPool pool=VK_NULL_HANDLE;
+    std::array<VkCommandBuffer,2> commands{};
+    std::array<VkFence,2> fences{};
+    VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    pool_info.queueFamilyIndex=world_device.queue_family;
+    pool_info.flags=VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    if (create_pool(world_device.device,&pool_info,nullptr,&pool)!=VK_SUCCESS ||
+        !pool)
+        return 0;
+    auto cleanup=[&]() {
+        for (VkFence fence : fences)
+            if (fence) destroy_fence(world_device.device,fence,nullptr);
+        destroy_pool(world_device.device,pool,nullptr);
+    };
+    VkCommandBufferAllocateInfo alloc_info{
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    alloc_info.commandPool=pool;
+    alloc_info.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandBufferCount=static_cast<uint32_t>(commands.size());
+    if (alloc(world_device.device,&alloc_info,commands.data())!=VK_SUCCESS) {
+        cleanup(); return 0;
+    }
+    VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    for (size_t i=0;i<fences.size();++i) {
+        if (create_fence(world_device.device,&fence_info,nullptr,
+                         &fences[i])!=VK_SUCCESS || !fences[i]) {
+            cleanup(); return 0;
+        }
+    }
+    // Empty command buffers deliberately validate queue submission and
+    // independent GPU fence completion without exposing uninitialized images.
+    for (auto command : commands) {
+        VkCommandBufferBeginInfo begin_info{
+            VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        begin_info.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (begin(command,&begin_info)!=VK_SUCCESS ||
+            end(command)!=VK_SUCCESS) {
+            cleanup(); return 0;
+        }
+    }
+    uint32_t submitted=0;
+    bool gpu_work_might_be_pending=false;
+    for (size_t i=0;i<commands.size();++i) {
+        VkSubmitInfo info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        info.commandBufferCount=1;
+        info.pCommandBuffers=&commands[i];
+        if (submit(world_device.queue,1,&info,fences[i])!=VK_SUCCESS)
+            break;
+        gpu_work_might_be_pending=true;
+        // Bounded wait. Never block an interactive OpenGL viewer on
+        // vkQueueWaitIdle when a Vulkan test GPU driver malfunctions.
+        if (wait(world_device.device,1,&fences[i],VK_TRUE,
+                 2000000000ULL)!=VK_SUCCESS)
+            break;
+        gpu_work_might_be_pending=false;
+        ++submitted;
+    }
+    if (gpu_work_might_be_pending) {
+        // This developer-only test leaves at most one command pool and two
+        // fences for VkDevice teardown rather than illegally freeing
+        // still-pending Vulkan commands. Disable any subsequent submissions.
+        disabled_after_gpu_timeout=true;
+        if (logger)
+            logger(2,"P05 Vulkan queue fence timed out/failed; future frame probes disabled; OpenGL unaffected.");
+        return 0;
+    }
+    cleanup();
+    if (logger && submitted==2)
+        logger(1,"P05 Vulkan graphics queue: 2 command buffers and 2 GPU fence waits validated; NO world/present.");
+    return submitted==2 ? 2u : 0u;
+}
+
 void gpu_probe_cleanup() {
     probe_run = nullptr;
     probe_camera_run = nullptr;
@@ -506,7 +619,7 @@ void gpu_probe_cleanup() {
     probe_library = nullptr;
 }
 
-ogl_log_fn logger = nullptr;
+
 ogl_rtx_frame_state latest_frame{};
 uint64_t received_frames = 0;
 ogl::DynamicScene tracked_objects; // stable per-UUID CPU metadata
@@ -1112,6 +1225,9 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     last_depth_stats = {};
     depth_debug_valid = false;
     logger = nullptr;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe() {
+    return submit_world_sync_probe();
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped() {
     return world_device.device != VK_NULL_HANDLE &&

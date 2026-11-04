@@ -217,6 +217,31 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('renderer->setEnabledByValue("vulkan", false)',
                       (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
 
+    def test_p05_graphics_queue_sync_probe_does_not_present_world_frames(self):
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn("ogl_vulkan_world_submit_sync_probe",header)
+        self.assertIn("uint32_t submit_world_sync_probe()",module)
+        self.assertIn('std::getenv("OGL_VULKAN_FRAME_SYNC_PROBE")',module)
+        for symbol in ("vkCreateCommandPool","vkAllocateCommandBuffers",
+                       "vkBeginCommandBuffer","vkEndCommandBuffer",
+                       "vkCreateFence","vkQueueSubmit","vkWaitForFences",
+                       "vkDestroyFence","vkDestroyCommandPool"):
+            self.assertIn('"'+symbol+'"',module)
+        self.assertIn("VK_COMMAND_BUFFER_LEVEL_PRIMARY",module)
+        self.assertIn("VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT",module)
+        self.assertIn("2000000000ULL",module)
+        self.assertIn("assert(world_sync()==(ready ? 2u : 0u));",native)
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn('std::getenv("OGL_VULKAN_FRAME_SYNC_PROBE")',host)
+        self.assertIn("ogl_vulkan_world_submit_sync_probe",host)
+        self.assertIn("P05 Vulkan graphics queue sync probe: ",host)
+        self.assertIn("no image present, OpenGL world unchanged.",host)
+        self.assertIn('unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE")',native)
+        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertNotIn("vkAcquireNextImageKHR(",module)
+
     def test_p05_persistent_optin_vulkan_world_device_and_cleanup(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

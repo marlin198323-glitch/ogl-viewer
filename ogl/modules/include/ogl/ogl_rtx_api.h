@@ -209,6 +209,13 @@ OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(ogl_rtx_depth_debug *output);
  * Owned by the module and released on ogl_module_stop.
  */
 OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped(void);
+/* P05/3 developer-only VkQueueSubmit/fence test on the persistent graphics
+ * device. Requires OGL_VULKAN_FRAME_SYNC_PROBE=1; returns 2 only if two
+ * real graphics queue submissions and GPU fence waits succeeded, else 0.
+ * Performs no image acquire, world rendering, vkQueuePresentKHR or GL calls.
+ * NOT evidence that Vulkan world frames are working.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe(void);
 /* P05 developer-only Linux/X11 WSI probe on the ACTUAL viewer window.
  * Requires both OGL_VULKAN_WORLD_BOOTSTRAP=1 and
  * OGL_VULKAN_WINDOW_SURFACE=1. Creates real VkSurfaceKHR and VkSwapchainKHR

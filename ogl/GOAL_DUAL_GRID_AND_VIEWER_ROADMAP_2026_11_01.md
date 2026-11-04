@@ -1227,6 +1227,18 @@ Vollbuild, 324 Python/41 CTests erfolgreich.
 Nächster Block 3: echte Vulkan-Frame-/Present-
 Synchronisation, keine Weltpipeline bislang.
 
+**P05 Block 3 Vorarbeit (04.11.2026):**
+Opt-in GPU-Framequeue-Diagnose (VkCommandPool,
+zwei VkCommandBuffer, zwei VkQueueSubmit
+und VkFence mit begrenztem Wait) in realem
+Vulkan-Gerät und zwei GL-Viewer-GUI-Starts
+mit/ohne GPU geprüft. Ohne Vulkan 0/2,
+bei GPU 2/2; weiter OpenGL als Renderer.
+325 Python/41 native Tests, Linux-Vollbuild.
+Vulkan-Swapchain-Acquire/Present, GPU-Renderpass,
+World-Images und UI-Compositing ausstehend;
+P05 bleibt 2/20, Block 3 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

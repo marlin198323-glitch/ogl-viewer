@@ -275,6 +275,19 @@ void ogl_init_rtx_module() {
             << " rendering_active=" << status->rendering_active
             << ". OpenGL remains the active renderer." << LL_ENDL;
     }
+    // Developer-only Vulkan graphics queue validation. This submits two
+    // command buffers with completion fences but no world pixels, image
+    // acquisition or presentation. It must not affect the GL renderer.
+    const char* sync_flag=std::getenv("OGL_VULKAN_FRAME_SYNC_PROBE");
+    if (sync_flag && std::strcmp(sync_flag,"1")==0) {
+        auto sync_probe=reinterpret_cast<std::uint32_t(*)()>(
+            ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_submit_sync_probe"));
+        const std::uint32_t submissions=sync_probe ? sync_probe() : 0;
+        LL_INFOS("OGLRenderer")
+            << "P05 Vulkan graphics queue sync probe: "
+            << submissions << "/2 real fence-backed submits; "
+               "no image present, OpenGL world unchanged." << LL_ENDL;
+    }
 #if LL_LINUX && LL_X11 && LL_SDL2
     // Never attempt to create a Vulkan SDL window beside the real GL window.
     // Explicit developer-only probe uses the actual SDL/X11 window to

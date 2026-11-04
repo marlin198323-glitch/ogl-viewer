@@ -67,6 +67,18 @@ und Exit 0. Linux-Build, 324 Python-/41 native Tests
 grün. P05 jetzt 2/20; Block 3 Vulkan-GPU-Frame-
 Synchronisation und echtes Present offen.
 
+**P05/3 Vorarbeit (04.11.2026):** Im bestehenden
+Vulkan-Modul developer-only GPU-Queue-Test mit
+2 VkCommandBuffers, 2 VkFences und echten
+vkQueueSubmit/vkWaitForFences. Das neue C-ABI-
+Symbol meldet bei funktionierender GPU 2,
+sonst 0. Native Tests und zwei GUI-Loginstarts
+bei 2/2 und 0/2 ohne Vulkan-ICD zeigen
+OpenGL-Fallback und Exit 0.
+Linux-Vollbuild, 325 Python-/41 CTests grün.
+P05 weiter 2/20: echter Image-Acquire/
+Present und Vulkan-3D-Welt fehlen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
