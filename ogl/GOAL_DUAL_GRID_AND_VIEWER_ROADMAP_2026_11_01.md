@@ -838,7 +838,7 @@ bleiben bestehen. P02 läuft unter Linux weiter.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 
-**Status:** aktiv; 8/20 operative Blöcke abgeschlossen.
+**Status:** aktiv; 15/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
 **Code c4a615ba (04.11.2026):**
 1 vorhandene OGL-Theme-UI und
 Python-CLI inventarisiert,
@@ -874,6 +874,65 @@ Grenze für native atomische
 Theme-Installation.
 In-World-GUI/Windows/macOS
 sind nicht abgenommen.
+**P03 Blöcke 9–15 (04.11.2026,
+Code 73565590):** Native
+Theme-Verwaltung im bestehenden
+OGL-Preferences-Panel:
+9 klar gekennzeichnete
+lokale, unsignierte
+Farbpakete ohne Programm-
+oder Netzwerkrechte,
+explizite Zustimmung;
+keine Signaturbehauptung.
+10 minizip-ng aus dem
+Viewer-Linkbestand für
+streng validierte ZIPs
+mit exakt einer theme.json,
+16 MiB ZIP-/16 KiB
+Manifestlimit, nur
+Store/Deflate, keine
+Sonderdateien/Symlinks,
+fremde Extras, CRC-Fehler,
+doppelte JSON-Keys,
+ZIP-Verzeichnisausbrüche,
+ungültige Farbwerte oder
+Schlüssel. Nach Vorprüfung
+in lokalem Nutzerverzeichnis
+isoliert stagen und
+atomisch umbenennen,
+niemals alte Pakete
+überschreiben.
+11 bestehende Liste
+gültiger Pakete neu laden;
+12 Farbvorschau ausschließlich
+ohne Farbänderungen;
+13 EN/DE-Status und
+Neustarterfordernis erhalten;
+14 bestehendes Aktivieren/
+Nutzerfarben-Reset erhalten;
+15 neues sicheres Entfernen
+NUR inaktiver, unveränderter
+manifest-only-Pakete,
+ohne rekursives Löschen.
+Linux-Viewer 7.2.5.204,
+308 Python-/41 CTests,
+beide EN/DE-XUI staged,
+echter DE-Preferences-
+und Dateidialog-Test,
+DE-/EN-Login-Smokes mit
+Exit 0. Vollständiger
+native-Import/Remove-
+GUI-Erfolgspfad NICHT
+end-to-end bestätigt.
+Noch keine Signaturprüfung
+oder Bild-/Texture-Assets.
+Nächster Block P03 16/20
+Sprach-/HiDPI-/Chat-
+Kompatibilität, dann
+Manipulations-/Erfolgs-
+QA und Release-Gates.
+P03 NICHT abgeschlossen.
+
 **Technischer Zielzustand:** Optionale Designs bei OGL-Standard.
 
 1. Vorhandenes OGL-Designpanel und Theme-CLI inventarisieren.

@@ -5,6 +5,70 @@ Alle Phasen: gleicher C++-Viewer fuer Linux, Windows und macOS;
 CPU-/GPU-Faehigkeitserkennung mit Standardpfad fuer aeltere Hardware.
 Keine automatische Ausfuehrung fremder Plugins.
 
+## Aktueller Stand 04.11.2026 – P03 15/20
+
+Ab Code 73565590:
+Der schon vorhandene
+OGL-Designs-Reiter
+enthält jetzt auch
+native Schaltflächen
+"Design installieren"
+und "Entfernen".
+Ein vom Benutzer
+ausgewähltes lokales
+unsigned .ogltheme-ZIP
+kann ausdrücklich
+nativ installiert
+werden, sofern es
+exakt eine überprüfte
+theme.json mit erlaubten
+Farbwerten enthält.
+Keine Plugins, Skripte,
+XUI-Overrides,
+Bild-Assets oder
+System-/Netzwerkrechte.
+Minizip-ng-C++ prüft
+CRC, Größen, Metadaten,
+Duplikate, Archiveinträge,
+Compression-/ZIP-Typ
+und Farberlaubnis
+vor dem Schreibzugriff.
+Kanonisches JSON,
+atomisches Staging/Rename
+und kein Überschreiben.
+Für inaktive intakte
+Pakete sicheres nicht-
+rekursives Entfernen.
+Bestehende Vorschau,
+Aktivierung, OGL Standard
+und gespeicherte
+Benutzerfarben bleiben.
+
+Linux-Vollviewer
+7.2.5.204 sowie
+308 Python-/41 native
+Tests bestanden.
+DE-Preferences-
+Theme-Panel und
+nativer Dateidialog
+real angezeigt; EN/DE
+Login-GUI grün.
+Eine vollständige
+native Datei-Auswahl/
+Import/Entfernen-
+E2E-Abnahme fehlt,
+ebenso Signaturen,
+Bild-Assets und
+Windows-/macOS-
+Vollviewer-Gates.
+Nächster Block P03/16:
+HiDPI, Sprachen,
+Chat-/Menü-Integration,
+danach bösartige
+ZIPs und E2E-Tests.
+Der folgende Abschnitt
+P03/1–8 ist historisch.
+
 ## Aktueller Stand 04.11.2026 – P03 Blöcke 1–8/20
 
 Der folgende ältere Phase-1-Text

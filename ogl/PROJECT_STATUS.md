@@ -30,11 +30,10 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Blöcke 1–8 abgeschlossen: Inventur,
-Navigation, Hauptmenü-/Untermenü-/
-Toolbar-Konsolidierung, OGL-Infofenster,
-Avatar-/Chat-Kopfbereiche, IM-/Gruppen-
-gesprächsliste und Sitzungs-/Tabstatus.
+P02 als Linux-Code-/Regressionsphase
+20/20 abgeschlossen, authentifizierte
+Chat-/Voice-In-World-Gates weiterhin
+in P13 offen.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
