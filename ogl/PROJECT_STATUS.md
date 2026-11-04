@@ -8,7 +8,13 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P03 Block 1/20.
+**Aktiver Block:** /goal P03 Block 9/20.
+In dieser /goal-Runde sind die verlangten
+20 Schritte bearbeitet: P02/9–20
+(Linux-Code-/Regressionsphase abgeschlossen)
+und P03/1–8 (Theme-Standard, Auswahl und
+Paketsicherheitsprüfungen). Aktueller
+Theme-Code-Commit c4a615ba.
 P02 Block 8 (gelesener/ungelesener
 Sitzungswechsel, Tab-Blinkanzeigen,
 Sitzungs-ID-Migration und Voice-Status)
@@ -39,7 +45,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
-| P03 – Theme-System und sichere Designinstallation | aktiv | 0/20 | Block 1: vorhandenen Theme-Manager und UI inventarisieren |
+| P03 – Theme-System und sichere Designinstallation | aktiv | 8/20 | Block 9: Paketauthentizität, Rechte und native Installationsgrenze |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
@@ -50,6 +56,96 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P03 Blöcke 1–8/20 – OGL-Standardfarben und sichere Theme-Auswahl (04.11.2026)
+
+Code c4a615ba auf origin/ogl-develop.
+Acht einzeln bearbeitete oder überprüfte
+technische Schritte ohne neue Paralleltemplates:
+
+1. Bestehende Theme-Funktionen in
+   llfloaterpreference.cpp/h, EN/DE-
+   XUI, validate_theme.py und
+   manage_themes.py inventarisiert.
+2. OGL Standard als sichtbaren Ausgangspunkt
+   im Theme-Panel bezeichnet; fünf
+   zentrale Farbwerte in bestehendem
+   colors.xml für OGL-NexVerse
+   ergänzt und die vorhandenen
+   Emphasis-/Scheme-/Selection-
+   Palettenfarben referenziert.
+3. Vorhandenes original-palette.json,
+   Sicherung der User-Farben,
+   Reset und optionales Classic-
+   Design als Fallback bewahrt.
+4. C++-Manifestprüfung durch
+   strengen SemVer-Vertrag
+   major.minor.patch ergänzt;
+   Versionslängenlimit in Python
+   identisch auf 32 gesetzt.
+5. Bisherige zentrale Farbtabelle
+   TOKEN_COLORS in der Preview
+   statt mehrfach hartcodierter
+   Farbnamen verwendet.
+6. Theme-Layout nur in bestehenden
+   EN-Basis- und DE-Overlay-XUI
+   angepasst; originale Skins-Seite
+   bleibt erhalten. Keine Kopien.
+7. Nativen LLFilePicker für
+   .ogltheme-Auswahl hinzugefügt:
+   C++20 UTF-8-Dateiname, nur
+   reguläre lokale Dateien,
+   keine Symlinks, maximal
+   16 MiB. Ein ausgewähltes Paket
+   wird ausdrücklich **nicht**
+   installiert oder ausgeführt;
+   native Installation bleibt
+   P03/9–10 und späteren
+   Sicherheitsschritten vorbehalten.
+8. Bestehenden Python-ZIP-Validator
+   gegen FIFOs, Sockets, Links,
+   andere Spezialdateien, unbekannte
+   Kompression, doppelte JSON-
+   Eigenschaften, komprimierte
+   ZIP-Übergrößen, Case-Kollisionen,
+   Traversal und SemVer-Überlängen
+   weiter gehärtet. Tests ergänzt.
+
+**Abnahmen:** Linux-Vollviewer
+7.2.5.202 einschließlich C++20-
+Theme-Dialog erfolgreich gebaut.
+306/306 Python-Tests, 41/41
+native CTests bestanden. colors.xml,
+EN/DE-Theme-XUI (3/3) bytegleich
+im Viewer-Paket. DE-/EN-GUI-
+Prelogin-Smokes mit Exit 0.
+OGL-Ocean-Blue-Beispielpaket
+im isolierten /tmp-Nutzerprofil
+validiert, installiert, gelistet,
+aktiviert, zurückgesetzt und
+entfernt (kein echtes Userprofil
+berührt). Eine frühere isolierte
+CLI-Test-ID war zunächst falsch,
+der gesamte Lauf mit der
+Manifest-ID wurde danach
+erfolgreich wiederholt.
+
+**Abnahmegrenzen:** Native
+Dateiauswahl ist noch keine
+native ZIP-Validierung/
+Installation. Keine echte
+In-World-Theme-Vorschau
+oder Windows-/macOS-
+Viewer-Tests durchgeführt.
+P01 Linux 20/20, P02 Linux-
+Code/Regression 20/20,
+P03 8/20. Nächster Schritt
+P03/9: Paketvertrauen/
+Berechtigungsmodell und
+Sicherheitsgrenze vor
+atomischem Native-Import.
+Windows-Installer noch kein
+downloadbar bestätigtes Setup.
 
 ## P02 Blöcke 9–20/20 – Chat-Fokus, UI-Gleichlauf, Prüfung und Abschluss (04.11.2026)
 

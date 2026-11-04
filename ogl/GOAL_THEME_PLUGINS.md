@@ -5,6 +5,44 @@ Alle Phasen: gleicher C++-Viewer fuer Linux, Windows und macOS;
 CPU-/GPU-Faehigkeitserkennung mit Standardpfad fuer aeltere Hardware.
 Keine automatische Ausfuehrung fremder Plugins.
 
+## Aktueller Stand 04.11.2026 – P03 Blöcke 1–8/20
+
+Der folgende ältere Phase-1-Text
+belegt historische Vorarbeit,
+nicht den heutigen Standard.
+OGL Standard hat inzwischen
+eigene zentralisierte blau-
+türkise Akzentfarben im
+bestehenden colors.xml.
+Das EN/DE-Theme-Panel zeigt
+OGL Standard; gesicherte
+individuelle Nutzerfarben
+und das Classic-Beispiel
+bleiben als Rücksetz-/Fallback
+erhalten. Strikter C++/
+Python-SemVer-Vertrag.
+Native .ogltheme-Dateiauswahl
+im bestehenden Preferences-
+Panel ist hinzugefügt,
+INSTALLIERT/EXTRAHIERT
+jedoch noch kein Archiv.
+Der Python-Theme-Installer
+ist mit ZIP-Sicherheits-
+prüfungen und gesonderten
+Tests gehärtet. Der native
+Validator und die atomische
+Installation sind kommende
+P03-Blöcke 9–10 sowie
+weitere Sicherheitsaufgaben.
+Linux-Vollviewer 7.2.5.202,
+306 Python-/41 native Tests,
+DE-/EN-GUI und CLI-Import
+im isolierten /tmp bestanden.
+Kein echter In-World-
+Theme-/Windows-/macOS-
+Vollviewer-Test behauptet.
+Commit c4a615ba.
+
 ## Phase 1: Integrierte Theme-Verwaltung – 20 Bloecke
 
 1. Originale Firestorm-Skins-Einstellungen untersucht.

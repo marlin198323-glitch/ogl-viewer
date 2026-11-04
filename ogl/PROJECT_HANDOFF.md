@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P03 Block 1/20.
+wechseln. Neuer Einstieg: P03 Block 9/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -542,6 +542,44 @@ P03 jetzt 0/20 eröffnet:
 bestehende Themes und CLI zuerst
 inventarisieren, dann native
 Auswahl-/Sicherheitsarbeit.
+
+/goal-Runde 04.11.2026:
+P02/9–20 (Code 68e50e2b,
+Status 7ac04220) abgeschlossen;
+Linux-Vollbuild 7.2.5.200,
+299 Python-/41 native Tests
+sowie DE-/EN-GUI-Smokes.
+P02 insgesamt 20/20 als
+Linux-Code-/Regression; reale
+In-World- und Windows/macOS-
+GUI-Gates bleiben offen.
+
+P03/1–8 (Code c4a615ba)
+umgesetzt: vorhandenes Theme-
+Panel/CLI inventarisiert,
+OGL-Standard-Akzentfarben in
+colors.xml zentralisiert,
+originale User-Farb-Sicherung
+und Classic-Fallback erhalten,
+strictes C++/Python-SemVer,
+EN/DE-XUI ohne Duplikate,
+native .ogltheme-Dateiauswahl
+ohne Installation und
+ZIP-Validator zusätzlich
+gegen nicht reguläre Einträge,
+doppelte JSON-Keys, unzulässige
+Kompression, Pfadausbruch,
+Größen-/Case-Kollisionen
+gehärtet. Viewer 7.2.5.202,
+306 Python-/41 native Tests,
+3 XUI-Paketvergleiche,
+DE-/EN-GUI sowie isolierter
+Theme-CLI-Lebenszyklus bestanden.
+P03 nun 8/20. Als Nächstes
+P03/9 Paketvertrauen/Rechte,
+P03/10 native atomische
+Installation. Keine echte
+In-World-Theme-Abnahme.
 
 ## Aktuelle Roadmaps
 

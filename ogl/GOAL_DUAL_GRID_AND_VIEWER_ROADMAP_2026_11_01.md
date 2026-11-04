@@ -838,7 +838,42 @@ bleiben bestehen. P02 läuft unter Linux weiter.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 
-**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Status:** aktiv; 8/20 operative Blöcke abgeschlossen.
+**Code c4a615ba (04.11.2026):**
+1 vorhandene OGL-Theme-UI und
+Python-CLI inventarisiert,
+2 OGL Standard als sichtbarer
+Farb-/Theme-Ausgangspunkt,
+3 originale Userfarben-
+Sicherung/Classic-Fallback,
+4 striktes C++/Python-
+SemVer-Manifest,
+5 zentrale TOKEN_COLORS-
+Map und fünf OGLTheme-
+Palettenreferenzen,
+6 bestehende EN/DE-XUI-
+Layouts ohne Duplikat,
+7 nativer .ogltheme-
+Dateidialog (ausdrücklich
+keine Installation),
+8 Python-ZIP-Validator
+gegen manipulierte Entry-
+Typen, Kompression, JSON,
+Case-Kollisionen und
+Übergrößen erweitert.
+Linux-Viewer 7.2.5.202,
+306 Python-/41 native Tests,
+3 Theme-XUI-Paketdateien
+und DE-/EN-GUI grün.
+Isolierter CLI-Theme-
+Lebenszyklus bestanden.
+Nächster Block 9/20:
+Paketauthentizität/
+Berechtigungen und sichere
+Grenze für native atomische
+Theme-Installation.
+In-World-GUI/Windows/macOS
+sind nicht abgenommen.
 **Technischer Zielzustand:** Optionale Designs bei OGL-Standard.
 
 1. Vorhandenes OGL-Designpanel und Theme-CLI inventarisieren.

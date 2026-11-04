@@ -40,8 +40,21 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P03 Block 1/20:
-Theme-System und sichere Designs.
+Aktive Phase P03 Block 9/20:
+P03/1–8 im Code c4a615ba
+umgesetzt: OGL-Farbstandard,
+zentrale Tokens, User-
+Farb-Fallback, strenges
+SemVer, native .ogltheme-
+Auswahl ohne Installation,
+gehärtete Python-ZIP-Prüfung.
+Linux-Vollviewer 7.2.5.202,
+306 Python-/41 native Tests
+und DE-/EN-GUI erfolgreich.
+P03/9 Paketvertrauen/Rechte;
+kein ungeprüftes ZIP aus
+der Dateiauswahl extrahieren
+oder automatisch installieren.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
