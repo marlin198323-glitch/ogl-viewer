@@ -494,7 +494,7 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 6/20 abgeschlossen.
+**Aktueller Status:** P02 aktiv, 7/20 abgeschlossen.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
 13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
@@ -555,10 +555,28 @@ Linux-Vollbuild 7.2.5.194,
 Header, 2 Stagingvergleiche,
 JA-/ES-/DE-GUI-Smokes bestanden.
 Kein In-World-Chat-Test.
-Nächster Block 7/20: IM-/Gruppen-
-fenster-Kopfzeilen, Status und
-Navigation. Windows-Installer-
-Artefakt gesondert offen.
+Block 7 (04.11.2026, b04c547c):
+Aktive IM-Well-Zeile ohne Demo-
+Platzhalter, immer realen
+Sitzungsnamen für P2P/Gruppe/
+Ad-hoc anzeigen. P2P-Avatar-
+Cache nur für gültige Teilnehmer,
+verspätete fremde Namen
+verwerfen und bei Zeilen-
+Shutdown Signal trennen.
+Einzelchat-Profilbild 104x104
+rund; Gruppenliste und Status-
+Indikatoren unverändert.
+Linux-Vollbuild 7.2.5.196,
+291 Python-/41 native Tests,
+137 Brandingtests, 2 XUI im
+Paket bytegleich und DE-/EN-
+Prelogin-GUI-Smokes bestanden.
+Kein Live-IM-/Gruppen-Test.
+Nächster Block 8/20: Fenster-
+wechsel und Sitzungs-Status.
+Windows-Installer-Artefakt
+bleibt gesondert offen.
 Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,

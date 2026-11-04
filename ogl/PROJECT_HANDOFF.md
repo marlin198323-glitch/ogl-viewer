@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 7/20.
+wechseln. Neuer Einstieg: P02 Block 8/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -457,6 +457,34 @@ Test mit Nutzerkonto.
 P02 jetzt 6/20; als Nächstes
 Block 7: IM-/Gruppenfenster-
 Kopfzeilen/Status/Navigation.
+
+**P02 Block 7/20 abgeschlossen (04.11.2026,
+Code b04c547c):**
+IM-Well-Zeile zeigt nicht mehr
+"TestString PleaseIgnore", sondern
+sofort realen Sitzungsnamen für
+P2P-, Gruppen- und Ad-hoc-Chats.
+P2P-Cacheantworten nur bei
+passender Teilnehmer-ID und
+mit kontrollierter Verbindung,
+die beim Schließen der Zeile
+getrennt wird. Tooltip mit
+echtem vollständigem Namen.
+Einzelchat-Profilavatar rund
+und quadratisch (104x104),
+Gruppen-Sprecherliste unverändert.
+Drei Regressionstests;
+Linux-Vollbuild 7.2.5.196,
+291 Python-/41 native Tests,
+137 Brandingtests, 2/2 XUI
+im Paket bytegleich; DE-/EN-
+Prelogin-GUI-Smokes bestanden.
+Kein echter In-World-IM-/Gruppen-
+Chat-Test. Formal P02 7/20;
+nächster Block 8: Fensterwechsel
+und aktive Sitzungsanzeigen.
+Windows-Installer weiter nicht
+downloadbar bestätigt.
 
 ## Aktuelle Roadmaps
 

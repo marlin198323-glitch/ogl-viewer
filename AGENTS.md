@@ -33,10 +33,11 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-P02 Blöcke 1–6 Inventur, Navigation,
+P02 Blöcke 1–7 Inventur, Navigation,
 Menü-/Toolbar-Konsolidierung, OGL-
-Infofenster und Chat-Header abgeschlossen;
-aktiv P02 Block 7/20.
+Infofenster, Chat-/Avatar-Header und
+IM-Gesprächsliste abgeschlossen;
+aktiv P02 Block 8/20.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
@@ -324,6 +325,22 @@ Linux-Vollbuild 7.2.5.194,
 Header-XML und 2 Paketdateien,
 JA-/ES-/DE-GUI-Smokes bestanden.
 P02 6/20, nächster Block 7.
+
+P02 Block 7 (04.11.2026, b04c547c):
+Aktive IM-Zeile ohne Demo-Name;
+sofort echte P2P-/Gruppen-/Ad-hoc-
+Sitzungsnamen, P2P-Avatar-Cache
+mit Teilnehmer-ID-Prüfung und
+Signal-Disconnect bei Zeilenende.
+Einzelchat-Avatarprofil 104x104
+rund, Gruppenliste unverändert.
+Linux-Vollbuild 7.2.5.196,
+291 Python-/41 CTests,
+137 Brandingtests, zwei XUI-
+Paketvergleiche und DE-/EN-
+GUI-Smokes bestanden.
+Keine In-World-IM-Abnahme.
+P02 jetzt 7/20; Block 8 folgt.
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.

@@ -8,11 +8,13 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 7/20.
-P02 Block 6 (Avatar-Namen, lokalisierte
-Chat-Kopfbereiche und Zeitstempel-Einstellung)
-ist mit Linux-Vollbuild, Regression und
-drei GUI-Smokes geprüft und gepusht.
+**Aktiver Block:** /goal P02 Block 8/20.
+P02 Block 7 (IM-/Gruppengesprächsliste,
+Avatar-Namensauflösung und rundes Einzel-
+chat-Profilbild) wurde mit vollständigem
+Linux-Vollbuild, Regressionstests,
+XUI-Paketvergleichen und GUI geprüft
+und auf ogl-develop gepusht.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -22,10 +24,11 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Blöcke 1–6 abgeschlossen: Inventur,
+P02 Blöcke 1–7 abgeschlossen: Inventur,
 Navigation, Hauptmenü-/Untermenü-/
-Toolbar-Konsolidierung, OGL-Infofenster
-und sichere Avatar-/Chat-Kopfbereiche.
+Toolbar-Konsolidierung, OGL-Infofenster,
+Avatar-/Chat-Kopfbereiche und stabile
+IM-/Gruppengesprächsliste.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
@@ -35,7 +38,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 6/20 | Block 7: IM-/Gruppenfenster-Kopfzeilen, Status und Navigation prüfen |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 7/20 | Block 8: Fensterwechsel, aktive Sitzung und Statusindikatoren prüfen |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -47,6 +50,81 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 7/20 – IM-/Gruppenfenster, Namen und Avatarprofil (04.11.2026)
+
+**Code:** b04c547c, direkt auf origin/ogl-develop.
+
+**Bestandsfehler und Änderungen:**
+- Aktive IM-Gesprächsliste panel_fs_activeim_row.xml:
+  Der sichtbare Text-Platzhalter "TestString
+  PleaseIgnore" wurde entfernt. Der bestehende
+  RowPanel-Konstruktor setzt den tatsächlichen
+  Sitzungsnamen sofort – unabhängig davon, ob
+  es sich um P2P-, Gruppen- oder Ad-hoc-Chats
+  handelt. Ein echter Name kann anschließend
+  bei P2P-Chat asynchron aus dem Avatar-Cache
+  ergänzt werden. Der Tooltip übernimmt
+  ebenfalls den realen Namen.
+- LLIMWellWindow::RowPanel: Nur für einen
+  gültigen Teilnehmer-UUID wird der P2P-
+  Avatar-Lookup gestartet. Die ursprüngliche
+  Callback-Verbindung wird gespeichert und
+  im Zeilen-Destruktor getrennt. Verspätete
+  Cache-Antworten mit anderer Teilnehmer-ID
+  dürfen die Beschriftung nicht überschreiben.
+  Gruppen-/Mehrpersonen-Symbole,
+  Unread-Counter und die echte
+  Sitzungs-Schließen-Funktion bleiben
+  in bestehenden C++-Pfaden erhalten.
+- Der bestehende Einzelchat-Kontrollbereich
+  panel_fs_im_control_panel.xml verwendet
+  ein rundes, quadratisches Avatarbild
+  (104x104) statt eines verzerrbaren
+  114x105-Bildes. Die Gruppen-
+  Sprecherliste in panel_fs_group_control_panel
+  bleibt unverändert.
+- Drei neue Python-Regressionsprüfungen
+  im bestehenden test_branding_contract.py:
+  kein Design-Demotext, echter Sitzungsname
+  und kontrollierte Cache-Callback-Lebensdauer,
+  runder Einzelchat-Avatar bei unveränderter
+  Gruppenliste.
+- Keine neuen Projektdateien/Paralleldialoge,
+  keine Login-/Cache-Nutzerdaten verändert.
+  Sieben bekannte _v2/script_copy-Altbestände
+  nicht ohne Nutzungsanalyse gelöscht.
+
+**Testnachweise:** Linux-Vollviewer
+7.2.5.196 erfolgreich gebaut. 291/291
+Python-Tests, darunter 137/137
+Branding-/UI-Tests (auch mit
+LC_ALL=C/PYTHONUTF8=0), und 41/41
+native CTests bestanden. Beide
+geänderten EN-XUI-Dateien bytegleich
+im Linux-Buildpaket. IM-/Gruppen-
+Kontrollpanels und Floater-XUI
+erfolgreich als XML validiert.
+Isolierte DE-1280x720- und
+EN-1920x1080-Login-GUI-Smokes
+mit STATE_LOGIN_WAIT ohne AUTH_INIT,
+sauberer Exit 0 in beiden Fällen.
+Keine authentifizierte IM-/Gruppen-
+chat-Interaktion in einer Live-Welt
+behaupten.
+
+**Phasenstand:** P01 Linux 20/20;
+P02 7/20. Nächster Block:
+P02 Block 8/20 – Fensterwechsel,
+aktive Sitzung und Statusindikatoren.
+
+**Windows-Installer:** Windows-Vollviewer-
+Buildversuch 41510587323 scheiterte
+beim Artefakt-/Installer-Verifikations-
+schritt. Keine herunterladbare
+Windows-Setup.exe bestätigt.
+Separate Windows-/macOS-Release-
+Gates in P13 bleiben offen.
 
 ## P02 Block 6/20 – Lokalisierte Avatar- und Chat-Kopfbereiche (04.11.2026)
 
