@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 4/20.
+**Aktiver Block:** /goal P02 Block 5/20.
 P02 Block 3 (doppelte Admin-Status-Menüs und
 Toolbar-Vererbungsprüfung) wurde mit
 Linux-Build/Regression/GUI geprüft und gepusht.
@@ -33,7 +33,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 3/20 | Block 4: Untermenüs und Toolbar-Struktur konsistent gestalten |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 4/20 | Block 5: Fenstertitel, Icons und Buttons zu OGL/NexVerse vereinheitlichen |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -45,6 +45,65 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 4/20 – Entwickler-Untermenüs und Toolbar-Overlays konsolidiert (04.11.2026)
+
+**Code:** fc097c18 direkt auf origin/ogl-develop.
+
+- Spanisch: Im Entwicklerbereich war DevelopWorld als
+  doppeltes direktes Untermenü vorhanden; das kürzere
+  Duplikat entfernt, vollständiges Welt-Menü mit
+  Simulator-Diagnose DumpSimFeaturesToChat erhalten.
+  Die zweite, leere Set-Logging-Level-Kopie gelöscht;
+  Debug, Info, Warning, Error und None bleiben erhalten
+  und erben ihre funktionalen englischen Basis-Callbacks.
+- DE/PT/ZH-Toolbar-Übersetzungen: drei zusätzliche
+  leere toolbar_panel-Layoutknoten entfernt.
+  Die echte Toolbar bleibt ausschließlich im
+  englischen Basis-XUI; lokale Chatbutton-Labels,
+  Tooltips und ursprüngliche Breiten bleiben erhalten.
+- Drei Regressionstests im bestehenden
+  test_branding_contract.py ergänzen Submenü-
+  Eindeutigkeit pro Elternmenü, spanische Welt-/
+  Logging-Aktionen und nur eine Toolbar-Basis.
+  Gleichnamige Untermenüs in unterschiedlichen
+  Kontexten (etwa RLVa Debug) wurden nicht
+  fälschlich gelöscht.
+
+**Tests und Build:** Linux-Vollviewer 7.2.5.190
+erfolgreich, 282/282 Python-Tests,
+128/128 Brandingtests auch mit
+LC_ALL=C/PYTHONUTF8=0 und
+41/41 native CTests bestanden.
+13/13 Menü-XUI und 11/11 Toolbar-XUI
+XML-validiert. Vier bearbeitete
+XUI-Dateien zum Linux-Build-Paket
+byteweise identisch. Vier isolierte
+Prelogin-GUI-Smokes (ES 1280×720,
+DE 1920×1080, PT 1280×720,
+ZH 1280×720) bis STATE_LOGIN_WAIT,
+ohne Authentifizierung; alle Exit 0.
+Keine echten In-World-Menüklicks
+auf den vier Sprachen getestet.
+Keine neuen Projekt-/Backup-Dateien
+oder Nutzerdaten angelegt/verändert.
+
+**Formal:** P01 Linux 20/20,
+P02 4/20. Nächster Block 5/20:
+Fenstertitel, Icons und Buttons in den
+vorhandenen Dateien an OGL/NexVerse anpassen.
+
+**Windows Installer:** Actions-Lauf 41510587323
+hatte den Windows-x64-Viewer kompiliert und
+per NSIS eine Setup.exe laut Log generiert.
+Der nachgelagerte Artefakt-Suchschritt
+scheiterte, also keine herunterladbare
+Setup-Datei oder Windows-GUI-Abnahme.
+Außerdem wurde noch der alte
+Firestorm-OGL-Paketkanal verwendet;
+vor Windows-Testerfreigabe müssen
+OGL-Buildidentität und Upload-Pfad
+korrekt und explizit geprüft werden.
 
 ## P02 Block 3/20 – Admin-Untermenüs dedupliziert, Toolbar-Basis geprüft (02.11.2026)
 

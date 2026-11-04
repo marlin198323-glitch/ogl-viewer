@@ -33,9 +33,9 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-P02 Block 1 Inventur, Block 2 Navigationshierarchie
-und Block 3 Menü-Konsolidierung abgeschlossen;
-aktiv P02 Block 4/20.
+P02 Blöcke 1–4 Inventur, Navigation,
+Menü- und Toolbar-Konsolidierung abgeschlossen;
+aktiv P02 Block 5/20.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
@@ -273,6 +273,21 @@ Menüs und DE-/EN-/ES-GUI grün.
 P02 3/20; als Nächstes Block 4.
 Windows-Installer separat weiter
 nicht als fertig behaupten.
+
+P02 Block 4 (04.11.2026, fc097c18):
+Spanisches Entwicklermenü um
+doppeltes DevelopWorld und leeres
+Set Logging Level bereinigt. Leere
+DE/PT/ZH-toolbar_panel-Overlays
+entfernt, lokale Chatbuttons erhalten.
+Vollviewer 7.2.5.190, 282 Python-/
+41 native Tests, 128 Brandingtests,
+13/13 Menü- und 11/11 Toolbar-XUI,
+vier Stagingdateien und vier GUI-
+Smokes erfolgreich. P02 4/20,
+nächster Block 5. Windows-Installer
+nicht verfügbar: NSIS-Output im CI-
+Log, Artefakt-Upload fehlgeschlagen.
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.

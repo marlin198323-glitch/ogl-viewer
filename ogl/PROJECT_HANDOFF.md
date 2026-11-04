@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 4/20.
+wechseln. Neuer Einstieg: P02 Block 5/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -383,6 +383,26 @@ weiterhin 20/20. Windows-x64-
 Installer nicht als erfolgreich
 melden, bis GitHub ein .exe-Artefakt
 ausweist.
+
+P02 Block 4/20 abgeschlossen
+(04.11.2026, fc097c18):
+Spanisches Entwicklermenü um ein
+doppeltes World- und ein leeres
+Logging-Untermenü bereinigt;
+Simulator-Diagnose und fünf Logging-
+Stufen erhalten. Leere DE/PT/ZH-
+Toolbar-Platzhalter gelöscht,
+lokalisierte Buttons unverändert.
+Vollviewer 7.2.5.190, 282 Python-
+/41 native Tests, 128 Brandingtests,
+13 Menü-/11 Toolbar-XMLs,
+vier XUI-Staging-Vergleiche und
+vier ES/DE/PT/ZH-GUI-Smokes grün.
+Formal P02 4/20, nächster Block 5.
+Windows-Installer-CI hatte NSIS-
+Paketerzeugung im Log, aber kein
+verifiziertes Download-Artefakt;
+alter Firestorm-OGL-Kanal noch offen.
 
 ## Aktuelle Roadmaps
 

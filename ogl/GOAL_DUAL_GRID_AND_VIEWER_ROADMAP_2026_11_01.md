@@ -494,7 +494,7 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 3/20 abgeschlossen.
+**Aktueller Status:** P02 aktiv, 4/20 abgeschlossen.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
 13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
@@ -517,9 +517,21 @@ Linux-Vollbuild 7.2.5.188,
 279 Python-/41 native Tests,
 13/13 Menü-Stagingdateien und
 DE-/EN-/ES-GUI-Smokes grün.
-Nächster Schritt: Block 4/20,
-Untermenüs und Toolbar konsistent
-gestalten, ohne Paralleltemplates.
+Block 4 (04.11.2026, fc097c18):
+Doppeltes DevelopWorld-/leeres
+Logging-Submenü in ES entfernt,
+alle Funktionen weiter vorhanden;
+leere DE/PT/ZH-Toolbar-Platzhalter
+ohne Paralleltemplates entfernt.
+Linux-Vollbuild 7.2.5.190,
+282 Python-/41 native Tests,
+128 Brandingtests, alle 24 XUI
+und vier Paketvergleiche gültig;
+vier ES/DE/PT/ZH-GUI-Smokes grün.
+Nächster Block 5/20: Titel, Icons
+und Buttons zu OGL/NexVerse
+vereinheitlichen. Windows-Installer-
+Artefakt bleibt gesondert offen.
 Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,
