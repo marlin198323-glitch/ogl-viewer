@@ -58,6 +58,75 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P03 Block 17/20 – Native ZIP-Import-End-to-End-QA (begonnen, OFFEN; 04.11.2026)
+
+Nach Abschluss von Block 16
+wurde der echte lokale
+LLFilePicker per Xvfb/XTest
+mit einem isolierten,
+nur theme.json enthaltenden
+Ocean-Blue-Archiv geprüft.
+Ein kompletter Datei-
+Auswahlpfad über die
+GTK-Dateiauswahl gelang
+in einem Lauf: Der
+Viewer zeigte den
+tatsächlichen Namen
+als "ausgewählt,
+nicht installiert".
+In mehrfachen weiteren
+Automationsläufen war
+kein gültiger pending-
+Dateipfad vorhanden:
+Beim Drücken von
+"Design installieren"
+zeigte der Viewer die
+korrekte
+Auswahl-Fehlermeldung,
+ohne Nutzerdaten
+anzulegen. Eine
+reproduzierbare
+Erfolgspfad-Prüfung
+der nativen C++-
+Installation ist
+damit NOCH NICHT
+erbracht. Die
+Unzuverlässigkeit
+der simulierten
+GTK-Dateidialog-
+Eingabe ist kein
+hinreichender
+Beweis für einen
+Viewer-Importfehler.
+Die ZIP-Manipulations-
+Negativfälle auf
+nativem GUI-Pfad
+sind ebenfalls
+offen; Python-CLI-
+Negativtests bleiben
+bestanden.
+
+Keine Freigabe von
+P03/17 als 17/20,
+kein Windows-Installer
+und keine In-World-
+Theme-Abnahme
+behaupten.
+Aktueller Stand
+weiter 16/20;
+Block 17 erfordert
+stabile manuelle
+oder automatisierte
+Dateiauswahl,
+Installation nach
+explizitem Klick,
+Manifest im
+isolierten Userprofil,
+und erfolgreiche
+Ablehnung eines
+manipulierten ZIPs
+ohne Schreibzugriff.
+
 ## P03 Block 16/20 – Sprache, HiDPI, Farbvorschau und Kompatibilität (04.11.2026)
 
 **Code 1f174bc7 auf origin/ogl-develop.**

@@ -664,6 +664,30 @@ inklusive Malware-/Fehler-
 Pfaden. Windows/macOS-
 Gates weiter offen.
 
+**P03/17 QA-Aufnahme (04.11.2026,
+kein Fortschrittszähler):**
+Nativer LLFilePicker
+im Linux-Xvfb in
+einem Lauf mit echtem
+lokalem .ogltheme-Pfad
+und Status "ausgewählt,
+nicht installiert"
+erfolgreich. Weitere
+XTest-Läufe wählten
+Datei im Dialog nicht
+zuverlässig; der
+Install-Button
+verweigerte bei leerem
+Pending-Pfad korrekt,
+keine User-Dateien
+angelegt. Noch kein
+echter erfolgreicher
+GUI-Import, keine
+nativen ZIP-Manipulations-
+Negativfälle. Block 17
+weiter OFFEN,
+P03 bleibt 16/20.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
