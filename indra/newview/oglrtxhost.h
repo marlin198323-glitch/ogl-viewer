@@ -4,6 +4,65 @@
 #include <cstddef>
 #include <cstdint>
 
+// P04/2: world-renderer backend contract. This is a decision model, NOT a
+// Vulkan world-renderer implementation or a user-visible engine selector.
+// OpenGL owns the current GL context, world pipeline, UI, framebuffer and
+// window/present lifecycle. The optional RTX module owns only its isolated
+// diagnostic resources and must never be mistaken for a working Vulkan
+// world/present backend.
+//
+// Future Vulkan implementations must explicitly certify BOTH a complete
+// world/present pipeline and a usable device before a backend is selected.
+// A GPU probe alone never qualifies. No ownership is transferred here.
+// Backend changes require a controlled shutdown/startup (future P04 blocks).
+enum class OGLWorldBackend : std::uint8_t {
+    OpenGL,
+    Vulkan
+};
+
+enum class OGLWorldFallback : std::uint8_t {
+    NoFallback,
+    WorldPipelineUnavailable,
+    DeviceUnavailable
+};
+
+struct OGLWorldBackendDecision {
+    OGLWorldBackend requested;
+    OGLWorldBackend active;
+    OGLWorldFallback fallback;
+};
+
+// Side-effect-free, platform-neutral decision; safe to test without a GPU.
+// Vulkan diagnostics, ray-hit masks and GPU capability probing are NOT a
+// world renderer. The real P05 world/present pipeline must explicitly attest
+// readiness before the Vulkan branch can ever be used.
+constexpr OGLWorldBackendDecision ogl_choose_world_backend(
+    OGLWorldBackend requested, bool complete_world_pipeline,
+    bool usable_device) noexcept
+{
+    if (requested == OGLWorldBackend::OpenGL)
+        return {requested, OGLWorldBackend::OpenGL, OGLWorldFallback::NoFallback};
+    if (!complete_world_pipeline)
+        return {requested, OGLWorldBackend::OpenGL,
+                OGLWorldFallback::WorldPipelineUnavailable};
+    if (!usable_device)
+        return {requested, OGLWorldBackend::OpenGL,
+                OGLWorldFallback::DeviceUnavailable};
+    return {requested, OGLWorldBackend::Vulkan, OGLWorldFallback::NoFallback};
+}
+
+// Current installed viewer: no complete Vulkan world renderer/swapchain and
+// no Vulkan engine selection yet. GPU diagnostics must not change this state.
+// All callers, including OpenSim pre-login, observe the same OpenGL baseline.
+constexpr OGLWorldBackendDecision ogl_current_world_backend() noexcept
+{
+    return ogl_choose_world_backend(OGLWorldBackend::OpenGL, false, false);
+}
+
+static_assert(ogl_current_world_backend().active == OGLWorldBackend::OpenGL);
+static_assert(ogl_choose_world_backend(
+    OGLWorldBackend::Vulkan, false, true).active == OGLWorldBackend::OpenGL);
+
 /* Optional Linux Vulkan/RTX module lifecycle; safe no-op on other platforms. */
 void ogl_init_rtx_module();
 void ogl_shutdown_rtx_module();

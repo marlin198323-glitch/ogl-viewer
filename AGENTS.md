@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P04 Block 2/20:
+Aktive Phase P04 Block 3/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -158,6 +158,8 @@ P04 Block 2:
 Backend-Vertrag/
 Lebenszyklus definieren,
 GL-Fallback erhalten.
+P04/2: Im vorhandenen `indra/newview/oglrtxhost.h` existiert ein rein deklarativer constexpr-Backend-Vertrag. OpenGL bleibt Standard, Vulkan-GPU-Diagnostik berechtigt nicht zum Welt-Renderer. Linux 7.2.5.218 seriell gebaut, 315 Python-/41 native Tests grün. P04/3: bestehende Render-Frame-Pfade unter Erhalt der GL-Funktion verbinden; keine Parallel-Rendererdateien.
+
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

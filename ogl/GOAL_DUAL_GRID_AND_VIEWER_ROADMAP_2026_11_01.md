@@ -1103,7 +1103,7 @@ P04 Block 1/20 aktiv.
 
 ### /goal P04 – Renderer-Abstraktion und OpenGL-Fallback
 
-**Status:** aktiv; 1/20 operative Blöcke abgeschlossen.
+**Status:** aktiv; 2/20 operative Blöcke abgeschlossen.
 **P04 Block 1
 (04.11.2026, c2aade42):**
 OpenGL-Weltpfad
@@ -1128,6 +1128,8 @@ Nächster Block 2:
 gemeinsame Backend-
 Funktionen/Fallback.
 
+
+**P04 Block 2 (04.11.2026):** Gemeinsamer C++20-Welt-Backend-Entscheidungsvertrag in `oglrtxhost.h`: OpenGL/Vulkan-Anforderung, Rückfallgründe und explizite Gates für vollständige Welt-/Präsentationspipeline und verwendbares Device. RTX-Diagnostik qualifiziert nicht als Vulkan-Weltengine. `ogl_current_world_backend()` behält OpenGL. GL/LLPipeline besitzt Welt/UI/Present, optionales Vulkan-Modul nur Diagnose. Linux 7.2.5.218 gebaut, 315 Python- und 41 CTests sowie constexpr-C++-Probe erfolgreich. Nächster P04/3: vorhandene Frame-Schnittstellen anbinden.
 
 **Technischer Zielzustand:** Saubere Backend-Auswahl und Baseline.
 

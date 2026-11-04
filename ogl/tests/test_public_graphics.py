@@ -46,6 +46,27 @@ class PublicGraphicsContracts(unittest.TestCase):
         panel=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text()
         self.assertNotIn('name="ogl_renderer_engine"',panel)
 
+    def test_p04_backend_contract_is_fail_closed_and_platform_neutral(self):
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        display=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        self.assertIn("enum class OGLWorldBackend",header)
+        self.assertIn("enum class OGLWorldFallback",header)
+        self.assertIn("struct OGLWorldBackendDecision",header)
+        self.assertIn("constexpr OGLWorldBackendDecision ogl_choose_world_backend(",header)
+        self.assertIn("constexpr OGLWorldBackendDecision ogl_current_world_backend()",header)
+        self.assertIn("OGLWorldFallback::WorldPipelineUnavailable",header)
+        self.assertIn("OGLWorldFallback::DeviceUnavailable",header)
+        self.assertIn("OGLWorldBackend::OpenGL, false, false",header)
+        self.assertIn("static_assert(ogl_current_world_backend().active",header)
+        self.assertIn("gPipeline.renderGeomDeferred(",display)
+        self.assertIn("LLPipeline::renderFinalize(",pipeline)
+        # The contract must neither run a Vulkan world frame nor write UI
+        # settings; the real engine switch belongs to later P04/P05 blocks.
+        self.assertNotIn("vkQueuePresentKHR(",header)
+        self.assertNotIn("gSavedSettings",header)
+        self.assertNotIn("LLRenderTarget",header)
+
     def test_universal_preset_is_bundled_without_any_personal_settings(self):
         root = ET.parse(BUILTIN).getroot()
         self.assertEqual(root.tag, "llsd")

@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P04 Block 2/20.
+**Aktiver Block:** /goal P04 Block 3/20.
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -50,7 +50,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
 | P03 – Theme-System und sichere Designinstallation | Linux-Code/QA abgeschlossen | 20/20 | Vollviewer-Windows/macOS, Signaturen und Asset-Erweiterungen bleiben separate Gates |
-| P04 – Renderer-Abstraktion und OpenGL-Fallback | aktiv | 1/20 | Block 2: Renderer-Backend-Schnittstelle, Lebenszyklus und Fallback definieren |
+| P04 – Renderer-Abstraktion und OpenGL-Fallback | aktiv | 2/20 | Block 3: bestehende Frame-Schnittstellen kontrolliert anbinden |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
 | P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
@@ -60,6 +60,10 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P04 Block 2/20 – Backend-Schnittstelle (04.11.2026)
+
+In `indra/newview/oglrtxhost.h` ist ein gemeinsamer, constexpr-fähiger Entscheidungsvertrag hinzugekommen: `OGLWorldBackend`, `OGLWorldFallback` und `ogl_choose_world_backend()`. Vulkan als Welt-Renderer benötigt gleichzeitig eine vollständige Welt-/Present-Pipeline und ein nutzbares Gerät. Die vorhandene RTX/GPU-Diagnose allein reicht ausdrücklich nicht aus. `ogl_current_world_backend()` bleibt OpenGL; es wird weder eine Engine umgeschaltet noch ein Nutzersetting geschrieben. GL/LLPipeline behalten Welt, Fenster, Swap und UI; RTX besitzt nur Diagnoseressourcen. Keine zusätzlichen Rendererdateien angelegt. C++20-Vertragsprobe (5 Fälle), Linux-Vollviewer 7.2.5.218 seriell kompiliert/gelinkt, 315 Python- und 41 native Tests erfolgreich. Ein erster paralleler Build traf auf X11-Makrokollision `None`, danach auf Objektdateikollision durch überlappende Builds; `NoFallback` und serieller Rebuild beheben beides. Ein isolierter Prelogin-Smoke betraf noch die zuvor paketierte 7.2.5.214 und ist kein neuer 7.2.5.218-GUI-Nachweis. Windows/macOS-Vollviewer und echter Vulkan-Weltpfad weiterhin offen. **P04 2/20, nächster Block 3:** vorhandene Frame-Schnittstellen anbinden, OpenGL erhalten.
 
 ## P04 Block 1/20 – OpenGL-/Vulkan-Renderer-Inventur (04.11.2026)
 

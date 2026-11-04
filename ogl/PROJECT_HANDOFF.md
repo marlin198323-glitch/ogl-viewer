@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P04 Block 2/20.
+wechseln. Neuer Einstieg: P04 Block 3/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -809,6 +809,8 @@ Tests bestanden.
 P04 1/20, Block 2
 Backend-Schnittstelle
 und Fallback-Grenzen.
+**P04 Block 2/20 (04.11.2026):** C++20-Backend-Vertrag in vorhandener `oglrtxhost.h`, OpenGL bleibt aktive Weltengine. Vulkan benötigt vollständig implementierte Welt-/Swapchain-Pipeline UND nutzbares Gerät; RTX-Diagnose allein ist keine Engine. Kein Umschalten oder Nutzer-Setting. Linux-Binary 7.2.5.218 seriell gelinkt, 315 Python-/41 native Tests und isolierter constexpr-C++-Test erfolgreich. Nächster Block P04/3: vorhandene Frame-Schnittstellen anbinden.
+
 ## Aktuelle Roadmaps
 
 - ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
