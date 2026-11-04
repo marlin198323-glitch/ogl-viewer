@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P03 Block 9/20.
+wechseln. Neuer Einstieg: P03 Block 16/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -580,6 +580,50 @@ P03/9 Paketvertrauen/Rechte,
 P03/10 native atomische
 Installation. Keine echte
 In-World-Theme-Abnahme.
+
+**P03 Blöcke 9–15/20
+(04.11.2026, 73565590):**
+Nativer, explizit geklickter
+Importer nur für lokale,
+unsignierte Farbdesigns
+mit exakt theme.json,
+ohne Skripte/Assets.
+Vorprüfung per vorhandener
+minizip-ng-Bibliothek,
+Manifest-/SemVer-/Farb-
+Whitelists, ZIP-Typ,
+Größe, CRC, Duplikate,
+Symlink-/Pfad-Abwehr;
+erst danach atomisches
+Staging/Rename in
+Nutzerverzeichnis.
+Kein Überschreiben alter
+Designs. Neue EN/DE-
+Schaltflächen Installieren
+und Entfernen; aktive/
+veränderte Themes vor
+Löschung geschützt.
+Bestehende Liste,
+Vorschau, Aktivieren,
+Nutzerfarben-Reset und
+Restart-Hinweise erhalten.
+Linux-Vollbuild 7.2.5.204,
+308 Python-/41 CTests,
+DE/EN Prelogin GUI;
+DE echte Preferences-
+Ansicht inkl. Design-
+Tab und Dateidialog.
+**Kein erfolgreich
+automatisierter nativer
+ZIP-Import-End-to-End-
+Test**, keine Signaturen,
+keine Bild-Assets,
+kein Windows/macOS
+Full-Viewer-Test.
+P03 jetzt 15/20,
+weiter Block 16:
+HiDPI/Sprache/Kompatibilität
+und darauf native ZIP-QA.
 
 ## Aktuelle Roadmaps
 

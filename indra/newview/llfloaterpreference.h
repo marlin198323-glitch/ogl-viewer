@@ -538,8 +538,8 @@ protected:
 };
 // [/SL:KB]
 
-// OGL /goal Phase 1: independent, optional color-themes tab.
-// Do not alter original Firestorm skin/theme layout or color defaults.
+// OGL /goal P03: optional color themes in the existing Preferences tab.
+// Preserve upstream skin selection and the reversible per-user palette.
 class LLPanelPreferenceOglThemes : public LLPanelPreference
 {
 public:

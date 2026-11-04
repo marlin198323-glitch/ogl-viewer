@@ -5213,8 +5213,9 @@ void LLPanelPreferenceCrashReports::cancel(const std::vector<std::string> settin
 // [/SL:KB]
 
 // OGL /goal Theme Manager – safe declarative, user-scoped color themes.
-// No scripts, DLLs or unverified archive extraction are performed in Viewer.
-// Installed .ogltheme archives are validated/extracted by manage_themes.py.
+// No scripts, DLLs, executable assets or unverified extraction are allowed.
+// A restricted manifest-only native import is available with explicit consent;
+// the existing Python CLI also supports separately validated local assets.
 #include "lluicolortable.h"
 #include <boost/json.hpp>
 #include <minizip-ng/mz.h>

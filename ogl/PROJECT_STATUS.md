@@ -8,19 +8,19 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P03 Block 9/20.
-In dieser /goal-Runde sind die verlangten
-20 Schritte bearbeitet: P02/9–20
-(Linux-Code-/Regressionsphase abgeschlossen)
-und P03/1–8 (Theme-Standard, Auswahl und
-Paketsicherheitsprüfungen). Aktueller
-Theme-Code-Commit c4a615ba.
-P02 Block 8 (gelesener/ungelesener
-Sitzungswechsel, Tab-Blinkanzeigen,
-Sitzungs-ID-Migration und Voice-Status)
-mit Linux-Vollbuild, Regressionstests
-und GUI-Prüfung abgeschlossen und
-auf ogl-develop veröffentlicht.
+**Aktiver Block:** /goal P03 Block 16/20.
+P03 Blöcke 9–15 wurden im bestehenden
+Preferences-/Theme-Code umgesetzt oder
+verifiziert; Code-Commit 73565590
+auf origin/ogl-develop.
+Der erste native Import ist ausdrücklich
+auf lokale, manuell ausgewählte,
+unsignierte Farbpakete mit ausschließlich
+theme.json begrenzt. Ein echter
+GUI-Import/-Löschtest und eine
+kryptografische Authentifizierung
+sind noch offen. Diese Punkte gehören
+zu den nächsten Sicherheits-/QA-Gates.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -45,7 +45,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
-| P03 – Theme-System und sichere Designinstallation | aktiv | 8/20 | Block 9: Paketauthentizität, Rechte und native Installationsgrenze |
+| P03 – Theme-System und sichere Designinstallation | aktiv | 15/20 | Block 16: Sprach-/HiDPI- und Chat-/Menü-Kompatibilität, danach native ZIP-QA |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
@@ -56,6 +56,149 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P03 Blöcke 9–15/20 – Native sichere Farbdesign-Verwaltung (04.11.2026)
+
+**Code:** 73565590 direkt auf
+origin/ogl-develop.
+
+**Blocknachweise:**
+9. **Paketvertrauen/Berechtigungen:**
+   explizite Zustimmung über separate
+   Schaltfläche "Installieren";
+   ausschließlich lokale, unsigned,
+   deklarative Farbdesigns ohne
+   XUI, Plugin-/Skriptcode,
+   Netzwerk-/OS-Rechte. In EN/DE
+   sichtbar als unsigniert
+   gekennzeichnet. Keine
+   kryptografische Signatur-
+   Authentifizierung behaupten:
+   deren Einführung/Vertrauens-
+   Infrastruktur bleibt offen.
+10. **Native atomische Installation:**
+    Bereits vorhandene minizip-ng-
+    Bibliothek im C++-Viewer,
+    ohne Python-/externes Tool.
+    VOR Benutzer-Verzeichnisänderung
+    das komplette ZIP vorprüfen:
+    maximal 16 MiB Gesamtarchiv,
+    exakt eine Datei namens
+    theme.json (maximal 16 KiB),
+    nur Store/Deflate,
+    keine Verschlüsselung,
+    symlinks, Sonderdateien,
+    ZIP-Zusatzdateien, hohe
+    Kompressionsrate,
+    falsche CRC, doppelte
+    JSON-Properties oder
+    ungültige Manifestdaten.
+    Manifest wird kanonisiert,
+    in zufälligem neu angelegtem
+    Staging-Verzeichnis geschrieben,
+    danach per fs::rename auf
+    endgültiges ID-Verzeichnis
+    veröffentlicht. Keine
+    vorhandene Installation
+    überschreiben; temporäre
+    Dateien bei Fehler entfernen.
+    Nur reine Farb-Manifeste
+    derzeit nativ importierbar.
+    PNG/WebP-Assets müssen
+    später gesondert sicher
+    nativ unterstützt werden.
+11. **Installierte Themes:**
+    bestehende Listendarstellung
+    refreshOglThemes() und
+    Validierung der installierten
+    Manifeste wiederverwendet.
+    Liste wird nach Import erneuert.
+12. **Vorschau:** Bestehendes
+    Farb-Swatch-Panel nutzt
+    previewOglTheme(), welche
+    ausschließlich Darstellung
+    ändert, nicht die
+    LLUIColorTable speichert.
+    Neu importiertes Theme
+    wird ausgewählt und als
+    Vorschau angezeigt.
+13. **Status und Neustart:**
+    bestehende Hinweise zur
+    Farb-Aktivierung/Neustart;
+    EN/DE zusätzliche eindeutige
+    Status für Auswahl,
+    Installation, Ablehnung
+    und Entfernung.
+14. **Aktivierung/Zurücksetzen:**
+    bisherige onOglThemeActivate
+    und onOglThemeReset,
+    snapshot_original und
+    Restore des Nutzer-Farbprofils
+    erhalten. Installation
+    aktiviert NICHT automatisch.
+15. **Sicheres Entfernen:**
+    neuer "Entfernen"-Button
+    in EN/DE, nur für inaktive
+    geprüfte manifest-only
+    Pakete. Aktive oder
+    veränderte/zusätzliche
+    Dateien werden abgewiesen.
+    Kein rekursives Entfernen
+    und kein Löschen fremder
+    Nutzerinhalte.
+
+**Nachweise:** Linux-Vollviewer
+7.2.5.204 in C++20 gebaut;
+308/308 Python-Tests,
+41/41 native CTests bestanden.
+Neue EN/DE-XUI-Dateien
+bytegleich im Viewer-Paket,
+jeweils Auswahl/Installieren/
+Entfernen/Aktivieren/Reset
+in XUI einzeln geprüft.
+DE-Xvfb-GUI 1440×900:
+Preferences öffnet, OGL-
+Designs-Reiter und alle
+neuen Schaltflächen
+tatsächlich sichtbar,
+nativer GTK-Dateiauswahl-
+Dialog öffnet, Viewer
+stabil mit sauberem Exit.
+DE 1280×720 und
+EN 1920×1080: Prelogin-
+GUI-Smokes Exit 0.
+Paketsicherheitsvertrags-
+Tests prüfen C++-Quellcode;
+existierende Python-
+Theme-Import-/Rollback-/
+Manipulationsprüfungen
+bestanden. Ein tatsächlicher
+Import/Entfernen-Klick mit
+gültigem ZIP innerhalb
+des Viewer-Dialogs wurde
+NICHT end-to-end verifiziert.
+Kein bestehendes reales
+User-Theme oder Login
+verändert.
+
+**P03-Fortschritt:** 15/20
+als umgesetzte/verifizierte
+Linux-Codepfade. Nächster
+Block 16: DE/EN, HiDPI,
+Chat-/Menü-Integration.
+17: nativer Manipulations-
+und erfolgreicher Import-
+E2E-Test. 18: Overrides/
+Duplikate geprüft bereinigen.
+19: plattformneutrale
+Sicherheitstests und
+Linux-/CI-Gates. 20:
+Phasenabschluss erst
+bei erfüllten Gates.
+Windows-/macOS-Vollviewer
+und signierte Release-
+Verteilung weiterhin
+nicht bestätigt.
 
 ## P03 Blöcke 1–8/20 – OGL-Standardfarben und sichere Theme-Auswahl (04.11.2026)
 
