@@ -23,6 +23,17 @@
       label="Info"
       help_topic="about_support_tab"
       name="support_panel">
+      <!-- OGL channel only: made visible by LLFloaterAbout::postBuild. -->
+      <icon
+        follows="top|right"
+        height="28"
+        image_name="OGL_System_Icon"
+        layout="topleft"
+        left="453"
+        name="ogl_about_icon"
+        top="16"
+        visible="false"
+        width="28" />
       <text
         follows="top|left|right"
         font="SansSerif"

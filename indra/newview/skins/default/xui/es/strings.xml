@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <strings>
+  <string name="OGLAboutSupport">Actualizaciones y asistencia de OGL Viewer:
+https://github.com/marlin198323-glitch/ogl-viewer</string>
+  <string name="OGLAboutCopy">Copiar info de OGL</string>
 	<string name="SECOND_LIFE">
 		[CURRENT_GRID]
 	</string>

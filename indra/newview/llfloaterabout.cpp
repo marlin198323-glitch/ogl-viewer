@@ -49,6 +49,7 @@
 // Linden library includes
 #include "llaudioengine.h"
 #include "llbutton.h"
+#include "lltextbox.h"
 #include "llglheaders.h"
 #include "llfloater.h"
 #include "llfloaterreg.h"
@@ -137,6 +138,16 @@ bool LLFloaterAbout::postBuild()
 
     getChild<LLUICtrl>("copy_btn")->setCommitCallback(
         boost::bind(&LLFloaterAbout::onClickCopyToClipboard, this));
+
+    // The OGL channel has its own support destination, branding and
+    // copy-button label. Preserve the upstream legal credits and keep
+    // other channels' About content unchanged.
+    if (APP_NAME == "OGL")
+    {
+        getChild<LLTextBox>("support_intro")->setText(LLTrans::getString("OGLAboutSupport"));
+        getChild<LLButton>("copy_btn")->setLabel(LLTrans::getString("OGLAboutCopy"));
+        getChildView("ogl_about_icon")->setVisible(true);
+    }
 
     // <FS:Ansariel> Disabled update button
     //getChild<LLUICtrl>("update_btn")->setCommitCallback(

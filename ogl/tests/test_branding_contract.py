@@ -1011,6 +1011,52 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertEqual(actions[name][0].get('shortcut'), 'alt|shift|S')
             self.assertIsNotNone(actions[name][0].find('menu_item_call.on_visible'))
 
+    def test_p02_ogl_about_support_and_buttons_are_channel_scoped(self):
+        source = self.source("indra/newview/llfloaterabout.cpp")
+        self.assertIn('if (APP_NAME == "OGL")', source)
+        self.assertIn('getChild<LLTextBox>("support_intro")->setText(', source)
+        self.assertIn('LLTrans::getString("OGLAboutSupport")', source)
+        self.assertIn('getChild<LLButton>("copy_btn")->setLabel(', source)
+        self.assertIn('LLTrans::getString("OGLAboutCopy")', source)
+        self.assertIn('getChildView("ogl_about_icon")->setVisible(true)', source)
+        self.assertIn('onClickCopyToClipboard', source)
+
+    def test_p02_ogl_about_brand_icon_uses_existing_resource_and_preserves_credits(self):
+        base = ROOT / "indra/newview/skins/default"
+        about = ET.parse(base / "xui/en/floater_about.xml").getroot()
+        icons = [n for n in about.iter("icon")
+                 if n.get("name") == "ogl_about_icon"]
+        self.assertEqual(len(icons), 1)
+        self.assertEqual(icons[0].get("image_name"), "OGL_System_Icon")
+        self.assertEqual(icons[0].get("visible"), "false")
+        self.assertEqual(about.get("title"), "About [APP_NAME]")
+        for name in ("credits_panel", "fs_credits_panel", "licenses_panel",
+                     "support_intro", "support_editor", "copy_btn"):
+            self.assertTrue(any(n.get("name") == name for n in about.iter()),
+                            name)
+        texture = ET.parse(base / "textures/textures.xml").getroot()
+        self.assertTrue(any(n.get("name") == "OGL_System_Icon"
+                            for n in texture.iter("texture")))
+
+    def test_p02_about_support_texts_localized_without_overwriting_legacy_credits(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        paths = sorted(base.glob("*/strings.xml"))
+        self.assertEqual(len(paths), 13)
+        for path in paths:
+            strings = ET.parse(path).getroot()
+            for name in ("OGLAboutSupport", "OGLAboutCopy"):
+                found = [n for n in strings if n.tag == "string"
+                         and n.get("name") == name]
+                self.assertEqual(len(found), 1, (str(path), name))
+                self.assertTrue((found[0].text or "").strip(), (str(path), name))
+            support = next(n for n in strings if n.get("name") == "OGLAboutSupport")
+            self.assertIn('https://github.com/marlin198323-glitch/ogl-viewer',
+                          support.text)
+            self.assertNotIn("firestormviewer.org", support.text)
+        legacy = ET.parse(base / "en/floater_about.xml").getroot()
+        self.assertTrue(any(n.get("name") == "fs_credits_panel"
+                            for n in legacy.iter()))
+
     def test_p02_developer_direct_submenus_never_duplicate_in_a_language(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         paths = sorted(base.glob('*/menu_viewer.xml'))

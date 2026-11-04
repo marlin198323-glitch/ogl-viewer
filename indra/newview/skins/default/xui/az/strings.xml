@@ -4,6 +4,9 @@
      For example, the strings used in avatar chat bubbles, and strings
      that are returned from one component and may appear in many places-->
 <strings>
+  <string name="OGLAboutSupport">OGL Viewer yenilikləri və dəstək:
+https://github.com/marlin198323-glitch/ogl-viewer</string>
+  <string name="OGLAboutCopy">OGL məlumatını kopyala</string>
 	<string name="SECOND_LIFE_GRID">
 		[CURRENT_GRID]
 	</string>

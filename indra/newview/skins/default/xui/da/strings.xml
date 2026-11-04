@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <strings>
+  <string name="OGLAboutSupport">OGL Viewer-opdateringer og support:
+https://github.com/marlin198323-glitch/ogl-viewer</string>
+  <string name="OGLAboutCopy">Kopiér OGL-info</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupDetectingHardware">
 		Detekterer hardware...

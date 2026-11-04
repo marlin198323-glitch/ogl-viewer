@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <strings>
+  <string name="OGLAboutSupport">Aktualizacje i pomoc dla OGL Viewer:
+https://github.com/marlin198323-glitch/ogl-viewer</string>
+  <string name="OGLAboutCopy">Kopiuj info OGL</string>
 	<string name="SUPPORT_SITE">NexVerse Portal</string>
 	<string name="StartupLoading">
 		Ładowanie przeglądarki [APP_NAME]...

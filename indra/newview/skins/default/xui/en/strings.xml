@@ -4,6 +4,9 @@
      For example, the strings used in avatar chat bubbles, and strings
      that are returned from one component and may appear in many places-->
 <strings>
+  <string name="OGLAboutSupport">OGL Viewer updates and support:
+https://github.com/marlin198323-glitch/ogl-viewer</string>
+  <string name="OGLAboutCopy">Copy OGL info</string>
   <string name="OGLBetaLoginUnavailable">Stadt NexVerse Beta is not ready for sign-in yet. We are checking its secure connection and sign-in service. No username or password was sent.</string>
   <string name="OGLGridChangedReenterCredentials">You selected a different world. For your security, please enter your username and password again.</string>
   <string name="OGLUnexpectedGridEndpoint">This login address is not the verified Stadt NexVerse grid endpoint. No credentials were sent. Restore the official grid settings.</string>
