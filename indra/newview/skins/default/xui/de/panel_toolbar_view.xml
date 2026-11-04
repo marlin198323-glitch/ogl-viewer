@@ -19,13 +19,6 @@
 					<!-- Vertical stack to house the stand fly buttons and the chat bar below -->
 				</layout_panel>
 				<!-- The chat bar / stand fly stack container -->
-				<!-- The toolbar itself -->
-				<layout_panel name="toolbar_panel">
-					<!-- Panel to house the show/hide chat bar button -->
-
-					<!-- Panel to house the show/hide chat bar button -->
-				</layout_panel>
-				<!-- The toolbar itself -->
 			</layout_stack>
 			<!-- Horizontal panel to take up the chat bar and the tool bar -->
 		</layout_panel>

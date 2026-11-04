@@ -1011,6 +1011,66 @@ class OGLBrandingContract(unittest.TestCase):
             self.assertEqual(actions[name][0].get('shortcut'), 'alt|shift|S')
             self.assertIsNotNone(actions[name][0].find('menu_item_call.on_visible'))
 
+    def test_p02_developer_direct_submenus_never_duplicate_in_a_language(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        paths = sorted(base.glob('*/menu_viewer.xml'))
+        self.assertEqual(len(paths), 13)
+        for path in paths:
+            root = ET.parse(path).getroot()
+            for parent in root.iter('menu'):
+                children = [n.get('name') for n in parent
+                            if n.tag == 'menu' and n.get('name')]
+                self.assertEqual(len(children), len(set(children)),
+                                 (str(path), parent.get('name')))
+        spanish = ET.parse(base / 'es/menu_viewer.xml').getroot()
+        developer = next(n for n in spanish if n.get('name') == 'Develop')
+        for name in ('DevelopWorld', 'Set Logging Level'):
+            self.assertEqual(sum(n.get('name') == name
+                                 for n in developer if n.tag == 'menu'), 1, name)
+
+    def test_p02_spanish_developer_keeps_full_world_and_logging_actions(self):
+        root = ET.parse(ROOT /
+                        'indra/newview/skins/default/xui/es/menu_viewer.xml').getroot()
+        developer = next(n for n in root if n.get('name') == 'Develop')
+        world = next(n for n in developer if n.get('name') == 'DevelopWorld')
+        self.assertIn('DumpSimFeaturesToChat',
+                      {n.get('name') for n in world.iter()})
+        for name in ('Sim Sun Override', 'Fixed Weather',
+                     'Dump Region Object Cache'):
+            self.assertIn(name, {n.get('name') for n in world.iter()})
+        logging = next(n for n in developer
+                       if n.get('name') == 'Set Logging Level')
+        self.assertEqual({n.get('name') for n in logging
+                          if n.tag == 'menu_item_check'},
+                         {'Debug', 'Info', 'Warning', 'Error', 'None'})
+
+    def test_p02_localized_toolbar_has_no_empty_toolbar_panel_duplicates(self):
+        base = ROOT / 'indra/newview/skins/default/xui'
+        paths = sorted(base.glob('*/panel_toolbar_view.xml'))
+        self.assertEqual(len(paths), 11)
+        for path in paths:
+            root = ET.parse(path).getroot()
+            panels = [n for n in root.iter('layout_panel')
+                      if n.get('name') == 'toolbar_panel']
+            if path.parent.name == 'en':
+                self.assertEqual(len(panels), 1, str(path))
+                self.assertTrue(any(n.get('name') == 'toolbar_bottom'
+                                    for n in panels[0].iter()))
+            else:
+                self.assertEqual(len(panels), 0, str(path))
+                buttons = [n for n in root.iter('button')
+                           if n.get('name') == 'local_chat_button']
+                self.assertEqual(len(buttons), 1, str(path))
+                self.assertTrue(buttons[0].get('label'), str(path))
+                self.assertTrue(buttons[0].get('tool_tip'), str(path))
+        # Translated sizing must not silently revert to a fixed EN-only width.
+        for language, expected in (('de', '110'), ('pl', '92'),
+                                   ('pt', '100'), ('zh', '100')):
+            root = ET.parse(base / language / 'panel_toolbar_view.xml').getroot()
+            chat = next(n for n in root.iter('button')
+                        if n.get('name') == 'local_chat_button')
+            self.assertEqual(chat.get('width'), expected, language)
+
     def test_p02_toolbar_single_base_and_locale_overrides_keep_structural_names(self):
         base = ROOT / 'indra/newview/skins/default/xui'
         paths = sorted(base.glob('*/panel_toolbar_view.xml'))

@@ -11,9 +11,6 @@
 						</layout_panel>
 					</layout_stack>
 				</layout_panel>
-				<layout_panel name="toolbar_panel">
-
-				</layout_panel>
 			</layout_stack>
 		</layout_panel>
 	</layout_stack>
