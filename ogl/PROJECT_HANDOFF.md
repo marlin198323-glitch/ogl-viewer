@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P03 Block 16/20.
+wechseln. Neuer Einstieg: P03 Block 17/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -624,6 +624,45 @@ P03 jetzt 15/20,
 weiter Block 16:
 HiDPI/Sprache/Kompatibilität
 und darauf native ZIP-QA.
+
+**P03 Block 16 (04.11.2026,
+Code 1f174bc7):**
+OGL-Standardname in
+Theme-Auswahl nach EN/DE
+lokalisiert; Textfelder
+bei Breitenänderung
+mit left|right verankert,
+rechte Buttons
+right|top. Ausgegraute,
+deaktivierte
+Farbvorschau-Buttons
+durch echte nicht
+anklickbare Panels
+mit setBackgroundColor
+und getrennten
+übersetzten Labels
+ersetzt. Chat-/Menü-
+Token-Verträge für
+bestehendes Skin
+regressiongeprüft.
+Linux-Vollviewer
+7.2.5.207, 311 Python/
+41 native Tests,
+EN/DE-XUI im Paket
+identisch. EN bei
+140% UI-Skalierung
+1920x1080 und DE bei
+100% 1440x900 real
+als OGL-Preferences
+geöffnet, beide Exit 0.
+Keine authentifizierte
+Chat-/Voice-Abnahme.
+P03 16/20,
+nächster Block 17:
+nativer ZIP-Import-E2E
+inklusive Malware-/Fehler-
+Pfaden. Windows/macOS-
+Gates weiter offen.
 
 ## Aktuelle Roadmaps
 

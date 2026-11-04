@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P03 Block 16/20:
+Aktive Phase P03 Block 17/20:
 P03/1–8 Code c4a615ba,
 P03/9–15 Code 73565590.
 Lokale, unsignierte,
@@ -78,6 +78,28 @@ HiDPI-/Sprache/Chat-
 Kompatibilität, danach
 native ZIP-Manipulations-
 und Erfolgspfadtests.
+P03 Block 16 Code 1f174bc7:
+EN/DE-Theme-Standardname
+via XUI, responsive
+Text-Anker, tatsächliche
+nicht-interaktive
+Farbswatches statt
+deaktivierter Buttons,
+Chat-/Menü-Farbtoken-
+Verknüpfung erhalten.
+Linux-Vollbuild
+7.2.5.207,
+311 Python-/41 native
+Tests, EN/DE-XUI im Paket,
+EN 140%/DE 100%
+OGL-Preferences-GUI
+direkt geprüft.
+Nächster Block 17:
+nativer ZIP-Import-
+Erfolgs-/Fehlerpfad;
+keine Userprofile
+oder Login-Cache
+anfassen.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

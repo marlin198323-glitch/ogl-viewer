@@ -8,11 +8,13 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P03 Block 16/20.
-P03 Blöcke 9–15 wurden im bestehenden
-Preferences-/Theme-Code umgesetzt oder
-verifiziert; Code-Commit 73565590
-auf origin/ogl-develop.
+**Aktiver Block:** /goal P03 Block 17/20.
+P03 Block 16 abgeschlossen: Deutsch/
+Englisch, 100/140 % UI-Skalierung,
+korrigierte Farbvorschau und
+Chat-/Menü-Farbzuordnung. Code-Commit
+1f174bc7 auf origin/ogl-develop.
+P03 Blöcke 9–15: 73565590.
 Der erste native Import ist ausdrücklich
 auf lokale, manuell ausgewählte,
 unsignierte Farbpakete mit ausschließlich
@@ -44,7 +46,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
-| P03 – Theme-System und sichere Designinstallation | aktiv | 15/20 | Block 16: Sprach-/HiDPI- und Chat-/Menü-Kompatibilität, danach native ZIP-QA |
+| P03 – Theme-System und sichere Designinstallation | aktiv | 16/20 | Block 17: nativen ZIP-Import inklusive ungültiger Pakete End-to-End testen |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
@@ -55,6 +57,80 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P03 Block 16/20 – Sprache, HiDPI, Farbvorschau und Kompatibilität (04.11.2026)
+
+**Code 1f174bc7 auf origin/ogl-develop.**
+Der Built-in-Theme-Name in
+refreshOglThemes wird jetzt
+über den lokalisierten
+XUI-Schlüssel
+ogl_theme_default_name
+bezogen. EN: "OGL Standard
+(default)", DE: "OGL Standard
+(Voreinstellung)".
+Sechs Textbereiche im
+bestehenden EN-XUI folgen
+links/rechts, statt auf
+starrer Breite zu bleiben;
+rechte Action-Schaltflächen
+sind rechts verankert.
+Die bisher deaktivierten
+Farbvorschau-Buttons waren
+ausgegraut und kaum lesbar.
+Sie wurden in bestehendem
+Theme-XUI durch drei nicht
+anklickbare Panels mit
+tatsächlichem
+LLPanel::setBackgroundColor
+und eigenständigen
+übersetzten Beschriftungen
+ersetzt. Die Vorschau
+ändert nicht die
+LLUIColorTable.
+Chat-/Menü-Farb-Tokens
+bleiben via bestehender
+TOKEN_COLORS und
+colors.xml/ChatHeader
+abgebildet; vorhandene
+Skin-/IM-Fenster wurden
+nicht dupliziert.
+
+**Nachweise:** Linux-Vollviewer
+7.2.5.207 gebaut; 311/311
+Python- und 41/41 native
+CTest erfolgreich. EN/DE
+Theme-XUI bytegleich im
+Viewer-Paket.
+Echter GUI-Test auf
+separatem Xvfb mit EN
+1920x1080 bei UI-Faktor
+1,4 sowie DE 1440x900
+bei Faktor 1,0. In beiden
+Fällen OGL-Designs-Panel
+tatsächlich geöffnet,
+Aktionselemente
+vollständig sichtbar,
+Farbfelder lesbar,
+lokalisierte Default-
+Anzeige korrekt.
+Beide Viewer sauber mit
+Exit 0 geschlossen; keine
+Anmeldung in Live-3D-Welt
+oder echte Chatfarben in
+einer laufenden
+IM-Sitzung geprüft.
+Keine alten User-Dateien
+verändert, keine neuen
+Projektdateien erzeugt.
+
+**P03 jetzt 16/20,
+nächster Block 17:**
+native ZIP-Import- und
+Manipulations-End-to-End-
+Tests. Erfolgreicher
+Installer-/Windows-GUI-
+Test weiterhin offen.
 
 ## P03 Blöcke 9–15/20 – Native sichere Farbdesign-Verwaltung (04.11.2026)
 

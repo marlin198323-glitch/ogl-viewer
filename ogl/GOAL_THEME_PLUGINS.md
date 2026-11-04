@@ -5,7 +5,36 @@ Alle Phasen: gleicher C++-Viewer fuer Linux, Windows und macOS;
 CPU-/GPU-Faehigkeitserkennung mit Standardpfad fuer aeltere Hardware.
 Keine automatische Ausfuehrung fremder Plugins.
 
-## Aktueller Stand 04.11.2026 – P03 15/20
+## Aktueller Stand 04.11.2026 – P03 16/20
+
+Block 16 (Code 1f174bc7):
+OGL-Design-Default
+über XUI auf Deutsch/
+Englisch lokalisiert,
+Textflächen responsiv,
+rechte Buttons rechts
+verankert und
+Farbswatches aus
+ausgegrauten Buttons
+in echte, beschriftete
+nicht-interaktive
+Farb-Panels umgebaut.
+Laufender GUI-Test
+unter Linux EN
+1920x1080/140%,
+DE 1440x900/100%
+visuell erfolgreich.
+311 Python-/41 native
+Tests, Linux-Vollbuild
+7.2.5.207, zwei XUI-
+Paketvergleiche
+erfolgreich.
+Block 17 folgt:
+native ZIP-Import-
+und Manipulations-
+Abnahme. Keine
+vollständige P03-
+Freigabe behaupten.
 
 Ab Code 73565590:
 Der schon vorhandene

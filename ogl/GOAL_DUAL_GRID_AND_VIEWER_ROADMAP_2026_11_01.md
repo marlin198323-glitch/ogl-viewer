@@ -838,7 +838,7 @@ bleiben bestehen. P02 läuft unter Linux weiter.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 
-**Status:** aktiv; 15/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
+**Status:** aktiv; 16/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
 **Code c4a615ba (04.11.2026):**
 1 vorhandene OGL-Theme-UI und
 Python-CLI inventarisiert,
@@ -932,6 +932,46 @@ Kompatibilität, dann
 Manipulations-/Erfolgs-
 QA und Release-Gates.
 P03 NICHT abgeschlossen.
+
+**P03 Block 16 (04.11.2026,
+Commit 1f174bc7):**
+Lokalisierter Built-in-
+Theme-Name in EN/DE,
+breitenadaptive
+Text- und rechts
+verankerte Aktionen
+im vorhandenen Panel.
+Drei deaktivierte,
+zu dunkel gerenderte
+Preview-Buttons durch
+echte Farbfeld-Panels
+mit separat lesbaren
+DE/EN-Labels ersetzt,
+Color-Preview ändert
+keine Live-Palette.
+Bereits bestehende
+Chat-/Menü-Farbnamen
+als Regression geprüft.
+Linux-Vollviewer
+7.2.5.207,
+311 Python/41 native
+Tests, identische
+EN/DE-XUI-Paketdaten.
+OGL-Designs-Reiter
+tatsächlich bei EN
+1920x1080/140%
+und DE 1440x900/100%
+geöffnet und visuell
+geprüft, sauberer
+Exit 0 in beiden
+Fällen. Echte Live-IM-
+Theme-Interaktion
+und Windows/macOS
+noch nicht abgenommen.
+**Nächster Block 17/20:**
+Native ZIP-Import-
+und Manipulations-
+End-to-End-QA.
 
 **Technischer Zielzustand:** Optionale Designs bei OGL-Standard.
 
