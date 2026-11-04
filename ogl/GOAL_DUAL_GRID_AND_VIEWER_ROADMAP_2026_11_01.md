@@ -1197,6 +1197,8 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 ### /goal P05 – Vulkan als vollständige auswählbare 3D-Engine
 
 **Status:** aktiv; 0/20 operative Blöcke abgeschlossen. Erst reale Vulkan-Welt-/Swapchain-Integration kann einen P05-Block abschließen.
+**P05 Vorarbeit 04.11.2026:** Im vorhandenen Vulkan-Modul wird nur per explizitem Entwickler-Opt-in ein persistentes VkInstance/VkDevice mit Grafik-VkQueue erstellt, geprüft und freigegeben. Die neue additive ABI meldet nur Device-Bereitstellung. Linux-Vollviewer, 321 Python-/41 CTests und zwei isolierte GL-GUI-Starts erfolgreich. Die wirkliche SDL-Vulkan-Window-Surface, Present-Queue-Prüfung, Swapchain und Welt-Pipeline fehlen. Vulkan bleibt im Grafikmenü deaktiviert; formal P05 0/20, keine fiktive Phasenfreigabe.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

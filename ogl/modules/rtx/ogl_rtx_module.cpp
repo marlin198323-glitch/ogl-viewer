@@ -116,6 +116,143 @@ const char* const trusted_depth_shader = "./app_settings/ogl/rtx/depth_guided_su
 const char* const trusted_dense_shader =
     "./app_settings/ogl/rtx/dense_depth_guided_sun.comp.spv";
 
+// P05/1 developer-only Vulkan graphics device bootstrap. Its lifetime is
+// independent from the ray-query probe and is never a replacement for GL.
+// A future Vulkan world engine still needs the SDL surface and swapchain.
+struct WorldGraphicsDevice {
+    VulkanLibrary loader = nullptr;
+    VkInstance instance = VK_NULL_HANDLE;
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue queue = VK_NULL_HANDLE;
+    PFN_vkDestroyInstance destroy_instance = nullptr;
+    PFN_vkDestroyDevice destroy_device = nullptr;
+    void close() {
+        if (device && destroy_device) destroy_device(device, nullptr);
+        device = VK_NULL_HANDLE;
+        queue = VK_NULL_HANDLE;
+        if (instance && destroy_instance) destroy_instance(instance, nullptr);
+        instance = VK_NULL_HANDLE;
+        destroy_device = nullptr;
+        destroy_instance = nullptr;
+        if (loader) close_vulkan_loader(loader);
+        loader = nullptr;
+    }
+    ~WorldGraphicsDevice() { close(); }
+};
+WorldGraphicsDevice world_device;
+
+bool init_world_graphics_device() {
+    world_device.close();
+    world_device.loader = open_vulkan_loader();
+    if (!world_device.loader) return false;
+    auto get_proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+        lookup_vulkan_symbol(world_device.loader, "vkGetInstanceProcAddr"));
+    if (!get_proc) { world_device.close(); return false; }
+    auto create_instance = reinterpret_cast<PFN_vkCreateInstance>(
+        get_proc(VK_NULL_HANDLE, "vkCreateInstance"));
+    if (!create_instance) { world_device.close(); return false; }
+    VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    app.pApplicationName = "OGL World Device Bootstrap";
+    app.apiVersion = VK_API_VERSION_1_1;
+    VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    ci.pApplicationInfo = &app;
+    if (create_instance(&ci, nullptr, &world_device.instance)!=VK_SUCCESS ||
+        !world_device.instance) {
+        world_device.close(); return false;
+    }
+    auto proc=[&](const char* name) {
+        return get_proc(world_device.instance, name);
+    };
+    world_device.destroy_instance =
+        reinterpret_cast<PFN_vkDestroyInstance>(proc("vkDestroyInstance"));
+    world_device.destroy_device =
+        reinterpret_cast<PFN_vkDestroyDevice>(proc("vkDestroyDevice"));
+    auto enumerate = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
+        proc("vkEnumeratePhysicalDevices"));
+    auto queue_families = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
+        proc("vkGetPhysicalDeviceQueueFamilyProperties"));
+    auto get_extensions = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
+        proc("vkEnumerateDeviceExtensionProperties"));
+    auto create_device = reinterpret_cast<PFN_vkCreateDevice>(
+        proc("vkCreateDevice"));
+    auto get_device_proc = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
+        proc("vkGetDeviceProcAddr"));
+    if (!world_device.destroy_instance || !world_device.destroy_device ||
+        !enumerate || !queue_families || !get_extensions ||
+        !create_device || !get_device_proc) {
+        world_device.close(); return false;
+    }
+    uint32_t count=0;
+    if (enumerate(world_device.instance, &count, nullptr)!=VK_SUCCESS ||
+        count==0 || count>64) {
+        world_device.close(); return false;
+    }
+    std::vector<VkPhysicalDevice> gpus(count);
+    if (enumerate(world_device.instance, &count, gpus.data())!=VK_SUCCESS) {
+        world_device.close(); return false;
+    }
+    for (uint32_t i=0; i<count; ++i) {
+        uint32_t n=0;
+        if (get_extensions(gpus[i],nullptr,&n,nullptr)!=VK_SUCCESS || n>4096)
+            continue;
+        std::vector<VkExtensionProperties> extensions(n);
+        if (get_extensions(gpus[i],nullptr,&n,extensions.data())!=VK_SUCCESS)
+            continue;
+        const bool has_swapchain=std::any_of(extensions.begin(),extensions.end(),
+            [](const VkExtensionProperties& extension) {
+                return std::strcmp(extension.extensionName,
+                    VK_KHR_SWAPCHAIN_EXTENSION_NAME)==0;
+            });
+        if (!has_swapchain) continue;
+        uint32_t families=0;
+        queue_families(gpus[i], &families, nullptr);
+        if (!families || families>256) continue;
+        std::vector<VkQueueFamilyProperties> props(families);
+        queue_families(gpus[i], &families, props.data());
+        for (uint32_t q=0; q<families; ++q) {
+            if (!props[q].queueCount ||
+                !(props[q].queueFlags & VK_QUEUE_GRAPHICS_BIT)) continue;
+            float priority=1.f;
+            VkDeviceQueueCreateInfo qi{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+            qi.queueFamilyIndex=q;
+            qi.queueCount=1;
+            qi.pQueuePriorities=&priority;
+            const char* names[]={VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+            VkDeviceCreateInfo di{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+            di.queueCreateInfoCount=1;
+            di.pQueueCreateInfos=&qi;
+            di.enabledExtensionCount=1;
+            di.ppEnabledExtensionNames=names;
+            VkDevice device=VK_NULL_HANDLE;
+            if (create_device(gpus[i],&di,nullptr,&device)!=VK_SUCCESS || !device)
+                continue;
+            // Dispatch device-level commands through the actual VkDevice.
+            // A graphics queue must never be fabricated from a feature probe.
+            auto destroy = reinterpret_cast<PFN_vkDestroyDevice>(
+                get_device_proc(device,"vkDestroyDevice"));
+            auto get_queue = reinterpret_cast<PFN_vkGetDeviceQueue>(
+                get_device_proc(device,"vkGetDeviceQueue"));
+            if (!destroy) destroy=world_device.destroy_device;
+            if (!get_queue) {
+                destroy(device,nullptr);
+                continue;
+            }
+            VkQueue queue=VK_NULL_HANDLE;
+            get_queue(device,q,0,&queue);
+            if (!queue) {
+                destroy(device,nullptr);
+                continue;
+            }
+            world_device.destroy_device=destroy;
+            world_device.device=device;
+            world_device.queue=queue;
+            return true;
+        }
+    }
+    world_device.close();
+    return false;
+}
+
 void gpu_probe_cleanup() {
     probe_run = nullptr;
     probe_camera_run = nullptr;
@@ -472,6 +609,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     if (!host || host->struct_size < sizeof(ogl_host_api) ||
         host->abi_version != OGL_MODULE_ABI_VERSION || !host->log_message)
         return 1;
+    world_device.close(); // repeated starts never leave an old VkDevice active
     logger = host->log_message;
     latest_frame = {};
     received_frames = 0;
@@ -530,6 +668,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
         probe_interval=std::chrono::milliseconds(1000);
     }
     detect();
+    const char* world_env=std::getenv("OGL_VULKAN_WORLD_BOOTSTRAP");
+    if (world_env && std::strcmp(world_env,"1")==0) {
+        const bool ok=init_world_graphics_device();
+        logger(1, ok
+            ? "P05 graphics device/queue initialized; surface and world renderer NOT implemented."
+            : "P05 graphics device/queue unavailable; preserving OpenGL.");
+    }
     // Opt-in is only for developers until we have a non-blocking renderer.
     // No developer/system-specific GPU, user data, or filesystem path.
     if (probe_opt_in && status.hardware_ready && status.ray_query) {
@@ -705,6 +850,7 @@ extern "C" OGL_MODULE_EXPORT int ogl_module_start(const ogl_host_api *host) {
     return 0; // No RTX hardware is normal: keep the OpenGL renderer.
 }
 extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
+    world_device.close();
     probe_worker.reset(); // join before unloading GPU helper DLL/SO
     gpu_probe_cleanup();
     probe_opt_in = false;
@@ -722,6 +868,10 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
     last_depth_stats = {};
     depth_debug_valid = false;
     logger = nullptr;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped() {
+    return world_device.device != VK_NULL_HANDLE &&
+           world_device.queue != VK_NULL_HANDLE;
 }
 extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
     return &status;

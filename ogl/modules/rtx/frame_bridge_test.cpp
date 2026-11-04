@@ -1,5 +1,6 @@
 #include "ogl/ogl_rtx_api.h"
 #include <cassert>
+#include <cstdlib>
 #include <cstdio>
 #include <limits>
 #include <vector>
@@ -33,11 +34,32 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_submit_depth_debug"));
     const auto copy_depth = reinterpret_cast<int(*)(ogl_rtx_depth_debug*)>(
         dlsym(library, "ogl_rtx_copy_depth_debug"));
-    assert(start && stop && status && submit && count &&
+    const auto world_device = reinterpret_cast<int(*)()>(
+        dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
+    assert(start && stop && status && submit && count && world_device &&
            submit_geometry && triangle_count &&
            geometry_revision && copy_geometry && submit_depth && copy_depth);
     ogl_host_api host{sizeof(host), OGL_MODULE_ABI_VERSION, log_cb};
+    // A Vulkan world-device bootstrap never runs without explicit developer
+    // consent. The full world/swapchain renderer is still unavailable.
+    unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     assert(start(&host) == 0);
+    assert(world_device() == 0);
+    stop();
+    assert(world_device() == 0);
+    assert(setenv("OGL_VULKAN_WORLD_BOOTSTRAP", "1", 1) == 0);
+    assert(start(&host) == 0);
+    const int ready = world_device(); // 0 on OpenGL-only/CI adapters, 1 when available
+    assert(ready == 0 || ready == 1);
+    assert(status()->rendering_active == 0);
+    // Multiple starts and stop must never retain a stale logical device.
+    assert(start(&host) == 0);
+    assert(world_device() == ready || world_device() == 0);
+    stop();
+    assert(world_device() == 0);
+    unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
+    assert(start(&host) == 0);
+    assert(world_device() == 0);
     assert(count() == 0);
 
     ogl_rtx_frame_state valid{};

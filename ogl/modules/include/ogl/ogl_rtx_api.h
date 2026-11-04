@@ -201,6 +201,15 @@ typedef struct ogl_rtx_depth_debug {
 OGL_MODULE_EXPORT int ogl_rtx_submit_depth_debug(const ogl_rtx_depth_debug *sample);
 OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(ogl_rtx_depth_debug *output);
 
+/* P05 experimental world-device bootstrap, independent of RTX support.
+ * Developer opt-in only via OGL_VULKAN_WORLD_BOOTSTRAP=1. Returns 1 when
+ * a persistent graphics VkDevice and VkQueue were actually created.
+ * This is NOT surface/present readiness, not a world renderer, and MUST NOT
+ * affect the OpenGL fallback or the rendering_active RTX status field.
+ * Owned by the module and released on ogl_module_stop.
+ */
+OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped(void);
+
 /* Read-only status; valid until module is unloaded. Never store credentials. */
 OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status(void);
 

@@ -61,9 +61,49 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
+## P05 Vulkan-Grafikgerätebootstrap – geprüft, Phase formal 0/20 (04.11.2026)
+
+Vorarbeit im vorhandenen ogl_rtx_module.cpp sowie ogl_rtx_api.h:
+Das explizite Entwickler-Opt-in OGL_VULKAN_WORLD_BOOTSTRAP=1
+erstellt eine echte VkInstance, ein persistentes VkDevice
+mit VK_QUEUE_GRAPHICS_BIT und eine über vkGetDeviceProcAddr
+ermittelte VkQueue. Herstellerneutrale Geräte-/Treiberprüfung,
+VK_KHR_swapchain-Fähigkeit und vollständige Freigabe bei
+Fehler, wiederholtem Start oder Modul-Shutdown sind enthalten.
+Die C-ABI-Funktion ogl_vulkan_world_device_bootstrapped()
+meldet nur diese Gerätebereitstellung, niemals Vulkan-Weltframes
+oder Raytracing. Ohne Opt-in bleibt die Funktion abgeschaltet.
+
+Echte Linux-Nachweise: VkDevice/VkQueue erstellt, zweimal
+neu initialisiert und sauber freigegeben; absichtlich
+ungültiges Vulkan-Treiber-ICD korrekt abgefangen.
+Vollständiger Linux-Viewer gebaut und gelinkt,
+321/321 Python-Tests und 41/41 native CTests grün.
+Zwei isolierte 1280x720-Xvfb-Prelogin-Viewerstarts,
+Opt-in aus und an: jeweils OpenGL aktive Weltengine,
+Login-Wait erreicht und sauberer Exit 0.
+
+P05 Block 2 vorgeprüft: Der bestehende LLWindowSDL
+erstellt SDL_WINDOW_OPENGL und einen GL-Kontext.
+Es fehlen SDL-Vulkan-Window-Handoff, VkSurfaceKHR,
+ein für die konkrete Surface bestätigtes Present-Queue-Family,
+VkSwapchainKHR und Vulkan-Welt-Frames. Eine bloße
+VK_KHR_swapchain-Extension gilt nicht als Present-Fähigkeit.
+Der nächste echte technische Schritt ist der abgesicherte
+alternative Vulkan-Window-/Context-Lebenszyklus mit GL-Fallback,
+nicht ein zweites Testfenster oder eine Schein-Engine.
+Es wurde kein Login-, Cache-, Benutzer- oder Secret-Profil
+verändert. Windows/macOS-Vollviewer und Installer nicht
+bestätigt.
+
+**Phasengate unverändert:** P05 0/20; Block 1 ist
+eine geprüfte Teilimplementierung, nicht ein fertiger
+Vulkan-Welt-Renderer. Block 2 mit realer Surface/Swapchain
+steht aus. Keine 20 P05-Blöcke als erledigt ausgeben.
+
 ## P05 Blöcke 1–2/20 – erster technischer Befund, noch NICHT abgeschlossen (04.11.2026)
 
-P05/1 analysiert: Das optionale Vulkan-/RTX-Diagnosemodul in
+Historischer Befund vor dem neuen Vulkan-Bootstrap: Das optionale Vulkan-/RTX-Diagnosemodul in
 ogl/modules/rtx/ogl_rtx_module.cpp erstellt nur eine kurzlebige
 VkInstance, enumeriert Physical Devices und RT-Extensions und
 zerstört diese Instanz sofort. Es besitzt KEIN persistentes,

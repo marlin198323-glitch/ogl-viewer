@@ -137,6 +137,45 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('gSavedSettings.setString("OGLWorldLastWorkingEngine", "opengl")',source)
         self.assertNotIn("gSavedSettings.setString(\"RenderMaxOpenGLVersion\"",source)
 
+    def test_p05_surface_handoff_is_not_claimed_before_sdl_swapchain(self):
+        window=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        preferences=(ROOT/"indra/newview/llfloaterpreference.cpp").read_text()
+        self.assertIn("SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE",window)
+        self.assertIn("SDL_GL_CreateContext(",window)
+        self.assertNotIn("SDL_Vulkan_CreateSurface(",window)
+        self.assertNotIn("vkCreateSwapchainKHR",module)
+        self.assertIn("surface and world renderer NOT implemented.",module)
+        self.assertIn('renderer->setEnabledByValue("vulkan", false)',preferences)
+        self.assertIn("VK_KHR_SWAPCHAIN_EXTENSION_NAME",module)
+        # A device can advertise swapchain support without possessing a
+        # surface-compatible present queue for the *actual* viewer window.
+
+    def test_p05_persistent_optin_vulkan_world_device_and_cleanup(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn("ogl_vulkan_world_device_bootstrapped",header)
+        self.assertIn("struct WorldGraphicsDevice",module)
+        for call in ("vkCreateInstance","vkEnumeratePhysicalDevices",
+                     "vkGetPhysicalDeviceQueueFamilyProperties",
+                     "vkEnumerateDeviceExtensionProperties","vkCreateDevice",
+                     "vkGetDeviceQueue","vkDestroyDevice","vkDestroyInstance"):
+            self.assertIn('"'+call+'"',module)
+        self.assertIn("VK_QUEUE_GRAPHICS_BIT",module)
+        self.assertIn("VK_KHR_SWAPCHAIN_EXTENSION_NAME",module)
+        self.assertIn('proc("vkGetDeviceProcAddr")',module)
+        self.assertIn('get_device_proc(device,"vkDestroyDevice")',module)
+        self.assertIn('get_device_proc(device,"vkGetDeviceQueue")',module)
+        self.assertIn("world_device.close();",module)
+        self.assertIn('std::getenv("OGL_VULKAN_WORLD_BOOTSTRAP")',module)
+        self.assertIn('std::strcmp(world_env,"1")==0',module)
+        self.assertIn("surface and world renderer NOT implemented.",module)
+        self.assertIn("status()->rendering_active == 0",native)
+        self.assertIn("assert(world_device() == 0);",native)
+        self.assertIn("unsetenv(\"OGL_VULKAN_WORLD_BOOTSTRAP\")",native)
+        self.assertIn("setenv(\"OGL_VULKAN_WORLD_BOOTSTRAP\", \"1\", 1)",native)
+
     def test_universal_preset_is_bundled_without_any_personal_settings(self):
         root = ET.parse(BUILTIN).getroot()
         self.assertEqual(root.tag, "llsd")

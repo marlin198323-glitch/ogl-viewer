@@ -183,6 +183,8 @@ Engine aufbauen. Bestehende RTX-Moduldiagnose nicht
 mit vollständigem World-/Swapchain-Renderer verwechseln.
 Alte Userdaten, Login, GL-Kombatibilität erhalten.
 
+P05 04.11.2026: Geräte-/Queue-Bootstrap unter Opt-in OGL_VULKAN_WORLD_BOOTSTRAP=1 implementiert; herstellerneutral, kein Welt-Rendering. Linux-Build, 321 Python-/41 native Tests, reale OpenGL-GUI-Starts bei Opt-in an/aus bestanden. P05 0/20 bis echte Vulkan-Window-Surface und Swapchain integriert sind. Kein CUDA-/RTX-Zwang und keine Benutzerprofildateien anfassen.
+
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

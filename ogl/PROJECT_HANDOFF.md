@@ -28,6 +28,8 @@ ist die verbindliche Projektquelle. Die Dateien werden in neuen
 Chats nicht ohne Repositoryzugriff oder ausdrücklichen Hinweis
 automatisch geladen.
 
+P05 Vorarbeit 04.11.2026: Opt-in OGL_VULKAN_WORLD_BOOTSTRAP=1 im bestehenden Vulkan-Modul erzeugt ein langlebiges VkDevice und eine reale Grafik-VkQueue, unabhängig von RTX. Verifiziert: Linux-Vollbuild, 321 Python-Tests, 41 CTests und zwei echte GL-Prelogin-GUI-Starts mit an/aus. Kein Vulkan-Surface/Swapchain/World-Present; P05 gemäß Gate weiterhin 0/20. Nächster Fokus echter SDL-Vulkan-Fensterpfad und sichere GL-Rückfallebene. Keine parallelen Projektdateien erstellt.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
