@@ -77,9 +77,8 @@
 		follows="right|left"
 		parse_urls="false"
 		use_ellipses="true"
-		font="SansSerifBold">
-    TestString PleaseIgnore
-  </text>
+		font="SansSerifBold"
+        value="" />
   <button
     top="10"
     right="-5"

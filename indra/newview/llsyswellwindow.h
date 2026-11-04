@@ -40,6 +40,7 @@
 #include "llscrollcontainer.h"
 #include "llimview.h"
 #include "boost/shared_ptr.hpp"
+#include <boost/signals2/connection.hpp>
 
 class LLAvatarName;
 class LLChiclet;
@@ -243,6 +244,8 @@ private:
         LLIMChiclet* mChiclet;
     private:
         LLButton*   mCloseBtn;
+        // Cancel pending avatar-name lookups when an IM row is closed.
+        boost::signals2::connection mAvatarNameCacheConnection;
     };
     // </FS:Ansariel> [FS communication UI]
 

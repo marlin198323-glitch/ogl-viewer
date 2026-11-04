@@ -256,6 +256,48 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('return false;', body)
         self.assertIn('gSavedSettings.setBOOL("FSSupportGroupChatPrefixTesting", result);', body)
 
+    def test_p02_im_session_row_has_no_design_time_name(self):
+        base = ROOT / "indra/newview/skins/default/xui/en"
+        root = ET.parse(base / "panel_fs_activeim_row.xml").getroot()
+        names = [n for n in root.iter("text") if n.get("name") == "contact_name"]
+        self.assertEqual(len(names), 1)
+        self.assertEqual(names[0].get("value"), "")
+        self.assertFalse("".join(names[0].itertext()).strip())
+        self.assertEqual(names[0].get("use_ellipses"), "true")
+        self.assertTrue({"p2p_chiclet", "group_chiclet", "adhoc_chiclet", "hide_btn"}
+                        <= {n.get("name") for n in root.iter()})
+        self.assertNotIn("TestString PleaseIgnore",
+                         (base / "panel_fs_activeim_row.xml").read_text(encoding="utf-8"))
+
+    def test_p02_im_session_name_lookup_is_scoped_to_row_lifetime(self):
+        src = self.source("indra/newview/llsyswellwindow.cpp")
+        header = self.source("indra/newview/llsyswellwindow.h")
+        row = src.split("LLIMWellWindow::RowPanel::RowPanel(", 1)[1].split(
+            "LLIMWellWindow::RowPanel::onChicletSizeChanged(", 1)[0]
+        self.assertIn('contactName->setValue(name);', row)
+        self.assertIn('contactName->setToolTip(name);', row)
+        self.assertIn('LLIMChiclet::TYPE_IM && otherParticipantId.notNull()', row)
+        self.assertIn('mAvatarNameCacheConnection = LLAvatarNameCache::get(otherParticipantId,', row)
+        self.assertIn('agent_id != mChiclet->getOtherParticipantId()', row)
+        self.assertIn('contactName->setValue(av_name.getCompleteName());', row)
+        self.assertIn('contactName->setToolTip(av_name.getCompleteName());', row)
+        self.assertIn('mAvatarNameCacheConnection.disconnect();', src)
+        self.assertIn('boost::signals2::connection mAvatarNameCacheConnection;', header)
+
+    def test_p02_im_person_profile_portrait_is_round_with_group_speakers_preserved(self):
+        base = ROOT / "indra/newview/skins/default/xui/en"
+        personal = ET.parse(base / "panel_fs_im_control_panel.xml").getroot()
+        avatar = personal.find("avatar_icon")
+        self.assertIsNotNone(avatar)
+        self.assertEqual(avatar.get("circular"), "true")
+        self.assertEqual(avatar.get("width"), avatar.get("height"))
+        self.assertGreaterEqual(int(avatar.get("width")), 96)
+        group = ET.parse(base / "panel_fs_group_control_panel.xml").getroot()
+        speakers = [n for n in group.iter("avatar_list")
+                    if n.get("name") == "grp_speakers_list"]
+        self.assertEqual(len(speakers), 1)
+        self.assertEqual(speakers[0].get("ignore_online_status"), "true")
+
     def test_p02_chat_header_locales_have_no_fake_usernames_or_internal_titles(self):
         base = ROOT / "indra/newview/skins/default/xui"
         header = ET.parse(base / "en/panel_chat_header.xml").getroot()

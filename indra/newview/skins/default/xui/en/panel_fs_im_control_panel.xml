@@ -5,12 +5,13 @@
  name="panel_im_control_panel"
  width="150">
     <avatar_icon
+     circular="true"
      follows="left|top"
-     height="105"
-     left_delta="20"
+     height="104"
+     left_delta="23"
      name="avatar_icon"
      top="-5"
-     width="114"/>
+     width="104"/>
     <layout_stack
      mouse_opaque="false"
      border_size="0"

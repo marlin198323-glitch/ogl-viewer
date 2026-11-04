@@ -282,7 +282,10 @@ bool LLSysWellWindow::isWindowEmpty()
 //---------------------------------------------------------------------------------
 LLIMWellWindow::RowPanel::RowPanel(const LLSysWellWindow* parent, const LLUUID& sessionId,
         S32 chicletCounter, const std::string& name, const LLUUID& otherParticipantId) :
-        LLPanel(LLPanel::Params()), mChiclet(NULL)
+        LLPanel(LLPanel::Params()),
+        mChiclet(NULL),
+        mCloseBtn(NULL),
+        mAvatarNameCacheConnection()
 {
     buildFromFile( "panel_fs_activeim_row.xml");
 
@@ -313,16 +316,17 @@ LLIMWellWindow::RowPanel::RowPanel(const LLSysWellWindow* parent, const LLUUID& 
     mChiclet->setOtherParticipantId(otherParticipantId);
     mChiclet->setVisible(true);
 
-    if (im_chiclet_type == LLIMChiclet::TYPE_IM)
+    // Show the actual session name immediately for P2P, group and
+    // ad-hoc chats; never expose the XUI design-time sample text.
+    LLTextBox* contactName = getChild<LLTextBox>("contact_name");
+    contactName->setValue(name);
+    contactName->setToolTip(name);
+
+    if (im_chiclet_type == LLIMChiclet::TYPE_IM && otherParticipantId.notNull())
     {
-        LLAvatarNameCache::get(otherParticipantId,
+        mAvatarNameCacheConnection = LLAvatarNameCache::get(otherParticipantId,
             boost::bind(&LLIMWellWindow::RowPanel::onAvatarNameCache,
                 this, _1, _2));
-    }
-    else
-    {
-        LLTextBox* contactName = getChild<LLTextBox>("contact_name");
-        contactName->setValue(name);
     }
 
     mCloseBtn = getChild<LLButton>("hide_btn");
@@ -333,8 +337,14 @@ LLIMWellWindow::RowPanel::RowPanel(const LLSysWellWindow* parent, const LLUUID& 
 void LLIMWellWindow::RowPanel::onAvatarNameCache(const LLUUID& agent_id,
                                                  const LLAvatarName& av_name)
 {
+    // Discard a stale lookup rather than relabeling a different IM session.
+    if (!mChiclet || agent_id != mChiclet->getOtherParticipantId())
+    {
+        return;
+    }
     LLTextBox* contactName = getChild<LLTextBox>("contact_name");
-    contactName->setValue( av_name.getCompleteName() );
+    contactName->setValue(av_name.getCompleteName());
+    contactName->setToolTip(av_name.getCompleteName());
 }
 
 //---------------------------------------------------------------------------------
@@ -350,6 +360,10 @@ void LLIMWellWindow::RowPanel::onChicletSizeChanged(LLChiclet* ctrl, const LLSD&
 //---------------------------------------------------------------------------------
 LLIMWellWindow::RowPanel::~RowPanel()
 {
+    if (mAvatarNameCacheConnection.connected())
+    {
+        mAvatarNameCacheConnection.disconnect();
+    }
 }
 
 //---------------------------------------------------------------------------------
