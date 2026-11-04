@@ -8,13 +8,13 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 8/20.
-P02 Block 7 (IM-/Gruppengesprächsliste,
-Avatar-Namensauflösung und rundes Einzel-
-chat-Profilbild) wurde mit vollständigem
-Linux-Vollbuild, Regressionstests,
-XUI-Paketvergleichen und GUI geprüft
-und auf ogl-develop gepusht.
+**Aktiver Block:** /goal P02 Block 9/20.
+P02 Block 8 (gelesener/ungelesener
+Sitzungswechsel, Tab-Blinkanzeigen,
+Sitzungs-ID-Migration und Voice-Status)
+mit Linux-Vollbuild, Regressionstests
+und GUI-Prüfung abgeschlossen und
+auf ogl-develop veröffentlicht.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -24,11 +24,11 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Blöcke 1–7 abgeschlossen: Inventur,
+P02 Blöcke 1–8 abgeschlossen: Inventur,
 Navigation, Hauptmenü-/Untermenü-/
 Toolbar-Konsolidierung, OGL-Infofenster,
-Avatar-/Chat-Kopfbereiche und stabile
-IM-/Gruppengesprächsliste.
+Avatar-/Chat-Kopfbereiche, IM-/Gruppen-
+gesprächsliste und Sitzungs-/Tabstatus.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
@@ -38,7 +38,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 7/20 | Block 8: Fensterwechsel, aktive Sitzung und Statusindikatoren prüfen |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 8/20 | Block 9: Fensterfokus, ungelesene Nachrichten und Eingabe bei IM-Wechsel prüfen |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -50,6 +50,99 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 8/20 – IM-Fensterwechsel und Sitzungs-/Voice-Status (04.11.2026)
+
+**Code-Commit:** 8116671a direkt auf origin/ogl-develop.
+
+Im vorhandenen FSFloaterIMContainer (C++-Quelldatei
+und Header, ohne neue Templates) wurden
+mehrere reale Zustandsprobleme behoben:
+- Das Öffnen des Sammelfensters
+  löscht nicht länger pauschal alle
+  mFlashingSessions. Nur eine wirklich
+  sichtbare, nicht minimierte,
+  aktuell ausgewählte Sitzung gilt
+  beim Anzeigen als gelesen.
+- Der Tab-Wechsel (tabOpen) löscht
+  nur die Markierung der tatsächlich
+  sichtbaren Sitzung; andere Einzel-,
+  Gruppen- und Ad-hoc-Chats bleiben
+  in ihrer ungelesenen Statusmarkierung.
+  Der sichtbare Tab-Button-Blinkzustand
+  wird gezielt beendet. Automatische
+  Tab-Auswahl im versteckten oder
+  minimierten Sammelfenster darf keine
+  Nachrichten als gelesen markieren.
+- Bei einem Session-ID-Update, wie es
+  insbesondere für Ad-hoc-Chats
+  vorkommen kann, wird neben mSessions
+  auch eine ausstehende Blinkmarkierung
+  auf die endgültige ID migriert,
+  ohne doppelte Einträge anzulegen.
+- Der Session-Close-Callback wird
+  an das wirkliche Floater-Objekt
+  statt eine zum Erstellungszeitpunkt
+  eingefrorene Session-ID gebunden.
+  Beim Schließen ermittelt er den
+  aktuellen Session-Schlüssel über
+  die Floater-Identität, bereinigt
+  Blinkstatus und Map-Eintrag und
+  vermeidet einen unbeabsichtigten
+  Eintrag durch mSessions[id].
+- Beim Entfernen eines Tabs wird
+  ein zugehöriger alter Voice-
+  Status-Floater-Zeiger verworfen
+  und die nächste Aktualisierung
+  gezielt neu angefordert.
+- checkFlashing prüft, ob die
+  globale Toolbar tatsächlich
+  existiert, bevor die Blinkanzeige
+  synchronisiert wird.
+- Vier neue Regressionstests im
+  vorhandenen test_branding_contract.py
+  prüfen die geschilderten Übergänge
+  in C++-Quelltext und Header.
+  Vorhandene P2P-Avatarbilder, Voice-
+  Kanalzustände und Gruppen-Chiclets
+  bleiben unverändert.
+
+**Prüfnachweise:** Linux-Vollviewer
+7.2.5.198 vollständig gebaut,
+295/295 Python-Tests, davon
+141/141 Branding-/UI-Tests auch
+unter LC_ALL=C/PYTHONUTF8=0,
+und 41/41 native CTests bestanden.
+Isolierte GUI-Smokes DE 1280x720,
+EN 1920x1080 bis STATE_LOGIN_WAIT,
+beide Viewer mit Exit 0.
+Es wurden keine XUI-Dateien
+verändert; kein unnötiger
+Paketvergleich. Kein automatisierter
+Live-Login, kein echter In-World-
+IM-Tabwechsel und keine
+Gruppen-/Voice-Interaktion
+durchgeführt. Nutzer-/Cache-/
+Credential-Daten unverändert.
+Keine neuen Projekt-/Quell-
+oder Backupdateien erzeugt.
+
+**Phasenstand:** P01 Linux 20/20;
+P02 8/20. Nächster Einstieg
+P02 Block 9/20: Fokus- und
+Eingabeverhalten beim Wechsel
+zwischen IM-Sitzungen sowie
+Unread-Counter prüfen.
+
+**Windows:** Actions-Run 41510587323
+hat laut Build-Log NSIS-Paketierung
+durchlaufen, aber die anschließende
+Setup-Suche/Artefaktbereitstellung
+scheiterte. Weiter kein bestätigter
+downloadbarer Windows-Installer,
+kein Windows-GUI-Test. Release-
+Abnahmen für Windows/macOS
+bleiben unabhängig in P13 offen.
 
 ## P02 Block 7/20 – IM-/Gruppenfenster, Namen und Avatarprofil (04.11.2026)
 

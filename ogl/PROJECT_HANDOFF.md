@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 8/20.
+wechseln. Neuer Einstieg: P02 Block 9/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -485,6 +485,37 @@ nächster Block 8: Fensterwechsel
 und aktive Sitzungsanzeigen.
 Windows-Installer weiter nicht
 downloadbar bestätigt.
+
+**P02 Block 8/20 abgeschlossen
+(04.11.2026, 8116671a):**
+IM-Sammelfenster erkennt nur
+sichtbar gelesene Sitzungen
+an, nicht pauschal alle Chats.
+tabOpen beendet Tab-Blinken
+und entfernt nur die aktuelle
+Sitzungsmarkierung; versteckte
+und minimierte Fenster löschen
+keinen Hintergrund-Status.
+Session-ID-Migration erhält
+Status ohne Duplikate.
+Close-Callback nutzt Floater-
+Identität statt alter UUID;
+Voice-Status bei Tab-Entfernung
+neu initialisiert, Toolbar-
+Zugriff gegen Null abgesichert.
+Vier Regressionstests.
+Linux-Vollbuild 7.2.5.198,
+295 Python-/41 native Tests,
+141 Brandingtests, DE-/EN-
+Prelogin-GUI bestanden.
+Keine echten In-World-
+IM-/Gruppen-/Voice-Wechsel
+getestet. Formal P02 8/20,
+nächster Block 9: Fokus,
+Nachrichteneingabe und
+Unread-Counter beim Wechsel.
+Windows-Installer weiter nicht
+als Download verfügbar.
 
 ## Aktuelle Roadmaps
 

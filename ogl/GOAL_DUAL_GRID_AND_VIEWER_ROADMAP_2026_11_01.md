@@ -494,7 +494,7 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 7/20 abgeschlossen.
+**Aktueller Status:** P02 aktiv, 8/20 abgeschlossen.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
 13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
@@ -573,8 +573,24 @@ Linux-Vollbuild 7.2.5.196,
 Paket bytegleich und DE-/EN-
 Prelogin-GUI-Smokes bestanden.
 Kein Live-IM-/Gruppen-Test.
-Nächster Block 8/20: Fenster-
-wechsel und Sitzungs-Status.
+Block 8 (04.11.2026, 8116671a):
+Sitzungswechsel löscht nur aktive
+gelesene IM-Meldung und deren
+Tab-Animation, nicht sämtliche
+Hintergrund-Markierungen; versteckte
+oder minimierte Tabs bleiben ungelesen.
+Ad-hoc-Session-ID-Migration hält
+Unread-Status und aktualisiert
+Close-Callback per Floater-Identität;
+Voice-Status bei Tab-Entfernung
+neu geprüft. Vier Regressionstests.
+Linux-Vollbuild 7.2.5.198,
+295 Python-/41 native Tests,
+141 Brandingtests, DE-/EN-
+Prelogin-GUI-Smokes bestanden.
+Kein Live-IM-/Voice-Wechseltest.
+Nächster Block 9/20: Fokus,
+Chat-Eingabe und Unread-Counter.
 Windows-Installer-Artefakt
 bleibt gesondert offen.
 Frühere unabhängige Vorarbeit
