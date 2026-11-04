@@ -124,6 +124,37 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
         self.assertTrue((ROOT/"indra/newview/skins/default/xui/en/panel_preferences_skins.xml").is_file())
         self.assertTrue((ROOT/"indra/newview/skins/default/xui/en/floater_fs_im_session.xml").is_file())
 
+    def test_p03_no_duplicate_theme_panels_or_skin_overrides(self):
+        # The EN panel owns the complete layout; DE only translates it.
+        # The other upstream skins must inherit, not fork, this OGL UI.
+        skins=ROOT/"indra/newview/skins"
+        panels=sorted(p.relative_to(skins).as_posix()
+                      for p in skins.rglob("panel_preferences_ogl_themes.xml"))
+        self.assertEqual(panels,[
+            "default/xui/de/panel_preferences_ogl_themes.xml",
+            "default/xui/en/panel_preferences_ogl_themes.xml"])
+        for skin in skins.iterdir():
+            if not skin.is_dir():
+                continue
+            for p in skin.rglob("*"):
+                if not p.is_file() or not p.name.startswith("panel_preferences_ogl_themes"):
+                    continue
+                self.assertEqual(p.name,"panel_preferences_ogl_themes.xml")
+                self.assertEqual(skin.name,"default")
+                self.assertIn(p.parent.name,("en","de"))
+        en=ET.parse(skins/"default/xui/en/floater_preferences.xml").getroot()
+        de=ET.parse(skins/"default/xui/de/floater_preferences.xml").getroot()
+        self.assertEqual(sum(n.get("filename")=="panel_preferences_ogl_themes.xml"
+                             for n in en.iter()),1)
+        self.assertEqual(sum(n.get("name")=="ogl_themes" for n in de.iter()),1)
+        # Both bundled examples have distinct IDs; they are intentional
+        # samples, not stale copies of an installed user theme.
+        examples=sorted((ROOT/"ogl/plugins/examples").glob("*/theme.json"))
+        self.assertEqual(len(examples),2)
+        ids=[json.loads(p.read_text(encoding="utf-8"))["id"] for p in examples]
+        self.assertEqual(len(ids),len(set(ids)))
+        self.assertTrue((ROOT/"indra/newview/skins/default/colors.xml").is_file())
+
     def test_ocean_blue_is_valid_and_distinct_from_original(self):
         from importlib.util import spec_from_file_location,module_from_spec
         s=spec_from_file_location("ogl_theme_validate",
