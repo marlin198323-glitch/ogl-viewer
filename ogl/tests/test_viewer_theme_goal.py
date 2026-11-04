@@ -250,7 +250,8 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
                      'mz_zip_reader_goto_next_entry(', 'MZ_END_OF_LIST',
                      'std::strcmp(entry->filename,"theme.json")!=0',
                      'MZ_ZIP_FLAG_ENCRYPTED','MZ_COMPRESS_METHOD_DEFLATE',
-                     'entry->uncompressed_size>16384','entry->external_fa'):
+                     'entry->uncompressed_size>16384','entry->external_fa',
+                     "entry->linkname && entry->linkname[0]!='\\0'"):
             self.assertIn(text,reader)
         self.assertIn("reject_duplicate_json_keys(payload);",reader)
         self.assertIn('static void reject_duplicate_json_keys(',cpp)
@@ -265,6 +266,15 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
         self.assertNotIn('system(',installer)
         self.assertNotIn('unzip ',installer)
         self.assertNotIn('exec(',installer)
+
+    def test_native_minizip_empty_linkname_is_not_a_symlink(self):
+        importer=CPP.split("static bj::object inspect_local_package(",1)[1].split(
+            "static std::string install_local_package(",1)[0]
+        self.assertIn("entry->linkname && entry->linkname[0]!='\\0'",importer)
+        self.assertNotIn("entry->linkname ||",importer)
+        # The Unix mode check must independently deny symlink entries.
+        self.assertIn("(entry->external_fa>>16)&0170000",importer)
+        self.assertIn("kind!=0 && kind!=0100000",importer)
 
     def test_native_theme_remove_rejects_active_modified_or_other_folders(self):
         import_source = CPP

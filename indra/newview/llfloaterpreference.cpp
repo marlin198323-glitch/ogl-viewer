@@ -5476,7 +5476,10 @@ static bj::object inspect_local_package(const fs::path& package) {
         entry->compressed_size<=0 ||
         entry->uncompressed_size>200*entry->compressed_size ||
         (entry->flag & MZ_ZIP_FLAG_ENCRYPTED) || entry->aes_version ||
-        entry->linkname ||
+        // minizip-ng exposes an empty (non-null) linkname for an ordinary
+        // ZIP entry. Only a NONEMPTY link target signals link metadata.
+        // Unix mode is separately checked below to reject all symlinks.
+        (entry->linkname && entry->linkname[0]!='\0') ||
         (entry->compression_method!=MZ_COMPRESS_METHOD_STORE &&
          entry->compression_method!=MZ_COMPRESS_METHOD_DEFLATE))
         throw std::runtime_error("Only one plain theme.json is permitted");
