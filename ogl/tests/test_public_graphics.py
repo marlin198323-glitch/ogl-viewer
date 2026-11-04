@@ -179,13 +179,43 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OGL_VULKAN_WINDOW_SURFACE",module)
         self.assertIn("LLWindowSDL::get_SDL_XWindowID()",host)
         self.assertIn("LLWindowSDL::get_SDL_Display()",host)
-        self.assertIn("detach(); // GL window remains the ONLY live present owner.",host)
+        self.assertIn("detach(); // default one-shot probe must leave GL alone.",host)
         self.assertNotIn("vkQueuePresentKHR(",module)
         self.assertNotIn("vkAcquireNextImageKHR(",module)
         self.assertIn("assert(window_attach(nullptr,0,1920,1080)==0)",native)
         self.assertIn("assert(window_ready() == 0)",native)
         self.assertIn("SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE",
                       (ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text())
+
+    def test_p05_persistent_x11_wsi_window_resize_and_teardown_guard(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        header=(ROOT/"indra/llwindow/llwindowsdl2.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        for symbol in ("setOglWindowWillDestroyCallback",
+                       "setOglWindowResizedCallback",
+                       "getOglNativeWindowSize"):
+            self.assertIn(symbol,header)
+            self.assertIn("LLWindowSDL::"+symbol,win)
+            self.assertIn("LLWindowSDL::"+symbol,host)
+        self.assertIn('std::getenv("OGL_VULKAN_WINDOW_PERSISTENT")',host)
+        self.assertIn("ogl_x11_wsi_refresh()",host)
+        self.assertIn("ogl_x11_wsi_will_destroy()",host)
+        self.assertIn("if (rtx_wsi_xid==window && rtx_wsi_width==width",host)
+        self.assertIn("if (gOglWindowResized)",win)
+        self.assertIn("if (gOglWindowWillDestroy)",win)
+        self.assertLess(win.index("if (gOglWindowWillDestroy)"),
+                        win.index("SDL_QuitSubSystem(SDL_INIT_VIDEO)"))
+        self.assertIn("gOglWindowResized();",win)
+        self.assertIn("mCallbacks->handleResize(this, width, height);",win)
+        self.assertIn("rtx_wsi_persistent=false",host)
+        self.assertIn('setOglWindowResizedCallback(nullptr)',host)
+        self.assertIn('setOglWindowWillDestroyCallback(nullptr)',host)
+        self.assertIn("P05 persistent X11 WSI resize/window refresh:",host)
+        self.assertIn("detach_window(); // WSI handles must die",module)
+        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertIn('renderer->setEnabledByValue("vulkan", false)',
+                      (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
 
     def test_p05_persistent_optin_vulkan_world_device_and_cleanup(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

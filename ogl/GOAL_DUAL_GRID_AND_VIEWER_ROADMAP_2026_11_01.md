@@ -1196,7 +1196,7 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 
 ### /goal P05 – Vulkan als vollständige auswählbare 3D-Engine
 
-**Status:** aktiv; 1/20 operative Blöcke abgeschlossen. Block 1: echte Device-/Queue-Initialisierung und vorübergehende reale SDL/X11-Surface-/Swapchain-Prüfung. Block 2: dauerhafter Window-/Present-/Resize-Lifecycle noch offen.
+**Status:** aktiv; 2/20 operative Blöcke abgeschlossen. Block 1: Vulkan Device/Queue und echte X11-WSI-Validierung. Block 2: opt-in persistente X11-Swapchain mit SDL-Resize-/Window-Destroy-Lifecycle. Block 3: Vulkan-GPU-Frame-Synchronisation und tatsächliches Present noch offen.
 **P05 Vorarbeit 04.11.2026:** Im vorhandenen Vulkan-Modul wird nur per explizitem Entwickler-Opt-in ein persistentes VkInstance/VkDevice mit Grafik-VkQueue erstellt, geprüft und freigegeben. Die neue additive ABI meldet nur Device-Bereitstellung. Linux-Vollviewer, 321 Python-/41 CTests und zwei isolierte GL-GUI-Starts erfolgreich. Die wirkliche SDL-Vulkan-Window-Surface, Present-Queue-Prüfung, Swapchain und Welt-Pipeline fehlen. Vulkan bleibt im Grafikmenü deaktiviert; formal P05 0/20, keine fiktive Phasenfreigabe.
 
 **P05 Block 1 abgeschlossen (04.11.2026):**
@@ -1216,6 +1216,16 @@ Nächster P05 Block 2/20 ist der dauerhafte Vulkan-
 Window-Surface-/Swapchain-/Frame-/Resize-Lebenszyklus.
 Keine P05/2-Fertigstellung oder Vulkan-Welt-Engine
 behaupten.
+
+**P05 Block 2 (04.11.2026):**
+Persistente X11 VkSurfaceKHR/VkSwapchainKHR auf dem
+wirklichen SDL-Viewerfenster, nur mit drei Entwicklerflags.
+Synchrones Detach vor Fensterzerstörung, Recreate bei
+SDL-Resize; realer Linux-GUI-Nachweis bei 1230x820
+und 1050x680 jeweils swapchain=ready. OpenGL läuft weiter.
+Vollbuild, 324 Python/41 CTests erfolgreich.
+Nächster Block 3: echte Vulkan-Frame-/Present-
+Synchronisation, keine Weltpipeline bislang.
 
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 

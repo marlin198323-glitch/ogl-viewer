@@ -80,6 +80,53 @@ using ogl_rtx_submit_depth_fn = int (*)(const ogl_rtx_depth_debug*);
 ogl_rtx_submit_depth_fn rtx_submit_depth = nullptr;
 ogl_module_stop_fn rtx_stop = nullptr;
 
+#if LL_LINUX && LL_X11 && LL_SDL2
+using OglWorldWindowAttach = int (*)(void*,uint64_t,uint32_t,uint32_t);
+using OglWorldWindowDetach = void (*)();
+OglWorldWindowAttach rtx_wsi_attach = nullptr;
+OglWorldWindowDetach rtx_wsi_detach = nullptr;
+bool rtx_wsi_persistent = false;
+std::uint64_t rtx_wsi_xid = 0;
+int rtx_wsi_width = 0;
+int rtx_wsi_height = 0;
+
+void ogl_x11_wsi_will_destroy() {
+    // Called synchronously BEFORE SDL stops video or destroys/replaces XID.
+    if (rtx_wsi_detach) rtx_wsi_detach();
+    rtx_wsi_xid = 0;
+    rtx_wsi_width = 0;
+    rtx_wsi_height = 0;
+}
+
+void ogl_x11_wsi_refresh() {
+    if (!rtx_wsi_persistent || !rtx_wsi_attach || !rtx_wsi_detach ||
+        !rtx_module_handle) return;
+    void* display=static_cast<void*>(LLWindowSDL::get_SDL_Display());
+    std::uint64_t window=static_cast<std::uint64_t>(
+        LLWindowSDL::get_SDL_XWindowID());
+    int width=0,height=0;
+    if (!display || !window ||
+        !LLWindowSDL::getOglNativeWindowSize(&width,&height)) {
+        ogl_x11_wsi_will_destroy();
+        return;
+    }
+    if (rtx_wsi_xid==window && rtx_wsi_width==width &&
+        rtx_wsi_height==height) return;
+    // The attach API destroys old VkSwapchainKHR/VkSurfaceKHR before
+    // recreating; it never acquires/presents Vulkan images over OpenGL.
+    const bool ready=rtx_wsi_attach(display,window,
+        static_cast<uint32_t>(width),static_cast<uint32_t>(height))!=0;
+    rtx_wsi_xid=window;
+    rtx_wsi_width=width;
+    rtx_wsi_height=height;
+    LL_INFOS("OGLRenderer")
+        << "P05 persistent X11 WSI resize/window refresh: "
+        << width << "x" << height
+        << ", swapchain=" << (ready ? "ready" : "unavailable")
+        << "; OpenGL remains present owner." << LL_ENDL;
+}
+#endif
+
 void host_log(int severity, const char *message) {
     LL_INFOS("OGLRTX") << "module severity " << severity << ": "
                        << (message ? message : "") << LL_ENDL;
@@ -131,6 +178,11 @@ void ogl_report_world_backend_startup() {
 }
 
 void ogl_record_world_frame_presented() {
+#if LL_LINUX && LL_X11 && LL_SDL2
+    // O(1) native ID/size comparison after actual GL swap; only allocate a
+    // new Vulkan WSI swapchain on resize/recreation, never per GL frame.
+    ogl_x11_wsi_refresh();
+#endif
     // Never write settings per frame or from a diagnostic ray-query result.
     if (ogl_world_frame_reported || !gGLManager.mInited) return;
     ogl_world_frame_reported = true;
@@ -233,6 +285,9 @@ void ogl_init_rtx_module() {
     const char* device_flag=std::getenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     if (surface_flag && std::strcmp(surface_flag,"1")==0 &&
         device_flag && std::strcmp(device_flag,"1")==0) {
+        const char* persistent_flag=std::getenv("OGL_VULKAN_WINDOW_PERSISTENT");
+        const bool persistent=persistent_flag &&
+            std::strcmp(persistent_flag,"1")==0;
         auto attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
             ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_attach_x11_window"));
         auto ready = reinterpret_cast<int(*)()>(
@@ -253,20 +308,53 @@ void ogl_init_rtx_module() {
                         static_cast<uint32_t>(size.mY))!=0 && ready()!=0;
                 }
             }
-            detach(); // GL window remains the ONLY live present owner.
+            if (success && persistent) {
+                rtx_wsi_attach=attach;
+                rtx_wsi_detach=detach;
+                rtx_wsi_persistent=true;
+                rtx_wsi_xid=static_cast<std::uint64_t>(
+                    LLWindowSDL::get_SDL_XWindowID());
+                // Use the real SDL window size, not cached GL surface pixels.
+                if (!LLWindowSDL::getOglNativeWindowSize(
+                    &rtx_wsi_width,&rtx_wsi_height)) {
+                    rtx_wsi_width=0;
+                    rtx_wsi_height=0;
+                }
+                LLWindowSDL::setOglWindowWillDestroyCallback(
+                    ogl_x11_wsi_will_destroy);
+                LLWindowSDL::setOglWindowResizedCallback(
+                    ogl_x11_wsi_refresh);
+            } else {
+                detach(); // default one-shot probe must leave GL alone.
+            }
         }
-        LL_INFOS("OGLRenderer") <<
-            (success
-                ? "P05 real SDL/X11 Vulkan surface and swapchain probe passed; "
-                  "handles released before OpenGL rendering, no Vulkan present."
-                : "P05 real SDL/X11 Vulkan surface/swapchain unavailable; "
-                  "OpenGL remains unchanged.") << LL_ENDL;
+        if (success && persistent && rtx_wsi_persistent) {
+            LL_INFOS("OGLRenderer")
+                << "P05 persistent X11 Vulkan surface/swapchain attached; "
+                   "no acquire/present, OpenGL still owns displayed frames."
+                << LL_ENDL;
+        } else {
+            LL_INFOS("OGLRenderer") <<
+                (success
+                    ? "P05 real SDL/X11 Vulkan surface and swapchain probe passed; "
+                      "handles released before OpenGL rendering, no Vulkan present."
+                    : "P05 real SDL/X11 Vulkan surface/swapchain unavailable; "
+                      "OpenGL remains unchanged.") << LL_ENDL;
+        }
     }
 #endif
 #endif
 }
 
 void ogl_shutdown_rtx_module() {
+#if LL_LINUX && LL_X11 && LL_SDL2
+    LLWindowSDL::setOglWindowResizedCallback(nullptr);
+    LLWindowSDL::setOglWindowWillDestroyCallback(nullptr);
+    ogl_x11_wsi_will_destroy();
+    rtx_wsi_attach=nullptr;
+    rtx_wsi_detach=nullptr;
+    rtx_wsi_persistent=false;
+#endif
 #if LL_LINUX || LL_WINDOWS
     if (rtx_module_handle) {
         if (rtx_stop) rtx_stop();

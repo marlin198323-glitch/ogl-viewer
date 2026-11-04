@@ -83,6 +83,32 @@ static bool ATIbug = false;
 // maintain in the constructor and destructor.  This assumes that there will
 // be only one object of this class at any time.  Currently this is true.
 static LLWindowSDL *gWindowImplementation = NULL;
+#if LL_X11
+static LLWindowSDL::OglWindowWillDestroyCallback gOglWindowWillDestroy = nullptr;
+static LLWindowSDL::OglWindowWillDestroyCallback gOglWindowResized = nullptr;
+
+void LLWindowSDL::setOglWindowResizedCallback(
+    OglWindowWillDestroyCallback callback)
+{
+    gOglWindowResized = callback;
+}
+
+
+void LLWindowSDL::setOglWindowWillDestroyCallback(
+    OglWindowWillDestroyCallback callback)
+{
+    gOglWindowWillDestroy = callback;
+}
+
+bool LLWindowSDL::getOglNativeWindowSize(int* width, int* height)
+{
+    if (!width || !height || !gWindowImplementation ||
+        !gWindowImplementation->mWindow) return false;
+    SDL_GetWindowSize(gWindowImplementation->mWindow,width,height);
+    return *width > 0 && *height > 0;
+}
+#endif
+
 
 // extern "C" Bool XineramaIsActive (Display *dpy)
 // {
@@ -972,6 +998,12 @@ void LLWindowSDL::destroyContext()
 {
     LL_INFOS() << "destroyContext begins" << LL_ENDL;
 
+#if LL_X11
+    // Vulkan surfaces borrow this SDL/X11 window. Never allow the host to
+    // destroy/recreate the native window with a live VkSurfaceKHR.
+    if (gOglWindowWillDestroy)
+        gOglWindowWillDestroy();
+#endif
     SDL_StopTextInput();
 #if LL_X11
     mSDL_Display = NULL;
@@ -2060,6 +2092,10 @@ void LLWindowSDL::gatherInput()
                     //
 
                     mCallbacks->handleResize(this, width, height);
+#if LL_X11
+                    if (gOglWindowResized)
+                        gOglWindowResized();
+#endif
                 }
                 else if( event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED ) // <FS:ND> What about SDL_WINDOWEVENT_ENTER (mouse focus)
                 {

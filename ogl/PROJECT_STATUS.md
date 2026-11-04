@@ -38,7 +38,7 @@ diese wurde nicht gestoppt.
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P05 Block 2/20 (dauerhafte Vulkan-Window-Surface und Swapchain für den Frame-Lifecycle).
+**Aktiver Block:** /goal P05 Block 3/20 (Vulkan-Frame-Lifecycle und Synchronisation, später native Present-Integration).
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -81,7 +81,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
 | P03 – Theme-System und sichere Designinstallation | Linux-Code/QA abgeschlossen | 20/20 | Vollviewer-Windows/macOS, Signaturen und Asset-Erweiterungen bleiben separate Gates |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | Linux-Code/portable Module abgeschlossen | 20/20 | Vulkan-Vollrenderer erst P05, Windows/macOS-Full-Viewer P13 |
-| P05 – Vulkan als vollständige auswählbare 3D-Engine | aktiv | 1/20 | Block 2: Vulkan-Surface und Swapchain dauerhaft an SDL-Window-/Resize-/Present-Lifecycle anbinden |
+| P05 – Vulkan als vollständige auswählbare 3D-Engine | aktiv | 2/20 | Block 3: Vulkan-Frame-Lifecycle, Fence-/Semaphore-/Present-Synchronisation und Resize prüfen |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
 | P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
 | P08 – Beta-Protokoll und getrennte NexVerse-Anmeldung | offen | 0/20 | nach Abschluss der Vorphase |
@@ -90,6 +90,36 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P05 Block 2/20 – persistente Vulkan-Swapchain, SDL-Resize und Shutdown (04.11.2026)
+
+Die bestehenden llwindowsdl2.cpp/.h und oglrtxhost.cpp erhalten
+optionale synchrone WindowWillDestroy- und Resize-Callbacks.
+Die WSI wird vor SDL_QuitSubSystem(SDL_INIT_VIDEO) freigegeben.
+Direkt nach SDL_WINDOWEVENT_RESIZED wird die Vulkan-
+Surface/Swapchain mit der echten X11-ID und dem neuen
+SDL-Fenstermaß erneuert; zusätzlich eine ID/Größenprüfung
+beim späteren Welt-Frame. Standardbetrieb bleibt OpenGL.
+Dauerbetrieb nur bei drei expliziten Entwicklerflags:
+OGL_VULKAN_WORLD_BOOTSTRAP=1,
+OGL_VULKAN_WINDOW_SURFACE=1,
+OGL_VULKAN_WINDOW_PERSISTENT=1.
+Ohne das dritte Flag bleibt der einmalige P05/1-Probe aktiv.
+
+**Realer GUI-Nachweis:** Eigenes Xvfb-Display,
+echter OGL-Login, persistente VkSurfaceKHR/VkSwapchainKHR,
+Fenster zuerst 1230x820, danach 1050x680; für BEIDE
+Resize-Ereignisse swapchain=ready im Log. Login-Wait,
+aktive OpenGL-Engine, sauberer Exit 0. Keine weiteren
+Viewer-Prozesse oder Benutzerdaten geändert.
+Linux-Vollviewer gebaut und gelinkt; 324/324 Python-
+und 41/41 native CTests erfolgreich.
+
+**Phasengrenze:** P05 nun 2/20, Block 3 als nächster.
+Noch KEIN Vulkan-Bild-Acquire, vkQueuePresentKHR,
+Vulkan-Weltframe, Terrain-/Avatar-Renderer oder
+Vulkan-Engine-Auswahl. Nur Linux/X11-WSI vorhanden;
+Wayland, Windows und macOS brauchen eigene Anbindung.
 
 ## P05 Block 1/20 – echter Vulkan-WSI-Probe am SDL-Viewerfenster (04.11.2026)
 

@@ -159,6 +159,15 @@ public:
 #if LL_X11
     static Window get_SDL_XWindowID(void);
     static Display* get_SDL_Display(void);
+    // Developer-only P05 Vulkan WSI lifecycle. A borrowed native X11
+    // window must be detached BEFORE SDL tears down the GL window.
+    // The callback is optional, short, main-thread only and owns no SDL data.
+    using OglWindowWillDestroyCallback = void (*)();
+    static void setOglWindowWillDestroyCallback(OglWindowWillDestroyCallback callback);
+    // Fired after the native SDL window processes a real resize event.
+    // This also covers login, where in-world GL swap callbacks do not run.
+    static void setOglWindowResizedCallback(OglWindowWillDestroyCallback callback);
+    static bool getOglNativeWindowSize(int* width, int* height);
 #endif // LL_X11
 
 protected:

@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P05 Block 2/20:
+Aktive Phase P05 Block 3/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -197,6 +197,15 @@ normalem GL und invalidem Vulkan-ICD/Fallback OK.
 Nächster P05 Block 2/20: kontrollierter dauerhafter
 WSI-Window-/Frame-/Resize-Lifecycle, weiterhin
 OpenGL-Fallback und keine Nutzerprofile anfassen.
+
+P05 Block 2 abgeschlossen (04.11.2026):
+Persistentes Vulkan-WSI nur auf Linux/X11 und mit drei
+Entwickler-Opt-ins; echte SDL-Resize-/Destroy-Callbacks.
+Zwei reale GUI-Resizes 1230x820 / 1050x680 lieferten
+jeweils swapchain=ready bei weiterhin aktivem OpenGL.
+Linux-Vollbuild, 324 Python-/41 native Tests grün.
+P05 2/20, nächster Block 3 GPU-Frame-Synchronisation.
+Keine vollständige Vulkan-Welt-Engine behaupten.
 
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 

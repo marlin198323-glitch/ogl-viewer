@@ -57,11 +57,21 @@ Einstieg Block 2**: dauerhafter Vulkan-Fenster-/
 Frame-/Swapchain-/Resize-Lebenszyklus;
 Wayland/Windows/macOS WSI noch offen.
 
+**P05 Block 2 (04.11.2026):** Mit dreifachem Dev-Opt-in
+bleiben VkSurfaceKHR und VkSwapchainKHR am echten SDL/X11-
+Fenster bestehen. SDL-Resize-Hook baut die Swapchain
+bei 1230x820 und 1050x680 nachweislich neu auf;
+Destroy-Hook gibt die WSI vor SDL-Abbau frei. Beide
+GUI-Resize-Smokes liefen bei OpenGL bis Login-Wait
+und Exit 0. Linux-Build, 324 Python-/41 native Tests
+grün. P05 jetzt 2/20; Block 3 Vulkan-GPU-Frame-
+Synchronisation und echtes Present offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P05 Block 2/20.
+wechseln. Neuer Einstieg: P05 Block 3/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
