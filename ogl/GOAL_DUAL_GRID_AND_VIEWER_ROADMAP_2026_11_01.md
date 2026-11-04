@@ -838,7 +838,7 @@ bleiben bestehen. P02 läuft unter Linux weiter.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 
-**Status:** aktiv; 18/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
+**Status:** Linux-Code-/QA-Phase operativ 20/20 abgeschlossen; plattformweite Release-Gates separat offen.
 **Code c4a615ba (04.11.2026):**
 1 vorhandene OGL-Theme-UI und
 Python-CLI inventarisiert,

@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P03 Block 19/20.
+wechseln. Neuer Einstieg: P04 Block 1/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -737,6 +737,50 @@ byteidentisch.
 P03 18/20; als
 Nächstes Block 19
 Linux-Vollbuild/CI.
+
+**P03 Blöcke 19–20
+(04.11.2026,
+Linux-Code-/QA-
+Abschluss 20/20):**
+Vollviewer Linux
+7.2.5.214 gebaut.
+313 Python-/41
+native Tests grün,
+12 CLI-Theme-
+Security- und
+19 Viewer-Theme-
+Tests enthalten.
+DE/EN OGL-Designs
+GUI mit 100/140 %
+Skalierung gestartet,
+beide sauber
+geschlossen.
+GitHub native
+portable graphics
+run 41891918909:
+Linux/Windows/
+macOS je x64/ARM
+sechs Jobs erfolgreich.
+Unsigned Windows-
+Vollviewer-Installer-
+Job skipped, keine
+Windows/macOS
+Full-Viewer-/Grid-
+Abnahme. Unterstützter
+Theme-Import nur
+lokal unsigned
+Farbmanifeste;
+keine nativen
+PNG/WebP-Assets,
+Signaturen oder
+ausführbaren
+Plugins. Hierfür
+keine Release-
+Freigabe behaupten.
+**Aktiv P04/1:
+OpenGL-/Vulkan-
+Rendererbestand
+inventarisieren.**
 
 ## Aktuelle Roadmaps
 

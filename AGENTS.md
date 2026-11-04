@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P03 Block 19/20:
+Aktive Phase P04 Block 1/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -105,6 +105,36 @@ Nächster Block 19:
 Linux-Vollbuild,
 native CTests,
 portable Theme-CI.
+P03 Blöcke 19–20
+operativ als Linux-
+Code-/QA-Phase
+abgeschlossen:
+Vollbuild 7.2.5.214,
+313 Python-/41 native
+Tests; DE/EN-
+OGL-Designs-GUI
+100/140 % Exit 0.
+GitHub graphics-CI
+41891918909
+Linux/Windows/macOS
+x64/ARM je erfolgreich;
+Windows-x64-Installer-
+Job SKIPPED, somit
+kein vollständiger
+Windows/macOS-
+Viewer nachgewiesen.
+P03 Theme-Import
+bewusst eingeschränkt
+auf unsigned lokale
+Farb-Manifest-ZIPs
+ohne Assets/Plugins.
+Signaturen/Vollviewer-
+Abnahme weiterhin
+nicht freigegeben;
+Gates getrennt.
+Ab jetzt P04 Block 1:
+Renderer-OpenGL-/
+Vulkan-Inventur.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

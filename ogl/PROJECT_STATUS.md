@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P03 Block 19/20.
+**Aktiver Block:** /goal P04 Block 1/20.
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -49,8 +49,8 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
-| P03 – Theme-System und sichere Designinstallation | aktiv | 18/20 | Block 19: Linux-Vollbuild und portable Theme-Sicherheits-CI prüfen |
-| P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
+| P03 – Theme-System und sichere Designinstallation | Linux-Code/QA abgeschlossen | 20/20 | Vollviewer-Windows/macOS, Signaturen und Asset-Erweiterungen bleiben separate Gates |
+| P04 – Renderer-Abstraktion und OpenGL-Fallback | aktiv | 0/20 | Block 1: vorhandene OpenGL/Vulkan-Module und Diagnosepfade inventarisieren |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
 | P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
@@ -60,6 +60,101 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P03 Blöcke 19–20/20 – Linux-Build, portable Theme-Sicherheit und Übergang P04 (04.11.2026)
+
+**Block 19 erfolgreich:**
+Vollständiger Linux-
+Viewer-Build 7.2.5.214
+mit OpenSim bestanden.
+313/313 Python-Tests,
+41/41 native CTests
+grün. Theme-CLI-
+Sicherheitsuite 12/12
+und Theme-/Viewer-
+Quellvertrag 19/19.
+XUI-EN/DE-Daten
+im Viewer-Paket
+bytegleich. Echte
+Linux-GUI-Smokes:
+DE 1440x900 bei
+100 % UI-Skalierung,
+EN 1920x1080 bei
+140 %, Preferences
+und OGL Designs
+sichtbar, jeweils
+sauberer Exit 0.
+Native Theme-Import-/
+Remove-/Negativ-E2E-
+Tests aus P03/17
+waren zuvor mit
+Version 7.2.5.210
+erfolgreich.
+
+Die OGL-portable-
+graphics-GitHub-CI
+run 41891918909
+für Commit 6ff4cbbc
+wurde als Erfolg
+bestätigt: sechs
+native Grafikjobs
+Linux x64/ARM,
+Windows x64/ARM
+und macOS x64/ARM
+grün. Der separate
+Windows-x64-
+Vollviewer-Installer-
+Job wurde SKIPPED,
+also kein gebauter
+oder installierter
+Windows-Viewer
+nachgewiesen.
+Auch macOS-
+Vollviewer-GUI/
+Grid-Login wurde
+nicht geprüft.
+
+**Block 20:** Relevante
+GitHub-Commits,
+Handoff, Hauptroadmap
+und Sicherheitsstatus
+synchronisiert und
+Folgephase P04
+ohne manuelle
+Abnahme gestartet.
+
+**P03 operativ 20/20
+als Linux-Code- und
+Theme-Sicherheits-
+Phase abgeschlossen.**
+Unterstützter
+nativer Theme-Import
+bleibt absichtlich
+lokal, unsigned und
+auf ein geprüftes
+Farbmanifest
+theme.json beschränkt.
+Kein Code/Plugins,
+keine Bild-/Skin-
+Dateien, keine
+Signatur-Vertrauens-
+infrastruktur.
+Diese Funktionen
+sind NICHT als
+vollständig umgesetzt
+oder releasefreigegeben
+zu betrachten.
+Plattformweite
+Vollviewer-/
+Installer- und
+In-World-Gates
+bleiben ausdrücklich
+im P13-Release-
+und späteren
+Härtungsplan.
+
+**Aktiver Einstieg:
+P04 Block 1/20.**
 
 ## P03 Block 18/20 – Theme-Duplikate und Skin-Overrides (04.11.2026, abgeschlossen)
 
