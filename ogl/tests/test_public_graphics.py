@@ -8,6 +8,44 @@ BUILTIN = ROOT / "indra/newview/app_settings/ogl/NexVerse%20Cinematic.xml"
 
 
 class PublicGraphicsContracts(unittest.TestCase):
+    def test_p04_renderer_inventory_open_gl_is_the_only_world_renderer(self):
+        display=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        app=(ROOT/"indra/newview/llappviewer.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        cmake=(ROOT/"indra/newview/CMakeLists.txt").read_text()
+        settings=(ROOT/"indra/newview/app_settings/settings.xml").read_text()
+        for expression in ("gPipeline.renderGeomDeferred(",
+                           "gPipeline.renderDeferredLighting()",
+                           "gPipeline.renderFinalize()"):
+            self.assertIn(expression,display)
+        for method in ("LLPipeline::init()",
+                       "LLPipeline::renderGeomDeferred(",
+                       "LLPipeline::renderDeferredLighting()",
+                       "LLPipeline::renderFinalize()"):
+            self.assertIn(method,pipeline)
+        self.assertIn("ogl_init_rtx_module();",app)
+        self.assertIn("ogl_shutdown_rtx_module();",app)
+        self.assertIn('dlopen("./lib/ogl_rtx.so"',host)
+        self.assertIn("keeping OpenGL.",host)
+        self.assertIn("OpenGL remains the active renderer.",host)
+        self.assertIn("ogl_rtx_hardware_supported()",header)
+        self.assertIn("ogl_rtx_rendering_active()",header)
+        self.assertIn("OGL_RTX_DEBUG_OVERLAY",display)
+        self.assertIn("OGL_RTX_DEPTH_GUIDED_PROBE",display)
+        self.assertIn("OGL_RTX_SHADOW_VISUALIZE",pipeline)
+        self.assertIn("ogl_rtx_compose_dense_sun_shadow(",pipeline)
+        self.assertIn("Explicit diagnostics only. Never used as an in-world renderer.",module)
+        self.assertIn("rendering_active=0",module)
+        self.assertIn("ogl_rtx_stage",cmake)
+        self.assertIn("ogl_gpu_probe_stage",cmake)
+        self.assertIn("<key>RenderMaxOpenGLVersion</key>",settings)
+        # No app-level engine switch exists in legacy graphics preferences.
+        panel=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text()
+        self.assertNotIn('name="ogl_renderer_engine"',panel)
+
     def test_universal_preset_is_bundled_without_any_personal_settings(self):
         root = ET.parse(BUILTIN).getroot()
         self.assertEqual(root.tag, "llsd")
