@@ -256,6 +256,49 @@ class OGLBrandingContract(unittest.TestCase):
         self.assertIn('return false;', body)
         self.assertIn('gSavedSettings.setBOOL("FSSupportGroupChatPrefixTesting", result);', body)
 
+    def test_p02_chat_header_locales_have_no_fake_usernames_or_internal_titles(self):
+        base = ROOT / "indra/newview/skins/default/xui"
+        header = ET.parse(base / "en/panel_chat_header.xml").getroot()
+        self.assertEqual(header.find('.//text[@name="user_name"]').get("value"), "")
+        self.assertEqual(header.find('.//text[@name="time_box"]').get("value"), "")
+        self.assertEqual(header.find('.//avatar_icon').get("circular"), "true")
+        for path in sorted(base.glob("*/panel_chat_header.xml")):
+            localized = ET.parse(path).getroot()
+            self.assertEqual(localized.get("name"), "im_header", str(path))
+            self.assertEqual(localized.get("label"), "im_header", str(path))
+            for field in localized.iter():
+                if field.get("name") in ("user_name", "time_box"):
+                    self.assertEqual(field.get("value", ""), "", (str(path), field.get("name")))
+        self.assertNotIn("テスト文字列", (base / "ja/panel_chat_header.xml").read_text(encoding="utf-8"))
+        self.assertNotIn("soy_titulo", (base / "es/panel_chat_header.xml").read_text(encoding="utf-8"))
+
+    def test_p02_expanded_chat_header_honors_timestamp_toggle_without_resizing(self):
+        source = self.source("indra/newview/fschathistory.cpp")
+        header = source.split("class FSChatHistoryHeader: public LLPanel", 1)[1].split(
+            "FSChatHistory::FSChatHistory(", 1)[0]
+        setup = header.split("void setup(const LLChat& chat,", 1)[1].split(
+            "// In case the message came from an object", 1)[0]
+        self.assertIn('setTimeField(chat);', setup)
+        self.assertIn('mTimeBoxTextBox->setVisible(args["show_time"].asBoolean() &&', setup)
+        self.assertIn('mSourceType == CHAT_SOURCE_TELEPORT', setup)
+        self.assertIn('chat.mChatStyle == CHAT_STYLE_TELEPORT_SEP', setup)
+        self.assertNotIn('mUserNameTextBox->reshape(', setup)
+        self.assertIn('mTimeBoxTextBox->setToolTip(chat.mTimeStr);', header)
+
+    def test_p02_async_avatar_name_does_not_relabel_other_sender(self):
+        source = self.source("indra/newview/fschathistory.cpp")
+        header = source.split("class FSChatHistoryHeader: public LLPanel", 1)[1].split(
+            "FSChatHistory::FSChatHistory(", 1)[0]
+        callback = header.split(
+            "void onAvatarNameCache(const LLUUID& agent_id, const LLAvatarName& av_name)", 1)[1].split(
+            "protected:", 1)[0]
+        self.assertLess(callback.index("if (agent_id != mAvatarID)"),
+                        callback.index("mFrom = av_name.getDisplayName()"))
+        self.assertIn('mUserNameTextBox->setValue( LLSD(mFrom) );', callback)
+        self.assertIn('mUserNameTextBox->setToolTip( av_name.getUserName() );', callback)
+        self.assertIn('if (!chat.mRlvNamesFiltered)', header)
+        self.assertIn('icon->setValue(LLSD("Unknown_Icon"));', header)
+
     def test_chat_header_uses_xui_layout_without_second_name_resize_on_draw(self):
         src = self.source("indra/newview/fschathistory.cpp")
         header = src.split("class FSChatHistoryHeader: public LLPanel", 1)[1].split(

@@ -882,6 +882,13 @@ public:
 
 
         setTimeField(chat);
+        // Respect the same timestamp visibility preference in both the
+        // expanded avatar header and compact text history. Keep the fixed
+        // timestamp column so the avatar and name never overlap it.
+        // Teleport separators intentionally have no visible timestamp.
+        mTimeBoxTextBox->setVisible(args["show_time"].asBoolean() &&
+            !(mSourceType == CHAT_SOURCE_TELEPORT &&
+              chat.mChatStyle == CHAT_STYLE_TELEPORT_SEP));
 
         // Set up the icon.
         LLAvatarIconCtrl* icon = getChild<LLAvatarIconCtrl>("avatar_icon");
@@ -1170,6 +1177,12 @@ private:
 
     void onAvatarNameCache(const LLUUID& agent_id, const LLAvatarName& av_name)
     {
+        // Do not let a late lookup replace the avatar name in a header
+        // which has since been assigned to another message/sender.
+        if (agent_id != mAvatarID)
+        {
+            return;
+        }
         mAvatarNameCacheConnection.disconnect();
 
         mFrom = av_name.getDisplayName();
