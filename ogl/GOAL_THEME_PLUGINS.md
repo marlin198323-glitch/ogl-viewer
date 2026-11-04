@@ -5,7 +5,31 @@ Alle Phasen: gleicher C++-Viewer fuer Linux, Windows und macOS;
 CPU-/GPU-Faehigkeitserkennung mit Standardpfad fuer aeltere Hardware.
 Keine automatische Ausfuehrung fremder Plugins.
 
-## Aktueller Stand 04.11.2026 – P03 18/20
+## Aktueller Stand 04.11.2026 – P03 20/20 (Linux-Code-/QA-Gate)
+
+**P03 Blöcke 19–20 (04.11.2026):**
+Linux-Vollviewer
+7.2.5.214; 313 Python-/
+41 native Tests
+erfolgreich. DE/EN
+Theme-GUI Exit 0.
+Sechs portable CI-
+Grafikjobs unter
+Linux/Windows/macOS
+x64/ARM bestanden.
+Windows-Installer-
+Job SKIPPED.
+Native Designs bleiben
+auf lokale unsigned
+Farbmanifest-ZIPs
+begrenzt: keine
+Bild-Assets, Plugins
+oder Signaturprüfung.
+P03 als Linux-
+Code-/QA-Phase
+20/20 abgeschlossen,
+Release-Gates offen.
+P04/1 folgt.
 
 **P03 Block 18, Code
 854e8a2d:**

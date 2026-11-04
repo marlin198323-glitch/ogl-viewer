@@ -1073,9 +1073,37 @@ bereits nachweislich vorhanden geprüft, relevante Tests
 und Viewer-/Plattform-Builds erfolgreich, GitHub-Push
 sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 
+**P03 Blöcke 19–20 (04.11.2026):**
+Linux-Vollviewer 7.2.5.214;
+313/313 Python-Tests,
+41/41 native CTests.
+DE/EN-OGL-Designs-GUI
+bei 100/140 % UI-Skalierung
+mit sauberem Exit 0.
+GitHub portable-graphics-
+CI 41891918909:
+Linux/Windows/macOS
+je x64/ARM erfolgreich.
+Vollständiger Windows-
+Viewer-Installer
+wurde übersprungen;
+Windows/macOS-GUI-
+und In-World-Abnahmen
+bleiben offen.
+Theme-Import bleibt
+auf lokale unsigned
+Farb-ZIPs begrenzt,
+ohne Bild-Assets,
+Signaturen oder
+Plugin-Code.
+P03 als operative
+Linux-Code/QA-Phase
+20/20 abgeschlossen;
+P04 Block 1/20 aktiv.
+
 ### /goal P04 – Renderer-Abstraktion und OpenGL-Fallback
 
-**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Status:** aktiv; 0/20 operative Blöcke abgeschlossen.
 **Technischer Zielzustand:** Saubere Backend-Auswahl und Baseline.
 
 1. OpenGL-Renderpfad und Vulkan-Diagnosemodule vollständig inventarisieren.
