@@ -5,7 +5,28 @@ Alle Phasen: gleicher C++-Viewer fuer Linux, Windows und macOS;
 CPU-/GPU-Faehigkeitserkennung mit Standardpfad fuer aeltere Hardware.
 Keine automatische Ausfuehrung fremder Plugins.
 
-## Aktueller Stand 04.11.2026 – P03 17/20
+## Aktueller Stand 04.11.2026 – P03 18/20
+
+**P03 Block 18, Code
+854e8a2d:**
+Keine überzähligen
+OGL-Theme-Templates
+gefunden: EN-Hauptdatei,
+DE-Übersetzung,
+sonst keine OGL-
+Skin-Overrides; zwei
+verschiedene
+Beispiel-IDs.
+Bytegleiche
+Upstream-Sprach-
+und Skinvarianten
+für Kompatibilität
+erhalten. Bestehende
+Regressionssuite prüft
+jetzt die Einzigartigkeit,
+313 Tests bestanden.
+Nächster Block 19:
+Linux-Build/CI-Gates.
 
 **P03 Block 17 (Code 59bc92d3,
 Linux-End-to-End-QA bestanden):**

@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P03 Block 18/20.
+**Aktiver Block:** /goal P03 Block 19/20.
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -49,7 +49,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
-| P03 – Theme-System und sichere Designinstallation | aktiv | 17/20 | Block 18: nicht verwendete Skin-Overrides und Theme-Duplikate prüfen/bereinigen |
+| P03 – Theme-System und sichere Designinstallation | aktiv | 18/20 | Block 19: Linux-Vollbuild und portable Theme-Sicherheits-CI prüfen |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
@@ -60,6 +60,81 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P03 Block 18/20 – Theme-Duplikate und Skin-Overrides (04.11.2026, abgeschlossen)
+
+**Commit 854e8a2d auf origin/ogl-develop.**
+Acht getrackte Viewer-Skins,
+22596 getrackte Skin-Dateien
+und OGL-/Upstream-Theme-
+Referenzen inventarisiert.
+Für das OGL-Design-Panel
+existieren genau zwei
+notwendige Quelldateien:
+default/xui/en/
+panel_preferences_ogl_themes.xml
+(Hauptlayout) und
+default/xui/de/
+panel_preferences_ogl_themes.xml
+(Sprachüberlagerung).
+In den anderen sieben
+Skins existiert kein
+paralleles OGL-Theme-
+Panel. Im EN-Preferences-
+XML eine zentrale
+Theme-Panel-Injektion,
+im DE-XML genau eine
+OGL-Lokalisierung.
+Zwei Theme-Beispiele
+mit unterschiedlichen IDs.
+Kein überflüssiger
+OGL-Theme-Override
+oder mehrfaches Template
+nachgewiesen.
+
+Es wurden 303 Gruppen
+bytegleicher XML-/Plugin-
+Daten gefunden. Dies
+sind überwiegend
+Upstream-Sprachdateien
+und eigenständige
+Kompatibilitäts-Skins.
+Dateinamen wie
+script_copy.png,
+Badge_Background_New.png
+und client_list_v2.xml
+sind keine belegten
+OGL-Template-Backups.
+Ohne Verwendungsnachweis
+wurden diese Dateien
+nicht blind gelöscht.
+
+Der vorhandene Test
+ogl/tests/test_viewer_theme_goal.py
+enthält jetzt einen
+Vertrag für genau
+EN-Hauptlayout,
+DE-Sprachüberlagerung,
+einmalige Preferences-
+Referenzen, einzigartige
+Example-IDs und das
+Verbot paralleler
+OGL-Theme-Panels in
+anderen Skins.
+313/313 Python-Tests
+bestanden, EN/DE-XUI
+mit Buildpaket
+byteidentisch.
+
+**P03 Stand 18/20.**
+Nächster Block 19:
+vollständiger Linux-
+Viewer-Build,  native
+CTest-Regressionen
+und CI-/Theme-Security-
+Gates. Windows/macOS-
+Release-Abnahmen
+weiter offen.
 
 ## P03 Block 17/20 – Native ZIP-Installation, Entfernen und Negativpakete (04.11.2026, ABGESCHLOSSEN)
 

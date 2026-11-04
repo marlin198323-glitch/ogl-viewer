@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P03 Block 18/20:
+Aktive Phase P03 Block 19/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -86,6 +86,25 @@ belegt identifizieren,
 nur sicher bereinigen,
 keine neuen parallelen
 Templates/Dateien.
+P03 Block 18, Commit
+854e8a2d: Acht Skins,
+13 Default-Lokalisierungen,
+Theme-Sample-IDs
+inventarisiert. Genau
+eine OGL-Theme-EN-UI
+plus DE-Lokalisierung,
+keine parallelen
+OGL-Panels. Identische
+Upstream-Skin-/Locale-
+Dateien nicht löschen.
+Python-Regression zur
+Theme-Template-
+Einzigartigkeit ergänzt,
+313/313 Tests bestanden.
+Nächster Block 19:
+Linux-Vollbuild,
+native CTests,
+portable Theme-CI.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

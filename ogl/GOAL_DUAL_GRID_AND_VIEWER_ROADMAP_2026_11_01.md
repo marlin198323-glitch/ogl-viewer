@@ -838,7 +838,7 @@ bleiben bestehen. P02 läuft unter Linux weiter.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 
-**Status:** aktiv; 17/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
+**Status:** aktiv; 18/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
 **Code c4a615ba (04.11.2026):**
 1 vorhandene OGL-Theme-UI und
 Python-CLI inventarisiert,
@@ -1022,6 +1022,28 @@ Nicht verwendete
 Skin-Overrides und
 Theme-Duplikate
 belegt bereinigen.
+
+**P03 Block 18 (04.11.2026,
+Commit 854e8a2d):**
+Acht Skins und Theme-
+Beispiele nach doppelten
+Overrides durchsucht.
+Genau EN-Theme-Panel
+plus DE-Lokalisierung,
+keine OGL-Duplikate
+oder Alt-Theme-Backups
+nachgewiesen.
+Upstream-Übersetzungen
+und separate Skins
+nicht blind löschen.
+Neue Regression gegen
+parallele OGL-Templates
+und doppelte Theme-IDs;
+313 Python-Tests
+erfolgreich.
+Nächster Block 19/20:
+Vollbuild und
+plattformbezogene CI.
 
 **Technischer Zielzustand:** Optionale Designs bei OGL-Standard.
 

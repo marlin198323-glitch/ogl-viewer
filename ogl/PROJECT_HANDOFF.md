@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P03 Block 18/20.
+wechseln. Neuer Einstieg: P03 Block 19/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -708,6 +708,35 @@ Altlasten sicher entfernen.
 Windows-/macOS-Gates
 und Signatur-Vertrauen
 bleiben offen.
+
+**P03 Block 18 (04.11.2026,
+Commit 854e8a2d):**
+Skin-/Sprach- und
+Theme-Duplikate geprüft.
+Einziges OGL-Theme-
+Hauptlayout in EN,
+einziges DE-Override,
+keine OGL-Duplikate
+in anderen sieben
+Skins. Zwei
+unterschiedliche
+Theme-Beispiele.
+303 Bytegleichheits-
+Gruppen aus Upstream-
+Sprachen/Skins dürfen
+nicht ohne Nutzungs-
+Nachweis gelöscht
+werden. Test gegen
+parallele OGL-Theme-
+Layouts/IDs im
+bestehenden Python-
+Test ergänzt:
+313/313 bestanden,
+EN/DE-Paketlayout
+byteidentisch.
+P03 18/20; als
+Nächstes Block 19
+Linux-Vollbuild/CI.
 
 ## Aktuelle Roadmaps
 
