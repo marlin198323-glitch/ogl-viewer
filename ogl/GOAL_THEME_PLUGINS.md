@@ -5,7 +5,50 @@ Alle Phasen: gleicher C++-Viewer fuer Linux, Windows und macOS;
 CPU-/GPU-Faehigkeitserkennung mit Standardpfad fuer aeltere Hardware.
 Keine automatische Ausfuehrung fremder Plugins.
 
-## Aktueller Stand 04.11.2026 – P03 16/20
+## Aktueller Stand 04.11.2026 – P03 17/20
+
+**P03 Block 17 (Code 59bc92d3,
+Linux-End-to-End-QA bestanden):**
+Im echten OGL Viewer
+7.2.5.210 wurde ein
+gültiges ZIP (nur
+theme.json) nach
+Dateiauswahl und
+Installationsklick
+im isolierten
+Userverzeichnis
+installiert und
+anschließend
+mit dem Entfernen-
+Button gelöscht.
+Fehlerursache des
+früheren Import-
+Abbruchs war
+linkname="" als
+nicht-null Zeiger
+in minizip-ng;
+diese regulären
+ZIP-Einträge sind
+jetzt zugelassen.
+Echte Symlinks,
+Zusatzdateien,
+Pfadtraversal und
+doppelte JSON-Keys
+wurden in vier
+zusätzlichen nativen
+GUI-Tests abgelehnt,
+ohne Datenänderung.
+Linux-Vollbuild,
+312 Python-/41
+native Tests bestanden.
+Keine Signaturprüfung,
+Plugin-/Bilddateien
+oder Windows-/macOS-
+Vollviewer-Abnahme.
+P03 17/20, nächster
+Block 18: Altlasten/
+Skin-Overrides und
+Duplikate bereinigen.
 
 Block 16 (Code 1f174bc7):
 OGL-Design-Default

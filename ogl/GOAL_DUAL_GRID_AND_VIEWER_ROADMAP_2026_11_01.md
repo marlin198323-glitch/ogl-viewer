@@ -838,7 +838,7 @@ bleiben bestehen. P02 läuft unter Linux weiter.
 
 ### /goal P03 – Theme-System und sichere Designinstallation
 
-**Status:** aktiv; 16/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
+**Status:** aktiv; 17/20 operative Blöcke in Linux-Code und Bestand bearbeitet.
 **Code c4a615ba (04.11.2026):**
 1 vorhandene OGL-Theme-UI und
 Python-CLI inventarisiert,
@@ -972,6 +972,56 @@ noch nicht abgenommen.
 Native ZIP-Import-
 und Manipulations-
 End-to-End-QA.
+
+**P03 Block 17
+(04.11.2026, 59bc92d3):**
+Native minizip-ng-
+Importprüfung korrigiert:
+leere nicht-null
+linkname-Werte normaler
+ZIP-Dateien zulassen,
+nichtleere Link-Ziele
+und Symlink-Unix-Modi
+weiterhin abweisen.
+Mit nativer libminizip-
+C++-Probe verifiziert.
+Linux-Vollbuild
+7.2.5.210 erfolgreich,
+312 Python-/41 native
+Tests. Echte Viewer-
+GUI-Prüfung mit
+Xvfb-LLFilePicker:
+gültiges Ocean Blue
+installiert, Manifest
+im isolierten
+Benutzerverzeichnis
+geprüft, keine
+automatische
+Aktivierung, anschließend
+über Viewer-UI sicher
+entfernt. Vier weitere
+GUI-E2E-Pakete mit
+Zusatzdatei, Symlink,
+../-Pfadausbruch und
+doppeltem JSON-Key
+wurden bei überprüft
+erfolgreicher
+Dateiauswahl
+abgewiesen, kein
+Manifest/Stagingrest,
+Exit 0.
+Nur unsignierte
+lokale Farbmanifeste
+erlaubt; Windows-/
+macOS-Vollviewer und
+kryptografische
+Signaturen nicht
+freigegeben.
+**Nächster Block 18/20:**
+Nicht verwendete
+Skin-Overrides und
+Theme-Duplikate
+belegt bereinigen.
 
 **Technischer Zielzustand:** Optionale Designs bei OGL-Standard.
 

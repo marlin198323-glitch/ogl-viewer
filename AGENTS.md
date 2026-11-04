@@ -40,66 +40,52 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P03 Block 17/20:
-P03/1–8 Code c4a615ba,
-P03/9–15 Code 73565590.
-Lokale, unsignierte,
-deklariert farbbasierte
-.ogltheme-Archive werden
-nach explizitem Klick
-nativ nur bei genau einer
-theme.json akzeptiert:
-minizip-ng-C++-Prüfung,
-gültige Farbtoken, Größen,
-Dateityp, CRC, doppelte
-JSON-Schlüssel, keine
-Assets oder Ausführung.
-Atomisches Staging,
-kein Überschreiben,
-sicheres Entfernen nur
-inaktiver unveränderter
-reiner Farbdesigns.
-Userfarben-Sicherung
-und Restore bleiben.
-Linux-Vollviewer 7.2.5.204,
-308 Python-/41 native
-Tests, DE/EN-Prelogin-GUI,
-DE sichtbare OGL-Design-
-Ansicht und Dateidialog
-erfolgreich.
-KEIN nativer ZIP-Import-
-E2E-Test abgeschlossen,
-keine kryptografische
-Authentifizierung,
-keine Windows/macOS-
-Vollviewer-Abnahme.
-Nächster Block 16:
-HiDPI-/Sprache/Chat-
-Kompatibilität, danach
-native ZIP-Manipulations-
-und Erfolgspfadtests.
-P03 Block 16 Code 1f174bc7:
-EN/DE-Theme-Standardname
-via XUI, responsive
-Text-Anker, tatsächliche
-nicht-interaktive
-Farbswatches statt
-deaktivierter Buttons,
-Chat-/Menü-Farbtoken-
-Verknüpfung erhalten.
-Linux-Vollbuild
-7.2.5.207,
-311 Python-/41 native
-Tests, EN/DE-XUI im Paket,
-EN 140%/DE 100%
-OGL-Preferences-GUI
-direkt geprüft.
-Nächster Block 17:
-nativer ZIP-Import-
-Erfolgs-/Fehlerpfad;
-keine Userprofile
-oder Login-Cache
-anfassen.
+Aktive Phase P03 Block 18/20:
+P03/1–8 c4a615ba,
+9–15 73565590,
+16 1f174bc7,
+17 59bc92d3.
+P03/17 erstmals echter
+nativer .ogltheme-
+Install-/Entfernungs-
+End-to-End-GUI-Erfolg
+im Linux-Viewer
+7.2.5.210:
+Ocean-Blue-Theme mit
+GTK-LLFilePicker
+explizit ausgewählt,
+installiert, Manifest-
+Datei kontrolliert,
+ohne Aktivierung
+wieder entfernt.
+Native ZIP-Manipulations-
+GUI-Tests für Extra-
+Einträge, Symlinks,
+../-Pfade und
+doppelte JSON-Keys
+alle abgelehnt, ohne
+Schreibreste, Exit 0.
+Ursache des vorigen
+Importfehlers: leere,
+aber nicht-null ZIP-
+linkname-Zeichenkette;
+nun sichere Prüfung
+auf NICHTLEERE Links
+plus Unix-Dateimodus.
+Linux-Vollbuild und
+312 Python-/41 native
+Tests bestanden.
+Keine signierten Themes,
+keine Bild-Assets,
+keine Vollviewer-
+Windows-/macOS-Abnahme.
+Nächster Block 18:
+ungenutzte Skin-Overrides
+und Theme-Duplikate
+belegt identifizieren,
+nur sicher bereinigen,
+keine neuen parallelen
+Templates/Dateien.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

@@ -8,21 +8,24 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P03 Block 17/20.
+**Aktiver Block:** /goal P03 Block 18/20.
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
 Chat-/Menü-Farbzuordnung. Code-Commit
 1f174bc7 auf origin/ogl-develop.
 P03 Blöcke 9–15: 73565590.
-Der erste native Import ist ausdrücklich
-auf lokale, manuell ausgewählte,
-unsignierte Farbpakete mit ausschließlich
-theme.json begrenzt. Ein echter
-GUI-Import/-Löschtest und eine
-kryptografische Authentifizierung
-sind noch offen. Diese Punkte gehören
-zu den nächsten Sicherheits-/QA-Gates.
+Der erste native Import ist weiterhin
+auf lokale, explizit ausgewählte,
+unsignierte manifest-only-Farbpakete
+begrenzt. Nativer GUI-Installations-,
+Entfernungs- und Manipulationstest
+in P03/17 erfolgreich abgeschlossen
+(Code 59bc92d3, Linux 7.2.5.210).
+Kryptografische Signaturen und
+zusätzliche Bild-Assets bleiben
+explizit außerhalb dieses
+sicherheitsbegrenzten Importumfangs.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -46,7 +49,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
-| P03 – Theme-System und sichere Designinstallation | aktiv | 16/20 | Block 17: nativen ZIP-Import inklusive ungültiger Pakete End-to-End testen |
+| P03 – Theme-System und sichere Designinstallation | aktiv | 17/20 | Block 18: nicht verwendete Skin-Overrides und Theme-Duplikate prüfen/bereinigen |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
@@ -58,74 +61,111 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
-## P03 Block 17/20 – Native ZIP-Import-End-to-End-QA (begonnen, OFFEN; 04.11.2026)
+## P03 Block 17/20 – Native ZIP-Installation, Entfernen und Negativpakete (04.11.2026, ABGESCHLOSSEN)
 
-Nach Abschluss von Block 16
-wurde der echte lokale
-LLFilePicker per Xvfb/XTest
-mit einem isolierten,
-nur theme.json enthaltenden
-Ocean-Blue-Archiv geprüft.
-Ein kompletter Datei-
-Auswahlpfad über die
-GTK-Dateiauswahl gelang
-in einem Lauf: Der
-Viewer zeigte den
-tatsächlichen Namen
-als "ausgewählt,
-nicht installiert".
-In mehrfachen weiteren
-Automationsläufen war
-kein gültiger pending-
-Dateipfad vorhanden:
-Beim Drücken von
-"Design installieren"
-zeigte der Viewer die
-korrekte
-Auswahl-Fehlermeldung,
-ohne Nutzerdaten
-anzulegen. Eine
-reproduzierbare
-Erfolgspfad-Prüfung
-der nativen C++-
-Installation ist
-damit NOCH NICHT
-erbracht. Die
-Unzuverlässigkeit
-der simulierten
-GTK-Dateidialog-
-Eingabe ist kein
-hinreichender
-Beweis für einen
-Viewer-Importfehler.
-Die ZIP-Manipulations-
-Negativfälle auf
-nativem GUI-Pfad
-sind ebenfalls
-offen; Python-CLI-
-Negativtests bleiben
-bestanden.
+**Code:** Commit 59bc92d3
+auf origin/ogl-develop.
+**Root Cause:** Die tatsächlich
+verlinkte minizip-ng-Bibliothek
+liefert bei normalen ZIP-Dateien
+für entry->linkname einen
+nicht-null Zeiger auf die
+leere Zeichenkette. Die
+bisherige Prüfung
+entry->linkname || hat
+auch gültige ZIPs abgewiesen.
+Die korrigierte Prüfung
+unterscheidet leere von
+nichtleeren Link-Zielen;
+der zusätzliche Unix-
+Modus-Symlink-/Sonderdatei-
+Guard bleibt aktiv. Mit
+einem isolierten C++-Probe-
+Programm gegen exakt die
+im Viewer verlinkte
+libminizip.a nachgewiesen.
 
-Keine Freigabe von
-P03/17 als 17/20,
-kein Windows-Installer
-und keine In-World-
-Theme-Abnahme
-behaupten.
-Aktueller Stand
-weiter 16/20;
-Block 17 erfordert
-stabile manuelle
-oder automatisierte
-Dateiauswahl,
-Installation nach
-explizitem Klick,
-Manifest im
-isolierten Userprofil,
-und erfolgreiche
-Ablehnung eines
-manipulierten ZIPs
-ohne Schreibzugriff.
+**Echter Linux-Viewer GUI-E2E:**
+7.2.5.210, Xvfb 1440x900,
+separate XDG_DATA_HOME und
+XDG_STATE_HOME, echter
+GTK-LLFilePicker mit
+Dateisystem-/Ort-Eingabe,
+expliziter Installations-
+Button und anschließender
+Dateisystemprüfung. Keine
+produktiven Nutzerdateien
+berührt. Der valide
+Ocean-Blue-Test (exakt
+theme.json) wurde im
+Benutzer-Themes-Verzeichnis
+unter de.nexverse.theme.ocean-blue
+atomisch installiert,
+der kanonische Manifest-ID-
+Wert geprüft, ohne das
+Theme zu aktivieren.
+Anschließend per echter
+Entfernen-Schaltfläche
+gelöscht; Ordner/Manifest
+danach nicht mehr vorhanden.
+Viewer sauber mit Exit 0.
+
+**Native Negativfälle über
+denselben GUI-Pfad:** Jedes
+Paket wurde zuerst im
+Dateidialog erfolgreich
+ausgewählt (Status-Screenshots
+verifiziert), dann durch den
+Installations-Button abgelehnt:
+(1) Zusatzdatei im ZIP,
+(2) theme.json als
+symbolischer Link markiert,
+(3) ../theme.json als
+Pfadtraversal,
+(4) doppelte JSON-
+Property type. In allen
+vier Fällen nach dem
+Ablehnungsstatus:
+keine installierte
+theme.json, keine
+.ogltheme-Staging-
+Verzeichnisse, Exit 0.
+Fünf Szenarien insgesamt
+(1 erfolgreich, 4
+absichtlich abgewiesen).
+
+**Weitere Gates:** Vollständiger
+Linux-C++-Build erfolgreich,
+312/312 Python-Tests,
+41/41 native CTests.
+ZIP-Permissions bleiben
+lokale, manuell gewählte,
+unsignierte Farbmanifeste;
+keine Plugins, ausführbaren
+Assets oder Netzrechte.
+Signaturprüfung und
+Windows/macOS-GUI/Full-
+Viewer-Release-Abnahmen
+weiter offen. Auf GitHub
+ist ein Windows-Installer-
+Erfolg nicht bestätigt:
+Installer-Job bei letzter
+CI-Prüfung übersprungen,
+macos-15-Grafikjob
+abgebrochen. Dies ist
+keine Vollplattform-
+Freigabe.
+
+**P03 Fortschritt:** 17/20,
+nächster Block 18:
+nicht benötigte
+Skin-Overrides und
+Theme-Duplikate im
+Bestand inventarisieren
+und nur nach belegter
+Unbenutztheit bereinigen.
+Keine zusätzlichen
+parallelen Templates.
 
 ## P03 Block 16/20 – Sprache, HiDPI, Farbvorschau und Kompatibilität (04.11.2026)
 

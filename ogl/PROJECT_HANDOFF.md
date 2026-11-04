@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P03 Block 17/20.
+wechseln. Neuer Einstieg: P03 Block 18/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -664,29 +664,50 @@ inklusive Malware-/Fehler-
 Pfaden. Windows/macOS-
 Gates weiter offen.
 
-**P03/17 QA-Aufnahme (04.11.2026,
-kein Fortschrittszähler):**
-Nativer LLFilePicker
-im Linux-Xvfb in
-einem Lauf mit echtem
-lokalem .ogltheme-Pfad
-und Status "ausgewählt,
-nicht installiert"
-erfolgreich. Weitere
-XTest-Läufe wählten
-Datei im Dialog nicht
-zuverlässig; der
-Install-Button
-verweigerte bei leerem
-Pending-Pfad korrekt,
-keine User-Dateien
-angelegt. Noch kein
-echter erfolgreicher
-GUI-Import, keine
-nativen ZIP-Manipulations-
-Negativfälle. Block 17
-weiter OFFEN,
-P03 bleibt 16/20.
+**P03 Block 17 (04.11.2026,
+Code 59bc92d3, abgeschlossen):**
+Frühere GTK-Dialog-Probleme
+wurden durch explizites
+Dateisystem-/Ort-Feld
+in der isolierten
+Xvfb-GUI aufgelöst.
+Echter C++-Importfehler:
+minizip-ng meldet
+bei gewöhnlichen
+ZIP-Einträgen eine
+leere, nicht-null
+linkname-Zeichenkette.
+Die Prüfung wurde
+korrigiert, echter
+Symlink-/Unix-Modus-
+Schutz beibehalten.
+Linux-Build 7.2.5.210,
+312 Python-/41 native
+Tests bestanden.
+Fünf native GUI-E2Es:
+gültiges Ocean-Blue-
+Theme selektiert,
+installiert, Manifest-
+ID und Nichtaktivierung
+geprüft, über Viewer-
+Button entfernt;
+Zusatzdatei, ZIP-Symlink,
+../-Pfadausbruch und
+doppelter JSON-Schlüssel
+jeweils bei tatsächlich
+ausgewähltem Archiv
+vom Viewer abgewiesen,
+ohne Installation
+oder Stagingreste.
+Alle Szenarien Exit 0.
+P03 jetzt 17/20;
+weiter P03 Block 18:
+Skin-Overrides/Theme-
+Duplikate prüfen und
+Altlasten sicher entfernen.
+Windows-/macOS-Gates
+und Signatur-Vertrauen
+bleiben offen.
 
 ## Aktuelle Roadmaps
 
