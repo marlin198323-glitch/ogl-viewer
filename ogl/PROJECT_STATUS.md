@@ -8,11 +8,11 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P02 Block 6/20.
-P02 Block 5 (OGL-Infofenster, Symbol, Supporttext
-und Kopieren-Schaltfläche) ist mit Linux-Build,
-Regression, Sprachressourcen- und GUI-Prüfung
-abgeschlossen und auf ogl-develop gepusht.
+**Aktiver Block:** /goal P02 Block 7/20.
+P02 Block 6 (Avatar-Namen, lokalisierte
+Chat-Kopfbereiche und Zeitstempel-Einstellung)
+ist mit Linux-Vollbuild, Regression und
+drei GUI-Smokes geprüft und gepusht.
 P01 unter Linux 20/20 abgeschlossen nach
 Nutzerbestätigung am 02.11.2026: Live-Login,
 3D-Welt, sauberer Shutdown und gespeicherte
@@ -22,10 +22,10 @@ der Assistent hat nur Prelogin und Linux-Build
 eigenständig getestet. Windows/macOS bleiben
 für spätere Plattform-Release-Gates in P13 offen;
 Beta-TLS-Zertifikat ist P08 zugeordnet.
-P02 Blöcke 1–5 abgeschlossen: Inventur,
+P02 Blöcke 1–6 abgeschlossen: Inventur,
 Navigation, Hauptmenü-/Untermenü-/
-Toolbar-Konsolidierung sowie OGL-
-Fenster-/Icon-/Button-Branding.
+Toolbar-Konsolidierung, OGL-Infofenster
+und sichere Avatar-/Chat-Kopfbereiche.
 
 Nach technischer Fertigstellung einer Phase sofort
 Abschlussmeldung mit Commit/Tests und, soweit im laufenden
@@ -35,7 +35,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | Phase | Status | Fortschritt | Nächster Schritt |
 | --- | --- | --- | --- |
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
-| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 5/20 | Block 6: Avatar-/Chat-Kopfbereiche im bestehenden Fenster vereinheitlichen |
+| P02 – OGL-Navigation, Fenster, Chat und Avatare | aktiv | 6/20 | Block 7: IM-/Gruppenfenster-Kopfzeilen, Status und Navigation prüfen |
 | P03 – Theme-System und sichere Designinstallation | offen | 0/20 | nach Abschluss der Vorphase |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | offen | 0/20 | nach Abschluss der Vorphase |
 | P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
@@ -47,6 +47,84 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P02 Block 6/20 – Lokalisierte Avatar- und Chat-Kopfbereiche (04.11.2026)
+
+**Code:** 8960ecec auf origin/ogl-develop.
+
+Im bestehenden FSChatHistoryHeader und den
+bestehenden Sprach-XUI-Dateien wurden
+konkrete Inkonsistenzen korrigiert:
+- Japanisch: Den im Header-Overlay
+  fest hinterlegten Test-Benutzernamen
+  entfernt. Der Benutzername wird weiterhin
+  ausschließlich durch die bestehende
+  dynamische Chat-/Avatar-Namensauflösung
+  angezeigt.
+- Spanisch: Internen Chat-Header-Label
+  soy_titulo auf den kanonischen
+  Wert im_header zurückgestellt.
+- Erweiterte Chatansicht: Die feste,
+  rechtsbündige Zeitspalte folgt jetzt
+  der vorhandenen Einstellung show_time,
+  analog zum kompakten Chat. Bei
+  Teleport-Trennern bleibt sie unsichtbar.
+  Avatar-/Namensbereich wird nicht
+  dynamisch neu skaliert. Der vollständige
+  Zeitstempel bleibt im Tooltip hinterlegt.
+- Avatar-Cache-Callback: Ein verspätetes
+  Namens-Cache-Ergebnis mit einem
+  anderen agent_id darf weder Anzeigename
+  noch Username-Tooltip des aktuellen
+  Header-Absenders überschreiben.
+  RLVa-geschützte Avatar-Namen und
+  Unbekannt-Icon bleiben erhalten.
+- Drei neue Regressionstests im
+  bestehenden test_branding_contract.py
+  sichern eindeutige Header-Daten,
+  die show_time-Sichtbarkeit und
+  Absenderidentität bei asynchronen
+  Cache-Antworten ab.
+
+**Prüfnachweise:** Vollständiger Linux-
+Viewer 7.2.5.194 erfolgreich gebaut;
+288/288 Python-Tests, davon 134/134
+Branding-/UI-Tests auch unter
+LC_ALL=C/PYTHONUTF8=0, sowie
+41/41 native CTests bestanden.
+Alle sieben vorhandenen Chat-Header-
+Sprachlayouts als XML validiert.
+Zwei geänderte Header-XUI-Dateien
+JA/ES bytegleich im Viewer-Paket.
+Isolierte GUI-Starts JA 1280x720,
+ES 1280x720, DE 1920x1080:
+Login-Wait erreicht, ohne
+Authentifizierung, Exit 0.
+Kein authentifizierter In-World-
+Chat-/IM-Interaktionstest erfolgt.
+Sieben bekannte _v2/script_copy-
+Dateien bleiben unverändert:
+keine blinde Altdatei-Löschung,
+keine neuen Quelldateien,
+keine Benutzer-/Secret-Daten geändert.
+
+**Formal:** P01 Linux 20/20;
+P02 6/20. Nächster Block 7/20:
+bestehende IM-/Gruppenfenster-
+Kopfzeilen, Status und Navigation
+konsistent gestalten.
+
+**Windows:** Der bislang letzte
+Windows-Vollviewer-CI-Versuch
+Run 41510587323 produzierte laut
+NSIS-Log ein Setup, aber der
+Artefaktsuch-/Upload-Schritt
+scheiterte. Noch kein verifiziert
+downloadbarer Windows-Installer
+und keine Windows-GUI-Abnahme.
+Die aktuelle sechsfache
+Modulmatrix ersetzt keinen
+Windows-Vollviewer-Test.
 
 ## P02 Block 5/20 – OGL-Infofenster, Symbol und Kopieren-Schaltfläche (04.11.2026)
 

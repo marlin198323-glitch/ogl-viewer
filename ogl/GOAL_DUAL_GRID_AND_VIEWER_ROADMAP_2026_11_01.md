@@ -494,7 +494,7 @@ P02 darf unter Linux fortgesetzt werden.
 
 ### /goal P02 – OGL-Navigation, Fenster, Chat und Avatare
 
-**Aktueller Status:** P02 aktiv, 5/20 abgeschlossen.
+**Aktueller Status:** P02 aktiv, 6/20 abgeschlossen.
 Block 1: Menü-/Toolbar-/Floater-/Chat-/IM-Bestände
 in vorhandenen XUI-/C++-Dateien inventarisiert:
 13 Menü-/11 Toolbar-Sprachlayouts, 258 EN-Floater.
@@ -541,10 +541,24 @@ Linux-Vollbuild 7.2.5.192,
 Paketdateien und DE-/EN-GUI-
 Smokes bestanden. Kein In-World-
 About-Interaktionstest.
-Nächster Block 6/20: Avatar-/Chat-
-Kopfbereiche und Fensterverhalten.
-Windows-Installer-Artefakt bleibt
-separat offen.
+Block 6 (04.11.2026, 8960ecec):
+Japanisches Fake-Avatar-Label und
+spanischer Test-Header korrigiert;
+erweiterte Chat-Zeitspalte folgt
+show_time, Teleport-Trenner weiter
+ohne Zeit. Avatar-Name-Cache-
+Antworten werden vor Verwendung
+auf richtige agent_id geprüft.
+Linux-Vollbuild 7.2.5.194,
+288 Python-/41 native Tests,
+134 Brandingtests, 7 XML-
+Header, 2 Stagingvergleiche,
+JA-/ES-/DE-GUI-Smokes bestanden.
+Kein In-World-Chat-Test.
+Nächster Block 7/20: IM-/Gruppen-
+fenster-Kopfzeilen, Status und
+Navigation. Windows-Installer-
+Artefakt gesondert offen.
 Frühere unabhängige Vorarbeit
 bereits real umgesetzt: Chat-/IM-/Gruppenfenster mit größeren
 runden Avatarbildern und besseren Eingaben (`b654c299`,

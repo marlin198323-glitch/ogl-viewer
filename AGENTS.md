@@ -33,10 +33,10 @@ Windows-/macOS-Vollviewer-GUI und -Build sind
 noch nicht testbar, bleiben in P13 als Pflicht
 vor Freigabe für diese Systeme vorgemerkt.
 Beta-TLS-Zertifikatsabweichung bleibt P08.
-P02 Blöcke 1–5 Inventur, Navigation,
-Menü-/Toolbar-Konsolidierung und OGL-
-Infofenster-Branding abgeschlossen;
-aktiv P02 Block 6/20.
+P02 Blöcke 1–6 Inventur, Navigation,
+Menü-/Toolbar-Konsolidierung, OGL-
+Infofenster und Chat-Header abgeschlossen;
+aktiv P02 Block 7/20.
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate
@@ -307,6 +307,23 @@ echter About-In-World-Klick.
 P02 5/20; nächster Block 6.
 Windows-Installer noch nicht
 herunterladbar (Upload scheiterte).
+
+P02 Block 6 (04.11.2026, 8960ecec):
+Im vorhandenen Chat-Header
+japanischen Test-Namen und
+spanischen Test-Label entfernt;
+erweiterter Chat-Zeitstempel
+befolgt show_time, Teleport-Trenner
+ohne Zeit. Asynchrone Avatar-
+Namensantworten mit fremdem
+agent_id dürfen nicht überschreiben.
+RLVa/Avatar-Icons intakt.
+Linux-Vollbuild 7.2.5.194,
+288 Python-/41 native Tests,
+134 Brandingtests, 7 Chat-
+Header-XML und 2 Paketdateien,
+JA-/ES-/DE-GUI-Smokes bestanden.
+P02 6/20, nächster Block 7.
 
 Server-/Portal-Schreibzugriffe nur auf verifizierte
 Repositories und mit tatsächlichen Berechtigungen.

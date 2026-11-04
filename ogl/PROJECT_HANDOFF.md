@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P02 Block 6/20.
+wechseln. Neuer Einstieg: P02 Block 7/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -431,6 +431,32 @@ P02 5/20, nächster Block 6/20:
 bestehende Avatar-/Chat-Kopfbereiche
 vereinheitlichen. Windows-Setup
 weiter ohne Download-Artefakt.
+
+**P02 Block 6/20 abgeschlossen (04.11.2026,
+Code 8960ecec):**
+Japanisches Header-Overlay ohne
+Test-Namen, spanischer Header-
+Label wieder im_header.
+Aktiver FSChatHistoryHeader folgt
+für Zeitstempel der show_time-
+Einstellung auch im erweiterten
+Modus, bei Teleport-Trennern
+verborgen. Verspätete Avatar-
+Cache-Namen eines anderen
+Absenders werden verworfen.
+RLVa-Privatsphäre, runde Icons
+und echte Namen bleiben erhalten.
+Drei Regressionstests ergänzt.
+Linux-Vollbuild 7.2.5.194,
+288 Python-/41 native Tests,
+134 Brandingtests, 7 Chat-Header-
+XMLs und 2 JA/ES-Stagingdateien
+validiert; JA-/ES-/DE-Login-GUI
+jeweils Exit 0. Kein Live-Chat-
+Test mit Nutzerkonto.
+P02 jetzt 6/20; als Nächstes
+Block 7: IM-/Gruppenfenster-
+Kopfzeilen/Status/Navigation.
 
 ## Aktuelle Roadmaps
 
