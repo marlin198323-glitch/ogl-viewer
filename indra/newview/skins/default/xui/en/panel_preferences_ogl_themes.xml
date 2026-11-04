@@ -1,44 +1,45 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <panel border="true" follows="all" height="480" layout="topleft"
  left="1" top="1" width="540" label="OGL Designs" name="ogl_themes_panel">
-    <text name="ogl_heading" left="22" top="18" width="480" height="22"
-     follows="left|top" layout="topleft" font="SansSerifLarge">
+    <text name="ogl_heading" left="22" top="18" right="-22" height="22" follows="left|right|top" layout="topleft" font="SansSerifLarge">
         OGL Designs
     </text>
-    <text name="ogl_description" left="22" top="51" width="475" height="34"
-     follows="left|top" layout="topleft" font="SansSerifSmall">
+    <text name="ogl_description" left="22" top="51" right="-22" height="34" follows="left|right|top" layout="topleft" font="SansSerifSmall">
         Optional color themes for chat and viewer windows.
         OGL Standard is the default. Classic compatibility remains optional.
     </text>
-    <text name="ogl_theme_choose" left="22" top="111" width="445" height="20"
-     follows="left|top" layout="topleft" font="SansSerifSmallBold">
+    <text name="ogl_theme_choose" left="22" top="111" right="-22" height="20" follows="left|right|top" layout="topleft" font="SansSerifSmallBold">
         Installed designs
     </text>
     <combo_box name="ogl_theme_combo" left="22" top="138" width="275" height="24"
      follows="left|top" layout="topleft" />
     <button name="ogl_theme_folder" left="308" top="138" width="181" height="24"
-     follows="left|top" layout="topleft" label="Open theme folder" />
+     follows="right|top" layout="topleft" label="Open theme folder" />
     <button name="ogl_theme_install" left="22" top="168" width="275" height="24"
      follows="left|top" layout="topleft" label="Install selected theme" />
     <button name="ogl_theme_select_file" left="308" top="168" width="181" height="24"
-     follows="left|top" layout="topleft" label="Select .ogltheme" />
+     follows="right|top" layout="topleft" label="Select .ogltheme" />
     <view_border name="ogl_theme_divider" bevel_style="in" follows="left|top"
      layout="topleft" left="22" top="199" width="467" height="1" />
-    <text name="ogl_theme_preview_label" left="22" top="213" width="453" height="21"
-     follows="left|top" layout="topleft" font="SansSerifSmallBold">
+    <text name="ogl_theme_preview_label" left="22" top="213" right="-22" height="21" follows="left|right|top" layout="topleft" font="SansSerifSmallBold">
         Color preview (does not change the viewer)
     </text>
-    <button name="ogl_theme_color_bg" left="22" top="246" height="55" width="143"
-     enabled="false" follows="left|top" layout="topleft"
-     image_unselected="Blank" image_selected="Blank" label="Window" />
-    <button name="ogl_theme_color_text" left="176" top="246" height="55" width="143"
-     enabled="false" follows="left|top" layout="topleft"
-     image_unselected="Blank" image_selected="Blank" label="Text" />
-    <button name="ogl_theme_color_chat" left="330" top="246" height="55" width="143"
-     enabled="false" follows="left|top" layout="topleft"
-     image_unselected="Blank" image_selected="Blank" label="Chat" />
-    <text name="ogl_theme_readonly_notice" left="22" top="320" width="460" height="36"
-     follows="left|top" layout="topleft" font="SansSerifSmall">
+    <panel name="ogl_theme_color_bg" left="22" top="246" height="39" width="143"
+     background_visible="true" background_opaque="true" bg_opaque_color="Black"
+     follows="left|top" layout="topleft" border="true" />
+    <text name="ogl_theme_color_bg_label" left="22" top="289" height="18" width="143"
+     follows="left|top" layout="topleft" halign="center" font="SansSerifSmall">Window</text>
+    <panel name="ogl_theme_color_text" left="176" top="246" height="39" width="143"
+     background_visible="true" background_opaque="true" bg_opaque_color="Black"
+     follows="left|top" layout="topleft" border="true" />
+    <text name="ogl_theme_color_text_label" left="176" top="289" height="18" width="143"
+     follows="left|top" layout="topleft" halign="center" font="SansSerifSmall">Text</text>
+    <panel name="ogl_theme_color_chat" left="330" top="246" height="39" width="143"
+     background_visible="true" background_opaque="true" bg_opaque_color="Black"
+     follows="left|top" layout="topleft" border="true" />
+    <text name="ogl_theme_color_chat_label" left="330" top="289" height="18" width="143"
+     follows="left|top" layout="topleft" halign="center" font="SansSerifSmall">Chat</text>
+    <text name="ogl_theme_readonly_notice" left="22" top="320" right="-22" height="36" follows="left|right|top" layout="topleft" font="SansSerifSmall">
         Only local, unsigned, manifest-only color themes are supported.
         Install requires a separate click; activation changes your colors.
     </text>
@@ -47,11 +48,11 @@
     <button name="ogl_theme_reset" left="211" top="383" width="190" height="27"
      follows="left|top" layout="topleft" label="Restore original" />
     <button name="ogl_theme_remove" left="410" top="383" width="79" height="27"
-     follows="left|top" layout="topleft" font="SansSerifSmall" label="Remove" />
-    <text name="ogl_theme_status" left="22" top="432" width="471" height="43"
-     follows="left|top" layout="topleft" font="SansSerifSmall">
+     follows="right|top" layout="topleft" font="SansSerifSmall" label="Remove" />
+    <text name="ogl_theme_status" left="22" top="432" right="-22" height="43" follows="left|right|top" layout="topleft" font="SansSerifSmall">
         Built-in OGL Standard is the default.
     </text>
+    <string name="ogl_theme_default_name">OGL Standard (default)</string>
     <string name="ogl_status_loaded">Themes loaded. OGL Standard is the default.</string>
     <string name="ogl_status_invalid">Theme metadata invalid. Original design available.</string>
     <string name="ogl_status_preview">Preview only. Activate to save colors. Restart recommended.</string>

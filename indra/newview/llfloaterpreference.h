@@ -557,9 +557,9 @@ public:
     void oglThemeStatus(const std::string& message);
 private:
     LLComboBox* mOglThemeCombo = nullptr;
-    LLButton*   mOglBackgroundPreview = nullptr;
-    LLButton*   mOglTextPreview = nullptr;
-    LLButton*   mOglChatPreview = nullptr;
+    LLPanel*    mOglBackgroundPreview = nullptr;
+    LLPanel*    mOglTextPreview = nullptr;
+    LLPanel*    mOglChatPreview = nullptr;
     std::string mOglSelected;
     std::string mOglPendingPackage;
 };

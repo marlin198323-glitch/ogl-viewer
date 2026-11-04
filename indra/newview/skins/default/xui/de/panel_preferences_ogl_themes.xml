@@ -10,9 +10,9 @@
     <button name="ogl_theme_select_file" label=".ogltheme auswählen" />
     <button name="ogl_theme_install" label="Design installieren" />
     <text name="ogl_theme_preview_label">Farbvorschau (ändert den Viewer nicht)</text>
-    <button name="ogl_theme_color_bg" label="Fenster" />
-    <button name="ogl_theme_color_text" label="Text" />
-    <button name="ogl_theme_color_chat" label="Chat" />
+    <text name="ogl_theme_color_bg_label">Fenster</text>
+    <text name="ogl_theme_color_text_label">Text</text>
+    <text name="ogl_theme_color_chat_label">Chat</text>
     <text name="ogl_theme_readonly_notice">
         Nur lokale, unsignierte Farbdesigns ohne Programmcode.
         Installation und Aktivierung benötigen getrennte Klicks.
@@ -23,6 +23,7 @@
     <text name="ogl_theme_status">
         OGL Standard ist voreingestellt.
     </text>
+    <string name="ogl_theme_default_name">OGL Standard (Voreinstellung)</string>
     <string name="ogl_status_loaded">Designs geladen. OGL Standard ist voreingestellt.</string>
     <string name="ogl_status_invalid">Ungültige Designdaten. Original verfügbar.</string>
     <string name="ogl_status_preview">Nur Vorschau. Zum Speichern aktivieren. Neustart empfohlen.</string>

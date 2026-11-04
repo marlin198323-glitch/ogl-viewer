@@ -57,6 +57,73 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
                       (base/"de/floater_preferences.xml").read_text())
         self.assertIn("OGL-Designs",(base/"de/floater_preferences.xml").read_text())
 
+    def test_p03_color_swatches_are_readable_noninteractive_panels(self):
+        en=ET.parse(XUI).getroot()
+        de=ET.parse(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_ogl_themes.xml").getroot()
+        for name in ("ogl_theme_color_bg","ogl_theme_color_text","ogl_theme_color_chat"):
+            block=next(node for node in en if node.get("name")==name)
+            self.assertEqual(block.tag,"panel",name)
+            self.assertEqual(block.get("background_visible"),"true",name)
+            self.assertEqual(block.get("background_opaque"),"true",name)
+            self.assertIsNone(block.get("enabled"),name)
+            caption=next(node for node in en if node.get("name")==name+"_label")
+            self.assertEqual(caption.get("halign"),"center",name)
+            self.assertTrue(any(node.get("name")==name+"_label" for node in de),name)
+            self.assertNotIn('getChild<LLButton>("'+name+'")',CPP)
+            self.assertIn('getChild<LLPanel>("'+name+'")',CPP)
+        self.assertIn('mOglBackgroundPreview->setBackgroundColor(',CPP)
+        self.assertIn('mOglTextPreview->setBackgroundColor(',CPP)
+        self.assertIn('mOglChatPreview->setBackgroundColor(',CPP)
+
+    def test_p03_theme_default_locale_and_responsive_text(self):
+        base=ROOT/"indra/newview/skins/default/xui"
+        en=ET.parse(base/"en/panel_preferences_ogl_themes.xml").getroot()
+        de=ET.parse(base/"de/panel_preferences_ogl_themes.xml").getroot()
+        for language,panel,expected in (
+            ("en",en,"OGL Standard (default)"),
+            ("de",de,"OGL Standard (Voreinstellung)"),
+        ):
+            entries=[n for n in panel if n.get("name")=="ogl_theme_default_name"]
+            self.assertEqual(len(entries),1,language)
+            self.assertEqual("".join(entries[0].itertext()),expected)
+            self.assertEqual({n.get("name") for n in panel if n.tag=="string"},
+                             {n.get("name") for n in en if n.tag=="string"},
+                             language)
+        self.assertIn('mOglThemeCombo->add(getString("ogl_theme_default_name"),"");',CPP)
+        for name in ("ogl_heading","ogl_description","ogl_theme_choose",
+                     "ogl_theme_preview_label","ogl_theme_readonly_notice","ogl_theme_status"):
+            node=next(n for n in en if n.get("name")==name)
+            self.assertEqual(node.get("follows"),"left|right|top",name)
+            self.assertEqual(node.get("right"),"-22",name)
+            self.assertIsNone(node.get("width"),name)
+        for name in ("ogl_theme_folder","ogl_theme_select_file","ogl_theme_remove"):
+            self.assertEqual(next(n for n in en if n.get("name")==name).get("follows"),"right|top",name)
+        main=ET.parse(base/"en/floater_preferences.xml").getroot()
+        self.assertEqual(sum(n.get("filename")=="panel_preferences_ogl_themes.xml"
+                             for n in main.iter()),1)
+
+    def test_p03_chat_menu_colors_stay_in_existing_shared_skin(self):
+        names={n.get("name") for n in PALETTE.iter("color")}
+        tokens={
+            "chat.background":"ChatHistoryBgColor",
+            "chat.text":"ChatHistoryTextColor",
+            "chat.header":"ChatHeaderOpaqueBackground",
+            "chat.timestamp":"ChatHistoryMessageFromLog",
+            "button.background":"ButtonColor",
+            "button.text":"ButtonLabelColor",
+            "button.border":"ButtonBorderColor",
+        }
+        for token,color in tokens.items():
+            self.assertIn('{"'+token+'", "'+color+'"}',CPP,token)
+            self.assertIn(color,names,color)
+        header=ET.parse(ROOT/"indra/newview/skins/default/xui/en/panel_chat_header.xml").getroot()
+        self.assertEqual(header.get("bg_opaque_color"),tokens["chat.header"])
+        self.assertIn('table.saveUserSettings()',CPP)
+        self.assertIn('snapshot_original();',CPP)
+        self.assertIn('restore_original();',CPP)
+        self.assertTrue((ROOT/"indra/newview/skins/default/xui/en/panel_preferences_skins.xml").is_file())
+        self.assertTrue((ROOT/"indra/newview/skins/default/xui/en/floater_fs_im_session.xml").is_file())
+
     def test_ocean_blue_is_valid_and_distinct_from_original(self):
         from importlib.util import spec_from_file_location,module_from_spec
         s=spec_from_file_location("ogl_theme_validate",
@@ -72,7 +139,8 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
         beginning=CPP.index("void LLPanelPreferenceOglThemes::previewOglTheme()")
         end=CPP.index("void LLPanelPreferenceOglThemes::onOglThemeActivate()",beginning)
         preview=CPP[beginning:end]
-        self.assertIn("setImageColor",preview)
+        self.assertIn("setBackgroundColor",preview)
+        self.assertNotIn("setImageColor",preview)
         self.assertNotIn("setColor(",preview)
         self.assertNotIn("saveUserSettings",preview)
         self.assertNotIn("write_json",preview)
@@ -122,7 +190,8 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
         for name,target in references.items():
             self.assertEqual(colors[name].get("reference"),target,name)
             self.assertIn("value",colors[target].attrib,target)
-        self.assertIn("OGL Standard (default)",CPP)
+        self.assertIn('getString("ogl_theme_default_name")',CPP)
+        self.assertIn("OGL Standard (default)",XUI.read_text())
         self.assertIn("Original user palette",XUI.read_text())
         self.assertIn("snapshot_original();",CPP)
         self.assertIn("restore_original();",CPP)
@@ -236,7 +305,8 @@ class ViewerThemeGoalPhaseOne(unittest.TestCase):
     def test_original_skin_callbacks_and_default_kept(self):
         self.assertIn("LLPanelPreferenceSkins::onSkinChanged()",CPP)
         self.assertIn("LLPanelPreferenceSkins::onSkinThemeChanged()",CPP)
-        self.assertIn("OGL Standard (default)",CPP)
+        self.assertIn('getString("ogl_theme_default_name")',CPP)
+        self.assertIn("OGL Standard (default)",XUI.read_text())
         for name in ("onOglThemeChanged","onOglThemeActivate",
                      "onOglThemeReset","onOglThemeFolder","refreshOglThemes"):
             self.assertIn(name+"();",HDR) if name.startswith("on") else self.assertIn(name+"();",HDR)

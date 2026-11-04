@@ -5897,9 +5897,9 @@ bool LLPanelPreferenceOglThemes::postBuild()
 {
     // Separate OGL Designs tab: original Firestorm Skins remains untouched.
     mOglThemeCombo=getChild<LLComboBox>("ogl_theme_combo");
-    mOglBackgroundPreview=getChild<LLButton>("ogl_theme_color_bg");
-    mOglTextPreview=getChild<LLButton>("ogl_theme_color_text");
-    mOglChatPreview=getChild<LLButton>("ogl_theme_color_chat");
+    mOglBackgroundPreview=getChild<LLPanel>("ogl_theme_color_bg");
+    mOglTextPreview=getChild<LLPanel>("ogl_theme_color_text");
+    mOglChatPreview=getChild<LLPanel>("ogl_theme_color_chat");
     if (mOglThemeCombo) {
         mOglThemeCombo->setCommitCallback(
             boost::bind(&LLPanelPreferenceOglThemes::onOglThemeChanged,this));
@@ -5932,7 +5932,8 @@ void LLPanelPreferenceOglThemes::refreshOglThemes()
 {
     if (!mOglThemeCombo) return;
     mOglThemeCombo->clearRows();
-    mOglThemeCombo->add("OGL Standard (default)","");
+    // The built-in design must be named by the current XUI locale too.
+    mOglThemeCombo->add(getString("ogl_theme_default_name"),"");
     try {
         const auto root=ogl_pref_themes::root();
         const auto themes=root/"themes";
@@ -5979,7 +5980,7 @@ void LLPanelPreferenceOglThemes::onOglThemeChanged()
 void LLPanelPreferenceOglThemes::previewOglTheme()
 {
     // An active theme may have already changed live UIColorTable values.
-    // The "Original Firestorm" swatches must come from the saved baseline.
+    // The default swatches must use the saved user-color baseline.
     LLColor4 bg=ogl_pref_themes::backed_up_color(ogl_pref_themes::TOKEN_COLORS.at("window.background"));
     LLColor4 fg=ogl_pref_themes::backed_up_color(ogl_pref_themes::TOKEN_COLORS.at("window.text"));
     LLColor4 chat=ogl_pref_themes::backed_up_color(ogl_pref_themes::TOKEN_COLORS.at("chat.background"));
@@ -6001,9 +6002,9 @@ void LLPanelPreferenceOglThemes::previewOglTheme()
             mOglThemeCombo->setSelectedByValue("",true);
         }
     }
-    if(mOglBackgroundPreview) mOglBackgroundPreview->setImageColor(LLUIColor(bg));
-    if(mOglTextPreview) mOglTextPreview->setImageColor(LLUIColor(fg));
-    if(mOglChatPreview) mOglChatPreview->setImageColor(LLUIColor(chat));
+    if(mOglBackgroundPreview) mOglBackgroundPreview->setBackgroundColor(LLUIColor(bg));
+    if(mOglTextPreview) mOglTextPreview->setBackgroundColor(LLUIColor(fg));
+    if(mOglChatPreview) mOglChatPreview->setBackgroundColor(LLUIColor(chat));
 }
 
 void LLPanelPreferenceOglThemes::onOglThemeActivate()
