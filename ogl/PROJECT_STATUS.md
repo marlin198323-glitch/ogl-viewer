@@ -6,6 +6,36 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## Wartungsfix: Emoji-Daten im Chat wieder gefunden (04.11.2026)
+
+Echter Fehler in OGL.log: Emoji file characters not found.
+Ursache: Linux-Entwicklungsbuild sucht Skins in
+indra/newview/skins, während die Emoji-Daten ausschließlich
+in den paketierten App-Ressourcen unter
+skins/default/xui/<Sprache>/emoji_characters.xml liegen.
+Die Emoji-Buttons in Nearby/IM-Chat, Emoji-Schrift und
+der aktivierte Standardwert FSShowEmojiButton waren vorhanden.
+
+Korrektur in der bestehenden llemojidictionary.cpp:
+Nur falls die reguläre Skin-Suche keine Emoji-Zeichendatei
+liefert, wird die bereits vorhandene App-Ressource in der
+validierten aktiven Sprache, ansonsten Englisch, geladen.
+Normale Skin-Overrides bleiben unverändert. Kein neues
+Projektfile, kein Eingriff in Nutzereinstellungen oder Cache.
+Regression im bestehenden test_nexverse_chat_layout.py.
+
+Nachweise: 322 Python-Tests bestanden, Linux-Vollviewer
+erfolgreich gebaut und paketiert. Zwei echte, isolierte
+Prelogin-GUI-Läufe bei 1280x720 in DE und EN laden
+jeweils ihre Emoji-Datei aus dem Paket, keine Fehlermeldung,
+Login-Wait erreicht, Exit 0. Die Emoji-Eingabe im
+authentifizierten In-World-Chat ist noch nicht separat geprüft.
+Ein bereits laufender Viewer benötigt Neustart.
+
+Prozessprüfung: aktuell eine aktive nicht isolierte
+User-Viewer-Instanz statt der früher gemeldeten elf;
+diese wurde nicht gestoppt.
+
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
 **Aktiver Block:** /goal P05 Block 1/20 (Vulkan-Weltgerät und Queue).

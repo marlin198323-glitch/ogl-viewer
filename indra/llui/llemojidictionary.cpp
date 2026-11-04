@@ -357,6 +357,46 @@ void LLEmojiDictionary::loadEmojis()
     std::vector<std::string> filenames = gDirUtilp->findSkinnedFilenames(LLDir::XUI, SKINNED_EMOJI_FILENAME, LLDir::CURRENT_SKIN);
     if (filenames.empty())
     {
+        // OGL Linux development builds search indra/newview/skins first,
+        // while the Firestorm emoji character data is an external package
+        // copied to the installed viewer's skins/default/xui directory.
+        // Keep normal skin overrides unchanged; only recover when the
+        // default search could not find any Emoji data.
+        const std::string language = gDirUtilp->getLanguage();
+        const bool safe_language = !language.empty() && language.size() <= 16 &&
+            language.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
+                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                       "0123456789_-") == std::string::npos;
+        if (safe_language)
+        {
+            const std::string localized = gDirUtilp->add(
+                gDirUtilp->getAppRODataDir(), "skins", "default", "xui",
+                language, SKINNED_EMOJI_FILENAME);
+            if (gDirUtilp->fileExists(localized))
+            {
+                filenames.push_back(localized);
+            }
+        }
+
+        if (filenames.empty())
+        {
+            const std::string english = gDirUtilp->add(
+                gDirUtilp->getAppRODataDir(), "skins", "default", "xui",
+                "en", SKINNED_EMOJI_FILENAME);
+            if (gDirUtilp->fileExists(english))
+            {
+                filenames.push_back(english);
+            }
+        }
+
+        if (!filenames.empty())
+        {
+            LL_INFOS("Emoji") << "Using bundled emoji characters: "
+                              << filenames.back() << LL_ENDL;
+        }
+    }
+    if (filenames.empty())
+    {
         LL_WARNS() << "Emoji file characters not found" << LL_ENDL;
         return;
     }

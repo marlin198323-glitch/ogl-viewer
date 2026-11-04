@@ -59,6 +59,32 @@ class OGLNexVerseChatTests(unittest.TestCase):
         cpp=(VIEWER/"fsfloaternearbychat.cpp").read_text()
         self.assertNotIn("OGLModernConversationCards",cpp)
 
+    def test_emoji_picker_and_bundled_characters_survive_chat_redesign(self):
+        dictionary=(ROOT/"indra/llui/llemojidictionary.cpp").read_text()
+        manifest=(VIEWER/"viewer_manifest.py").read_text()
+        settings=ET.parse(VIEWER/"app_settings/settings.xml").getroot()
+        controls=settings.find("map")
+        mapping={key.text:value for key,value in zip(controls[::2],controls[1::2])}
+        self.assertIn("FSShowEmojiButton",mapping)
+        default=mapping["FSShowEmojiButton"].find("key")
+        self.assertIsNotNone(default)
+        values={k.text:v.text for k,v in zip(mapping["FSShowEmojiButton"][::2],
+                                            mapping["FSShowEmojiButton"][1::2])}
+        self.assertEqual(values["Value"],"1")
+        for rel in ("floater_fs_im_session.xml","floater_fs_nearby_chat.xml"):
+            chat=read_xui(rel)
+            panel=chat.find(".//layout_panel[@name='emoji_button_layout_panel']")
+            self.assertIsNotNone(panel,rel)
+            self.assertEqual(panel.get("visibility_control"),"FSShowEmojiButton")
+            self.assertIsNotNone(panel.find("./button[@name='emoji_picker_toggle_btn']"))
+        self.assertIn("SKINNED_EMOJI_FILENAME",dictionary)
+        self.assertIn('gDirUtilp->getAppRODataDir(), "skins", "default", "xui"',dictionary)
+        self.assertIn("gDirUtilp->getLanguage()",dictionary)
+        self.assertIn("gDirUtilp->fileExists(localized)",dictionary)
+        self.assertIn("gDirUtilp->fileExists(english)",dictionary)
+        self.assertIn('with self.prefix(src=pkgdir, dst="skins/default")',manifest)
+        self.assertIn('self.path("xui")',manifest)
+
     def test_ogl_chat_header_with_circular_real_photo(self):
         row=read_xui("panel_chat_header.xml")
         self.assertEqual(row.get("height"),"34")

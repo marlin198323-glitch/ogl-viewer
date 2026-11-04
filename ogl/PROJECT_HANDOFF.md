@@ -30,6 +30,18 @@ automatisch geladen.
 
 P05 Vorarbeit 04.11.2026: Opt-in OGL_VULKAN_WORLD_BOOTSTRAP=1 im bestehenden Vulkan-Modul erzeugt ein langlebiges VkDevice und eine reale Grafik-VkQueue, unabhängig von RTX. Verifiziert: Linux-Vollbuild, 321 Python-Tests, 41 CTests und zwei echte GL-Prelogin-GUI-Starts mit an/aus. Kein Vulkan-Surface/Swapchain/World-Present; P05 gemäß Gate weiterhin 0/20. Nächster Fokus echter SDL-Vulkan-Fensterpfad und sichere GL-Rückfallebene. Keine parallelen Projektdateien erstellt.
 
+Emoji-Reparatur 04.11.2026:
+Die Emoji-Funktion war nie aus Nearby Chat oder IM entfernt.
+Im Linux-Dev-Checkout liegen Emoji-Daten nicht im
+Skin-Quellverzeichnis, aber im Viewer-Paket.
+Die bestehende llemojidictionary.cpp nutzt nun bei
+fehlgeschlagener normaler Skin-Suche einen
+schreibgeschützten, sprachabhängigen Paket-Fallback.
+322 Python-Tests, Linux-Vollbuild und isolierte DE/EN
+GUI-Starts inklusive geladener Emoji-Zeichendatei bestanden.
+Laufende User-Instanz nicht beendet; nach Update neu starten.
+P05-Zähler unverändert.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
