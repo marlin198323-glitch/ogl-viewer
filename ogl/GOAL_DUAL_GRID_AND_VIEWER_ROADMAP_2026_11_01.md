@@ -1103,7 +1103,7 @@ P04 Block 1/20 aktiv.
 
 ### /goal P04 – Renderer-Abstraktion und OpenGL-Fallback
 
-**Status:** aktiv; 2/20 operative Blöcke abgeschlossen.
+**Status:** Linux-Code/portable Module abgeschlossen; 20/20 operative Blöcke bearbeitet.
 **P04 Block 1
 (04.11.2026, c2aade42):**
 OpenGL-Weltpfad
@@ -1130,6 +1130,41 @@ Funktionen/Fallback.
 
 
 **P04 Block 2 (04.11.2026):** Gemeinsamer C++20-Welt-Backend-Entscheidungsvertrag in `oglrtxhost.h`: OpenGL/Vulkan-Anforderung, Rückfallgründe und explizite Gates für vollständige Welt-/Präsentationspipeline und verwendbares Device. RTX-Diagnostik qualifiziert nicht als Vulkan-Weltengine. `ogl_current_world_backend()` behält OpenGL. GL/LLPipeline besitzt Welt/UI/Present, optionales Vulkan-Modul nur Diagnose. Linux 7.2.5.218 gebaut, 315 Python- und 41 CTests sowie constexpr-C++-Probe erfolgreich. Nächster P04/3: vorhandene Frame-Schnittstellen anbinden.
+
+P04 Blöcke 3–17 (04.11.2026, Code ec52fd45):
+Bestehendes display() per constexpr an GL-Weltbackend gebunden,
+Startup/Shutdown-Vertrag, GL-Version, Treiber, detected/effective
+VRAM, Texturbudget und Fallback-Logging. Geräte-/Backend-Mock
+vendorneutral und OpenGL für ältere Hardware beibehalten.
+EN/DE-Grafikpanel mit eigener Renderer-Registerkarte,
+OpenGL aktiv, Vulkan sichtbar aber UNWAHLBAR bis vollständige
+Weltpipeline/Swapchain und Device existieren. Gewünschte
+und zuletzt nach swapBuffers erfolgreiche Engine getrennt.
+Kontrollierter Neustart später erforderlich, keine Live-Umschaltung,
+bestehende GL-Profile und Nutzerfiles erhalten. Manuell Vulkan
+angefordert -> realer Linux-Test landet korrekt auf OpenGL.
+319 Python-Tests, 41 CTests, 7 C++-Hardware-Szenarien und
+OpenSim-Linux-Viewer 7.2.5.219 erfolgreich; 3 geänderte
+Paketressourcen identisch, EN/DE-Grafik-XUI verifiziert.
+Echter DE-GUI-Test Renderer-Reiter, Exit 0.
+Block 18: portable Windows/macOS/Linux Grafikmatrix.
+19: aktive Alt-Diagnosehooks nicht löschen. 20: Release-Gates
+dokumentieren und dann Folgephase P05 beginnen.
+Windows-/macOS-Vollviewer und echter Vulkan-Weltpfad bleiben offen.
+
+P04/18: GitHub portable graphics 41901011126,
+Linux x64/ARM64, Windows x64/ARM64, macOS x64/ARM64
+sechs native Grafikjobs erfolgreich; Full-Viewer-Windows-
+Installer war übersprungen. P04/19: drei vorhandene
+OGL_RTX-Diagnose-Umgebungs-Hooks haben aktive Aufrufer,
+werden nicht als angeblich ungenutzt entfernt.
+P04/20: Code ec52fd45, Linux Viewer 7.2.5.219,
+319 Python/41 native Tests, reale DE-GUI und OpenGL-
+Fallback bei manuell angefordertem Vulkan bestanden.
+Phase 20/20 für Backend-Abstraktion und GL-Fallback
+abgeschlossen, P05 direkt eröffnet. Die Vulkan-Welt-
+und Present-Pipeline sowie Windows/macOS-Full-Viewer-
+Installer werden dadurch NICHT als fertig bescheinigt.
 
 **Technischer Zielzustand:** Saubere Backend-Auswahl und Baseline.
 
@@ -1161,7 +1196,7 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 
 ### /goal P05 – Vulkan als vollständige auswählbare 3D-Engine
 
-**Status:** geplant; 0/20 operative Blöcke abgeschlossen.
+**Status:** aktiv; 0/20 operative Blöcke abgeschlossen. Erst reale Vulkan-Welt-/Swapchain-Integration kann einen P05-Block abschließen.
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

@@ -32,7 +32,7 @@ automatisch geladen.
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P04 Block 3/20.
+wechseln. Neuer Einstieg: P05 Block 1/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/
@@ -810,6 +810,37 @@ P04 1/20, Block 2
 Backend-Schnittstelle
 und Fallback-Grenzen.
 **P04 Block 2/20 (04.11.2026):** C++20-Backend-Vertrag in vorhandener `oglrtxhost.h`, OpenGL bleibt aktive Weltengine. Vulkan benötigt vollständig implementierte Welt-/Swapchain-Pipeline UND nutzbares Gerät; RTX-Diagnose allein ist keine Engine. Kein Umschalten oder Nutzer-Setting. Linux-Binary 7.2.5.218 seriell gelinkt, 315 Python-/41 native Tests und isolierter constexpr-C++-Test erfolgreich. Nächster Block P04/3: vorhandene Frame-Schnittstellen anbinden.
+
+P04 Code ec52fd45 (04.11.2026): Blöcke 3–17 als Linux-Code/
+Verifikationsstand: Weltframe an OpenGL-Vertrag gebunden,
+Viewerstart/-shutdown-Log, plattformneutrale Hardware- und
+VRAM-/Treiber-Information, sicherer OpenGL-Default,
+EN/DE-Grafik-Reiter mit deaktiviertem Vulkan (noch keine
+komplette Vulkan-Weltpipeline), getrenntes Requested/LastWorking,
+letzter Erfolg nur nach wirklichem Swap, Rückfall eines
+manuellen Vulkan-Wunsches erfolgreich im realen Linux-Viewer
+getestet. Keine Änderungen an Original-Grafiksettings.
+Viewer 7.2.5.219 gebaut, 319 Python-/41 native Tests,
+7 C++-Szenarien, GUI/DE mit sichtbarem Renderer-Reiter.
+P04/18 portable GitHub-Matrix ausstehend; 19 Cleanup-Audit,
+20 Status/GitHub/Übergang P05. Windows/macOS-Vollviewer
+und Vulkan-Weltrenderer sind NICHT bestätigt.
+
+P04 Abschluss 04.11.2026: Code ec52fd45 (Blöcke 3-17)
+und bereits vorhandene P04/1-2. Linux GL-Weltpfad
+mit fail-closed OpenGL-Fallback, klar deaktivierter
+Vulkan-Weltoption, EN/DE-Grafik-Reiter, getrennte
+Rendererwunsch-/Erfolgseinstellung und tatsächliches
+GL-swap-Erfolgssignal. Linux Vollbuild 7.2.5.219,
+319 Python/41 CTests, 7 C++-Hardware-Szenarien,
+echte DE-GUI und manueller Vulkan-Request-Fallback.
+P04/18 GitHub portable graphics 41901011126
+sechs Jobs Linux/Windows/macOS x64+ARM SUCCESS;
+Windows-Full-Installer SKIPPED. P04/19 Diagnosehooks
+haben reale Aufrufer, nicht löschen. P04/20 abgeschlossen,
+Status synchronisiert; P05/1 beginnt. Vulkan-World-
+Renderer, echte Swapchain und Windows/macOS-Vollviewer
+NICHT fertig.
 
 ## Aktuelle Roadmaps
 

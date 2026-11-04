@@ -8,7 +8,7 @@ Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P04 Block 3/20.
+**Aktiver Block:** /goal P05 Block 1/20 (Vulkan-Weltgerät und Queue).
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -50,8 +50,8 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P01 – Branding und modernes Login | Linux abgeschlossen | 20/20 | Windows/macOS vor Release in P13 testen |
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
 | P03 – Theme-System und sichere Designinstallation | Linux-Code/QA abgeschlossen | 20/20 | Vollviewer-Windows/macOS, Signaturen und Asset-Erweiterungen bleiben separate Gates |
-| P04 – Renderer-Abstraktion und OpenGL-Fallback | aktiv | 2/20 | Block 3: bestehende Frame-Schnittstellen kontrolliert anbinden |
-| P05 – Vulkan als vollständige auswählbare 3D-Engine | offen | 0/20 | nach Abschluss der Vorphase |
+| P04 – Renderer-Abstraktion und OpenGL-Fallback | Linux-Code/portable Module abgeschlossen | 20/20 | Vulkan-Vollrenderer erst P05, Windows/macOS-Full-Viewer P13 |
+| P05 – Vulkan als vollständige auswählbare 3D-Engine | aktiv | 0/20 | Block 1: Vulkan-Instance, Device und Queue als echte Welt-Engine integrieren |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
 | P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
 | P08 – Beta-Protokoll und getrennte NexVerse-Anmeldung | offen | 0/20 | nach Abschluss der Vorphase |
@@ -60,6 +60,102 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P05 Blöcke 1–2/20 – erster technischer Befund, noch NICHT abgeschlossen (04.11.2026)
+
+P05/1 analysiert: Das optionale Vulkan-/RTX-Diagnosemodul in
+ogl/modules/rtx/ogl_rtx_module.cpp erstellt nur eine kurzlebige
+VkInstance, enumeriert Physical Devices und RT-Extensions und
+zerstört diese Instanz sofort. Es besitzt KEIN persistentes,
+dem realen Viewer-World-Renderer zugeordnetes VkDevice/VkQueue.
+Der separate vulkan_blas_smoke.cpp hat zwar ein nachweisbares
+vkCreateInstance/vkCreateDevice/vkGetDeviceQueue und räumt wieder
+auf, ist aber Testhardwarediagnose und kein Weltbackend.
+
+P05/2 analysiert: Kein VkSurfaceKHR, kein VkSwapchainKHR und kein
+SDL_Vulkan_CreateSurface in der produktiven Vulkan-Modul-/Host-
+Integration. Die bestehende SDL-Viewer-Window-Implementierung
+besitzt SDL_Window und einen OpenGL-Kontext. Eine echte Vulkan-
+Engine benötigt eigene, sichere Instance/PhysicalDevice/LogicalDevice/
+PresentQueue-Initialisierung, Window-Surface-Übergabe, Swapchain-
+Erstellung und klar geregelte Kontext-/Thread-/Resize-/Shutdown-
+Übergänge auf allen Zielplattformen. Bis dahin bleibt Vulkan
+im Grafiktab deaktiviert. KEINE P05-Fortschrittsblöcke als
+implementiert bestätigt; P05 weiterhin 0/20.
+
+## P04 Blöcke 18–20/20 – Portable CI, Cleanup und Phasenabschluss (04.11.2026)
+
+**18:** GitHub Actions OGL portable graphics Run 41901011126
+für Code-Commit ec52fd45 ist komplett SUCCESS:
+Linux ubuntu-24.04 x64 und ubuntu-24.04-arm,
+Windows windows-2022 x64 und windows-11-arm,
+macOS macos-15-intel x64 und macos-15 ARM64.
+Die sechs Jobs testen portable Module und Quellverträge,
+KEINEN vollständigen Firestorm-GUI-Viewer.
+Windows-x64-Vollviewer-Installer Job war SKIPPED, also
+kein erfolgreiches Windows-Setup vorliegend.
+
+**19:** Source-Referenzen geprüft: OGL_RTX_DEBUG_OVERLAY,
+OGL_RTX_DEPTH_GUIDED_PROBE und OGL_RTX_SHADOW_VISUALIZE
+werden real in llviewerdisplay.cpp, pipeline.cpp und
+dem RTX-Modul verwendet. Keine unbewiesene Löschung.
+
+**20:** Linux-Viewer 7.2.5.219, 319/319 Python-Tests,
+41/41 native CTests, 7 C++-Fallback-Szenarien und
+Vulkan-Request-zu-OpenGL-Laufzeittest bestanden;
+Code-Commit ec52fd45 veröffentlicht. Dieser Status,
+Handoff und Hauptroadmap synchronisiert. P04 operativ
+als GL-Fallback-/Backend-Abstraktionsphase 20/20 geschlossen.
+P05 beginnt ohne manuelle Nutzerabnahme.
+
+**Klare Grenzen:** Kein Vulkan-Swapchain-/World-Renderer
+oder Live-Enginewechsel vorhanden. Vulkan-Auswahl bleibt
+absichtlich deaktiviert bis echte Vulkan-Weltpipeline/
+Present-Device-Sicherheit implementiert sind. Keine
+Windows/macOS-Full-Viewer-GUI-/Install-Abnahme. Keine
+vorgegebene echte Raytracing-Weltbeleuchtung.
+
+## P04 Blöcke 3–17/20 – OpenGL-Weltpfad, Backendauswahl und Fallback (04.11.2026)
+
+Code ec52fd45 auf origin/ogl-develop. Bestehende llviewerdisplay,
+oglrtxhost, llappviewer, llfloaterpreference, settings.xml und
+Grafik-XUI EN/DE erweitert; keine parallelen Rendererdateien.
+
+3: Echte display()-Weltframe-Funktion an OpenGL-Backendvertrag
+gebunden; alle realen Welt-/UI-/Deferred-Pipeline-Aufrufe bleiben.
+4: GL-World-/Present-Besitz bei Firestorm, Vulkan-Diagnose beim
+optionalen Modul, Lifecycle-Logs bei Viewerstart und -shutdown.
+5: Plattformneutrales GL/Vulkan-Welt-Capability-Snapshot.
+6: GL-Treiber, erkannte/effektive VRAM-Menge, Texture-Budget
+und konkrete Fallback-Ursache getrennt protokolliert.
+7: OpenGL bleibt Standard und Kompatibilitätsmodus.
+8: Neuer Renderer-Reiter im vorhandenen EN/DE-Grafikpanel.
+9: Vulkan-Eintrag sichtbar, aber mangels kompletter Weltpipeline
+ausdrücklich nicht auswählbar; keine GPU-Marken-Whitelist.
+10: Gewünschte und zuletzt nach echter GL-Presentation erfolgreiche
+Engine getrennt persistent, letzter Erfolg erst nach swapBuffers.
+11: Neustart-Anforderung für spätere Engine-Umschaltung vermerkt;
+kein Live-Wechsel möglich, solange Vulkan unvollständig ist.
+12: Im realen Linux-Viewer eine manuell angeforderte Vulkan-Engine
+getestet: OpenGL bleibt aktiv, Log nennt fehlende Weltpipeline.
+13: Bestehende GL-Grafikprofile, Quality- und User-Einstellungen
+nicht überschrieben.
+14: Einmalige, klare Backend-/Fallback-Logs statt Frame-/Login-Spam.
+15: 319/319 Python-Tests plus 7 C++20-Hardware-/Fallback-Mocks.
+16: Intel/AMD/NVIDIA sowie x86/ARM nicht fest verdrahtet.
+17: Linux OpenSim Vollviewer 7.2.5.219 gebaut/gelinkt,
+41/41 native CTests, EN/DE-XUI und settings.xml paketidentisch.
+Deutscher Prelogin-GUI-Start mit Renderer-Reiter Exit 0.
+GPU-Diagnose nach realem Screenshot zweizeilig/korrigiert.
+Kein authentifizierter Live-3D-GUI-Vulkan-Test behauptet.
+
+Block 18: Portable GitHub-Grafikmatrix läuft; Modul-Jobs
+sind nicht gleich Windows/macOS-Vollviewer-Installer.
+Block 19: Alt-Diagnosehooks OGL_RTX_DEBUG_OVERLAY,
+OGL_RTX_DEPTH_GUIDED_PROBE und OGL_RTX_SHADOW_VISUALIZE
+nach Abhängigkeitsprüfung real verwendet, nicht blind gelöscht.
+Block 20: Erst nach CI-/Cleanup-Gate schließen und P05 beginnen.
+Windows-Vollviewer-Setup weiter nicht bestätigt.
 
 ## P04 Block 2/20 – Backend-Schnittstelle (04.11.2026)
 

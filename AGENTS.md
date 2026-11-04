@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P04 Block 3/20:
+Aktive Phase P05 Block 1/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -159,6 +159,29 @@ Backend-Vertrag/
 Lebenszyklus definieren,
 GL-Fallback erhalten.
 P04/2: Im vorhandenen `indra/newview/oglrtxhost.h` existiert ein rein deklarativer constexpr-Backend-Vertrag. OpenGL bleibt Standard, Vulkan-GPU-Diagnostik berechtigt nicht zum Welt-Renderer. Linux 7.2.5.218 seriell gebaut, 315 Python-/41 native Tests grün. P04/3: bestehende Render-Frame-Pfade unter Erhalt der GL-Funktion verbinden; keine Parallel-Rendererdateien.
+
+P04 Blöcke 3–17 (Code ec52fd45):
+Echter GL-Framepfad + Capability/Fallback-Lifecycle in bestehenden
+Dateien, EN/DE-Grafik-Reiter mit Vulkan mangels Voll-World-Swapchain
+deaktiviert, Requested/LastWorking unabhängig und letzter Erfolg erst
+nach realem GL-Swap gespeichert. Linux 7.2.5.219, 319 Python,
+41 native CTests, 7 C++-Szenarien, echter DE-GUI- und manueller
+Vulkan-Request-Fallback bestanden. P04/18 portable GitHub CI
+prüfen; Full-Viewer Windows/macOS NICHT durch Modul-CI ersetzen.
+Niemals Vulkan-RTX-Diagnose als 3D-Engine behaupten.
+Nächster /goal P04/18. Keine weiteren parallelen Templates.
+
+P04 20/20 als Linux-Code/portable Renderer-Fallback-Phase
+abgeschlossen. Code ec52fd45, Viewer 7.2.5.219,
+319 Python/41 native Tests und sieben C++-Fallprüfungen.
+Vulkan-Request fällt beim echten Linux-Start auf GL
+zurück; Grafik-Tab EN/DE zeigt Vulkan als deaktiviert.
+Run 41901011126: alle sechs portable Plattformmodul-
+Jobs grün. Windows-Installer SKIPPED, nicht vorhanden.
+P05/1: Vulkan-Instance/Device/Queue als echte Welt-
+Engine aufbauen. Bestehende RTX-Moduldiagnose nicht
+mit vollständigem World-/Swapchain-Renderer verwechseln.
+Alte Userdaten, Login, GL-Kombatibilität erhalten.
 
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
