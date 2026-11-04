@@ -38,7 +38,7 @@ diese wurde nicht gestoppt.
 
 ## Aktiver /goal-Ausführungsstand (maßgeblich)
 
-**Aktiver Block:** /goal P05 Block 1/20 (Vulkan-Weltgerät und Queue).
+**Aktiver Block:** /goal P05 Block 2/20 (dauerhafte Vulkan-Window-Surface und Swapchain für den Frame-Lifecycle).
 P03 Block 16 abgeschlossen: Deutsch/
 Englisch, 100/140 % UI-Skalierung,
 korrigierte Farbvorschau und
@@ -81,7 +81,7 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P02 – OGL-Navigation, Fenster, Chat und Avatare | Linux-Code/Tests abgeschlossen | 20/20 | In-World-GUI noch in P13 end-to-end prüfen |
 | P03 – Theme-System und sichere Designinstallation | Linux-Code/QA abgeschlossen | 20/20 | Vollviewer-Windows/macOS, Signaturen und Asset-Erweiterungen bleiben separate Gates |
 | P04 – Renderer-Abstraktion und OpenGL-Fallback | Linux-Code/portable Module abgeschlossen | 20/20 | Vulkan-Vollrenderer erst P05, Windows/macOS-Full-Viewer P13 |
-| P05 – Vulkan als vollständige auswählbare 3D-Engine | aktiv | 0/20 | Block 1: Vulkan-Instance, Device und Queue als echte Welt-Engine integrieren |
+| P05 – Vulkan als vollständige auswählbare 3D-Engine | aktiv | 1/20 | Block 2: Vulkan-Surface und Swapchain dauerhaft an SDL-Window-/Resize-/Present-Lifecycle anbinden |
 | P06 – Vulkan-Raytracing und Grafikqualität | offen | 0/20 | nach Abschluss der Vorphase |
 | P07 – CPU/GPU-Leistung, Textur-, Mesh- und Avatarcache | offen | 0/20 | nach Abschluss der Vorphase |
 | P08 – Beta-Protokoll und getrennte NexVerse-Anmeldung | offen | 0/20 | nach Abschluss der Vorphase |
@@ -91,7 +91,56 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
 
-## P05 Vulkan-Grafikgerätebootstrap – geprüft, Phase formal 0/20 (04.11.2026)
+## P05 Block 1/20 – echter Vulkan-WSI-Probe am SDL-Viewerfenster (04.11.2026)
+
+P05/1 abgeschlossen. Bestehende Dateien oglrtxhost.cpp,
+ogl_rtx_module.cpp und ogl_rtx_api.h erweitert: Das zuvor
+herstellerneutral erzeugte VkInstance/VkDevice mit Grafik-VkQueue
+kann mit ZWEI expliziten Entwicklerflags
+OGL_VULKAN_WORLD_BOOTSTRAP=1 und OGL_VULKAN_WINDOW_SURFACE=1
+die Instanz-Erweiterungen VK_KHR_surface und VK_KHR_xlib_surface
+prüfen und aktivieren. Der Host übergibt die ECHTE
+SDL/X11-Display-/Window-ID an das Modul, kein zweites Fenster.
+Das Modul erzeugt VkSurfaceKHR, validiert über
+vkGetPhysicalDeviceSurfaceSupportKHR dieselbe Grafik-Queue
+als Presentqueue, prüft Surface-Formate, FIFO-Modus,
+Größen, Bildanzahl und Transform/Alpha/Usage-Grenzen,
+erstellt VkSwapchainKHR, prüft deren Bildanzahl und
+zerstört Swapchain/Surface direkt vor dem ersten
+normalen OpenGL-Frame. Vulkan-Bildübernahme und
+vkQueuePresentKHR finden ausdrücklich NICHT statt.
+
+Reale Linux-GUI-Abnahme am isolierten Xvfb-Display:
+OGL Viewer Development 7.2.5.219,
+Log "P05 real SDL/X11 Vulkan surface and swapchain probe passed;
+handles released before OpenGL rendering, no Vulkan present".
+Das Log bestätigt weiterhin "World backend: OpenGL (actual)",
+Login-Wait und Exit 0. Der WSI-Erfolg wurde auf
+isolierter Mesa-/Xvfb-Laufzeit geprüft, NICHT als RTX-
+4070-SUPER- oder authentifizierter OpenSim-Welt-Test.
+Weitere GUI-Läufe: kein Flag -> kein Vulkan-WSI;
+absichtlich falscher Vulkan-ICD -> explizite
+WSI-unavailable-Meldung, OpenGL Login/Exit weiterhin OK.
+323 Python-Tests und 41 native CTests grün,
+inklusive nativer Negativ-Tests für Null-Fenster und
+Module-Stop. Der Linux-Viewer wurde vollständig kompiliert
+und gelinkt. Kein Benutzerprofil/Cache verändert,
+vorhandener User-Viewer nicht beendet.
+
+**Abnahmegrenze P05/2:** Bisher ist dies eine absichtlich
+KURZLEBIGE Vulkan-Surface/Swapchain-Probe am realen
+SDL/OpenGL-Fenster. Eine dauerhafte Vulkan-Framepipeline
+erfordert eigenen Vulkan-Fenster-/Present-Lebenszyklus,
+vkAcquireNextImageKHR, vkQueuePresentKHR, Resize,
+Synchronisation und später Terrain/Mesh/Avatare.
+Diese Funktionen sind nicht implementiert; die auswählbare
+Vulkan-Welt-Engine bleibt gesperrt. Nur Linux/X11 ist
+als WSI-Probe vorhanden; Wayland, Windows und macOS
+brauchen eigene WSI-Pfade. Formal **P05 1/20**,
+nächster Block 2: dauerhafte Surface/Swapchain-
+Integration mit kontrolliertem OpenGL-Fallback.
+
+## P05 Vulkan-Grafikgerätebootstrap – historischer Vor-WSI-Stand 0/20 (04.11.2026)
 
 Vorarbeit im vorhandenen ogl_rtx_module.cpp sowie ogl_rtx_api.h:
 Das explizite Entwickler-Opt-in OGL_VULKAN_WORLD_BOOTSTRAP=1
@@ -131,7 +180,7 @@ eine geprüfte Teilimplementierung, nicht ein fertiger
 Vulkan-Welt-Renderer. Block 2 mit realer Surface/Swapchain
 steht aus. Keine 20 P05-Blöcke als erledigt ausgeben.
 
-## P05 Blöcke 1–2/20 – erster technischer Befund, noch NICHT abgeschlossen (04.11.2026)
+## P05 Blöcke 1–2/20 – historischer Befund vor realem SDL/X11-WSI-Test (04.11.2026)
 
 Historischer Befund vor dem neuen Vulkan-Bootstrap: Das optionale Vulkan-/RTX-Diagnosemodul in
 ogl/modules/rtx/ogl_rtx_module.cpp erstellt nur eine kurzlebige

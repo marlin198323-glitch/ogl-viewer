@@ -40,7 +40,7 @@ Commit 68e50e2b, Viewer 7.2.5.200,
 DE-/EN-GUI-Smokes). Live-In-World-
 Chat, Voice, DPI und Windows/macOS-
 Vollviewer bleiben P13-Gates.
-Aktive Phase P05 Block 1/20:
+Aktive Phase P05 Block 2/20:
 P03/1–8 c4a615ba,
 9–15 73565590,
 16 1f174bc7,
@@ -184,6 +184,19 @@ mit vollständigem World-/Swapchain-Renderer verwechseln.
 Alte Userdaten, Login, GL-Kombatibilität erhalten.
 
 P05 04.11.2026: Geräte-/Queue-Bootstrap unter Opt-in OGL_VULKAN_WORLD_BOOTSTRAP=1 implementiert; herstellerneutral, kein Welt-Rendering. Linux-Build, 321 Python-/41 native Tests, reale OpenGL-GUI-Starts bei Opt-in an/aus bestanden. P05 0/20 bis echte Vulkan-Window-Surface und Swapchain integriert sind. Kein CUDA-/RTX-Zwang und keine Benutzerprofildateien anfassen.
+
+P05 Block 1 abgeschlossen (04.11.2026): Temporäre
+echte Vulkan-Xlib-Surface und Swapchain auf DEM
+SDL/OpenGL-Viewerfenster unter zweifachem Dev-Opt-in.
+Presentqueue sowie Caps/Format/FIFO/Images validiert,
+beide Handles unmittelbar vor GL-Frame freigegeben.
+Keine Vulkan-Weltframes und kein Engine-Switch.
+Linux-Vollbuild 7.2.5.219, 323 Python- und
+41 native Tests, echte Xvfb-GUI mit WSI-Pass,
+normalem GL und invalidem Vulkan-ICD/Fallback OK.
+Nächster P05 Block 2/20: kontrollierter dauerhafter
+WSI-Window-/Frame-/Resize-Lifecycle, weiterhin
+OpenGL-Fallback und keine Nutzerprofile anfassen.
 
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 

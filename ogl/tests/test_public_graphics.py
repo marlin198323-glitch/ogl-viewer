@@ -144,12 +144,48 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE",window)
         self.assertIn("SDL_GL_CreateContext(",window)
         self.assertNotIn("SDL_Vulkan_CreateSurface(",window)
-        self.assertNotIn("vkCreateSwapchainKHR",module)
+        # P05 now probes a real VkSwapchainKHR on the existing X11 window,
+        # but does not acquire/present or switch the OpenGL world renderer.
+        self.assertIn('"vkCreateSwapchainKHR"',module)
+        self.assertNotIn("vkQueuePresentKHR(",module)
         self.assertIn("surface and world renderer NOT implemented.",module)
         self.assertIn('renderer->setEnabledByValue("vulkan", false)',preferences)
         self.assertIn("VK_KHR_SWAPCHAIN_EXTENSION_NAME",module)
         # A device can advertise swapchain support without possessing a
         # surface-compatible present queue for the *actual* viewer window.
+
+    def test_p05_actual_sdl_x11_window_surface_and_swapchain_probe(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        for symbol in (
+            "ogl_vulkan_world_attach_x11_window",
+            "ogl_vulkan_world_swapchain_probe_ready",
+            "ogl_vulkan_world_detach_window"):
+            self.assertIn(symbol,header)
+            self.assertIn(symbol,module)
+            self.assertIn(symbol,host)
+        for symbol in ("vkCreateXlibSurfaceKHR","vkGetPhysicalDeviceSurfaceSupportKHR",
+                       "vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
+                       "vkGetPhysicalDeviceSurfaceFormatsKHR",
+                       "vkGetPhysicalDeviceSurfacePresentModesKHR",
+                       "vkCreateSwapchainKHR","vkGetSwapchainImagesKHR",
+                       "vkDestroySurfaceKHR","vkDestroySwapchainKHR"):
+            self.assertIn('"'+symbol+'"',module)
+        self.assertIn("VK_PRESENT_MODE_FIFO_KHR",module)
+        self.assertIn("detach_window(); // WSI handles must die",module)
+        self.assertIn("OGL_VULKAN_WINDOW_SURFACE",host)
+        self.assertIn("OGL_VULKAN_WINDOW_SURFACE",module)
+        self.assertIn("LLWindowSDL::get_SDL_XWindowID()",host)
+        self.assertIn("LLWindowSDL::get_SDL_Display()",host)
+        self.assertIn("detach(); // GL window remains the ONLY live present owner.",host)
+        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertNotIn("vkAcquireNextImageKHR(",module)
+        self.assertIn("assert(window_attach(nullptr,0,1920,1080)==0)",native)
+        self.assertIn("assert(window_ready() == 0)",native)
+        self.assertIn("SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE",
+                      (ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text())
 
     def test_p05_persistent_optin_vulkan_world_device_and_cleanup(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

@@ -4,6 +4,13 @@
 #include "llgl.h"
 #include "llviewercontrol.h"
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
+
+// Only the opt-in Linux/X11 WSI probe borrows the already-existing SDL
+// viewer window. Windows and macOS continue their unchanged OpenGL path.
+#if LL_LINUX && LL_X11 && LL_SDL2
+#include "llwindowsdl2.h"
+#include "llviewerwindow.h"
+#endif
 #include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h"
 
 #if LL_LINUX || LL_WINDOWS
@@ -216,6 +223,46 @@ void ogl_init_rtx_module() {
             << " rendering_active=" << status->rendering_active
             << ". OpenGL remains the active renderer." << LL_ENDL;
     }
+#if LL_LINUX && LL_X11 && LL_SDL2
+    // Never attempt to create a Vulkan SDL window beside the real GL window.
+    // Explicit developer-only probe uses the actual SDL/X11 window to
+    // validate a VkSurfaceKHR + VkSwapchainKHR without presenting images.
+    // A temporary WSI attachment is released before any GL frame or window
+    // resize; this cannot take over rendering or outlive the borrowed XID.
+    const char* surface_flag=std::getenv("OGL_VULKAN_WINDOW_SURFACE");
+    const char* device_flag=std::getenv("OGL_VULKAN_WORLD_BOOTSTRAP");
+    if (surface_flag && std::strcmp(surface_flag,"1")==0 &&
+        device_flag && std::strcmp(device_flag,"1")==0) {
+        auto attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
+            ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_attach_x11_window"));
+        auto ready = reinterpret_cast<int(*)()>(
+            ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_swapchain_probe_ready"));
+        auto detach = reinterpret_cast<void(*)()>(
+            ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_detach_window"));
+        bool success=false;
+        if (attach && ready && detach && gViewerWindow) {
+            LLCoordWindow size;
+            if (gViewerWindow->getWindow()->getSize(&size) &&
+                size.mX>0 && size.mY>0) {
+                auto display=LLWindowSDL::get_SDL_Display();
+                const auto window=LLWindowSDL::get_SDL_XWindowID();
+                if (display && window) {
+                    success=attach(static_cast<void*>(display),
+                        static_cast<uint64_t>(window),
+                        static_cast<uint32_t>(size.mX),
+                        static_cast<uint32_t>(size.mY))!=0 && ready()!=0;
+                }
+            }
+            detach(); // GL window remains the ONLY live present owner.
+        }
+        LL_INFOS("OGLRenderer") <<
+            (success
+                ? "P05 real SDL/X11 Vulkan surface and swapchain probe passed; "
+                  "handles released before OpenGL rendering, no Vulkan present."
+                : "P05 real SDL/X11 Vulkan surface/swapchain unavailable; "
+                  "OpenGL remains unchanged.") << LL_ENDL;
+    }
+#endif
 #endif
 }
 

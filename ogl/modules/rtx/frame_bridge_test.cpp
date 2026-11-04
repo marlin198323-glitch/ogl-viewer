@@ -36,6 +36,13 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_copy_depth_debug"));
     const auto world_device = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
+    const auto window_attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
+        dlsym(library, "ogl_vulkan_world_attach_x11_window"));
+    const auto window_ready = reinterpret_cast<int(*)()>(
+        dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
+    const auto window_detach = reinterpret_cast<void(*)()>(
+        dlsym(library, "ogl_vulkan_world_detach_window"));
+    assert(window_attach && window_ready && window_detach);
     assert(start && stop && status && submit && count && world_device &&
            submit_geometry && triangle_count &&
            geometry_revision && copy_geometry && submit_depth && copy_depth);
@@ -45,18 +52,29 @@ int main(int argc, char** argv) {
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     assert(start(&host) == 0);
     assert(world_device() == 0);
+    assert(window_ready() == 0);
+    assert(window_attach(nullptr,0,0,0)==0); // never fabricate a surface
     stop();
     assert(world_device() == 0);
+    assert(window_ready() == 0);
     assert(setenv("OGL_VULKAN_WORLD_BOOTSTRAP", "1", 1) == 0);
     assert(start(&host) == 0);
     const int ready = world_device(); // 0 on OpenGL-only/CI adapters, 1 when available
     assert(ready == 0 || ready == 1);
+    assert(window_ready() == 0);
+    assert(window_attach(nullptr,0,1920,1080)==0);
+    assert(window_ready() == 0);
+    window_detach();
+    assert(window_ready() == 0);
     assert(status()->rendering_active == 0);
     // Multiple starts and stop must never retain a stale logical device.
     assert(start(&host) == 0);
     assert(world_device() == ready || world_device() == 0);
+    assert(window_attach(nullptr,0,1920,1080)==0);
+    assert(window_ready()==0);
     stop();
     assert(world_device() == 0);
+    assert(window_ready()==0);
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     assert(start(&host) == 0);
     assert(world_device() == 0);

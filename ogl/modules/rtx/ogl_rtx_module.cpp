@@ -8,6 +8,13 @@
 #include "ogl/ogl_dynamic_scene.h"
 #include "ogl/ogl_gpu_probe_api.h"
 #include "ogl/ogl_async_gpu_queue.h"
+// Linux/X11 WSI is optional at compile time. Windows/macOS and builds
+// without Xlib headers continue to support the existing Vulkan GPU probe.
+#if defined(__linux__) && __has_include(<X11/Xlib.h>)
+#  include <X11/Xlib.h>
+#  define VK_USE_PLATFORM_XLIB_KHR 1
+#  define OGL_HAS_XLIB_WSI 1
+#endif
 #include <vulkan/vulkan.h>
 #if defined(_WIN32)
 #  define WIN32_LEAN_AND_MEAN
@@ -19,6 +26,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdint>
+#include <limits>
 #include <algorithm>
 #include <memory>
 #include <chrono>
@@ -118,22 +126,53 @@ const char* const trusted_dense_shader =
 
 // P05/1 developer-only Vulkan graphics device bootstrap. Its lifetime is
 // independent from the ray-query probe and is never a replacement for GL.
-// A future Vulkan world engine still needs the SDL surface and swapchain.
+// A future world engine still needs permanent SDL-surface ownership,
+// frame synchronization, world rendering and actual Vulkan presentation.
 struct WorldGraphicsDevice {
     VulkanLibrary loader = nullptr;
     VkInstance instance = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     VkQueue queue = VK_NULL_HANDLE;
+    VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+    uint32_t queue_family = UINT32_MAX;
+    PFN_vkGetInstanceProcAddr instance_proc = nullptr;
+    PFN_vkGetDeviceProcAddr device_proc = nullptr;
     PFN_vkDestroyInstance destroy_instance = nullptr;
     PFN_vkDestroyDevice destroy_device = nullptr;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    PFN_vkDestroySurfaceKHR destroy_surface = nullptr;
+    PFN_vkDestroySwapchainKHR destroy_swapchain = nullptr;
+    bool xlib_surface_extension = false;
+    bool swapchain_probe_ready = false;
+
+    void detach_window() {
+        // No acquire/present or GPU queue submit is issued by the WSI probe.
+        // Do not let either native handle outlive the borrowed SDL/X11 window.
+        if (swapchain && destroy_swapchain && device)
+            destroy_swapchain(device, swapchain, nullptr);
+        swapchain = VK_NULL_HANDLE;
+        swapchain_probe_ready = false;
+        if (surface && destroy_surface && instance)
+            destroy_surface(instance, surface, nullptr);
+        surface = VK_NULL_HANDLE;
+    }
     void close() {
+        detach_window(); // WSI handles must die before VkDevice/VkInstance.
         if (device && destroy_device) destroy_device(device, nullptr);
         device = VK_NULL_HANDLE;
         queue = VK_NULL_HANDLE;
+        physical_device = VK_NULL_HANDLE;
+        queue_family = UINT32_MAX;
         if (instance && destroy_instance) destroy_instance(instance, nullptr);
         instance = VK_NULL_HANDLE;
         destroy_device = nullptr;
         destroy_instance = nullptr;
+        destroy_surface = nullptr;
+        destroy_swapchain = nullptr;
+        instance_proc = nullptr;
+        device_proc = nullptr;
+        xlib_surface_extension = false;
         if (loader) close_vulkan_loader(loader);
         loader = nullptr;
     }
@@ -148,14 +187,47 @@ bool init_world_graphics_device() {
     auto get_proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
         lookup_vulkan_symbol(world_device.loader, "vkGetInstanceProcAddr"));
     if (!get_proc) { world_device.close(); return false; }
+    world_device.instance_proc = get_proc;
     auto create_instance = reinterpret_cast<PFN_vkCreateInstance>(
         get_proc(VK_NULL_HANDLE, "vkCreateInstance"));
     if (!create_instance) { world_device.close(); return false; }
+    // Surface WSI is never enabled without a second explicit developer flag.
+    // Never require Xlib extensions for the normal cross-platform GPU probe.
+    std::vector<const char*> required_extensions;
+#if defined(OGL_HAS_XLIB_WSI)
+    const char* surface_env=std::getenv("OGL_VULKAN_WINDOW_SURFACE");
+    if (surface_env && std::strcmp(surface_env,"1")==0) {
+        auto enumerate_ext=reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
+            get_proc(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties"));
+        uint32_t extension_count=0;
+        if (enumerate_ext &&
+            enumerate_ext(nullptr,&extension_count,nullptr)==VK_SUCCESS &&
+            extension_count>0 && extension_count<=4096) {
+            std::vector<VkExtensionProperties> extensions(extension_count);
+            if (enumerate_ext(nullptr,&extension_count,extensions.data())==VK_SUCCESS) {
+                auto has_extension=[&](const char* name) {
+                    return std::any_of(extensions.begin(),extensions.end(),
+                        [name](const VkExtensionProperties& e) {
+                            return std::strcmp(e.extensionName,name)==0;
+                        });
+                };
+                if (has_extension(VK_KHR_SURFACE_EXTENSION_NAME) &&
+                    has_extension(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)) {
+                    required_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+                    required_extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+                    world_device.xlib_surface_extension = true;
+                }
+            }
+        }
+    }
+#endif
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "OGL World Device Bootstrap";
     app.apiVersion = VK_API_VERSION_1_1;
     VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     ci.pApplicationInfo = &app;
+    ci.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size());
+    ci.ppEnabledExtensionNames = required_extensions.data();
     if (create_instance(&ci, nullptr, &world_device.instance)!=VK_SUCCESS ||
         !world_device.instance) {
         world_device.close(); return false;
@@ -177,6 +249,7 @@ bool init_world_graphics_device() {
         proc("vkCreateDevice"));
     auto get_device_proc = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
         proc("vkGetDeviceProcAddr"));
+    world_device.device_proc = get_device_proc;
     if (!world_device.destroy_instance || !world_device.destroy_device ||
         !enumerate || !queue_families || !get_extensions ||
         !create_device || !get_device_proc) {
@@ -246,11 +319,182 @@ bool init_world_graphics_device() {
             world_device.destroy_device=destroy;
             world_device.device=device;
             world_device.queue=queue;
+            world_device.physical_device=gpus[i];
+            world_device.queue_family=q;
             return true;
         }
     }
     world_device.close();
     return false;
+}
+
+// P05 WSI boundary: VkSurfaceKHR/VkSwapchainKHR on the REAL, already created
+// SDL/X11 window. This never acquires images, submits commands or presents;
+// OpenGL continues to own and render into that window. Vulkan ownership is
+// opt-in and must terminate before the SDL/X11 window is destroyed.
+bool attach_world_xlib_window(void* native_display, uint64_t native_window,
+                              uint32_t width, uint32_t height) {
+    world_device.detach_window();
+#if defined(OGL_HAS_XLIB_WSI)
+    if (!world_device.xlib_surface_extension || !world_device.instance ||
+        !world_device.device || !world_device.queue ||
+        !world_device.physical_device ||
+        world_device.queue_family==UINT32_MAX ||
+        !world_device.instance_proc || !world_device.device_proc ||
+        !native_display || native_window==0 ||
+        native_window>static_cast<uint64_t>(std::numeric_limits<Window>::max()) ||
+        width==0 || height==0 || width>16384 || height>16384)
+        return false;
+
+    const auto instance_fn=[&](const char* name) {
+        return world_device.instance_proc(world_device.instance,name);
+    };
+    const auto device_fn=[&](const char* name) {
+        return world_device.device_proc(world_device.device,name);
+    };
+    const auto create_surface=reinterpret_cast<PFN_vkCreateXlibSurfaceKHR>(
+        instance_fn("vkCreateXlibSurfaceKHR"));
+    world_device.destroy_surface=reinterpret_cast<PFN_vkDestroySurfaceKHR>(
+        instance_fn("vkDestroySurfaceKHR"));
+    const auto supports_present=reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
+        instance_fn("vkGetPhysicalDeviceSurfaceSupportKHR"));
+    const auto get_caps=reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(
+        instance_fn("vkGetPhysicalDeviceSurfaceCapabilitiesKHR"));
+    const auto get_formats=reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>(
+        instance_fn("vkGetPhysicalDeviceSurfaceFormatsKHR"));
+    const auto get_modes=reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(
+        instance_fn("vkGetPhysicalDeviceSurfacePresentModesKHR"));
+    const auto create_swapchain=reinterpret_cast<PFN_vkCreateSwapchainKHR>(
+        device_fn("vkCreateSwapchainKHR"));
+    world_device.destroy_swapchain=reinterpret_cast<PFN_vkDestroySwapchainKHR>(
+        device_fn("vkDestroySwapchainKHR"));
+    const auto get_images=reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(
+        device_fn("vkGetSwapchainImagesKHR"));
+    if (!create_surface || !world_device.destroy_surface || !supports_present ||
+        !get_caps || !get_formats || !get_modes || !create_swapchain ||
+        !world_device.destroy_swapchain || !get_images)
+        return false;
+
+    VkXlibSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR};
+    info.dpy=static_cast<Display*>(native_display);
+    info.window=static_cast<Window>(native_window);
+    if (create_surface(world_device.instance,&info,nullptr,
+                       &world_device.surface)!=VK_SUCCESS ||
+        !world_device.surface) {
+        world_device.detach_window();
+        return false;
+    }
+    VkBool32 present=VK_FALSE;
+    if (supports_present(world_device.physical_device,
+                         world_device.queue_family,world_device.surface,
+                         &present)!=VK_SUCCESS || present!=VK_TRUE) {
+        world_device.detach_window();
+        return false;
+    }
+    VkSurfaceCapabilitiesKHR caps{};
+    if (get_caps(world_device.physical_device,world_device.surface,
+                 &caps)!=VK_SUCCESS ||
+        !(caps.supportedUsageFlags&VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+        world_device.detach_window();
+        return false;
+    }
+    uint32_t count=0;
+    if (get_formats(world_device.physical_device,world_device.surface,
+                    &count,nullptr)!=VK_SUCCESS || count==0 || count>256) {
+        world_device.detach_window();
+        return false;
+    }
+    std::vector<VkSurfaceFormatKHR> formats(count);
+    if (get_formats(world_device.physical_device,world_device.surface,
+                    &count,formats.data())!=VK_SUCCESS || count==0) {
+        world_device.detach_window();
+        return false;
+    }
+    VkSurfaceFormatKHR format=formats.front();
+    if (count==1 && format.format==VK_FORMAT_UNDEFINED)
+        format={VK_FORMAT_B8G8R8A8_UNORM,VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+    else for (const auto& entry : formats) {
+        if (entry.format==VK_FORMAT_B8G8R8A8_UNORM &&
+            entry.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            format=entry; break;
+        }
+    }
+    count=0;
+    if (get_modes(world_device.physical_device,world_device.surface,
+                  &count,nullptr)!=VK_SUCCESS || count==0 || count>256) {
+        world_device.detach_window();
+        return false;
+    }
+    std::vector<VkPresentModeKHR> modes(count);
+    if (get_modes(world_device.physical_device,world_device.surface,
+                  &count,modes.data())!=VK_SUCCESS ||
+        std::find(modes.begin(),modes.end(),VK_PRESENT_MODE_FIFO_KHR)==modes.end()) {
+        world_device.detach_window();
+        return false;
+    }
+    VkExtent2D extent=caps.currentExtent;
+    if (extent.width==UINT32_MAX) {
+        extent.width=std::max(caps.minImageExtent.width,
+                              std::min(width,caps.maxImageExtent.width));
+        extent.height=std::max(caps.minImageExtent.height,
+                               std::min(height,caps.maxImageExtent.height));
+    }
+    if (extent.width==0 || extent.height==0 ||
+        extent.width>16384 || extent.height>16384) {
+        world_device.detach_window();
+        return false;
+    }
+    uint32_t images=std::max(2u,caps.minImageCount);
+    if (caps.maxImageCount && images>caps.maxImageCount) {
+        world_device.detach_window();
+        return false;
+    }
+    VkCompositeAlphaFlagBitsKHR composite=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    bool supported_alpha=false;
+    for (auto alpha : {VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+                       VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+                       VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+                       VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR}) {
+        if (caps.supportedCompositeAlpha&alpha) {
+            composite=alpha; supported_alpha=true; break;
+        }
+    }
+    if (!supported_alpha) {
+        world_device.detach_window();
+        return false;
+    }
+    VkSwapchainCreateInfoKHR swap{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    swap.surface=world_device.surface;
+    swap.minImageCount=images;
+    swap.imageFormat=format.format;
+    swap.imageColorSpace=format.colorSpace;
+    swap.imageExtent=extent;
+    swap.imageArrayLayers=1;
+    swap.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swap.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;
+    swap.preTransform=caps.currentTransform;
+    swap.compositeAlpha=composite;
+    swap.presentMode=VK_PRESENT_MODE_FIFO_KHR;
+    swap.clipped=VK_TRUE;
+    if (create_swapchain(world_device.device,&swap,nullptr,
+                         &world_device.swapchain)!=VK_SUCCESS ||
+        !world_device.swapchain) {
+        world_device.detach_window();
+        return false;
+    }
+    count=0;
+    if (get_images(world_device.device,world_device.swapchain,
+                   &count,nullptr)!=VK_SUCCESS || count<2 || count>16) {
+        world_device.detach_window();
+        return false;
+    }
+    world_device.swapchain_probe_ready=true;
+    // Deliberately NO vkAcquireNextImageKHR/vkQueuePresentKHR here.
+    return true;
+#else
+    (void)native_display; (void)native_window; (void)width; (void)height;
+    return false;
+#endif
 }
 
 void gpu_probe_cleanup() {
@@ -872,6 +1116,17 @@ extern "C" OGL_MODULE_EXPORT void ogl_module_stop() {
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped() {
     return world_device.device != VK_NULL_HANDLE &&
            world_device.queue != VK_NULL_HANDLE;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_attach_x11_window(
+    void* display, uint64_t window, uint32_t width, uint32_t height)
+{
+    return attach_world_xlib_window(display,window,width,height) ? 1 : 0;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready() {
+    return world_device.swapchain_probe_ready ? 1 : 0;
+}
+extern "C" OGL_MODULE_EXPORT void ogl_vulkan_world_detach_window() {
+    world_device.detach_window();
 }
 extern "C" OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status() {
     return &status;

@@ -1196,8 +1196,26 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 
 ### /goal P05 – Vulkan als vollständige auswählbare 3D-Engine
 
-**Status:** aktiv; 0/20 operative Blöcke abgeschlossen. Erst reale Vulkan-Welt-/Swapchain-Integration kann einen P05-Block abschließen.
+**Status:** aktiv; 1/20 operative Blöcke abgeschlossen. Block 1: echte Device-/Queue-Initialisierung und vorübergehende reale SDL/X11-Surface-/Swapchain-Prüfung. Block 2: dauerhafter Window-/Present-/Resize-Lifecycle noch offen.
 **P05 Vorarbeit 04.11.2026:** Im vorhandenen Vulkan-Modul wird nur per explizitem Entwickler-Opt-in ein persistentes VkInstance/VkDevice mit Grafik-VkQueue erstellt, geprüft und freigegeben. Die neue additive ABI meldet nur Device-Bereitstellung. Linux-Vollviewer, 321 Python-/41 CTests und zwei isolierte GL-GUI-Starts erfolgreich. Die wirkliche SDL-Vulkan-Window-Surface, Present-Queue-Prüfung, Swapchain und Welt-Pipeline fehlen. Vulkan bleibt im Grafikmenü deaktiviert; formal P05 0/20, keine fiktive Phasenfreigabe.
+
+**P05 Block 1 abgeschlossen (04.11.2026):**
+In vorhandener C++-Modul-/Host-ABI liefert ein nur per
+OGL_VULKAN_WORLD_BOOTSTRAP=1 plus OGL_VULKAN_WINDOW_SURFACE=1
+aktivierbarer, vorübergehender SDL/X11-WSI-Probe echte
+VkSurfaceKHR + VkSwapchainKHR auf dem Viewerfenster,
+einschließlich Present-Family-, Caps-, Format-,
+FIFO-, Bildanzahl- und Größenprüfung.
+Ressourcen werden vor dem nächsten GL-Bild freigegeben;
+keine Vulkan-Weltpixels und kein vkQueuePresentKHR.
+323 Python-/41 native Tests, Linux-Vollbuild 7.2.5.219,
+GUI-WSI-Erfolg sowie Dev-Aus- und Fehler-GL-Fallback
+auf Xvfb nachgewiesen. Plattformen außerhalb Linux/X11
+bleiben unverändert und brauchen später eigene WSI.
+Nächster P05 Block 2/20 ist der dauerhafte Vulkan-
+Window-Surface-/Swapchain-/Frame-/Resize-Lebenszyklus.
+Keine P05/2-Fertigstellung oder Vulkan-Welt-Engine
+behaupten.
 
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 

@@ -42,11 +42,26 @@ GUI-Starts inklusive geladener Emoji-Zeichendatei bestanden.
 Laufende User-Instanz nicht beendet; nach Update neu starten.
 P05-Zähler unverändert.
 
+**P05/1 abgeschlossen, 04.11.2026:** Eine echte VkSurfaceKHR
+und VkSwapchainKHR wird nun ausschließlich bei zweifacher
+Entwicklerfreigabe auf der tatsächlich vorhandenen
+SDL/X11-Viewer-Window-ID aufgebaut. Presentqueue, Surface-
+Caps/Formate/FIFO/Bildanzahl werden validiert; die
+Vulkan-Handles noch vor dem nächsten GL-Frame wieder
+freigegeben. Kein Vulkan-Frame-Acquire/Present, keine
+Vulkan-Weltengine. Voll-Linux-Build und
+323 Python-/41 native Tests grün. Xvfb-GUI-WSI-Erfolg,
+normaler GL-Start und ungültiger Vulkan-Treiber
+mit GL-Fallback alle Exit 0. **P05 1/20, neuer
+Einstieg Block 2**: dauerhafter Vulkan-Fenster-/
+Frame-/Swapchain-/Resize-Lebenszyklus;
+Wayland/Windows/macOS WSI noch offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
 Nicht mehr frei zwischen den alten Fachkapiteln A–I
-wechseln. Neuer Einstieg: P05 Block 1/20.
+wechseln. Neuer Einstieg: P05 Block 2/20.
 P01 unter Linux 20/20 abgeschlossen nach ausdrücklicher
 Nutzerbestätigung vom 02.11.2026:
 Live-Login, 3D-Welt, Shutdown und Speicherung/

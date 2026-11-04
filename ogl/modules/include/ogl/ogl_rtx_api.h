@@ -209,6 +209,19 @@ OGL_MODULE_EXPORT int ogl_rtx_copy_depth_debug(ogl_rtx_depth_debug *output);
  * Owned by the module and released on ogl_module_stop.
  */
 OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped(void);
+/* P05 developer-only Linux/X11 WSI probe on the ACTUAL viewer window.
+ * Requires both OGL_VULKAN_WORLD_BOOTSTRAP=1 and
+ * OGL_VULKAN_WINDOW_SURFACE=1. Creates real VkSurfaceKHR and VkSwapchainKHR
+ * if supported by the selected graphics/present queue. No image acquisition,
+ * rendering, queue submission or presentation occurs: OpenGL remains live.
+ * Do not call after SDL destroys the supplied X11 window/display.
+ * Returns 1 only when a swapchain with >=2 images exists.
+ * Exported as optional C ABI symbols; unsupported OSes return 0.
+ */
+OGL_MODULE_EXPORT int ogl_vulkan_world_attach_x11_window(
+    void* x11_display, uint64_t x11_window, uint32_t width, uint32_t height);
+OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
+OGL_MODULE_EXPORT void ogl_vulkan_world_detach_window(void);
 
 /* Read-only status; valid until module is unloaded. Never store credentials. */
 OGL_MODULE_EXPORT const ogl_rtx_status *ogl_rtx_get_status(void);
