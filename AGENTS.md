@@ -4,32 +4,42 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code 49b28a90):
-Dual-GPU-Submit-Grundlage: zwei Vulkan-
-Command-Buffer mit separaten VkFences
-werden vor EINEM bounded wait-all-Fence-
-Wait eingereiht, ohne vkQueueWaitIdle in
-dieser unabhängigen GPU-Sync-Diagnose.
-Read-only-Counter: max_outstanding=2,
-last_submitted=2, last_completed=2.
-Das sagt NICHT, dass die GPU tatsächlich
-parallel ausführt oder World-Frames zeigt.
-Nach 4:3->16:9 Vulkan-WSI-Resize wird
-die alte Kamera invalidiert und nur
-neue passende Projektion akzeptiert.
-GPU-X11-Test bestätigt neues 16:9-RGB-
-Bild. Echte SDL-Vor-GL-GPU-Dual-Sync-
-Probe mit strengem Dev-Opt-in grün.
-5 neue +14 ältere GUI-Fälle alle
-Login/Exit 0; Linux-Vollbuild und
-339 Python-/41 native CTests bestanden.
-Bestehender WSI-Present-Test nutzt NOCH
-vkQueueWaitIdle pro Frame. KEIN echter
-Vulkan-Live-OpenSim-World-Renderer.
-P05 2/20, Block 3/4 weiterhin offen.
-Nutzer-Viewer, Cache, Login-Daten,
-Accounts und Secrets nicht ändern.
-Frühere Nachweise in ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code 8f33196e):
+Echte Vulkan-X11-WSI-Clear-GPU-Frames
+sind jetzt über mehrere Bilder persistent:
+RenderPass, Framebuffer pro Swapchain-
+Image, zwei VkCommandBuffer/Fences/
+Acquire-Semaphores und pro Bild
+separate Render-Finished-Semaphores.
+KEIN vkQueueWaitIdle pro GPU-Frame,
+genau EIN abschließender Queue-Idle
+beim Detach zur Freigabe der Präsent-
+Semaphores. Echte GPU: 16 sichtbare
+Presents, Resize/Neuaufbau, korrekte
+X11-RGB-Pixel. Echte SDL/X11-Viewer-
+XID vor GL: 20 Frames über drei
+Fenstergrößen, 100 Pixel, danach
+GL-Login/Exit 0; 7 neue + 19 ältere
+GUI-Smokes bestanden. Linux-Vollbuild,
+340 Python/41 native Tests grün.
+Vorige GitHub-CI Windows x64/ARM64
+rot wegen MSVC C2589/C2059 aus
+std::max-Makrokollision; im Code auf
+(std::max)(...) korrigiert. Neue
+Windows-CI-Prüfung noch offen.
+KEIN Vulkan-Live-World-Raster:
+persistenter Pfad rendert nur Clear-
+Bilder; alte World-Depth-Probe
+noch gesondert, Windows/macOS-GUI
+nicht abgenommen. P05 formal 2/20,
+Block 3 offen. Nächstes Gate Welt-
+Mesh/Kamera/Depth auf persistenten
+Vulkan-Present-Loop migrieren.
+Dateien nur bestehend bearbeiten,
+Nutzer-Viewer nicht beenden,
+Cache, Accounts, Login und Secrets
+nicht überschreiben. Weitere Details
+im ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

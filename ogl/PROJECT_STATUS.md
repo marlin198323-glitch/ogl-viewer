@@ -6,6 +6,99 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20 technische Aufgaben: persistente Vulkan-Swapchain-Frames ohne Queue-Idle pro Bild (05.11.2026)
+
+**Implementiert:** Ein neuer, ausschließlich über Entwicklerflags
+aktivierbarer Vulkan-X11-WSI-Pfad verwendet dieselben
+VkRenderPass-, VkFramebuffer-, VkCommandPool-,
+Command-Buffer-, Semaphore- und Fence-Ressourcen
+über mehrere tatsächlich präsentierte GPU-Frames.
+Zwei CPU-Frame-Slots und per Swapchain-Image
+zugewiesene Render-Finished-Semaphores verhindern
+die vorzeitige Wiederverwendung von Präsentations-
+und Command-Buffer-Ressourcen. Die GPU-Fence-
+Wartezeit ist begrenzt; die Funktion verwendet
+KEIN vkQueueWaitIdle pro Frame. Nach dem letzten
+Present wird genau EIN Queue-Idle beim kontrollierten
+Detach ausgeführt, bevor die Objekte freigegeben werden.
+
+**20 konkrete technische Arbeitsschritte:**
+
+01. Bestehenden Branch, sauberen Git-Ausgangsstand, P05-Roadmap, Handoff und AGENTS vor Codeänderungen geprüft.
+02. Vorherigen GitHub-CI-Fehlschlag isoliert: Windows x64 und ARM64 scheiterten; Linux x64/ARM64 und macOS-Varianten waren grün.
+03. Über GitHub-Joblogs den exakten MSVC-Fehler C2589/C2059 in ogl_rtx_module.cpp auf das Windows-Makro max zurückgeführt.
+04. Neuen std::max-Aufruf auf die MSVC-sichere geklammerte Funktionsform umgestellt.
+05. Bisherigen GPU-Present-Code auf per-Frame-Ressourcenerzeugung und vkQueueWaitIdle nach jedem Bild untersucht.
+06. Vorhandenes Vulkan-Modul um einen an die aktive Swapchain gebundenen persistenten Ressourcencontainer ergänzt.
+07. Genau einen VkRenderPass und einen VkCommandPool für die gesamte angehängte Swapchain erstellt.
+08. Separate VkImageViews und VkFramebuffers für jedes tatsächlich vorhandene Swapchain-Image angelegt.
+09. Zwei wiederverwendbare primäre VkCommandBuffer mit Reset-Fähigkeit sowie zwei eigene Submit-Fences initialisiert.
+10. Zwei Acquire-Semaphores entsprechend den CPU-Frame-Slots zur sicheren Übergabe an die GPU angelegt.
+11. Present-Semaphores pro Swapchain-Image statt pro CPU-Frame-Slot reserviert, um eine vorzeitige Wiederverwendung zu verhindern.
+12. Jeden CPU-Frame-Slot erst nach begrenztem Wait seines Submit-Fence und bei Bedarf seines vorherigen Image-Fence wiederverwendet.
+13. Swapchain-Image mit VkAcquireNextImageKHR bezogen, Command-Buffer zurückgesetzt und GPU-Clear per wiederverwendbarem Renderpass aufgezeichnet.
+14. Queue-Submit, Fence-Signal und VkQueuePresentKHR getrennt; keinen vkQueueWaitIdle im tatsächlichen persistenten Frame-Funktionskörper eingesetzt.
+15. Maximal 16 persistente Entwickler-Frames pro Swapchain-Attach zugelassen; Folgeaufruf wird sicher abgewiesen.
+16. Auf Detach genau einen Queue-Idle zur Absicherung der Present-Semaphore-Lifetime vorgesehen und Framebuffers, ImageViews, Renderpass, Pool und Fences freigegeben.
+17. Bei Resize die alte Swapchain samt persistenten GPU-Ressourcen vollständig abgebaut und für die neue Größe frisch aufgebaut.
+18. Nativer X11-Vulkan-GPU-Test: 16 reale abwechselnde Bildfarben, sichtbare Pixel, nur ein Build, ein Teardown, anschließend Resize/Recreate bestanden.
+19. Die neue Persistent-Clear-Probe im echten SDL-Fenster ausschließlich vor GL-Kontexterzeugung und unter zwei separaten Entwicklerfreigaben eingebunden: 20 GPU-Frames, 100 RGB-Pixel und drei Fenstergrößen verifiziert.
+20. Linux-Vollviewer-Build, 340/340 Python-Tests, 41/41 native CTests, sieben neue und 19 ältere isolierte Viewer-GUI-/Fallback-Tests bestanden; Windows-Reparatur wartet auf neue GitHub-CI.
+
+**Abnahme echte GPU:** Nativer X11-Vulkan-Test:
+16 reale Presents auf einer Swapchain, abwechselnde
+RGB-Farbpixel, nur eine Ressourceninitialisierung,
+der 17. Present wird abgewiesen. Danach genau
+eine Freigabe mit einer Queue-Idle-Abschlussprüfung.
+Ein X11-Resize erzeugt die zweite Swapchain und
+liefert ein weiteres korrektes GPU-Pixel; Zähler:
+builds=2, releases=2, teardown_idle=2.
+
+**Abnahme tatsächlicher SDL-Viewer:** Die separate
+Vor-OpenGL-Probe zeichnet 20 GPU-Bilder über drei
+Fenstergrößen (8/8/4) auf der vorhandenen SDL/X11-
+Viewer-XID. 100 echte X11-RGB-Pixel, drei
+Ressourcen-Lifecycles und die Wiederherstellung
+der ursprünglichen Fenstergröße wurden bestätigt.
+Danach regulärer OpenGL-Login und Exit 0.
+**7/7 neue** SDL-GUI-Fälle inkl. fehlender
+Entwicklerfreigaben, unzulässiger Mischung
+mit Raster-Probe und fehlendem Vulkan-Treiber.
+**14/14 ältere** Kamera-/Depth-/Raster-Fälle
+und **5/5** Doppelfence-Fälle erneut grün:
+insgesamt 26/26 isolierte GUI-Smokes.
+
+Linux-Vollviewer-Build, **340/340 Python-Tests**,
+**41/41 native CTests** bestanden. Kein Login,
+persönlicher Cache oder Nutzer-Viewer wurde geändert.
+
+**Windows-CI-Blocker gefunden und im Code korrigiert:**
+Die vorherige GitHub-CI für Code 49b28a90 scheiterte
+auf Windows x64/ARM64 mit MSVC C2589/C2059 wegen
+std::max und dem Windows-Makro max. Die Korrektur
+wurde als portable geklammerte Form implementiert.
+Erst die neue GitHub-CI kann diese Korrektur
+für Windows bestätigen; lokale Linux-Ergebnisse
+ersetzen die Windows-Prüfung nicht.
+
+**Grenzen:** Der persistente Pfad zeigt echte
+Vulkan-Clear-Bilder, aber noch keine eingerichtete
+OpenSim-Welt mit Terrain, Texturen, Avataren und UI.
+Er läuft vor SDL_GL_CreateContext als sichere
+Entwicklerdiagnose, NICHT während einer eingeloggten
+OpenSim-World-Session. Der alte Raster-/Depth-Testpfad
+verwendet weiter seinen gesonderten Synchronisations-
+mechanismus; der neue langlebige Clear-Pfad ist noch
+nicht mit der eigentlichen Welt-Grafikpipeline verbunden.
+Es gibt keine fertig auswählbare Vulkan-Engine.
+**P05 formal 2/20; operativer Block 3 bleibt bis
+zur dauerhaften Vulkan-World-/Window-Ownership offen.**
+Nächstes Gate: die bestehende Welt-Raster-/Depth-
+Pipeline auf die persistente WSI-Frame-Verwaltung
+migrieren, danach echte In-World-Eingangsframes
+bei angemeldetem Viewer nachweisen.
+Code-Commit: 8f33196ea3febf7e75e17a68fbe659e3fbe3609a.
+
 ## P05/3 – 20 technische Aufgaben: Zwei-GPU-Submissions und sichere Kamera-/Swapchain-Zuordnung (05.11.2026)
 
 **Neu:** Die GPU-Queue-Diagnose reiht jetzt zwei unterschiedliche

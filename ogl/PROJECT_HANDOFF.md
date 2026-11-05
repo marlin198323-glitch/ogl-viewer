@@ -316,6 +316,32 @@ Nächster Gate: persistent verwaltete Frame-
 Fences/Present-Semaphores/Swapchain-Images
 und echte In-World-Frames.
 
+**P05/3 persistent X11 Vulkan WSI (05.11.2026, Code 8f33196e):**
+20 technische Arbeitsschritte mit echtem GPU-Nachweis.
+Neuer opt-in Vulkan-Clear-Pfad hält VkRenderPass,
+Framebuffers pro VkSwapchain-Image, VkCommandPool,
+zwei Command-Buffer/Fences/Acquire-Semaphores und
+Image-indexierte Present-Semaphores über 16 Bilder.
+KEIN vkQueueWaitIdle pro Frame; genau EIN
+Queue-Idle pro Detach vor dem Freigeben der
+Present-Objekte. Native GPU: 16 Frames, sichtbare
+abwechselnde Pixel, Resize/Neuaufbau, builds=2,
+releases=2, teardown_idle=2 bestanden.
+Echtes SDL/X11-Viewerfenster VOR OpenGL:
+20 Frames, 100 X11-Pixel, drei Größen und
+anschließend GL-Login/Exit 0. 7 neue + 19
+alte isolierte GUI-Fälle erfolgreich; Linux-
+Vollbuild, 340 Python-/41 native Tests grün.
+Windows-Vorläufer-CI war ROT: MSVC C2589/C2059
+durch max-Makro bei std::max. Portable Schreibweise
+im Code angepasst, Windows-GitHub-CI ausstehend.
+Nur synthetischer Clear-Renderer, KEINE echte
+OpenSim-In-World-Vulkan-Welt, keine produktive
+Vulkan-Engine. P05 formal 2/20, Block 3 offen.
+Nächster Fokus: bestehende Welt-Raster- und
+Depth-Pipeline in die persistente WSI übernehmen;
+reale OpenSim-Kamera-/Regionsmesh-Frames prüfen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

@@ -1460,6 +1460,32 @@ nicht abgeschlossen. Nächstes Gate:
 langlebige Swapchain-Synchronisation
 und authentifizierte In-World-Weltdaten.
 
+**P05/3 persistent Vulkan-GPU-Swapchain (05.11.2026, Code 8f33196e):**
+Eigener experimenteller 16-Frame-Clear-Pfad
+auf realer SDL/X11-Vulkan-Swapchain.
+Wiederverwendung von RenderPass, ImageViews,
+Framebuffers, zwei GPU-Command-Buffer/Fences
+und Semaphores; Present-Semaphores sind an
+VkSwapchain-Image-Indizes gebunden, nicht
+an CPU-Frame-Slots. Kein Queue-Idle pro
+Frame, nur beim Detach. Native X11-GPU:
+16 Presents, Pixel validiert, Resize und
+Neuaufbau bestanden. SDL-Viewer vor GL:
+20 Presents, 100 X11-Pixel, drei Größen,
+danach GL-Login/Exit 0; 26 GUI-Fälle
+(7 neu, 19 Regression) grün. Linux-Vollbuild,
+340 Python-/41 native Tests bestanden.
+Windows-CI-Blocker MSVC max-Makro aus
+vorherigem Commit identifiziert und repariert;
+neue GitHub-CI muss Windows bestätigen.
+NOCH KEINE echte Vulkan-OpenSim-Welt:
+nur Clear-Test, kein Live-World-Fensterbesitz,
+Terrain, Avatare oder UI unter Vulkan.
+P05 weiter 2/20, Block 3 operativ offen.
+Nächstes Gate: World/Depth-Raster in
+persistente Frameverwaltung integrieren,
+danach authentifizierte In-World-GPU-Abnahme.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
