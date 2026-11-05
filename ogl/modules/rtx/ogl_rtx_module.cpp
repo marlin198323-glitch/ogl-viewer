@@ -145,6 +145,7 @@ struct OglPersistentClearFrames {
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkPipeline pipeline = VK_NULL_HANDLE;
     bool world_depth = false;
+    std::array<uint64_t,2> submitted_mesh_generations{};
     std::vector<VkSemaphore> presented_by_image;
     std::vector<VkFence> image_in_flight;
     std::array<VkCommandBuffer,2> commands{};
@@ -189,6 +190,9 @@ struct WorldGraphicsDevice {
     uint32_t persistent_releases = 0;
     uint32_t persistent_total_presents = 0;
     uint32_t persistent_teardown_idles = 0;
+    uint64_t mesh_generation = 0; // accepted scene revisions, including clear
+    uint32_t mesh_retire_waits = 0; // bounded GPU-fence waits, NOT queue idle
+    uint32_t mesh_retire_failures = 0;
 
     // P05/4: private Vulkan world-geometry data, not an RTX BLAS/TLAS and
     // not a completed draw pipeline. Both buffers belong to this VkDevice.
@@ -333,6 +337,8 @@ struct WorldGraphicsDevice {
         world_to_clip.fill(0.f);
         world_camera_accepts = 0;
         mesh_uploads = 0;
+        mesh_generation = 0;
+        mesh_retire_waits = mesh_retire_failures = 0;
         sync_max_outstanding = 0;
         sync_last_submitted = 0;
         sync_last_completed = 0;
@@ -1876,6 +1882,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     }
     p.submitted_any=true;
     p.submit_pending[slot]=true;
+    if (world) p.submitted_mesh_generations[slot]=world_device.mesh_generation;
     p.image_in_flight[image_index]=slot_fence;
     VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present.waitSemaphoreCount=1;
@@ -2415,23 +2422,59 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
         !world_device.destroy_buffer || !world_device.free_memory ||
         count>OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangles))
         return 0;
-    // Persistent World GPU submissions may still reference these buffers.
-    // Refuse ANY upload/clear until the swapchain has been detached and
-    // its queue made idle. Never free GPU memory still used by a frame.
-    if (world_device.persistent.initialized &&
-        world_device.persistent.submitted_any) return 0;
+    // Invalid input must not stall the graphics queue or mutate a valid
+    // generation. Validate before any GPU fence retirement attempt.
+    if (count)
+        for (uint32_t i=0;i<count;++i)
+            if (!ogl::is_valid_triangle(triangles[i])) return 0;
+
+    // P05 world scene rotation: keep the old VkBuffers alive until ALL
+    // queued graphics submissions that reference the old mesh have
+    // completed. A separate explicit developer gate permits this bounded
+    // GPU-fence handshake, WITHOUT vkQueueWaitIdle or swapping the window.
+    // Present only references swapchain images/semaphores, not VkMeshBuffers.
+    auto& frames=world_device.persistent;
+    if (frames.initialized && frames.submitted_any) {
+        const char* rotation=std::getenv(
+            "OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
+        if (!rotation || std::strcmp(rotation,"1")!=0 ||
+            !frames.world_depth || frames.blocked)
+            return 0;
+        const auto wait=reinterpret_cast<PFN_vkWaitForFences>(
+            world_device.device_proc(world_device.device,"vkWaitForFences"));
+        if (!wait) return 0;
+        VkFence unfinished[2]{VK_NULL_HANDLE,VK_NULL_HANDLE};
+        uint32_t pending=0;
+        for (size_t i=0;i<frames.submit_pending.size();++i) {
+            if (frames.submit_pending[i] &&
+                frames.submitted_mesh_generations[i]==world_device.mesh_generation)
+                unfinished[pending++]=frames.submit_fences[i];
+        }
+        if (pending) {
+            if (wait(world_device.device,pending,unfinished,VK_TRUE,
+                     2000000000ULL)!=VK_SUCCESS) {
+                // Do not release or overwrite any VkBuffer on GPU timeout.
+                // Block further Vulkan presents until device teardown.
+                frames.blocked=true;
+                ++world_device.mesh_retire_failures;
+                return 0;
+            }
+            ++world_device.mesh_retire_waits;
+            for (size_t i=0;i<frames.submit_pending.size();++i)
+                if (frames.submitted_mesh_generations[i]==
+                    world_device.mesh_generation)
+                    frames.submit_pending[i]=false;
+        }
+    }
     if (count==0) {
         world_device.clear_mesh(); // region/scene cleared, no stale vertices
         // Invalidate the old region's projection on teleport/region loss.
         world_device.world_camera_ready=false;
         world_device.world_camera_aspect=0.f;
         world_device.world_to_clip.fill(0.f);
+        ++world_device.mesh_generation; // explicit empty-region generation
         return 1;
     }
-    for (uint32_t i=0;i<count;++i)
-        if (!ogl::is_valid_triangle(triangles[i]))
-            return 0; // atomic rejection, old GPU buffers remain intact
-
     static_assert(sizeof(ogl_rtx_triangle)==sizeof(float)*9,
         "World triangle ABI must be tightly packed XYZ positions");
     const uint32_t vertex_count=count*3u;
@@ -2525,6 +2568,7 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     world_device.mesh_index_memory=index_memory;
     world_device.mesh_triangle_count=count;
     ++world_device.mesh_uploads;
+    ++world_device.mesh_generation;
     // Mesh and camera MUST be paired only after another real camera
     // submission. A new snapshot may correspond to a new region/camera.
     world_device.world_camera_ready=false;
@@ -3190,6 +3234,17 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_camera_updates() {
 }
 extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads() {
     return world_device.mesh_uploads;
+}
+// Scene generations distinguish accepted mesh snapshots and region-clear.
+// These are CPU/queue lifetime diagnostics, NOT live OpenSim region versions.
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_generation() {
+    return world_device.mesh_generation;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_waits() {
+    return world_device.mesh_retire_waits;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_failures() {
+    return world_device.mesh_retire_failures;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count() {
     return world_device.mesh_triangle_count;

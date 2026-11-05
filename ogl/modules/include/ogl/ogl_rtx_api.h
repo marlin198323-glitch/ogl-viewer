@@ -110,6 +110,19 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_camera_matches_swapchain(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_live_inputs_ready(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_camera_updates(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads(void);
+/* Developer-only persistent world mesh rotation. Disabled unless the
+ * caller explicitly sets OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE=1,
+ * in addition to all normal world/mesh/window developer opt-ins.
+ * The OLD VkVertex/VkIndexBuffers are released only after one bounded
+ * (<=2 seconds) wait-all of the outstanding submit fences that reference
+ * their generation. This does NOT wait for entire VkQueue or GPU present.
+ * Invalid GPU wait blocks the persistent probe, preserving old buffers.
+ * A successful mesh/empty-region clear advances the scene generation,
+ * invalidates the old camera and requires a fresh camera before drawing.
+ */
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_generation(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_waits(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_failures(void);
 
 /* Prototype per-object registry for incremental RT geometry/transform
  * tracking. IDs are the full 16 UUID bytes; object vertices are LOCAL.

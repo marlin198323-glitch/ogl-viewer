@@ -83,6 +83,12 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_camera_updates"));
     const auto mesh_uploads = reinterpret_cast<uint64_t(*)()>(
         dlsym(library,"ogl_vulkan_world_mesh_uploads"));
+    const auto mesh_generation = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_mesh_generation"));
+    const auto mesh_retire_waits = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_mesh_retire_waits"));
+    const auto mesh_retire_failures = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_mesh_retire_failures"));
     const auto window_attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_attach_x11_window"));
     const auto window_ready = reinterpret_cast<int(*)()>(
@@ -90,7 +96,10 @@ int main(int argc, char** argv) {
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
     assert(world_camera && camera_ready && aspect_matches && live_inputs &&
-           camera_updates && mesh_uploads);
+           camera_updates && mesh_uploads && mesh_generation &&
+           mesh_retire_waits && mesh_retire_failures);
+    assert(mesh_generation()==0 && mesh_retire_waits()==0 &&
+           mesh_retire_failures()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
            aspect_matches()==0 && camera_updates()==0 && mesh_uploads()==0);
     assert(world_camera(nullptr)==0);
@@ -1133,6 +1142,166 @@ int main(int argc, char** argv) {
                 persistent_world_ok?1:0,persistent_world_moved?1:0,
                 persistent_world_immutable?1:0,persistent_world_resize?1:0);
         }
+        // P05 scene revision acceptance: the GPU completes old mesh
+        // submissions using TWO bounded VkFence waits, without queue-idle.
+        // During a single persistent VkSwapchain lifetime the screen
+        // transitions RED -> GREEN -> empty -> RED -> GREEN. The empty
+        // region refuses a draw until a new mesh AND camera are submitted.
+        const char* rotation_env=std::getenv(
+            "OGL_VULKAN_PERSISTENT_MESH_ROTATION_TEST_X11");
+        const bool test_rotation=rotation_env &&
+            std::strcmp(rotation_env,"1")==0;
+        bool rotation_ok=true,rotation_invalid=true;
+        bool rotation_clear=true,rotation_no_idle=true;
+        if (test_rotation) {
+            for (const char* flag:{
+                 "OGL_VULKAN_WORLD_MESH_UPLOAD",
+                 "OGL_VULKAN_WORLD_CAMERA_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_RASTER_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_WORLD_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE"})
+                setenv(flag,"1",1);
+            const ogl_rtx_triangle near{{
+                12.5f,18.f,28.4f,12.5f,22.f,28.4f,12.5f,20.f,31.6f
+            }};
+            const ogl_rtx_triangle far{{
+                15.f,16.f,26.8f,15.f,24.f,26.8f,15.f,20.f,33.2f
+            }};
+            const ogl_rtx_triangle pair[2]{near,far};
+            ogl_rtx_frame_state camera{};
+            camera.struct_size=sizeof(camera);
+            camera.frame_version=OGL_RTX_FRAME_VERSION;
+            camera.width=512;camera.height=384;
+            camera.camera_position[0]=10.f;
+            camera.camera_position[1]=20.f;
+            camera.camera_position[2]=30.f;
+            camera.camera_forward[0]=1.f;
+            camera.camera_right[1]=1.f;
+            camera.camera_up[2]=1.f;
+            camera.sun_direction[2]=1.f;
+            camera.vertical_fov_radians=1.57079632679f;
+            camera.aspect_ratio=4.f/3.f;
+            camera.near_clip_m=2.f;camera.far_clip_m=10.f;
+            XResizeWindow(display,window,512,384);
+            XSync(display,False);
+            const uint64_t gen0=mesh_generation();
+            const uint32_t wait0=mesh_retire_waits();
+            const uint32_t idle0=persistent_idles();
+            const uint32_t builds0=persistent_builds();
+            rotation_ok=world_upload(pair,2)==1 &&
+                mesh_generation()==gen0+1 &&
+                world_camera(&camera)==1 &&
+                window_attach(display,static_cast<uint64_t>(window),
+                              512,384)==1 && aspect_matches()==1;
+            auto pixel_is=[&](int red,int green,int blue) {
+                for (unsigned tries=0;tries<120;++tries) {
+                    XSync(display,False);
+                    XImage* img=XGetImage(display,window,256,192,
+                        1,1,AllPlanes,ZPixmap);
+                    if (img) {
+                        const unsigned long pixel=XGetPixel(img,0,0);
+                        auto channel=[pixel](unsigned long mask) {
+                            if (!mask) return -1;
+                            unsigned shift=0;
+                            while (!(mask&1UL)) {mask>>=1;++shift;}
+                            return static_cast<int>(
+                                (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                        };
+                        const bool ok=
+                            std::abs(channel(img->red_mask)-red)<=5 &&
+                            std::abs(channel(img->green_mask)-green)<=5 &&
+                            std::abs(channel(img->blue_mask)-blue)<=5;
+                        XDestroyImage(img);
+                        if (ok) return true;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+                }
+                return false;
+            };
+            // Submit in BOTH persistent GPU frame slots before the mesh
+            // transition. They can remain in-flight simultaneously.
+            rotation_ok=rotation_ok && persistent_clear(1)==1 &&
+                persistent_count()==1 && pixel_is(237,48,38) &&
+                persistent_clear(1)==1 &&
+                persistent_count()==2 && pixel_is(237,48,38);
+            // Old default behavior still rejects mutation when explicit
+            // mesh-generation retirement permission is not supplied.
+            rotation_ok=rotation_ok &&
+                world_upload(&far,1)==0 && world_gpu_count()==2 &&
+                mesh_generation()==gen0+1 &&
+                mesh_retire_waits()==wait0;
+            setenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE","1",1);
+            // Rejected bad coordinates leave the old region and its
+            // counters untouched, WITHOUT waiting on a GPU fence.
+            auto invalid=far;
+            invalid.position[0]=std::numeric_limits<float>::quiet_NaN();
+            rotation_invalid=world_upload(&invalid,1)==0 &&
+                mesh_generation()==gen0+1 &&
+                mesh_retire_waits()==wait0 &&
+                world_gpu_count()==2;
+            rotation_ok=rotation_ok && rotation_invalid &&
+                world_upload(&far,1)==1 &&
+                mesh_generation()==gen0+2 &&
+                mesh_retire_waits()==wait0+1 &&
+                mesh_retire_failures()==0 && camera_ready()==0 &&
+                persistent_clear(1)==0 &&
+                world_camera(&camera)==1 &&
+                persistent_clear(1)==1 && persistent_count()==3 &&
+                pixel_is(20,199,41);
+            // Region loss: draw must stop until a new generation and pose.
+            rotation_clear=world_upload(nullptr,0)==1 &&
+                world_gpu_count()==0 &&
+                mesh_generation()==gen0+3 &&
+                mesh_retire_waits()==wait0+2 &&
+                camera_ready()==0 &&
+                persistent_clear(1)==0;
+            rotation_clear=rotation_clear && world_upload(&near,1)==1 &&
+                mesh_generation()==gen0+4 &&
+                camera_ready()==0 &&
+                world_camera(&camera)==1 &&
+                persistent_clear(1)==1 && persistent_count()==4 &&
+                pixel_is(237,48,38);
+            rotation_ok=rotation_ok && rotation_clear;
+            // Fourth generation was still submitted. Another bounded
+            // wait-all retires its buffer before the next mesh appears.
+            rotation_ok=rotation_ok && world_upload(&far,1)==1 &&
+                mesh_generation()==gen0+5 &&
+                mesh_retire_waits()==wait0+3 &&
+                world_camera(&camera)==1 &&
+                persistent_clear(1)==1 && persistent_count()==5 &&
+                pixel_is(20,199,41);
+            rotation_no_idle=persistent_builds()==builds0+1 &&
+                persistent_idles()==idle0 &&
+                mesh_retire_failures()==0;
+            window_detach();
+            rotation_no_idle=rotation_no_idle &&
+                persistent_idles()==idle0+1 &&
+                persistent_count()==0;
+            rotation_ok=rotation_ok && rotation_no_idle &&
+                world_upload(nullptr,0)==1 &&
+                mesh_generation()==gen0+6 &&
+                world_gpu_count()==0 &&
+                camera_ready()==0;
+            for (const char* flag:{
+                 "OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_WORLD_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_RASTER_PROBE",
+                 "OGL_VULKAN_WORLD_CAMERA_PROBE",
+                 "OGL_VULKAN_WORLD_MESH_UPLOAD"})
+                unsetenv(flag);
+            std::fprintf(stdout,
+                "P05 live GPU mesh generations: rotation=%d invalid=%d "
+                "clear=%d no-frame-idle=%d generations=%llu waits=%u\n",
+                rotation_ok?1:0,rotation_invalid?1:0,
+                rotation_clear?1:0,rotation_no_idle?1:0,
+                static_cast<unsigned long long>(mesh_generation()),
+                mesh_retire_waits());
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
         if (test_world && camera_ready()!=0) world_bad=false;
@@ -1152,6 +1321,8 @@ int main(int argc, char** argv) {
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
+            (test_rotation && (!rotation_ok || !rotation_invalid ||
+                !rotation_clear || !rotation_no_idle)) ||
             (test_persistent_world && (!persistent_world_ok ||
                 !persistent_world_moved || !persistent_world_immutable ||
                 !persistent_world_resize)) ||
@@ -1197,6 +1368,8 @@ int main(int argc, char** argv) {
             std::puts("P05 persistent Vulkan swapchain CLEAR: 16 GPU presents, one initialization, teardown-only queue idle, resize/recreate PASS");
         if (test_persistent_world)
             std::puts("P05 persistent Vulkan WORLD depth: 16 indexed GPU frames, camera motion, immutable mesh, resize/recreate PASS");
+        if (test_rotation)
+            std::puts("P05 GPU mesh-generation transitions: red/green/empty/red/green, bounded GPU fences, no per-frame queue idle PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

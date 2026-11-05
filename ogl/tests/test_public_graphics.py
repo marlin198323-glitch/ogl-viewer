@@ -334,7 +334,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("wm.subsystem!=SDL_SYSWM_X11",win)
         self.assertIn("SDL_LoadObject(\"./lib/ogl_rtx.so\")",win)
         self.assertIn("SDL_LoadFunction(library,\"ogl_vulkan_world_present_exclusive_test_frame\")",win)
-        self.assertIn("if (selected_present(1)!=1 ||",win)
+        self.assertIn("if (!good || selected_present(1)!=1 ||",win)
         self.assertIn("detach();\n            stop();",win)
         self.assertIn("SDL_UnloadObject(library);",win)
         self.assertIn("ogl_probe_real_sdl_window_before_gl(mWindow);",win)
@@ -343,7 +343,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OpenGL follows.",win)
         self.assertIn("XGetImage(wm.info.x11.display,",win)
         self.assertIn("XGetPixel(image,0,0)",win)
-        self.assertIn("std::abs(red-(red_triangle?237:(warm?166:20)))>5",win)
+        self.assertIn("std::abs(red-wanted_red)>5",win)
         self.assertIn('pixel_verified ? "verified" : "unverified"',win)
         self.assertIn("XDestroyImage(image);",win)
         self.assertLess(win.index("XDestroyImage(image);"),
@@ -435,8 +435,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('SDL_LoadFunction(library,"ogl_vulkan_world_gpu_triangle_count")',win)
         self.assertIn('const ogl_rtx_triangle clip_triangle',win)
         self.assertIn('mesh_count()==triangles',win)
-        self.assertIn('const bool red_triangle=raster && sample==0',win)
-        self.assertIn('std::abs(red-(red_triangle?237:(warm?166:20)))>5',win)
+        self.assertIn('const bool triangle=raster && sample==0',win)
+        self.assertIn('std::abs(red-wanted_red)>5',win)
         self.assertIn('raster_verified=raster && uploaded && pixel_verified;',win)
         self.assertIn('if (raster && upload) upload(nullptr,0);',win)
         self.assertIn('raster_verified ? "verified" : "failed"',win)
@@ -744,7 +744,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("vkCmdBindIndexBuffer(cmd,world_device.mesh_indices,0,",module)
         self.assertIn("vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u,1,0,0,0)",module)
         self.assertIn("p.world_depth!=world",module)
-        self.assertIn("world_device.persistent.submitted_any) return 0;",module)
+        self.assertIn("if (frames.initialized && frames.submitted_any)",module)
         self.assertIn("OGL_VULKAN_PERSISTENT_WORLD_TEST_X11",native)
         self.assertIn("persistent_world_immutable=world_upload(mesh,2)==0",native)
         self.assertIn("persistent_world_moved=world_camera(&camera)==1",native)
@@ -753,15 +753,61 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE",win)
         self.assertIn("(!sequence || persistent_world_both)",win)
         self.assertIn("persistent_world=persistent_world_both",win)
-        self.assertIn("persistent_world_uploaded=upload(mesh,2)==1",win)
+        self.assertIn("upload(mesh,2)==1 && mesh_count()==2",win)
         self.assertIn("if (good && persistent_world)",win)
         self.assertIn("camera.near_clip_m=2.f;camera.far_clip_m=10.f;",win)
         self.assertIn("persistent-world=",win)
         a=module.index("uint32_t present_persistent_clear_frame(")
         b=module.index("// P05/3 foundation: exercise the REAL Vulkan graphics queue",a)
         self.assertNotIn("vkQueueWaitIdle(",module[a:b])
-        self.assertLess(win.index("persistent_world_uploaded=upload(mesh,2)==1"),
+        self.assertLess(win.index("upload(mesh,2)==1 && mesh_count()==2"),
                         win.index("SDL_GL_CreateContext( mWindow );"))
+
+    def test_p05_persistent_mesh_generation_bounded_fence_retirement(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        assert_names=("ogl_vulkan_world_mesh_generation",
+                      "ogl_vulkan_world_mesh_retire_waits",
+                      "ogl_vulkan_world_mesh_retire_failures")
+        for name in assert_names:
+            self.assertIn(name,api)
+            self.assertIn(name,module)
+            self.assertIn(name,native)
+        a=module.index("int upload_world_geometry(")
+        b=module.index("int ",a+10) if "int " in module[a+10:] else len(module)
+        fn=module[a:b]
+        self.assertIn("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",fn)
+        self.assertIn("if (frames.initialized && frames.submitted_any)",fn)
+        self.assertIn("frames.submitted_mesh_generations[i]==world_device.mesh_generation",fn)
+        self.assertIn("VkFence unfinished[2]",fn)
+        self.assertIn("2000000000ULL",fn)
+        self.assertIn("frames.blocked=true;",fn)
+        self.assertIn("++world_device.mesh_retire_failures;",fn)
+        self.assertIn("++world_device.mesh_retire_waits;",fn)
+        self.assertIn("++world_device.mesh_generation;",fn)
+        self.assertLess(fn.index("ogl::is_valid_triangle"),
+                        fn.index("VkFence unfinished[2]"))
+        self.assertLess(fn.index("wait(world_device.device,pending,unfinished"),
+                        fn.index("world_device.clear_mesh();"))
+        self.assertNotIn("vkQueueWaitIdle(",fn)
+        self.assertIn("p.submitted_mesh_generations[slot]=world_device.mesh_generation;",module)
+        self.assertIn("OGL_VULKAN_PERSISTENT_MESH_ROTATION_TEST_X11",native)
+        self.assertIn("mesh_retire_waits()==wait0+3",native)
+        self.assertIn("rotation_invalid=world_upload(&invalid,1)==0",native)
+        self.assertIn("world_upload(nullptr,0)==1",native)
+        self.assertIn("mesh_generation()==gen0+6",native)
+        self.assertIn("OGL_VULKAN_SDL_PREGL_MESH_ROTATION_PROBE",win)
+        self.assertIn("persistent_world && sequence",win)
+        self.assertIn("mesh_rotation_requested!=mesh_rotation_permission",win)
+        self.assertIn("mesh_rotation_verified=good &&",win)
+        self.assertIn("far_triangle=mesh_rotation",win)
+        self.assertIn("mesh-rotation=",win)
+        self.assertLess(win.index("mesh_rotation_verified=good &&"),
+                        win.index("SDL_GL_CreateContext( mWindow );"))
+        self.assertNotIn("OGL_VULKAN_SDL_PREGL_MESH_ROTATION_PROBE",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
