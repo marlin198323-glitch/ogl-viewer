@@ -90,6 +90,16 @@ int main(int argc, char** argv) {
     assert(setenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE","1",1)==0);
     const uint32_t actual_frame=offscreen_frame();
     assert(actual_frame==0 || actual_frame==1);
+    // Portable CI may lack a Vulkan GPU, but a hardware-qualified developer
+    // run must fail if no real GPU frame was produced and verified.
+    const char* require_frame=getenv("OGL_REQUIRE_VULKAN_OFFSCREEN_FRAME");
+    if (require_frame && require_frame[0]=='1' && require_frame[1]=='\0' &&
+        (ready!=1 || actual_frame!=1)) {
+        std::fprintf(stderr,"Required Vulkan offscreen GPU frame not verified: device=%d frame=%u\n",
+                     ready,actual_frame);
+        stop();
+        return 11;
+    }
     if (actual_frame) assert(offscreen_frame()==1);
     unsetenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
     assert(offscreen_frame()==0);

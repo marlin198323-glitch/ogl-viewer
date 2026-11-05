@@ -127,6 +127,19 @@ Plattformübergreifender CI-Lauf für diesen Commit
 erst nach Push auswertbar; kein Windows/macOS-
 Vollviewer-Login behauptet.
 
+**Zusätzliche GPU-Pflichtprüfung (05.11.2026):** Der vorhandene
+native `ogl_rtx_frame_bridge_test` akzeptiert jetzt optional
+`OGL_REQUIRE_VULKAN_OFFSCREEN_FRAME=1`. Auf einem für den
+Test vorgesehenen Vulkan-GPU-Rechner führt `device!=1` oder
+ein fehlender GPU-Readback-Erfolg damit zu Exit-Code 11,
+statt als optionales 0-Ergebnis still durchzugehen.
+Auf dem Linux-Mint-Rechner: expliziter Hardwaretest PASS;
+mit ungültigem Vulkan-ICD erwarteter Exit-Code 11.
+Portabler Standard ohne Pflichtflag bleibt grün.
+327/327 Python-Tests und 41/41 native CTests erneut bestanden.
+Das ist zusätzliche Testabsicherung innerhalb P05/3,
+kein Vulkan-Swapchain-Present und keine neue Blockfreigabe.
+
 **Abnahmegrenze:** Noch kein Vulkan-Swapchain-Acquire,
 vkQueuePresentKHR, vollständiger World-Draw,
 Textur-/Mesh-/Avatar-Pipeline oder anwählbarer
