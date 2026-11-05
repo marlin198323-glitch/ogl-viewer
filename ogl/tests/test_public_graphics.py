@@ -316,6 +316,45 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('renderer->setEnabledByValue("vulkan", false)',
                       (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
 
+    def test_p05_actual_sdl_window_pre_gl_vulkan_handoff_is_safe_and_opt_in(self):
+        # This is a single developer-only Vulkan WSI present on the *actual*
+        # SDL viewer window BEFORE it has an OpenGL context. GL is restored
+        # normally, and this is not the full in-world Vulkan world backend.
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        for token in ("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE",
+                      "OGL_VULKAN_WORLD_BOOTSTRAP",
+                      "OGL_VULKAN_WINDOW_SURFACE",
+                      "OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE"):
+            self.assertIn('ogl_pre_gl_flag("'+token+'")',win)
+        self.assertIn("APP_NAME != \"OGL\"",win)
+        self.assertIn("SDL_GL_GetCurrentContext()!=nullptr",win)
+        self.assertIn("SDL_GetWindowWMInfo(window,&wm)",win)
+        self.assertIn("wm.subsystem!=SDL_SYSWM_X11",win)
+        self.assertIn("SDL_LoadObject(\"./lib/ogl_rtx.so\")",win)
+        self.assertIn("SDL_LoadFunction(library,\"ogl_vulkan_world_present_exclusive_test_frame\")",win)
+        self.assertIn("presented=present(1);",win)
+        self.assertIn("detach();\n            stop();",win)
+        self.assertIn("SDL_UnloadObject(library);",win)
+        self.assertIn("ogl_probe_real_sdl_window_before_gl(mWindow);",win)
+        self.assertLess(win.index("ogl_probe_real_sdl_window_before_gl(mWindow);"),
+                        win.index("mContext = SDL_GL_CreateContext( mWindow );"))
+        self.assertIn("OpenGL follows.",win)
+        self.assertIn("XGetImage(wm.info.x11.display,",win)
+        self.assertIn("XGetPixel(image,0,0)",win)
+        self.assertIn("pixel_verified=r>=16 && r<=25",win)
+        self.assertIn('pixel_verified ? "verified" : "unverified"',win)
+        self.assertIn("XDestroyImage(image);",win)
+        self.assertLess(win.index("XDestroyImage(image);"),
+                        win.index("SDL_GL_CreateContext( mWindow );"))
+        self.assertIn("ogl_vulkan_world_present_exclusive_test_frame",header)
+        self.assertIn("gl_released!=1",module)
+        self.assertIn('renderer->setEnabledByValue("vulkan", false)',
+            (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
+        self.assertNotIn("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE",
+            (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

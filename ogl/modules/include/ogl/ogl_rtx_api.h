@@ -246,11 +246,12 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
 OGL_MODULE_EXPORT int ogl_vulkan_world_attach_x11_window(
     void* x11_display, uint64_t x11_window, uint32_t width, uint32_t height);
 OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
-/* Native X11 developer QA ONLY. Caller MUST own the window exclusively
+/* Developer-only native X11 WSI QA. Caller MUST own the window exclusively
  * (no OpenGL presentation), pass gl_released=1, and set
- * OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE=1. Never called by the GL Viewer.
- * Executes a single real GPU swapchain acquire/clear/present operation;
- * this is NOT an interactive Vulkan world renderer.
+ * OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE=1. Called either from the isolated
+ * native X11 test OR once from the actual SDL window BEFORE GL context
+ * creation, under an additional explicit developer opt-in. NOT callable
+ * during GL world rendering, and NOT an interactive Vulkan world renderer.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
     uint32_t gl_released);

@@ -544,10 +544,10 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
 }
 
 ogl_log_fn logger = nullptr;
-// P05/3: native-only, exclusive X11 swapchain-present acceptance test.
-// The interactive GL viewer NEVER invokes this function. Its disposable
-// X11 test window has no OpenGL context and is owned by the caller.
-// One-frame-only: a real Vulkan world renderer needs a multi-frame design.
+// P05/3 developer-only exclusive X11 swapchain-present acceptance probe.
+// Its caller is either the isolated native X11 QA window, or the real SDL
+// viewer window strictly BEFORE GL context creation. It must NEVER run
+// while OpenGL owns the window and is NOT a world renderer.
 uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
 #if defined(OGL_HAS_XLIB_WSI)
     const char* flag=std::getenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE");
@@ -748,14 +748,14 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         in_flight=true;
         const auto presented=vkQueuePresentKHR(world_device.queue,&present);
         // Vulkan 1.1 present-completion lacks a bounded wait. This exists
-        // ONLY in the isolated native QA subprocess with external timeout;
-        // the Viewer never enters this blocking path.
+        // in the isolated QA subprocess, or the explicit pre-GL developer
+        // startup probe. Do NOT use in an interactive renderer frame loop.
         if (vkQueueWaitIdle(world_device.queue)!=VK_SUCCESS) return false;
         in_flight=false;
         if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
             return false;
         if (logger)
-            logger(1,"P05 isolated native Vulkan X11: real swapchain acquire, clear and present; NOT in Viewer.");
+            logger(1,"P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL.");
         return true;
     };
     const bool success=run();

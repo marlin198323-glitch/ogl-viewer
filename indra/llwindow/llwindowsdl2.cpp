@@ -41,6 +41,12 @@
 #include "llfindlocale.h"
 #include "llframetimer.h"
 
+// OGL P05 opt-in: exercise a single Vulkan present on the real SDL window
+// BEFORE any GL context exists. The portable LLWindow ABI is not changed.
+#if LL_LINUX && LL_X11
+#include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
+#endif
+
 // if there is a better methood to get at the settings from llwindow/ let me know! -Zi
 #include "llcontrol.h"
 #include "indra_constants.h"
@@ -83,6 +89,129 @@ static bool ATIbug = false;
 // maintain in the constructor and destructor.  This assumes that there will
 // be only one object of this class at any time.  Currently this is true.
 static LLWindowSDL *gWindowImplementation = NULL;
+
+// Pre-GL developer smoke test: for precisely one frame Vulkan owns the
+// *actual SDL/X11 viewer window* before any OpenGL context is created.
+// The test detaches/releases ALL Vulkan handles before GL initialization.
+// No ordinary viewer/renderer setting can enable this path.
+#if LL_LINUX && LL_X11
+namespace {
+void ogl_pre_gl_log(int severity, const char* message) {
+    LL_INFOS("OGLRenderer") << "P05 pre-GL module " << severity << ": "
+        << (message ? message : "") << LL_ENDL;
+}
+
+bool ogl_pre_gl_flag(const char* name) {
+    const char* value=std::getenv(name);
+    return value && value[0]=='1' && value[1]=='\0';
+}
+
+void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
+    if (!window || APP_NAME != "OGL" ||
+        !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE") ||
+        !ogl_pre_gl_flag("OGL_VULKAN_WORLD_BOOTSTRAP") ||
+        !ogl_pre_gl_flag("OGL_VULKAN_WINDOW_SURFACE") ||
+        !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE"))
+        return;
+    // A GL context can still be current during a context rebuild. Never
+    // Vulkan-present to a window with an existing GL owner.
+    if (SDL_GL_GetCurrentContext()!=nullptr) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 actual SDL pre-GL probe skipped: OpenGL context already current."
+            << LL_ENDL;
+        return;
+    }
+    SDL_SysWMinfo wm{};
+    SDL_VERSION(&wm.version);
+    if (!SDL_GetWindowWMInfo(window,&wm) ||
+        wm.subsystem!=SDL_SYSWM_X11 ||
+        !wm.info.x11.display || !wm.info.x11.window) {
+        LL_INFOS("OGLRenderer") <<
+            "P05 actual SDL pre-GL probe unavailable: not an X11 window; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
+    // Same staged, project-owned module used by the OGL host. Dynamic SDL
+    // loading avoids a new link dependency on libdl and changes no user data.
+    void* library=SDL_LoadObject("./lib/ogl_rtx.so");
+    if (!library) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 actual SDL pre-GL module unavailable; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
+    using Attach = int (*)(void*,uint64_t,uint32_t,uint32_t);
+    using Present = uint32_t (*)(uint32_t);
+    using Detach = void (*)();
+    const auto start=reinterpret_cast<ogl_module_start_fn>(
+        SDL_LoadFunction(library,"ogl_module_start"));
+    const auto stop=reinterpret_cast<ogl_module_stop_fn>(
+        SDL_LoadFunction(library,"ogl_module_stop"));
+    const auto attach=reinterpret_cast<Attach>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_attach_x11_window"));
+    const auto present=reinterpret_cast<Present>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_present_exclusive_test_frame"));
+    const auto detach=reinterpret_cast<Detach>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_detach_window"));
+    uint32_t presented=0;
+    bool attached=false;
+    bool pixel_verified=false;
+    if (start && stop && attach && present && detach) {
+        const ogl_host_api host{sizeof(ogl_host_api),
+                                OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
+        if (start(&host)==0) {
+            int width=0,height=0;
+            SDL_GetWindowSize(window,&width,&height);
+            if (width>0 && height>0 &&
+                attach(wm.info.x11.display,
+                       static_cast<uint64_t>(wm.info.x11.window),
+                       static_cast<uint32_t>(width),
+                       static_cast<uint32_t>(height))==1) {
+                attached=true;
+                // No GL context has been created. This flag denotes actual
+                // exclusive pre-GL ownership, not a fake runtime handoff.
+                presented=present(1);
+                if (presented==1) {
+                    // Verify the actual SDL/X11 front buffer BEFORE the GL
+                    // context replaces it. The Vulkan probe clears to
+                    // RGB(20,54,115); use the X11 Visual's native masks.
+                    XSync(wm.info.x11.display,False);
+                    XImage* image=XGetImage(wm.info.x11.display,
+                        wm.info.x11.window,width/2,height/2,1,1,
+                        AllPlanes,ZPixmap);
+                    if (image) {
+                        const unsigned long value=XGetPixel(image,0,0);
+                        auto channel=[value](unsigned long mask) -> int {
+                            if (!mask) return -1;
+                            unsigned shift=0;
+                            while (!(mask&1UL)) { mask>>=1; ++shift; }
+                            return static_cast<int>(
+                                (((value>>shift)&mask)*255UL+mask/2)/mask);
+                        };
+                        const int r=channel(image->red_mask);
+                        const int g=channel(image->green_mask);
+                        const int b=channel(image->blue_mask);
+                        pixel_verified=r>=16 && r<=25 &&
+                                       g>=49 && g<=59 &&
+                                       b>=110 && b<=120;
+                        XDestroyImage(image);
+                    }
+                }
+            }
+            detach();
+            stop();
+        }
+    }
+    SDL_UnloadObject(library);
+    LL_INFOS("OGLRenderer") <<
+        "P05 actual SDL/X11 pre-GL Vulkan frame: " << presented <<
+        "/1 presented, pixel=" << (pixel_verified ? "verified" : "unverified") <<
+        ", surface=" << (attached ? "ready" : "unavailable") <<
+        "; Vulkan fully detached BEFORE SDL_GL_CreateContext; OpenGL follows."
+        << LL_ENDL;
+}
+} // namespace
+#endif
 #if LL_X11
 static LLWindowSDL::OglWindowWillDestroyCallback gOglWindowWillDestroy = nullptr;
 static LLWindowSDL::OglWindowWillDestroyCallback gOglWindowResized = nullptr;
@@ -789,6 +918,11 @@ bool LLWindowSDL::createContext(int x, int y, int width, int height, int bits, b
 
     if( mWindow )
     {
+#if LL_LINUX && LL_X11
+        // Explicit P05 validation only. Ownership is returned to SDL/GL
+        // synchronously before the first GL context or viewer world frame.
+        ogl_probe_real_sdl_window_before_gl(mWindow);
+#endif
         mContext = SDL_GL_CreateContext( mWindow );
 
         if( mContext == 0 )
