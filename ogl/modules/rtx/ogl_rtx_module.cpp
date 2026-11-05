@@ -158,6 +158,10 @@ struct WorldGraphicsDevice {
     VkBuffer mesh_indices = VK_NULL_HANDLE;
     VkDeviceMemory mesh_index_memory = VK_NULL_HANDLE;
     uint32_t mesh_triangle_count = 0;
+    // CPU-generated Vulkan clip projection from a validated Firestorm
+    // camera. Exactly 16 column-major floats for the 64-byte push constant.
+    std::array<float,16> world_to_clip{};
+    bool world_camera_ready = false;
     PFN_vkDestroyBuffer destroy_buffer = nullptr;
     PFN_vkFreeMemory free_memory = nullptr;
 
@@ -194,6 +198,8 @@ struct WorldGraphicsDevice {
     }
     void close() {
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
+        world_camera_ready = false;
+        world_to_clip.fill(0.f);
         clear_mesh();     // Vertex/index buffers never outlive VkDevice.
         if (device && destroy_device) destroy_device(device, nullptr);
         device = VK_NULL_HANDLE;
@@ -602,6 +608,55 @@ static constexpr uint32_t ogl_dev_frag_spv[] = {
     0x00000009u, 0x0000000eu, 0x000100fdu, 0x00010038u,
 };
 
+// Opt-in Vulkan 1.0 vertex shader for camera-space projection of OpenSim
+// agent-local XYZ positions. GLSL 450, verified with Khronos spirv-val:
+// layout(push_constant) uniform Camera { mat4 world_to_clip; } camera;
+// layout(location=0) in vec3 position;
+// void main(){gl_Position=camera.world_to_clip*vec4(position,1.0);}
+// This only demonstrates GPU projection; it is NOT an OpenSim world renderer.
+static constexpr uint32_t ogl_dev_world_vert_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000023u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0007000fu, 0x00000000u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000du, 0x00000019u, 0x00030003u, 0x00000002u, 0x000001c2u, 0x00040005u, 0x00000004u,
+    0x6e69616du, 0x00000000u, 0x00060005u, 0x0000000bu, 0x505f6c67u, 0x65567265u, 0x78657472u,
+    0x00000000u, 0x00060006u, 0x0000000bu, 0x00000000u, 0x505f6c67u, 0x7469736fu, 0x006e6f69u,
+    0x00070006u, 0x0000000bu, 0x00000001u, 0x505f6c67u, 0x746e696fu, 0x657a6953u, 0x00000000u,
+    0x00070006u, 0x0000000bu, 0x00000002u, 0x435f6c67u, 0x4470696cu, 0x61747369u, 0x0065636eu,
+    0x00070006u, 0x0000000bu, 0x00000003u, 0x435f6c67u, 0x446c6c75u, 0x61747369u, 0x0065636eu,
+    0x00030005u, 0x0000000du, 0x00000000u, 0x00070005u, 0x00000011u, 0x656d6143u, 0x72506172u,
+    0x63656a6fu, 0x6e6f6974u, 0x00000000u, 0x00070006u, 0x00000011u, 0x00000000u, 0x6c726f77u,
+    0x6f745f64u, 0x696c635fu, 0x00000070u, 0x00040005u, 0x00000013u, 0x656d6163u, 0x00006172u,
+    0x00050005u, 0x00000019u, 0x69736f70u, 0x6e6f6974u, 0x00000000u, 0x00030047u, 0x0000000bu,
+    0x00000002u, 0x00050048u, 0x0000000bu, 0x00000000u, 0x0000000bu, 0x00000000u, 0x00050048u,
+    0x0000000bu, 0x00000001u, 0x0000000bu, 0x00000001u, 0x00050048u, 0x0000000bu, 0x00000002u,
+    0x0000000bu, 0x00000003u, 0x00050048u, 0x0000000bu, 0x00000003u, 0x0000000bu, 0x00000004u,
+    0x00030047u, 0x00000011u, 0x00000002u, 0x00040048u, 0x00000011u, 0x00000000u, 0x00000005u,
+    0x00050048u, 0x00000011u, 0x00000000u, 0x00000007u, 0x00000010u, 0x00050048u, 0x00000011u,
+    0x00000000u, 0x00000023u, 0x00000000u, 0x00040047u, 0x00000019u, 0x0000001eu, 0x00000000u,
+    0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u, 0x00000006u,
+    0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000004u, 0x00040015u, 0x00000008u,
+    0x00000020u, 0x00000000u, 0x0004002bu, 0x00000008u, 0x00000009u, 0x00000001u, 0x0004001cu,
+    0x0000000au, 0x00000006u, 0x00000009u, 0x0006001eu, 0x0000000bu, 0x00000007u, 0x00000006u,
+    0x0000000au, 0x0000000au, 0x00040020u, 0x0000000cu, 0x00000003u, 0x0000000bu, 0x0004003bu,
+    0x0000000cu, 0x0000000du, 0x00000003u, 0x00040015u, 0x0000000eu, 0x00000020u, 0x00000001u,
+    0x0004002bu, 0x0000000eu, 0x0000000fu, 0x00000000u, 0x00040018u, 0x00000010u, 0x00000007u,
+    0x00000004u, 0x0003001eu, 0x00000011u, 0x00000010u, 0x00040020u, 0x00000012u, 0x00000009u,
+    0x00000011u, 0x0004003bu, 0x00000012u, 0x00000013u, 0x00000009u, 0x00040020u, 0x00000014u,
+    0x00000009u, 0x00000010u, 0x00040017u, 0x00000017u, 0x00000006u, 0x00000003u, 0x00040020u,
+    0x00000018u, 0x00000001u, 0x00000017u, 0x0004003bu, 0x00000018u, 0x00000019u, 0x00000001u,
+    0x0004002bu, 0x00000006u, 0x0000001bu, 0x3f800000u, 0x00040020u, 0x00000021u, 0x00000003u,
+    0x00000007u, 0x00050036u, 0x00000002u, 0x00000004u, 0x00000000u, 0x00000003u, 0x000200f8u,
+    0x00000005u, 0x00050041u, 0x00000014u, 0x00000015u, 0x00000013u, 0x0000000fu, 0x0004003du,
+    0x00000010u, 0x00000016u, 0x00000015u, 0x0004003du, 0x00000017u, 0x0000001au, 0x00000019u,
+    0x00050051u, 0x00000006u, 0x0000001cu, 0x0000001au, 0x00000000u, 0x00050051u, 0x00000006u,
+    0x0000001du, 0x0000001au, 0x00000001u, 0x00050051u, 0x00000006u, 0x0000001eu, 0x0000001au,
+    0x00000002u, 0x00070050u, 0x00000007u, 0x0000001fu, 0x0000001cu, 0x0000001du, 0x0000001eu,
+    0x0000001bu, 0x00050091u, 0x00000007u, 0x00000020u, 0x00000016u, 0x0000001fu, 0x00050041u,
+    0x00000021u, 0x00000022u, 0x0000000du, 0x0000000fu, 0x0003003eu, 0x00000022u, 0x00000020u,
+    0x000100fdu, 0x00010038u,
+};
+
 ogl_log_fn logger = nullptr;
 // P05/3 developer-only exclusive X11 swapchain-present acceptance probe.
 // Its caller is either the isolated native X11 QA window, or the real SDL
@@ -629,6 +684,10 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     const uint32_t sequence=world_device.exclusive_present_count;
     const char* raster_env=std::getenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
     const bool raster=raster_env && std::strcmp(raster_env,"1")==0;
+    const char* world_env=std::getenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
+    const bool world_projection=world_env && std::strcmp(world_env,"1")==0;
+    if (world_projection && (!raster || !world_device.world_camera_ready))
+        return 0;
     // A geometry pipeline must never silently degrade to solid-color clear.
     // Existing OpenSim vertex/index VkBuffers may be used only after a
     // validated clip-space diagnostic upload, not as world coordinates.
@@ -673,6 +732,7 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     OGL_PRESENT_FN(vkCmdBindVertexBuffers);
     OGL_PRESENT_FN(vkCmdBindIndexBuffer);
     OGL_PRESENT_FN(vkCmdDrawIndexed);
+    OGL_PRESENT_FN(vkCmdPushConstants);
 #undef OGL_PRESENT_FN
     if (!vkGetSwapchainImagesKHR || !vkAcquireNextImageKHR || !vkQueuePresentKHR ||
         !vkCreateSemaphore || !vkDestroySemaphore ||
@@ -690,6 +750,7 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
                    !vkCmdBindPipeline || !vkCmdBindVertexBuffers ||
                    !vkCmdBindIndexBuffer || !vkCmdDrawIndexed))
         return 0;
+    if (world_projection && !vkCmdPushConstants) return 0;
 
     // A rejected frame is never retried against an acquired swapchain image.
     world_device.exclusive_present_used=true;
@@ -786,8 +847,10 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (raster) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=sizeof(ogl_dev_vert_spv);
-            vertex_info.pCode=ogl_dev_vert_spv;
+            vertex_info.codeSize=world_projection
+                ? sizeof(ogl_dev_world_vert_spv) : sizeof(ogl_dev_vert_spv);
+            vertex_info.pCode=world_projection
+                ? ogl_dev_world_vert_spv : ogl_dev_vert_spv;
             if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
                                      &vertex_shader)!=VK_SUCCESS || !vertex_shader)
                 return false;
@@ -855,8 +918,15 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
                 VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
             blend.attachmentCount=1;
             blend.pAttachments=&color_attachment;
+            VkPushConstantRange camera_range{};
+            camera_range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
+            camera_range.offset=0;
+            camera_range.size=sizeof(float)*16;
             VkPipelineLayoutCreateInfo layout_info{
                 VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+            layout_info.pushConstantRangeCount=world_projection ? 1u : 0u;
+            layout_info.pPushConstantRanges=world_projection
+                ? &camera_range : nullptr;
             if (vkCreatePipelineLayout(world_device.device,&layout_info,nullptr,
                                        &pipeline_layout)!=VK_SUCCESS ||
                 !pipeline_layout)
@@ -912,6 +982,10 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (raster) {
             vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,
                               graphics_pipeline);
+            if (world_projection)
+                vkCmdPushConstants(cmd,pipeline_layout,
+                    VK_SHADER_STAGE_VERTEX_BIT,0,
+                    sizeof(float)*16,world_device.world_to_clip.data());
             const VkDeviceSize vertex_offset=0;
             vkCmdBindVertexBuffers(cmd,0,1,&world_device.mesh_vertices,
                                    &vertex_offset);
@@ -960,9 +1034,11 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
             return false;
         if (logger)
-            logger(1,raster
-                ? "P05 Vulkan X11 indexed triangle raster: real VkGraphicsPipeline and vkCmdDrawIndexed; dev only."
-                : "P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL.");
+            logger(1,world_projection
+                ? "P05 Vulkan X11 camera-projected indexed triangle: real GPU mat4 push constants and vkCmdDrawIndexed; dev only."
+                : (raster
+                    ? "P05 Vulkan X11 indexed triangle raster: real VkGraphicsPipeline and vkCmdDrawIndexed; dev only."
+                    : "P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL."));
         return true;
     };
     const bool success=run();
@@ -1398,6 +1474,72 @@ uint32_t render_offscreen_color_frame() {
     // VkObjects would be invalid. Quarantine, never retry this dev probe.
     if (result!=2) cleanup();
     return result==1 ? 1u : 0u;
+}
+
+// Independent opt-in camera projection for the prospective Vulkan World
+// raster path. Uses the SAME exact Firestorm v3 camera ABI as the existing
+// frame bridge; does not depend on NVIDIA RTX or on ray tracing availability.
+// Fail closed for invalid camera vectors/aspect and invalidate old transforms.
+int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
+    const char* enabled=std::getenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
+    if (!world_device.device || !enabled || std::strcmp(enabled,"1")!=0)
+        return 0;
+    world_device.world_camera_ready=false;
+    world_device.world_to_clip.fill(0.f);
+    if (!frame || !ogl::valid_camera_frame(*frame)) return 0;
+    const float actual_aspect=float(frame->width)/float(frame->height);
+    if (std::fabs(actual_aspect-frame->aspect_ratio)>0.15f) return 0;
+    const float* axes[]={frame->camera_forward,frame->camera_right,
+                         frame->camera_up};
+    for (const float* axis:axes) {
+        float norm2=0.f;
+        for (unsigned a=0;a<3;++a) norm2+=axis[a]*axis[a];
+        if (!std::isfinite(norm2) || std::fabs(norm2-1.f)>0.05f)
+            return 0;
+    }
+    const auto& forward=frame->camera_forward;
+    const auto& right=frame->camera_right;
+    const auto& up=frame->camera_up;
+    const double cross_x=double(right[1])*up[2]-double(right[2])*up[1];
+    const double cross_y=double(right[2])*up[0]-double(right[0])*up[2];
+    const double cross_z=double(right[0])*up[1]-double(right[1])*up[0];
+    const double handedness=cross_x*forward[0]+cross_y*forward[1]+
+                            cross_z*forward[2];
+    if (!std::isfinite(handedness) || handedness<0.9 || handedness>1.1)
+        return 0;
+    const double fy=1.0/std::tan(double(frame->vertical_fov_radians)*0.5);
+    const double fx=fy/double(frame->aspect_ratio);
+    const double depth=double(frame->far_clip_m)/
+                       double(frame->far_clip_m-frame->near_clip_m);
+    if (!std::isfinite(fx) || !std::isfinite(fy) ||
+        !std::isfinite(depth) || fx<=0 || fy<=0)
+        return 0;
+    // Vulkan NDC: x,y in [-1,1], depth in [0,1], +screen-Y down.
+    // Matrix columns are packed in the order consumed by GLSL mat4.
+    // view x = dot(right, world-eye), view y = dot(up, world-eye),
+    // positive view z = dot(forward, world-eye).
+    std::array<float,16> matrix{};
+    for (unsigned axis=0;axis<3;++axis) {
+        matrix[axis*4+0]=float(double(right[axis])*fx);
+        matrix[axis*4+1]=float(-double(up[axis])*fy);
+        matrix[axis*4+2]=float(double(forward[axis])*depth);
+        matrix[axis*4+3]=forward[axis];
+    }
+    double right_eye=0,up_eye=0,forward_eye=0;
+    for (unsigned axis=0;axis<3;++axis) {
+        right_eye+=double(right[axis])*frame->camera_position[axis];
+        up_eye+=double(up[axis])*frame->camera_position[axis];
+        forward_eye+=double(forward[axis])*frame->camera_position[axis];
+    }
+    matrix[12]=float(-right_eye*fx);
+    matrix[13]=float(up_eye*fy);
+    matrix[14]=float(-(forward_eye+double(frame->near_clip_m))*depth);
+    matrix[15]=float(-forward_eye);
+    for (float v:matrix)
+        if (!std::isfinite(v)) return 0;
+    world_device.world_to_clip=matrix;
+    world_device.world_camera_ready=true;
+    return 1;
 }
 
 // P05/4 Vulkan vertex/index buffer staging from the existing real OpenSim
@@ -2139,6 +2281,13 @@ extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_upload_triangles(
     const ogl_rtx_triangle* triangles, uint32_t count)
 {
     return upload_world_geometry(triangles,count);
+}
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
+    const ogl_rtx_frame_state* frame) {
+    return set_world_projection_camera(frame);
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_projection_camera_ready() {
+    return world_device.world_camera_ready ? 1u : 0u;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count() {
     return world_device.mesh_triangle_count;

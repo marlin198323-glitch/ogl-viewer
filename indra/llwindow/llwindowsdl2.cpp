@@ -163,6 +163,11 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     using Detach = void (*)();
     using Upload = int (*)(const ogl_rtx_triangle*,uint32_t);
     using MeshCount = uint32_t (*)();
+    using SetCamera = int (*)(const ogl_rtx_frame_state*);
+    const auto set_camera=reinterpret_cast<SetCamera>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_set_projection_camera"));
+    const auto camera_ready=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_projection_camera_ready"));
     const auto upload=reinterpret_cast<Upload>(
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_triangles"));
     const auto mesh_count=reinterpret_cast<MeshCount>(
@@ -182,6 +187,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool pixel_verified=false;
     bool sequence_verified=false;
     bool raster_verified=false;
+    bool world_verified=false;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -195,6 +201,14 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                       ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE") &&
                       ogl_pre_gl_flag("OGL_VULKAN_WORLD_MESH_UPLOAD") &&
                       !sequence && upload && mesh_count;
+    // Synthetic agent-local world XYZ camera/triangle QA, NOT the live
+    // logged-in region. Only explicit developer flags enable this mode;
+    // real OpenSim world geometry and UI are still drawn by OpenGL.
+    const bool world=raster && !sequence &&
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_WORLD_PROJECTION_PROBE") &&
+        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE") &&
+        ogl_pre_gl_flag("OGL_VULKAN_WORLD_CAMERA_PROBE") &&
+        set_camera && camera_ready;
     if (start && stop && attach && present && detach) {
         const ogl_host_api host{sizeof(ogl_host_api),
                                 OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
@@ -338,20 +352,51 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     // Exactly one indexed clip-space triangle is uploaded
                     // only under three distinct developer raster flags.
                     bool uploaded=false;
+                    bool projected=true;
                     if (raster) {
+                        // The test triangle is WORLD coordinates when world
+                        // projection is requested; otherwise clip-space.
                         const ogl_rtx_triangle clip_triangle{{
                             -0.72f,-0.68f,0.25f,
                              0.72f,-0.68f,0.25f,
                              0.f,  0.72f,0.25f
                         }};
-                        uploaded=upload(&clip_triangle,1)==1 &&
-                                 mesh_count()==1;
+                        const ogl_rtx_triangle world_triangle{{
+                            13.f,17.2f,28.05f,
+                            13.f,22.8f,28.05f,
+                            13.f,20.f,31.95f
+                        }};
+                        uploaded=upload(world ? &world_triangle : &clip_triangle,
+                                        1)==1 && mesh_count()==1;
                     }
-                    // Original single-frame startup diagnostic remains
-                    // unchanged when raster mode was not requested.
-                    pixel_verified=(!raster || uploaded) && frame_group(
+                    if (world) {
+                        ogl_rtx_frame_state camera{};
+                        camera.struct_size=sizeof(camera);
+                        camera.frame_version=OGL_RTX_FRAME_VERSION;
+                        camera.width=static_cast<uint32_t>(original_width);
+                        camera.height=static_cast<uint32_t>(original_height);
+                        camera.camera_position[0]=10.f;
+                        camera.camera_position[1]=20.f;
+                        camera.camera_position[2]=30.f;
+                        camera.camera_forward[0]=1.f;
+                        camera.camera_right[1]=1.f;
+                        camera.camera_up[2]=1.f;
+                        camera.sun_direction[2]=1.f;
+                        camera.vertical_fov_radians=1.57079632679f;
+                        camera.aspect_ratio=float(original_width)/
+                                            float(original_height);
+                        camera.near_clip_m=0.1f;
+                        camera.far_clip_m=100.f;
+                        projected=set_camera(&camera)==1 &&
+                                  camera_ready()==1;
+                    }
+                    // Original single-frame startup diagnostic is retained
+                    // when no GPU raster mode was requested.
+                    pixel_verified=(!raster || uploaded) &&
+                                   projected && frame_group(
                         original_width,original_height,1);
                     raster_verified=raster && uploaded && pixel_verified;
+                    world_verified=world && projected && pixel_verified;
                     if (raster && upload) upload(nullptr,0);
                 }
             }
@@ -367,6 +412,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ", samples=" << verified_pixels <<
         ", groups=" << attempted_groups <<
         ", raster=" << (raster ? (raster_verified ? "verified" : "failed")
+                              : "not-requested") <<
+        ", camera=" << (world ? (world_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<

@@ -79,6 +79,20 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_upload_triangles(
     const ogl_rtx_triangle* triangles, uint32_t count);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count(void);
 
+/* P05 experimental independent Vulkan world-to-clip matrix from the same
+ * v3 Firestorm frame ABI. Opt-in OGL_VULKAN_WORLD_CAMERA_PROBE=1 and a real
+ * Vulkan VkDevice are required. Validates exact basis handedness, orthonormal
+ * axes, viewport aspect, near/far and FOV; rejects stale/invalid input.
+ * Fails closed by invalidating any previous Vulkan camera on bad input.
+ * The graphics shader consumes the generated 4x4 matrix via 64-byte
+ * VkPushConstantRange only if OGL_VULKAN_EXCLUSIVE_WORLD_PROBE=1,
+ * OGL_VULKAN_EXCLUSIVE_RASTER_PROBE=1 and a GPU mesh are all present.
+ * Camera projection alone is NOT a working OpenSim in-world renderer.
+ */
+OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
+    const ogl_rtx_frame_state* frame);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_projection_camera_ready(void);
+
 /* Prototype per-object registry for incremental RT geometry/transform
  * tracking. IDs are the full 16 UUID bytes; object vertices are LOCAL.
  * Affine transform is 3x4 row-major (translation in cols 3,7,11).

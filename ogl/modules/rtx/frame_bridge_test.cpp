@@ -53,12 +53,18 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_upload_triangles"));
     const auto world_gpu_count = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_gpu_triangle_count"));
+    const auto world_camera = reinterpret_cast<int(*)(const ogl_rtx_frame_state*)>(
+        dlsym(library,"ogl_vulkan_world_set_projection_camera"));
+    const auto camera_ready = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_projection_camera_ready"));
     const auto window_attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_attach_x11_window"));
     const auto window_ready = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
+    assert(world_camera && camera_ready && camera_ready()==0);
+    assert(world_camera(nullptr)==0);
     assert(exclusive_present && exclusive_count &&
            exclusive_count()==0 && exclusive_present(1)==0);
     assert(window_attach && window_ready && window_detach &&
@@ -473,8 +479,110 @@ int main(int argc, char** argv) {
                            world_gpu_count()==0;
             unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
         }
+        // P05 world-matrix acceptance: synthetic agent-local WORLD XYZ,
+        // not pre-projected clip vertices. Real VkPushConstants/GLSL
+        // projection must move the projected triangle when camera moves.
+        const char* projection_test=std::getenv(
+            "OGL_VULKAN_WORLD_PROJECTION_TEST_X11");
+        const bool test_world=projection_test &&
+                              std::strcmp(projection_test,"1")==0;
+        bool world_positive=false,world_shifted=false,world_bad=false;
+        if (test_world) {
+            const ogl_rtx_triangle world_triangle{{
+                13.f,17.2f,28.05f,
+                13.f,22.8f,28.05f,
+                13.f,20.f,31.95f
+            }};
+            ogl_rtx_frame_state camera{};
+            camera.struct_size=sizeof(camera);
+            camera.frame_version=OGL_RTX_FRAME_VERSION;
+            camera.width=512;
+            camera.height=384;
+            camera.camera_position[0]=10.f;
+            camera.camera_position[1]=20.f;
+            camera.camera_position[2]=30.f;
+            camera.camera_forward[0]=1.f;
+            camera.camera_right[1]=1.f;
+            camera.camera_up[2]=1.f;
+            camera.sun_direction[2]=1.f;
+            camera.vertical_fov_radians=1.57079632679f;
+            camera.aspect_ratio=512.f/384.f;
+            camera.near_clip_m=0.1f;
+            camera.far_clip_m=100.f;
+            setenv("OGL_VULKAN_WORLD_MESH_UPLOAD","1",1);
+            setenv("OGL_VULKAN_WORLD_CAMERA_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE","1",1);
+            auto bad_camera=camera;
+            bad_camera.camera_forward[0]=0.f;
+            const bool refused_bad_axis=world_camera(&bad_camera)==0 &&
+                                        camera_ready()==0;
+            bad_camera=camera;
+            bad_camera.aspect_ratio=4.f;
+            const bool refused_bad_aspect=world_camera(&bad_camera)==0 &&
+                                          camera_ready()==0;
+            const bool uploaded_world=world_upload(&world_triangle,1)==1 &&
+                                      world_gpu_count()==1;
+            XResizeWindow(display,window,512,384);
+            XSync(display,False);
+            const bool attach_world=window_attach(display,
+                static_cast<uint64_t>(window),512,384)==1;
+            const bool rejected_no_camera=exclusive_present(1)==0 &&
+                                          exclusive_count()==0;
+            const bool accepted_camera=world_camera(&camera)==1 &&
+                                       camera_ready()==1;
+            const bool drawn_world=uploaded_world && attach_world &&
+                accepted_camera && exclusive_present(1)==1;
+            auto pixel_is=[&](int x,int y,int r,int g,int b) {
+                XSync(display,False);
+                XImage* image=XGetImage(display,window,x,y,1,1,
+                                       AllPlanes,ZPixmap);
+                if (!image) return false;
+                const unsigned long pixel=XGetPixel(image,0,0);
+                auto channel=[&](unsigned long mask) {
+                    if (!mask) return -1;
+                    unsigned shift=0;
+                    while (!(mask&1UL)) {mask>>=1; ++shift;}
+                    return static_cast<int>(
+                        (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                };
+                const bool equal=std::abs(channel(image->red_mask)-r)<=5 &&
+                    std::abs(channel(image->green_mask)-g)<=5 &&
+                    std::abs(channel(image->blue_mask)-b)<=5;
+                XDestroyImage(image);
+                return equal;
+            };
+            world_positive=refused_bad_axis && refused_bad_aspect &&
+                rejected_no_camera && drawn_world &&
+                pixel_is(256,192,237,48,38) &&
+                pixel_is(30,30,20,54,115);
+            window_detach();
+            // Translate camera sideward while keeping the exact same
+            // world-space triangle GPU buffers. Center MUST now be clear.
+            camera.camera_position[1]=32.f;
+            const bool moved_camera=world_camera(&camera)==1 &&
+                                    camera_ready()==1;
+            const bool reattached=window_attach(display,
+                static_cast<uint64_t>(window),512,384)==1;
+            const bool moved_draw=moved_camera && reattached &&
+                                   exclusive_present(1)==1;
+            world_shifted=moved_draw && pixel_is(256,192,20,54,115);
+            window_detach();
+            bad_camera=camera;
+            bad_camera.vertical_fov_radians=0.f;
+            world_bad=world_camera(&bad_camera)==0 && camera_ready()==0 &&
+                world_upload(nullptr,0)==1 && world_gpu_count()==0;
+            unsetenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+            std::fprintf(stdout,
+                "P05 Vulkan world-camera projection: visible=%d moved=%d invalid=%d\n",
+                world_positive?1:0,world_shifted?1:0,world_bad?1:0);
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
+        if (test_world && camera_ready()!=0) world_bad=false;
         XDestroyWindow(display,window);
         XCloseDisplay(display);
         if (started!=0 || device!=1 || attached!=1 || swapchain!=1 ||
@@ -491,6 +599,7 @@ int main(int argc, char** argv) {
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
+            (test_world && (!world_positive || !world_shifted || !world_bad)) ||
             (raster_test && (raster_attached!=1 || raster_uploaded!=1 ||
                              raster_count!=1 || raster_without_mesh!=0 ||
                              raster_presented!=1 || !raster_pixels ||
@@ -512,6 +621,8 @@ int main(int argc, char** argv) {
         std::puts("P05 native X11 swapchain: 16 consecutive GPU presents, bounded frames and 2 resizes PASS");
         if (raster_test)
             std::puts("P05 real indexed triangle graphics raster in X11 swapchain: PASS");
+        if (test_world)
+            std::puts("P05 camera-projected world XYZ indexed triangle in Vulkan: PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

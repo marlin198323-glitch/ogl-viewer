@@ -368,7 +368,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('sequence_verified && presented==20',win)
         self.assertIn('(sequence ? "/20" : "/1")',win)
         self.assertIn('if (count && count()!=0) good=false;',win)
-        self.assertIn('pixel_verified=(!raster || uploaded) && frame_group(',win)
+        self.assertIn('pixel_verified=(!raster || uploaded) &&',win)
+        self.assertIn('projected && frame_group(',win)
         self.assertIn('mContext = SDL_GL_CreateContext( mWindow );',win)
 
     def test_p05_sdl_pre_gl_five_pixels_geometry_and_fault_recovery(self):
@@ -441,6 +442,45 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(win.index('if (raster && upload) upload(nullptr,0);'),
                         win.index('SDL_GL_CreateContext( mWindow );'))
         self.assertNotIn('OGL_VULKAN_EXCLUSIVE_RASTER_PROBE',
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+
+    def test_p05_vulkan_world_camera_projection_and_push_constant_contract(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        abi=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        self.assertIn('ogl_dev_world_vert_spv[]',module)
+        self.assertIn('valid_camera_frame(*frame)',module)
+        self.assertIn('OGL_VULKAN_WORLD_CAMERA_PROBE',module)
+        self.assertIn('OGL_VULKAN_EXCLUSIVE_WORLD_PROBE',module)
+        self.assertIn('world_camera_ready=false;',module)
+        self.assertIn('std::fabs(actual_aspect-frame->aspect_ratio)>0.15f',module)
+        self.assertIn('std::fabs(norm2-1.f)>0.05f',module)
+        self.assertIn('handedness<0.9 || handedness>1.1',module)
+        self.assertIn('const double fy=1.0/std::tan(',module)
+        self.assertIn('matrix[axis*4+0]=float(double(right[axis])*fx);',module)
+        self.assertIn('matrix[axis*4+1]=float(-double(up[axis])*fy);',module)
+        self.assertIn('matrix[axis*4+2]=float(double(forward[axis])*depth);',module)
+        self.assertIn('matrix[12]=float(-right_eye*fx);',module)
+        self.assertIn('matrix[14]=float(-(forward_eye+double(frame->near_clip_m))*depth);',module)
+        self.assertIn('world_device.world_to_clip=matrix;',module)
+        self.assertIn('OGL_PRESENT_FN(vkCmdPushConstants)',module)
+        self.assertIn('camera_range.size=sizeof(float)*16;',module)
+        self.assertIn('vkCmdPushConstants(cmd,pipeline_layout,',module)
+        self.assertIn('world_device.world_to_clip.data()',module)
+        self.assertIn('ogl_vulkan_world_set_projection_camera(',abi)
+        self.assertIn('ogl_vulkan_world_projection_camera_ready(void)',abi)
+        self.assertIn('world_triangle',native)
+        self.assertIn('OGL_VULKAN_WORLD_PROJECTION_TEST_X11',native)
+        self.assertIn('world_positive=refused_bad_axis',native)
+        self.assertIn('world_shifted=moved_draw && pixel_is(256,192,20,54,115)',native)
+        self.assertIn('OGL_VULKAN_SDL_PREGL_WORLD_PROJECTION_PROBE',win)
+        self.assertIn('set_camera(&camera)==1',win)
+        self.assertIn('camera_ready()==1',win)
+        self.assertIn('world_verified=world && projected && pixel_verified;',win)
+        self.assertLess(win.index('world_verified=world && projected && pixel_verified;'),
+                        win.index('SDL_GL_CreateContext( mWindow );'))
+        self.assertNotIn('OGL_VULKAN_EXCLUSIVE_WORLD_PROBE',
                          (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
