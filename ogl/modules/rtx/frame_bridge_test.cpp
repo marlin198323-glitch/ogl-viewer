@@ -57,13 +57,22 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_set_projection_camera"));
     const auto camera_ready = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_projection_camera_ready"));
+    const auto live_inputs = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_live_inputs_ready"));
+    const auto camera_updates = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_camera_updates"));
+    const auto mesh_uploads = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_mesh_uploads"));
     const auto window_attach = reinterpret_cast<int(*)(void*,uint64_t,uint32_t,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_attach_x11_window"));
     const auto window_ready = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
-    assert(world_camera && camera_ready && camera_ready()==0);
+    assert(world_camera && camera_ready && live_inputs &&
+           camera_updates && mesh_uploads);
+    assert(camera_ready()==0 && live_inputs()==0 &&
+           camera_updates()==0 && mesh_uploads()==0);
     assert(world_camera(nullptr)==0);
     assert(exclusive_present && exclusive_count &&
            exclusive_count()==0 && exclusive_present(1)==0);
@@ -132,17 +141,53 @@ int main(int argc, char** argv) {
     assert(uploaded==0 || uploaded==1);
     if (uploaded) {
         assert(world_gpu_count()==1);
+        assert(live_inputs()==0 && camera_ready()==0 &&
+               camera_updates()==0 && mesh_uploads()==1);
+        ogl_rtx_frame_state live_frame{};
+        live_frame.struct_size=sizeof(live_frame);
+        live_frame.frame_version=OGL_RTX_FRAME_VERSION;
+        live_frame.width=800;
+        live_frame.height=600;
+        live_frame.camera_forward[0]=1.f;
+        live_frame.camera_right[1]=1.f;
+        live_frame.camera_up[2]=1.f;
+        live_frame.vertical_fov_radians=1.1f;
+        live_frame.aspect_ratio=4.f/3.f;
+        live_frame.near_clip_m=.1f;
+        live_frame.far_clip_m=128.f;
+        assert(world_camera(&live_frame)==0); // no camera opt-in
+        assert(setenv("OGL_VULKAN_WORLD_CAMERA_PROBE","1",1)==0);
+        assert(world_camera(&live_frame)==1);
+        assert(camera_ready()==1 && live_inputs()==1 &&
+               camera_updates()==1);
+        live_frame.aspect_ratio=2.f;
+        assert(world_camera(&live_frame)==0); // invalid input clears camera
+        assert(camera_ready()==0 && live_inputs()==0 &&
+               camera_updates()==1);
+        live_frame.aspect_ratio=4.f/3.f;
+        assert(world_camera(&live_frame)==1 && live_inputs()==1 &&
+               camera_updates()==2);
+        assert(world_upload(&world_triangle,1)==1); // new scene invalidates pose
+        assert(camera_ready()==0 && live_inputs()==0 && mesh_uploads()==2);
+        assert(world_camera(&live_frame)==1 && live_inputs()==1 &&
+               camera_updates()==3);
         auto bad=world_triangle;
         bad.position[0]=std::numeric_limits<float>::quiet_NaN();
         assert(world_upload(&bad,1)==0);
         assert(world_gpu_count()==1); // rejected upload never clears old scene
+        assert(live_inputs()==1 && mesh_uploads()==2); // atomic rejection
         std::vector<ogl_rtx_triangle> all(8192,world_triangle);
         assert(world_upload(all.data(),8192)==1);
         assert(world_gpu_count()==8192);
+        assert(camera_ready()==0 && live_inputs()==0 &&
+               mesh_uploads()==3); // no stale camera across mesh revisions
         assert(world_upload(all.data(),8193)==0);
         assert(world_gpu_count()==8192);
         assert(world_upload(nullptr,0)==1);
         assert(world_gpu_count()==0); // region-clear frees GPU buffers
+        assert(camera_ready()==0 && live_inputs()==0 &&
+               mesh_uploads()==3 && camera_updates()==3);
+        unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
     } else {
         assert(world_gpu_count()==0);
     }
@@ -164,6 +209,8 @@ int main(int argc, char** argv) {
     assert(world_device() == 0);
     assert(window_ready()==0);
     assert(offscreen_frame()==0);
+    assert(camera_ready()==0 && live_inputs()==0 &&
+           camera_updates()==0 && mesh_uploads()==0);
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     assert(start(&host) == 0);
     assert(world_device() == 0);

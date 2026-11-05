@@ -93,6 +93,18 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
     const ogl_rtx_frame_state* frame);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_projection_camera_ready(void);
 
+/* P05 actual Firestorm input bridge: diagnostics only. These read-only
+ * counters distinguish successfully accepted CPU camera matrices and actual
+ * Vulkan-GPU mesh uploads from world frame presentation. They are NOT FPS.
+ * live_inputs_ready==1 means a validated camera arrived AFTER the last
+ * accepted mesh upload, and the mesh buffers exist. A region clear, any
+ * successful mesh replacement, invalid camera or module stop invalidates
+ * that handshake. No actual Vulkan world frame/present is implied.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_live_inputs_ready(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_camera_updates(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads(void);
+
 /* Prototype per-object registry for incremental RT geometry/transform
  * tracking. IDs are the full 16 UUID bytes; object vertices are LOCAL.
  * Affine transform is 3x4 row-major (translation in cols 3,7,11).

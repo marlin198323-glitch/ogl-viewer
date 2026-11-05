@@ -483,6 +483,49 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn('OGL_VULKAN_EXCLUSIVE_WORLD_PROBE',
                          (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
+    def test_p05_real_firestorm_camera_and_mesh_staging_pair_without_rtx(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        header=(ROOT/'ogl/modules/include/ogl/ogl_rtx_api.h').read_text()
+        module=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        native=(ROOT/'ogl/modules/rtx/frame_bridge_test.cpp').read_text()
+        pipeline=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        for name in ('OGL_VULKAN_WORLD_BOOTSTRAP',
+                     'OGL_VULKAN_WORLD_MESH_UPLOAD',
+                     'OGL_VULKAN_WORLD_CAMERA_PROBE'):
+            self.assertIn('std::getenv("'+name+'")',host)
+        self.assertIn('ogl_vulkan_world_set_projection_camera',host)
+        self.assertIn('ogl_vulkan_world_live_inputs_ready',host)
+        self.assertIn('world_set_camera(&frame)==1',host)
+        self.assertIn('world_device_ready()==1',host)
+        self.assertIn('const bool rt_camera=rtx_submit_frame && rtx_hardware_ready;',host)
+        self.assertIn('if ((!gpu_camera && !rt_camera)',host)
+        self.assertIn('if (rt_camera) rtx_submit_frame(&frame);',host)
+        self.assertIn('if (uploaded && count>0)',host)
+        self.assertIn('if (count==0) world_inputs_live_logged=false;',host)
+        self.assertIn('P05 live Firestorm camera accepted by Vulkan world-matrix ABI',host)
+        self.assertIn('actual captured OpenSim mesh',host)
+        self.assertLess(host.index('world_set_camera(&frame)==1'),
+                        host.index('if (rt_camera) rtx_submit_frame(&frame);'))
+        self.assertIn('camera->getOrigin().mV, camera->getAtAxis().mV',pipeline)
+        self.assertIn('const LLVector3 right = -camera->getLeftAxis();',pipeline)
+        self.assertIn('ogl_rtx_submit_camera_sun(viewport.getWidth()',pipeline)
+        self.assertIn('ogl_rtx_submit_world_triangles(\n                        triangles.front().position',pipeline)
+        self.assertIn('ogl_rtx_submit_world_triangles(nullptr, 0);',pipeline)
+        self.assertIn('ogl_vulkan_world_live_inputs_ready(void)',header)
+        self.assertIn('ogl_vulkan_world_camera_updates(void)',header)
+        self.assertIn('ogl_vulkan_world_mesh_uploads(void)',header)
+        self.assertIn('world_device.world_camera_accepts',module)
+        self.assertIn('world_device.mesh_uploads',module)
+        self.assertIn('world_device.world_to_clip.fill(0.f);',module)
+        self.assertIn('world_device.mesh_triangle_count>0',module)
+        self.assertIn('return world_device.world_camera_ready &&',module)
+        self.assertIn('live_inputs()==1',native)
+        self.assertIn('mesh_uploads()==3 && camera_updates()==3',native)
+        self.assertIn('invalid input clears camera',native)
+        self.assertIn('new scene invalidates pose',native)
+        self.assertIn('region-clear frees GPU buffers',native)
+        self.assertNotIn('vkQueuePresentKHR(',host)
+
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

@@ -162,6 +162,8 @@ struct WorldGraphicsDevice {
     // camera. Exactly 16 column-major floats for the 64-byte push constant.
     std::array<float,16> world_to_clip{};
     bool world_camera_ready = false;
+    uint64_t world_camera_accepts = 0; // CPU matrix updates, no GPU presents
+    uint64_t mesh_uploads = 0; // accepted snapshots, never a draw counter
     PFN_vkDestroyBuffer destroy_buffer = nullptr;
     PFN_vkFreeMemory free_memory = nullptr;
 
@@ -200,6 +202,8 @@ struct WorldGraphicsDevice {
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
         world_camera_ready = false;
         world_to_clip.fill(0.f);
+        world_camera_accepts = 0;
+        mesh_uploads = 0;
         clear_mesh();     // Vertex/index buffers never outlive VkDevice.
         if (device && destroy_device) destroy_device(device, nullptr);
         device = VK_NULL_HANDLE;
@@ -1539,6 +1543,7 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
         if (!std::isfinite(v)) return 0;
     world_device.world_to_clip=matrix;
     world_device.world_camera_ready=true;
+    ++world_device.world_camera_accepts; // no Vulkan draw/queue work
     return 1;
 }
 
@@ -1555,6 +1560,9 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
         return 0;
     if (count==0) {
         world_device.clear_mesh(); // region/scene cleared, no stale vertices
+        // Invalidate the old region's projection on teleport/region loss.
+        world_device.world_camera_ready=false;
+        world_device.world_to_clip.fill(0.f);
         return 1;
     }
     for (uint32_t i=0;i<count;++i)
@@ -1653,6 +1661,11 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     world_device.mesh_vertex_memory=vertex_memory;
     world_device.mesh_index_memory=index_memory;
     world_device.mesh_triangle_count=count;
+    ++world_device.mesh_uploads;
+    // Mesh and camera MUST be paired only after another real camera
+    // submission. A new snapshot may correspond to a new region/camera.
+    world_device.world_camera_ready=false;
+    world_device.world_to_clip.fill(0.f);
     if (logger)
         logger(1,(std::string("P05 Vulkan vertex/index upload: triangles=")+
                   std::to_string(count)+" vertices="+
@@ -2288,6 +2301,21 @@ extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_projection_camera_ready() {
     return world_device.world_camera_ready ? 1u : 0u;
+}
+// This is a read-only INPUT handshake, never renderer/present readiness.
+// A freshly uploaded mesh invalidates the old camera, so only a subsequent
+// camera frame can pair with the new GPU buffers.
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_live_inputs_ready() {
+    return world_device.world_camera_ready &&
+           world_device.mesh_triangle_count>0 &&
+           world_device.mesh_vertices!=VK_NULL_HANDLE &&
+           world_device.mesh_indices!=VK_NULL_HANDLE ? 1u : 0u;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_camera_updates() {
+    return world_device.world_camera_accepts;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads() {
+    return world_device.mesh_uploads;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count() {
     return world_device.mesh_triangle_count;

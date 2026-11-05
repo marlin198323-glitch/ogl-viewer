@@ -63,6 +63,12 @@ ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
 // staging ABI uses the same triangulated OpenSim scene format.
 using ogl_world_upload_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_world_upload_fn world_upload_geometry = nullptr;
+using ogl_world_camera_fn = int (*)(const ogl_rtx_frame_state*);
+ogl_world_camera_fn world_set_camera = nullptr;
+using ogl_world_input_ready_fn = uint32_t (*)();
+ogl_world_input_ready_fn world_input_ready = nullptr;
+bool world_camera_live_logged = false;
+bool world_inputs_live_logged = false;
 using ogl_world_device_ready_fn = int (*)();
 ogl_world_device_ready_fn world_device_ready = nullptr;
 using ogl_track_object_fn = int (*)(const uint8_t*,const ogl_rtx_triangle*,
@@ -247,6 +253,12 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
     world_upload_geometry = reinterpret_cast<ogl_world_upload_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_upload_triangles"));
+    world_set_camera = reinterpret_cast<ogl_world_camera_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_set_projection_camera"));
+    world_input_ready = reinterpret_cast<ogl_world_input_ready_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_live_inputs_ready"));
+    world_camera_live_logged=false;
+    world_inputs_live_logged=false;
     world_device_ready = reinterpret_cast<ogl_world_device_ready_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_device_bootstrapped"));
     rtx_track_object = reinterpret_cast<ogl_track_object_fn>(
@@ -404,6 +416,10 @@ void ogl_shutdown_rtx_module() {
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
     world_upload_geometry = nullptr;
+    world_set_camera = nullptr;
+    world_input_ready = nullptr;
+    world_camera_live_logged=false;
+    world_inputs_live_logged=false;
     world_device_ready = nullptr;
     rtx_track_object = nullptr;
     rtx_track_pose = nullptr;
@@ -457,7 +473,22 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     float near_clip_m, float far_clip_m,
     const float* sun_direction) {
 #if LL_LINUX || LL_WINDOWS
-    if (!rtx_submit_frame || !rtx_hardware_ready ||
+    // The live OpenSim camera is captured by the existing deferred world
+    // pass, independently of NVIDIA/RTX. Vulkan receives it only with
+    // THREE explicit developer permissions; no WSI present occurs here.
+    static const bool camera_developer_opt_in=[] {
+        const char* device=std::getenv("OGL_VULKAN_WORLD_BOOTSTRAP");
+        const char* mesh=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+        const char* camera=std::getenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
+        return device && mesh && camera &&
+            std::strcmp(device,"1")==0 && std::strcmp(mesh,"1")==0 &&
+            std::strcmp(camera,"1")==0;
+    }();
+    const bool gpu_camera=camera_developer_opt_in && world_set_camera &&
+        world_upload_geometry && world_device_ready &&
+        world_device_ready()==1;
+    const bool rt_camera=rtx_submit_frame && rtx_hardware_ready;
+    if ((!gpu_camera && !rt_camera) ||
         !camera_position || !camera_forward || !camera_right ||
         !camera_up || !sun_direction) return;
     ogl_rtx_frame_state frame{};
@@ -476,7 +507,28 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     frame.aspect_ratio = aspect_ratio;
     frame.near_clip_m = near_clip_m;
     frame.far_clip_m = far_clip_m;
-    rtx_submit_frame(&frame);
+    if (gpu_camera && world_set_camera(&frame)==1) {
+        // First real viewer-camera input, NOT a displayed Vulkan frame.
+        if (!world_camera_live_logged) {
+            world_camera_live_logged=true;
+            LL_INFOS("OGLRenderer")
+                << "P05 live Firestorm camera accepted by Vulkan world-matrix ABI; "
+                   "CPU projection only, OpenGL remains present owner."
+                << LL_ENDL;
+        }
+        // This requires a GPU scene uploaded before this camera frame,
+        // so stale geometry after region changes is never considered ready.
+        if (!world_inputs_live_logged && world_input_ready &&
+            world_input_ready()==1) {
+            world_inputs_live_logged=true;
+            LL_INFOS("OGLRenderer")
+                << "P05 live Firestorm camera + actual captured OpenSim mesh "
+                   "paired as Vulkan GPU inputs; no Vulkan world frame presented."
+                << LL_ENDL;
+        }
+    }
+    // Existing RTX diagnostics remain conditional on RT-capable hardware.
+    if (rt_camera) rtx_submit_frame(&frame);
 #endif
 }
 
@@ -487,8 +539,15 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
     static_assert(sizeof(ogl_rtx_triangle) == 9 * sizeof(float), "RTX ABI padding mismatch");
     const auto* triangles=reinterpret_cast<const ogl_rtx_triangle*>(triangle_xyz);
     const char* staging=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
-    if (world_upload_geometry && staging && std::strcmp(staging,"1")==0)
-        world_upload_geometry(triangles,count);
+    if (world_upload_geometry && staging && std::strcmp(staging,"1")==0) {
+        const bool uploaded=world_upload_geometry(triangles,count)==1;
+        if (count==0) world_inputs_live_logged=false; // region lost
+        if (uploaded && count>0) {
+            // Another live camera update is required AFTER this mesh upload
+            // before the paired-input diagnostic can be reported.
+            world_inputs_live_logged=false;
+        }
+    }
     // The historical RTX diagnostic path retains its feature/opt-in gating.
     if (!rtx_submit_geometry || !rtx_hardware_ready) return;
     rtx_submit_geometry(triangles,count);
