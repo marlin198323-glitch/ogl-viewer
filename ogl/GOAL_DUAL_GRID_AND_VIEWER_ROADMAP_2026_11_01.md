@@ -1437,6 +1437,29 @@ Nächstes Gate: echte OpenSim-Welt-Capture-
 Daten, exklusiver Vulkan-Window-Owner
 und nichtblockierende GPU-Frames.
 
+**P05/3 Queue-Synchronisation und Aspect-Resize-Validierung (05.11.2026, 49b28a90):**
+Zwei echte GPU-Command-Buffer werden BEIDE
+eingereiht, bevor ein begrenzter wait-all-
+Fence-Wait ausgeführt wird. Zusätzliche
+ABI-Counter belegen 2 pending submissions,
+2 submitted und 2 completed nach dem Wait.
+WSI-Kamera mit veraltetem 4:3-Aspect wird
+beim tatsächlichen 16:9-Swapchain-Attach
+abgewiesen; neuer 16:9-Kameraframe projiziert
+die Welt-Testgeometrie korrekt. Zwei explizite
+Entwicklerflags binden die GPU-Sync-Prüfung
+vor OpenGL-Start in die echte SDL-XID ein:
+5 neue plus 14 alte GUI-Smokes bestanden,
+Linux-Vollbuild, 339 Python- und 41 native
+Tests grün. VkQueuePresentKHR-Testpfad
+nutzt weiterhin vkQueueWaitIdle pro Frame,
+also keine fertige Vulkan-Live-Engine.
+Keine echte OpenSim-Region unter Vulkan
+präsentiert. P05 formal 2/20, Blöcke 3/4
+nicht abgeschlossen. Nächstes Gate:
+langlebige Swapchain-Synchronisation
+und authentifizierte In-World-Weltdaten.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

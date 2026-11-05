@@ -6,6 +6,90 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20 technische Aufgaben: Zwei-GPU-Submissions und sichere Kamera-/Swapchain-Zuordnung (05.11.2026)
+
+**Neu:** Die GPU-Queue-Diagnose reiht jetzt zwei unterschiedliche
+Command-Buffer mit je eigener Fence ein, bevor EIN
+zeitlich begrenzter wait-all-Fence-Wait (2 Sekunden)
+die Fertigstellung abfragt. Es gibt keinen
+vkQueueWaitIdle in diesem separaten Sync-Probe-Pfad.
+Read-only-C-ABI zählt die maximal vor dem Warten
+ausstehenden Submissions sowie die eingereihten
+und abgeschlossenen Fence-Submissions. Zwei
+GPU-Submissions vor dem Wait bedeuten nicht,
+dass die GPU sie wirklich gleichzeitig ausführt.
+
+**Resize-Sicherheit:** Die Vulkan-Kameraprojektion
+ist jetzt an das Seitenverhältnis der tatsächlichen
+Swapchain gebunden. Nach einem Wechsel von 4:3
+auf 16:9 wird die bisherige Kamera ungültig,
+bis ein neuer Kameraframe zur aktiven Swapchain
+passt. Kontrollpunkte liegen bei Swapchain-Attach,
+Kameraupdate und vor dem GPU-Welt-Present.
+
+**20 tatsächlich umgesetzte/geprüfte Arbeitsschritte:**
+
+01. Branch ogl-develop, Git-Status, P05-Roadmap, AGENTS, Status und Handoff vor Änderungen geprüft.
+02. Erfolgreiche vorherige GitHub-CI verifiziert.
+03. Serielle Submit-Wait-Submit-Wait-Abfolge als GPU-Queue-Bottleneck ermittelt.
+04. Zwei unabhängige Vulkan-Command-Buffer und VkFence-Objekte erhalten.
+05. Ersten VkQueueSubmit auf echter GPU vor jedem CPU-Wait ausgeführt.
+06. Zweiten VkQueueSubmit ebenfalls vor dem ersten CPU-Fence-Wait eingereiht.
+07. Einzelne vkWaitForFences-Abfrage mit waitAll für beide Einreichungen eingebaut.
+08. Gemeinsamen GPU-Fence-Wait auf zwei Sekunden begrenzt.
+09. Timeout quarantänisiert potentiell noch aktive GPU-Ressourcen und sperrt weitere Probe-Versuche.
+10. Read-only-Messgröße max_outstanding für GPU-Einreichungen vor dem Wait ergänzt.
+11. Read-only-Messgrößen last_submitted und last_completed eingeführt.
+12. Alle drei Zähler über additive C-ABI exportiert und beim Modulstop zurückgesetzt.
+13. Zweimal zwei GPU-Einreichungen mit je zwei gültigen Fence-Completions im nativen Test bestanden.
+14. Seitenverhältnis der Vulkan-Kameramatrix zusätzlich zum World-to-Clip-Transform gespeichert.
+15. Beim realen Swapchain-Attach mit verändertem Aspect die alte Kamera invalidiert.
+16. Bei Kameraupdate mit bereits aktiver Swapchain ein unpassendes Aspect abgewiesen.
+17. World-Probe-GPU-Present durch zusätzlichen Camera/Swapchain-Aspect-Check geschützt.
+18. Echten X11-Resize 4:3 auf 16:9 getestet: stale Kamera verweigert, neuer Kameraframe rendert wieder sichtbar.
+19. Zwei-Fence-Prüfung im echten SDL-Viewer nur vor GL-Start und mit separatem Entwickler-Opt-in integriert; fünf GUI-Abnahmen bestanden.
+20. Linux-Vollbuild, 339/339 Python- und 41/41 native Tests sowie 14 bestehende GUI-Regressionen zusätzlich bestanden.
+
+**GPU-Hardware-Nachweise:** Zwei getrennte GPU-Testdurchläufe
+mit jeweils zwei GPU-Submissions vor dem gemeinsamen
+Fence-Wait; die drei Synchronisationszähler melden
+max_outstanding=2, last_submitted=2 und last_completed=2.
+Nach Modulstop sind alle drei zurückgesetzt.
+Ein echter X11-Resize von 4:3 auf 16:9 verweigert
+den alten Welt-Kameraframe; nach gültigem
+16:9-Update wird die Welt-Testgeometrie wieder
+mit korrekten X11-RGB-Pixeln präsentiert.
+Bisherige 16-Frame-Swapchain-, Depth-,
+Kameraprojektions- und Clear-Tests sind grün.
+
+**Echter SDL/X11-Viewer:** Mit zwei ausdrücklichen
+Entwicklerfreigaben ist die Zwei-Fence-Prüfung
+VOR einem optionalen Vulkan-GPU-Testbild integriert.
+5/5 neue GUI-Smokes bestanden (mit World/Depth,
+mit Raster, ohne Freigabe, ohne Vulkan-Treiber
+und Legacy ohne Dual-Sync); zusätzlich 14/14
+bestehende GUI-Smokes erneut bestanden.
+Alle 19/19 bis zum OpenGL-Login und Exit 0.
+Linux-Vollviewer-Build, 339/339 Python-Tests
+und 41/41 native CTests bestanden.
+
+**Abnahmegrenze:** Die Zwei-Fence-Änderung betrifft
+nur die abgekoppelte Vulkan-GPU-Queue-Diagnose.
+Der bestehende Vulkan-Swapchain-Present-Pfad
+verwendet weiterhin vkQueueWaitIdle pro Frame
+und ist ausdrücklich KEIN produktiver, dauerhaft
+nonblocking Vulkan-World-Frame-Loop. Es gibt
+weiterhin KEINE getestete authentifizierte
+OpenSim-In-World-Vulkan-Präsentation und keine
+fertige Vulkan-Engine mit Terrain, Texturen,
+Avataren und UI. Formale P05-Zählung weiterhin
+2/20, Block 3 und vollständiger Block 4 offen.
+Nächstes Gate: persistent für Vulkan reservierte
+Swapchain-Frame-Ressourcen, Present-Semaphore-
+Lifetime, kontrolliertes Acquire/Present sowie
+echte OpenSim-World-Eingänge im laufenden Viewer.
+Code-Commit: 49b28a906930db9ace693580390bcb654bd418df.
+
 ## P05/3–4 – 20 technische Teilaufgaben: gemeinsamer Vulkan-Weltkamera-/Tiefenpfad (05.11.2026)
 
 **Code-Fortschritt:** Die vorhandene Vulkan-World-to-Clip-Kamera-

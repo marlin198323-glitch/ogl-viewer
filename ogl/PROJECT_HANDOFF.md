@@ -293,6 +293,29 @@ P05 operativ 2/20, Block 3/4 offen. Nächstes
 Gate: echte eingeloggte In-World-Snapshots und
 exklusive Vulkan-Live-Present-Frame-Synchronisation.
 
+**P05/3 Zwei-GPU-Submits und WSI-Kamera-Aspect (05.11.2026, 49b28a90):**
+20 technische Teilaufgaben. Die Vulkan-Sync-Diagnose
+führt zwei VkQueueSubmits vor EINEM begrenzten
+wait-all-Fence-Wait aus. Drei read-only-ABI-
+Zähler zeigen 2 eingereihte und 2 abgeschlossene
+GPU-Fences bei maximal 2 ungeprüften Submissions.
+Keine simultane GPU-Ausführung oder Weltpräsentation
+wird damit behauptet. Bei 4:3->16:9 X11-Resize
+wird der alte Welt-Kameraframe ungültig; nach
+gültiger 16:9-Kamera wieder korrekte GPU-Pixel.
+5 neue SDL-Dual-Sync-GUI-Fälle und 14 ältere
+GUI-Regressionen bestanden, alle GL-Login/Exit 0.
+Linux-Vollbuild, 339 Python- und 41 native
+Tests bestanden. Achtung: Der separate
+VkQueuePresentKHR-Entwicklerpfad verwendet
+weiterhin vkQueueWaitIdle. Es existiert KEINE
+produktive Vulkan-Live-Welt und keine
+authentifizierte OpenSim-In-World-Abnahme.
+P05 weiterhin 2/20, Block 3/4 offen.
+Nächster Gate: persistent verwaltete Frame-
+Fences/Present-Semaphores/Swapchain-Images
+und echte In-World-Frames.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

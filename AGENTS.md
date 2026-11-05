@@ -4,31 +4,32 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code c34a0d44):
-Vulkan-Projektion aus synthetischen
-OpenSim-artigen Welt-XYZ und echte GPU-
-Z-Verdeckung nun in EINER VkGraphicsPipeline:
-nah rot GPU-Z=.25, fern grün .75, far
-wird zuletzt gezeichnet. Tiefe aktiv:
-Rot vorne; separater GPU-Farbkontrollmodus
-ohne Depth-Image: fern Grün sichtbar.
-Native Vulkan/X11-Gates Kameraverschiebung,
-Resize 512x384/640x480, invalide Kamera,
-Region-Clear erfolgreich. Echte SDL/X11-
-Viewer-XID pre-GL: camera, depth, pixel
-verified, normaler GL-Login/Exit 0.
-14 isolierte GUI-Fälle, Linux-Vollbuild,
-338 Python/41 native Tests erfolgreich.
-Strikte Entwickler-Opt-ins, keine
-weitere Windows/macOS-WSI-Implementierung.
-KEIN echter OpenSim-Live-Vulkan-Worldframe,
-KEINE dauerhaft laufende Vulkan-Grafikengine.
-P05 weiterhin 2/20, Block 3/4 offen.
-Nächstes Gate: echte angemeldete In-World-
-Daten und Vulkan-exklusive Live-Frame-
-Synchronisation. Nutzer-Viewer, Cache,
-Accounts und Secrets nicht verändern.
-Frühere Schritte in ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code 49b28a90):
+Dual-GPU-Submit-Grundlage: zwei Vulkan-
+Command-Buffer mit separaten VkFences
+werden vor EINEM bounded wait-all-Fence-
+Wait eingereiht, ohne vkQueueWaitIdle in
+dieser unabhängigen GPU-Sync-Diagnose.
+Read-only-Counter: max_outstanding=2,
+last_submitted=2, last_completed=2.
+Das sagt NICHT, dass die GPU tatsächlich
+parallel ausführt oder World-Frames zeigt.
+Nach 4:3->16:9 Vulkan-WSI-Resize wird
+die alte Kamera invalidiert und nur
+neue passende Projektion akzeptiert.
+GPU-X11-Test bestätigt neues 16:9-RGB-
+Bild. Echte SDL-Vor-GL-GPU-Dual-Sync-
+Probe mit strengem Dev-Opt-in grün.
+5 neue +14 ältere GUI-Fälle alle
+Login/Exit 0; Linux-Vollbuild und
+339 Python-/41 native CTests bestanden.
+Bestehender WSI-Present-Test nutzt NOCH
+vkQueueWaitIdle pro Frame. KEIN echter
+Vulkan-Live-OpenSim-World-Renderer.
+P05 2/20, Block 3/4 weiterhin offen.
+Nutzer-Viewer, Cache, Login-Daten,
+Accounts und Secrets nicht ändern.
+Frühere Nachweise in ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
