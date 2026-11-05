@@ -4,42 +4,31 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code 8f33196e):
-Echte Vulkan-X11-WSI-Clear-GPU-Frames
-sind jetzt über mehrere Bilder persistent:
-RenderPass, Framebuffer pro Swapchain-
-Image, zwei VkCommandBuffer/Fences/
-Acquire-Semaphores und pro Bild
-separate Render-Finished-Semaphores.
-KEIN vkQueueWaitIdle pro GPU-Frame,
-genau EIN abschließender Queue-Idle
-beim Detach zur Freigabe der Präsent-
-Semaphores. Echte GPU: 16 sichtbare
-Presents, Resize/Neuaufbau, korrekte
-X11-RGB-Pixel. Echte SDL/X11-Viewer-
-XID vor GL: 20 Frames über drei
-Fenstergrößen, 100 Pixel, danach
-GL-Login/Exit 0; 7 neue + 19 ältere
-GUI-Smokes bestanden. Linux-Vollbuild,
-340 Python/41 native Tests grün.
-Vorige GitHub-CI Windows x64/ARM64
-rot wegen MSVC C2589/C2059 aus
-std::max-Makrokollision; im Code auf
-(std::max)(...) korrigiert. Neue
-Windows-CI-Prüfung noch offen.
-KEIN Vulkan-Live-World-Raster:
-persistenter Pfad rendert nur Clear-
-Bilder; alte World-Depth-Probe
-noch gesondert, Windows/macOS-GUI
-nicht abgenommen. P05 formal 2/20,
-Block 3 offen. Nächstes Gate Welt-
-Mesh/Kamera/Depth auf persistenten
-Vulkan-Present-Loop migrieren.
-Dateien nur bestehend bearbeiten,
-Nutzer-Viewer nicht beenden,
-Cache, Accounts, Login und Secrets
-nicht überschreiben. Weitere Details
-im ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code 6734cdef):
+Persistente Vulkan-Swapchain zeichnet jetzt
+echte indexierte World-XYZ-GPU-Testdreiecke
+mit 4x4-Kamera-PushConstant und Depth-Z-Test.
+VkGraphicsPipeline, Shader, Framebuffers und
+separate Depth-Images/Memory/Views pro Swapchain-
+Bild bleiben persistent. Zwei GPU-Frame-Slots,
+kein QueueWaitIdle pro Frame, ein abschließender
+QueueIdle beim Detach. Meshmutation/Region-Clear
+während ausstehender GPU-Bufferreferenzen verboten.
+Native GPU 16 Frames, Kamera-Move, Resize, Pixel,
+Mesh-Sperre bestanden. Echte SDL-X11-Viewer-XID
+VOR GL: 20 World-/Depth-Presents, 100 Pixel,
+drei Größen, dann GL-Login/Exit 0.
+5 neue +26 alte GUI-Fälle erfolgreich;
+Linux-Vollbuild 341 Python/41 native CTests grün.
+Vorige GitHub-CI ganz grün, neue CI noch prüfen.
+Nur synthetische Testmeshes, KEIN
+authentifiziertes OpenSim-In-World-Rendering,
+keine Vulkan-Terrain-/Avatar-/Textur-/UI-Engine,
+kein produktiver Vulkan-Backend-Switch.
+P05 operativ 2/20, Blöcke 3/4 noch offen.
+Bestehende Dateien bearbeiten, Nutzer-Viewer,
+Cache, Login, Accounts und Secrets nicht
+ändern. Historie: ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

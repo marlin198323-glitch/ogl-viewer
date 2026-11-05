@@ -1486,6 +1486,24 @@ Nächstes Gate: World/Depth-Raster in
 persistente Frameverwaltung integrieren,
 danach authentifizierte In-World-GPU-Abnahme.
 
+**P05 persistente Vulkan-Weltprojektion und Depth (05.11.2026, 6734cdef):**
+Der vorherige persistent-clear-Pfad zeichnet jetzt
+synthetische World-XYZ-Meshes mit VkGraphicsPipeline,
+Kamera-PushConstants, echten GPU-Indexdraws und
+separater DepthImage/View/Memory pro Swapchain-Image.
+Keine QueueIdle pro Frame; nur bei Detach.
+Native X11-GPU: 16 World-Frames, Kamera-Move, Mesh-
+Mutationssperre, Resize/Recreate und Pixel validiert.
+SDL-Viewer vor GL: 20 GPU-Weltbilder, 100 Pixel,
+drei Größen, nachfolgend regulärer Login/Exit.
+31/31 GUI-Tests, Linux-Vollbuild, 341 Python-/
+41 CTests bestanden. Kein echtes In-World-Vulkan-
+OpenSim-Rendering, kein Terrain/Avatar/UI und kein
+dauerhafter Vulkan-Backend-Switch. P05 2/20,
+Block 3/4 offen. Nächstes Gate: dynamischer
+Live-Mesh-Update mit Fence-Generation und
+authentifizierte OpenSim-Region unter Vulkan.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

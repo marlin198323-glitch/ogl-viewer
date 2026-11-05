@@ -342,6 +342,27 @@ Nächster Fokus: bestehende Welt-Raster- und
 Depth-Pipeline in die persistente WSI übernehmen;
 reale OpenSim-Kamera-/Regionsmesh-Frames prüfen.
 
+**P05 persistentes Vulkan-World-Depth-Raster (05.11.2026, Code 6734cdef):**
+20 konkrete technische Schritte. Der persistente Vulkan-Swapchain-
+Pfad rendert echte indexierte GPU-Dreiecke aus synthetischen
+World-XYZ-Daten mit Kamera-PushConstant und Tiefentest, nicht
+mehr nur Farb-Clear. Eine VkGraphicsPipeline und DepthImage/
+Memory/View pro Swapchain-Image bleiben über viele Frames
+bestehen. Zwei Frame-Slots, Fences, Image-Present-Semaphores;
+kein vkQueueWaitIdle pro Frame. Mesh-Upload/Region-Clear während
+in-flight GPU-Buffer-Referenzen gesperrt bis Detach.
+Native GPU: 16 World-/Depth-Frames, Kamera-Move, Mesh-Gate,
+Resize und RGB-Pixel bestanden. Im echten SDL-X11-Fenster
+vor GL: 20 World-Frames, 100 Pixel, drei Größen und dann
+OpenGL-Login/Exit 0. 5 neue +26 ältere GUI-Fälle bestanden;
+Linux-Vollbuild, 341 Python- und 41 native Tests grün.
+Vorige plattformübergreifende GitHub-CI grün; aktuelle
+Commit-CI noch prüfen. Echte eingeloggte OpenSim-Region,
+Terrain, Texturen, Avatare, UI und produktiver Vulkan-Switch
+weiterhin NICHT implementiert/abgenommen.
+P05 formal 2/20, Blöcke 3/4 offen; nächstes Gate echte
+Live-Region-Frames und generationssichere Mesh-Updates.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

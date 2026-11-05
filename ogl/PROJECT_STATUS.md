@@ -6,6 +6,74 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Aufgaben: persistente Vulkan-World-Geometrie mit GPU-Tiefentest (05.11.2026)
+
+Der bestehende persistente Vulkan-X11-Swapchain-Renderer zeichnet
+jetzt nicht nur Clear-Bilder, sondern echte indexierte Welt-XYZ-Dreiecke
+mit World-to-Clip-Kamera-PushConstants und GPU-Z-Depth-Test.
+VkGraphicsPipeline, ShaderModule, PipelineLayout, Renderpass und
+Framebuffers bleiben über mehrere GPU-Presents erhalten.
+Jedes Swapchain-Image hat ein eigenes DepthImage, DepthMemory und
+DepthImageView: zwei Frame-in-Flight-Slots schreiben dadurch
+nicht in dieselbe Depth-Fläche. Kein vkQueueWaitIdle pro Frame;
+beim Detach einmal QueueIdle zur Freigabe der Present-Semaphores.
+GPU-Meshmutation/Region-Clear wird während möglicher in-flight-
+Buffer-Referenzen bis zum Detach abgewiesen.
+
+**20 tatsächlich umgesetzte/geprüfte Schritte:**
+
+01. Projektstand, Branch, AGENTS, Handoff, Roadmap und vorige GitHub-CI geprüft; letzter Stand CI grün.
+02. Die vorhandene persistente Clear-Swapchain und frühere Vulkan-World-/Depth-Pipeline auf gemeinsame Ressourcen geprüft.
+03. Einen expliziten persistenten World-Depth-Entwicklermodus zum bestehenden Vulkan-Present-Pfad ergänzt.
+04. Unabhängige World-, Raster-, Depth-, Meshupload-, Kamera- und Persistent-Freigaben gefordert.
+05. Echte GPU-Vertex-/Indexbuffer, Kameramatrix und passendes Swapchain-Seitenverhältnis vor GPU-Present validiert.
+06. Getrennte Depth-Images für jeden Swapchain-Image-Index zur sicheren Frame-in-Flight-Nutzung vorgesehen.
+07. D32_SFLOAT/D16_UNORM-Unterstützung geprüft, pro Image GPU-Speicher alloziert und gebunden.
+08. Jeder Depth-Speicherfläche eigene VkImageView und eigenes Zwei-Attachment-Framebuffer zugeordnet.
+09. Renderpass um Depth-Attachment, Depth-Clear 1.0 und VK_COMPARE_OP_LESS erweitert.
+10. Die vorhandenen validierten World-Vertex- und Depth-Fragmentshader in persistente VkGraphicsPipeline eingebaut.
+11. Persistentes PipelineLayout mit 64-Byte-World-to-Clip-Kamera-PushConstant erstellt.
+12. VkCmdBindPipeline, VkCmdPushConstants, BindVertexBuffers, BindIndexBuffer und vkCmdDrawIndexed im persistenten Frame aufgezeichnet.
+13. GPU-Meshsnapshot und Kamera über die bestehenden C-ABI-Eingänge für alle World-Frames genutzt.
+14. Vorzeitigen Mesh-Austausch und Regions-Clear verhindert, solange GPU-Frame-Submissions die Buffer referenzieren.
+15. Shader, Pipeline, Layout und Depth-Images beim Detach nach Queue-Synchronisation kontrolliert freigegeben.
+16. Native GPU-X11-Abnahme mit 16 persistierenden indexierten World-/Depth-Frames und echten Farbproben bestanden.
+17. Native Kamera-Verschiebung, GPU-Mesh-Lebenszeitsperre, Regions-Clear nach Detach und Resize/Recreate erfolgreich geprüft.
+18. SDL/X11-Vorlogin-Probe: 20 World-/Depth-Frames über drei Fenstergrößen und 100 echte RGB-Proben erfolgreich.
+19. 5 neue World-/Depth-/Fallback-GUI-Fälle und 26 bestehende GUI-Regressionen nach serieller Wiederholung bestanden.
+20. Linux-Vollviewer-Build, 341/341 Python-Tests und 41/41 native CTests erfolgreich; keine Nutzersitzung verändert.
+
+**Native Vulkan-GPU-Abnahme:** 16 reale persistente
+World-XYZ/Depth-Rasterframes, sichtbare rot-vorne/grün-hinten-
+Projektion, Kamerabewegung und Rückbewegung, Mesh-Mutationssperre,
+Resize/Recreate, reguläre Speicherfreigabe nach Detach bestanden.
+
+**SDL-X11-Viewer-Abnahme VOR OpenGL:** 20 echte World-/Depth-
+GPU-Presents über drei Fenstergrößen (8/8/4) mit 100 verifizierten
+X11-RGB-Pixeln und gültiger Kamera nach jedem Attach;
+camera/depth/raster/persistent-world=verified. Danach OpenGL-
+Login und Exit 0. 5/5 neue Fälle; zusätzlich 7/7 alte Persistent-
+Clear-, 14/14 Kamera-/Depth-/Raster- und 5/5 Dual-Fence-
+GUI-Fälle bestanden: **31/31** insgesamt. Ein erster alter
+Regressionstest wurde während eines parallelen Paket-Builds durch
+kurzzeitig fehlende Viewer-Paketressourcen abgebrochen; nach
+vollständigem Build erneut seriell ausgeführt und bestanden.
+
+**Linux-Vollbuild, 341/341 Python-Tests, 41/41 native CTests**
+erfolgreich. Vorige GitHub-CI für ogl-develop war vollständig
+grün. Neue Commit-CI noch separat prüfen.
+
+**Nicht nachgewiesen:** Es sind weiterhin SYNTHETISCHE
+Testmeshes, keine authentifizierte OpenSim-Region. Keine
+Terrain-/Textur-/Material-/Avatar-/UI-Vulkan-Weltdarstellung,
+keine produktive Engine-Auswahl und keine dauerhaft aktive
+Vulkan-Fenster-Ownership während des In-World-Betriebs.
+Kein dynamischer Live-Meshupload während des GPU-Frame-Loops.
+P05 formal **2/20**, Block 3 und vollständiger Block 4 offen.
+Nächstes Gate: sichere generationenbasierte GPU-Mesh-Aktualisierung,
+tatsächliche eingeloggte Region-Frames und Vulkan-Live-Handoff.
+Code-Commit: 6734cdefdc8fad61ac63c5e124bfc2fa29498af8.
+
 ## P05/3 – 20 technische Aufgaben: persistente Vulkan-Swapchain-Frames ohne Queue-Idle pro Bild (05.11.2026)
 
 **Implementiert:** Ein neuer, ausschließlich über Entwicklerflags
