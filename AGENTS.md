@@ -34,6 +34,23 @@ Lifecycle und zuverlässiger GL-Fallback.
 Keine neuen Projektdateien, keine Cache-/
 Profil-/Secret-Änderungen.
 
+Aktuell P05/3 05.11.2026 (Code aa71c8dd):
+20 reale Vulkan-Present-Frames im echten
+SDL/X11-Viewerfenster, drei Fenstergrößen-
+Zyklen 8+8+4, 20 Pixel und Resize geprüft.
+Vulkan wird VOR GL-Kontexterzeugung detached;
+danach normaler OpenGL-Login, Exit 0.
+Fehlerdriver/OpenGL-Fallbacks geprüft;
+331 Python-/41 native Tests und Linux-Vollbuild
+bestanden. Der GPU-Frame-Loop ist nur explizite
+Entwicklerdiagnose VOR der 3D-Welt, keine
+auswählbare Vulkan-Weltengine. Operativ P05
+weiter 2/20; Block 3 offen.
+Nächster Schritt: exklusives Live-Window-
+Ownership und echte Vulkan-Welt-Frames.
+Keine neuen Projektdateien und keine
+Nutzerprofil-/Cache-/Secret-Änderungen.
+
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
 2. ogl/PROJECT_STATUS.md

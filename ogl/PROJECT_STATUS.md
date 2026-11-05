@@ -6,6 +6,69 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20 technische Entwicklungsschritte: SDL-Window-Resize, 20 echte Vulkan-Frames (05.11.2026)
+
+**Technisches Ergebnis:** Eine ausdrücklich freigegebene
+Entwicklerdiagnose präsentiert im tatsächlichen SDL/X11-Fenster
+des OGL-Viewers insgesamt 20 echte Vulkan-Frames über drei
+Swapchain-Lebenszyklen: 8 Frames bei Originalgröße,
+8 nach Fenstergrößenänderung (+64x48), 4 nach Rückkehr zur
+Originalgröße. Vulkan-Detach/Modulstop und vollständiger
+Ressourcenabbau erfolgen vor der normalen OpenGL-Initialisierung.
+Jeder präsentierte Frame wird am tatsächlichen X11-Fensterpixel
+und am GPU-Present-Zähler geprüft.
+
+**Abgeschlossene technische Teilaufgaben dieser Arbeitsrunde:**
+
+01. AGENTS.md, Handoff, Projektstatus und aktive P05-Roadmap vor Bearbeitung gelesen; Arbeitsbranch und Status geprüft.
+02. Exklusives SDL_WINDOW_OPENGL-Window-Ownership vor GL-Kontexterzeugung erneut kontrolliert.
+03. Bereits vorhandene SDL-X11-Pre-GL-Vulkan-Probe direkt erweitert; keine parallele Projektimplementierung angelegt.
+04. OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE=1 als zusätzlichen Entwickler-Opt-in-Gate umgesetzt.
+05. OGL_VULKAN_EXCLUSIVE_FRAME_LOOP=1 als zweite Pflichtfreigabe für Multiframe-WSI gefordert.
+06. Bestehenden normalen Einmal-Present-Modus bei fehlender Sequenzfreigabe beibehalten.
+07. Echte SDL_GetWindowWMInfo-Display- und Window-ID auf allen drei Sequenzphasen wiederverwendet.
+08. Vorhandene Grafik-/Present-ABI mit echtem Swapchain-Bildzähler erstmals pro Frame im SDL-Viewer ausgewertet.
+09. Erste Vulkan-Sequenz mit acht tatsächlich präsentierten Frames in Originalgröße durchgeführt.
+10. Swapchain vor dem Größenwechsel zerstört; kein Vulkan-Image-Handle über SDL_SetWindowSize hinweg gehalten.
+11. Temporäre Fenstergröße um 64x48 erhöht und nach SDL/X11-Sync auf tatsächliche Größe geprüft.
+12. Zweite Sequenz mit acht real präsentierten Vulkan-Frames auf neuer Swapchain durchgeführt.
+13. Originalgröße unabhängig vom Sequenz-Erfolg wiederhergestellt und gegen SDL-Fenstergröße geprüft.
+14. Dritte Sequenz mit vier Vulkan-Frames nach erneuter Swapchain-Erstellung durchgeführt.
+15. Für jedes der 20 GPU-Bilder X11-Frontbuffer-Pixel in nativer Visual-Farbmaske geprüft.
+16. Abwechselnde RGB-Farben mit Toleranz geprüft, GPU-Present-Zähler je Attachment validiert und danach zurückgesetzt.
+17. Alle Vulkan-Surface-/Device-/Modul-Ressourcen vor SDL_GL_CreateContext freigegeben; GL-Welt-Renderer unverändert.
+18. Echter isolierter Linux-Xvfb-Viewer: 20/20 GPU-Presents, Pixel-/Resize-Validierung, GL-Login-Wait und Exit 0.
+19. Fallbacks: Einmal-Modus 1/1, ungültiger Vulkan-ICD 0/20, deaktivierte Hauptfreigabe ohne Probe; GL-Login und Exit 0.
+20. Linux-Vollviewer-Build, 331 Python-Tests, 41 native CTests und separater 16-Frame-GPU-Test bestanden.
+
+**Nachweise (Linux Mint / reale Vulkan-GPU):**
+OGL-GUI-Xvfb-Log: 20/20 presented, pixel=verified,
+resize=verified, surface=ready; anschließend
+World backend: OpenGL (actual), STATE_LOGIN_WAIT und
+regulärer Ctrl+Q-Exit 0. Drei separate negative
+GUI-Läufe: ohne Sequenzflag 1/1, mit fehlendem ICD 0/20
+und ohne Hauptflag keine Probe, jeweils GL-Login/Exit 0.
+Der unabhängige native GPU-Test bestätigt 16/16 echte
+Swapchain-Frames; ungültiger ICD ergibt erwartet Exit 12.
+Vollständiger Linux-Build, 331/331 Python-Tests und
+41/41 native CTests erfolgreich. Keine Änderungen an
+Benutzerprofil, Zugangsdaten oder Cache.
+
+**Wichtige Freigabegrenze:** Die 20 Frames sind farbige
+GPU-Testbilder VOR SDL_GL_CreateContext, keine OpenSim-
+Terrain-/Mesh-/Avatar-/Weltpixel. In der 3D-Welt ist
+OpenGL weiterhin der einzige aktive Renderer. Die
+native Diagnose verwendet vkQueueWaitIdle und ist
+deshalb ausdrücklich NICHT als laufender produktiver
+Vulkan-Frame-Loop freigegeben. Wayland/Windows/macOS
+und persistentes Live-Window-Ownership sind offen.
+P05 operativ weiterhin **2/20**, Block 3 offen.
+Nächste P05-Aufgabe: dauerhaftes exklusives
+SDL-Window-/Renderer-Ownership ohne gleichzeitigen
+GL/Vulkan-Present, sichere Frame-/Resize-/
+GPU-Error-Lifecycle-Integration und OpenGL-Fallback.
+Code-Commit: aa71c8dd12b16b0f7ae9fc086ce2ef831942fa27.
+
 ## P05/3 – 20er-Runde: Vulkan-Present im echten SDL-Viewerfenster (05.11.2026)
 
 **Ergebnis:** Mit vier ausdrücklichen Entwicklerflags kann Vulkan

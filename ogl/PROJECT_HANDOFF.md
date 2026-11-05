@@ -150,6 +150,23 @@ kein dauerhafter Live-Engine-Wechsel. P05 2/20,
 Block 3 offen: SDL-Fenster-Ownership mit dauerhaftem
 Frame-/Resize-Lifecycle und GL-Fallback als nächstes.
 
+**P05/3 Fortsetzung 05.11.2026 (Code aa71c8dd):**
+20 technische Arbeitsschritte mit einer echten
+20-Frame-Swapchain-Probe auf dem tatsächlichen
+SDL/X11-Viewerfenster. Drei Fenstergrößen-
+Lebenszyklen (8+8+4 Frames), je Frame sichtbare
+RGB-Pixelprüfung, Present-Zähler und sicherer
+Detach vor OpenGL. Positiv-Xvfb-GUI 20/20, Pixel-
+und Resize-Test bestanden, GL-Login und Exit 0.
+Einmal-Present, fehlender Vulkan-ICD und fehlende
+Hauptfreigabe mit korrekt erhaltenem OpenGL geprüft.
+Linux-Vollbuild und 331 Python-/41 native Tests
+bestanden. Die Vulkan-Testbilder werden ausschließlich
+VOR GL gerendert: KEIN Vulkan-World-Renderer.
+P05 formal 2/20, Block 3 offen. Nächster Schritt:
+exklusives Live-Renderer-Ownership, GPU-Frame-/
+Resize-Lifecycle und zuverlässiger GL-Fallback.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

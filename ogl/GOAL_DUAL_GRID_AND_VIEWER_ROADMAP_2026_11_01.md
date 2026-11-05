@@ -1307,6 +1307,22 @@ Nur ausdrücklich opt-in Entwicklerdiagnose, KEIN
 permanenter Vulkan-World-Renderer oder Live-Wechsel.
 P05 formal 2/20, Block 3 weiterhin offen.
 
+**P05/3 weitere 20er-Arbeitsrunde (05.11.2026, Code aa71c8dd):**
+Echtes SDL/X11-Viewerfenster präsentiert 20 sichtbare
+Vulkan-GPU-Bilder nacheinander über drei
+Swapchain-Zyklen (8 Originalgröße + 8 vergrößert +
+4 Originalgröße). Jede Bildfarbe über echte X11-
+Fensterpixel bestätigt. Zwischen Größenänderungen
+wird Vulkan vollständig detached; Originalgröße
+vor OpenGL wiederhergestellt. GPU-/GL-Xvfb-Test
+20/20, pixel/resize verified, GL-Login/Exit 0;
+negative Varianten GL-Fallback, Vollviewer-Build
+und 331 Python-/41 native Tests erfolgreich.
+Strikt nur Entwickler-VOR-GL-Probe, weiterhin
+keine Vulkan-Welt-Engine. **P05 2/20, Block 3 offen.**
+Nächster Gate: dauerhafter Renderer-/Fensterbesitz
+sowie mehrfache Vulkan-Weltbilder im Viewer.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
