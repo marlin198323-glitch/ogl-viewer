@@ -697,6 +697,156 @@ int main(int argc, char** argv) {
                 "P05 Vulkan depth GPU occlusion: near_over_far=%d resized=%d cleared=%d\n",
                 depth_positive?1:0,depth_resized?1:0,depth_cleared?1:0);
         }
+        // Synthetic OpenSim-style XYZ and a real Vulkan perspective matrix:
+        // two planar mesh triangles project to the exact same screen area,
+        // but one is z=.25 and the far-last triangle z=.75 in Vulkan NDC.
+        // The test also runs without a depth attachment as a negative
+        // control: its same GPU fragment shader MUST show far green.
+        const char* world_depth_env=std::getenv(
+            "OGL_VULKAN_WORLD_DEPTH_TEST_X11");
+        const bool test_world_depth=world_depth_env &&
+                                  std::strcmp(world_depth_env,"1")==0;
+        bool world_depth_near=false,world_depth_control=false;
+        bool world_depth_moved=false,world_depth_resized=false;
+        bool world_depth_invalid=false,world_depth_cleared=false;
+        if (test_world_depth) {
+            const ogl_rtx_triangle projected_near{{
+                12.5f,18.f,28.4f,
+                12.5f,22.f,28.4f,
+                12.5f,20.f,31.6f
+            }};
+            const ogl_rtx_triangle projected_far{{
+                15.f,16.f,26.8f,
+                15.f,24.f,26.8f,
+                15.f,20.f,33.2f
+            }};
+            const ogl_rtx_triangle paired[2]{
+                projected_near,projected_far
+            };
+            ogl_rtx_frame_state projection{};
+            projection.struct_size=sizeof(projection);
+            projection.frame_version=OGL_RTX_FRAME_VERSION;
+            projection.width=512;
+            projection.height=384;
+            projection.camera_position[0]=10.f;
+            projection.camera_position[1]=20.f;
+            projection.camera_position[2]=30.f;
+            projection.camera_forward[0]=1.f;
+            projection.camera_right[1]=1.f;
+            projection.camera_up[2]=1.f;
+            projection.vertical_fov_radians=1.57079632679f;
+            projection.aspect_ratio=4.f/3.f;
+            projection.near_clip_m=2.f;
+            projection.far_clip_m=10.f;
+            projection.sun_direction[2]=1.f;
+            auto read_rgb=[&](int x,int y,int r,int g,int b) {
+                XSync(display,False);
+                XImage* img=XGetImage(display,window,x,y,1,1,
+                                     AllPlanes,ZPixmap);
+                if (!img) return false;
+                const unsigned long pixel=XGetPixel(img,0,0);
+                auto channel=[pixel](unsigned long mask) {
+                    if (!mask) return -1;
+                    unsigned shift=0;
+                    while (!(mask&1UL)) {mask>>=1; ++shift;}
+                    return static_cast<int>(
+                        (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                };
+                const bool matches=
+                    std::abs(channel(img->red_mask)-r)<=5 &&
+                    std::abs(channel(img->green_mask)-g)<=5 &&
+                    std::abs(channel(img->blue_mask)-b)<=5;
+                XDestroyImage(img);
+                return matches;
+            };
+            setenv("OGL_VULKAN_WORLD_MESH_UPLOAD","1",1);
+            setenv("OGL_VULKAN_WORLD_CAMERA_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE","1",1);
+            const bool mesh_ok=world_upload(paired,2)==1 &&
+                               world_gpu_count()==2;
+            const bool invalidated=mesh_ok && camera_ready()==0 &&
+                                   live_inputs()==0;
+            const bool camera_ok=world_camera(&projection)==1 &&
+                                 camera_ready()==1 &&
+                                 live_inputs()==1;
+            XResizeWindow(display,window,512,384);
+            XSync(display,False);
+            const bool attached_world=window_attach(
+                display,static_cast<uint64_t>(window),512,384)==1;
+            world_depth_near=mesh_ok && invalidated && camera_ok &&
+                attached_world && exclusive_present(1)==1 &&
+                read_rgb(256,192,237,48,38) &&
+                read_rgb(26,26,20,54,115);
+            window_detach();
+
+            // Exact same shader, XYZ buffers and camera, but NO depth image.
+            unsetenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
+            setenv("OGL_VULKAN_EXCLUSIVE_DEPTH_COLOR_PROBE","1",1);
+            const bool negative_attach=window_attach(
+                display,static_cast<uint64_t>(window),512,384)==1;
+            world_depth_control=negative_attach && exclusive_present(1)==1 &&
+                read_rgb(256,192,20,199,41) &&
+                read_rgb(26,26,20,54,115);
+            window_detach();
+            unsetenv("OGL_VULKAN_EXCLUSIVE_DEPTH_COLOR_PROBE");
+            setenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE","1",1);
+
+            // Live camera movement with GPU triangle data unchanged:
+            // neither near nor far triangle may remain in the center.
+            projection.camera_position[1]=32.f;
+            const bool moved_camera=world_camera(&projection)==1 &&
+                                    live_inputs()==1;
+            const bool moved_attach=window_attach(
+                display,static_cast<uint64_t>(window),512,384)==1;
+            world_depth_moved=moved_camera && moved_attach &&
+                exclusive_present(1)==1 &&
+                read_rgb(256,192,20,54,115);
+            window_detach();
+
+            // GPU depth resources must be rebuilt at a new swapchain extent.
+            projection.camera_position[1]=20.f;
+            projection.width=640;
+            projection.height=480;
+            const bool resized_camera=world_camera(&projection)==1 &&
+                                      live_inputs()==1;
+            XResizeWindow(display,window,640,480);
+            XSync(display,False);
+            const bool resize_attach=window_attach(
+                display,static_cast<uint64_t>(window),640,480)==1;
+            world_depth_resized=resized_camera && resize_attach &&
+                exclusive_present(1)==1 &&
+                read_rgb(320,240,237,48,38) &&
+                read_rgb(30,30,20,54,115);
+            window_detach();
+
+            // A failed camera update kills the previous projection, even
+            // though the GPU meshes and their memory still exist.
+            projection.vertical_fov_radians=0.f;
+            world_depth_invalid=world_camera(&projection)==0 &&
+                                camera_ready()==0 && live_inputs()==0;
+            const bool rejected_attach=window_attach(
+                display,static_cast<uint64_t>(window),640,480)==1;
+            world_depth_invalid=world_depth_invalid && rejected_attach &&
+                exclusive_present(1)==0 && exclusive_count()==0;
+            window_detach();
+            world_depth_cleared=world_upload(nullptr,0)==1 &&
+                                world_gpu_count()==0 &&
+                                live_inputs()==0 &&
+                                camera_ready()==0;
+            unsetenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+            std::fprintf(stdout,
+                "P05 Vulkan projected world depth: near=%d no_depth_far=%d "
+                "moved=%d resized=%d invalid=%d clear=%d\n",
+                world_depth_near?1:0,world_depth_control?1:0,
+                world_depth_moved?1:0,world_depth_resized?1:0,
+                world_depth_invalid?1:0,world_depth_cleared?1:0);
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
         if (test_world && camera_ready()!=0) world_bad=false;
@@ -716,6 +866,12 @@ int main(int argc, char** argv) {
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
+            (test_world_depth && (!world_depth_near ||
+                                  !world_depth_control ||
+                                  !world_depth_moved ||
+                                  !world_depth_resized ||
+                                  !world_depth_invalid ||
+                                  !world_depth_cleared)) ||
             (test_depth && (!depth_positive || !depth_resized ||
                             !depth_cleared)) ||
             (test_world && (!world_positive || !world_shifted || !world_bad)) ||
@@ -744,6 +900,8 @@ int main(int argc, char** argv) {
             std::puts("P05 camera-projected world XYZ indexed triangle in Vulkan: PASS");
         if (test_depth)
             std::puts("P05 native GPU depth occlusion (near over far) at 2 X11 extents: PASS");
+        if (test_world_depth)
+            std::puts("P05 native GPU world XYZ projected depth, anti-depth control, camera move/resize and stale reject: PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

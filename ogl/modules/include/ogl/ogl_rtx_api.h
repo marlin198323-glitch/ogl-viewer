@@ -289,6 +289,11 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
  * explicitly developer-only and NOT a live Vulkan world/frame renderer.
  * The real SDL pre-GL caller also requires its own distinct opt-in
  * OGL_VULKAN_SDL_PREGL_DEPTH_PROBE=1; no GL/Vulkan overlap is allowed.
+ * Isolated GPU regression ONLY: OGL_VULKAN_EXCLUSIVE_DEPTH_COLOR_PROBE=1
+ * selects the same Z-colored fragment shader but deliberately omits depth
+ * attachments. The far last-drawn geometry MUST then overwrite the near
+ * geometry, proving that the depth acceptance test is not a false positive.
+ * Never enable either depth control for production OpenSim drawing.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
     uint32_t gl_released);

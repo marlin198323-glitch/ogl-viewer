@@ -214,9 +214,14 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     // native module flag alone; SDL must explicitly opt in as well.
     const bool depth_requested=
         ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
-    const bool depth=raster && !world && depth_requested &&
+    const bool depth_sdl_permission=
         ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_DEPTH_PROBE");
-    if (depth_requested && !depth) {
+    // World projection and depth are now composable: both are still only
+    // synthetic pre-GL GPU acceptance. Every depth flag must be matched;
+    // an orphan flag must never silently fall back to a raster-only draw.
+    const bool depth=raster && depth_requested && depth_sdl_permission;
+    if (depth_requested!=depth_sdl_permission ||
+        (depth_requested && !depth)) {
         SDL_UnloadObject(library);
         return; // GL starts normally, never draw unapproved Vulkan depth
     }
@@ -384,10 +389,27 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                  0.f, .72f,.75f
                             }}
                         };
+                        // Same geometric projection for near and far
+                        // WORLD triangles. The GPU must not confuse world
+                        // X distance with preprojected Z.
+                        const ogl_rtx_triangle world_front_and_back[2]{
+                            {{
+                                12.5f,18.f,28.4f,
+                                12.5f,22.f,28.4f,
+                                12.5f,20.f,31.6f
+                            }},
+                            {{
+                                15.f,16.f,26.8f,
+                                15.f,24.f,26.8f,
+                                15.f,20.f,33.2f
+                            }}
+                        };
                         const uint32_t triangles=depth ? 2u : 1u;
-                        uploaded=upload(world ? &world_triangle :
-                                        (depth ? front_and_back : &clip_triangle),
-                                        triangles)==1 && mesh_count()==triangles;
+                        const ogl_rtx_triangle* geometry=world
+                            ? (depth ? world_front_and_back : &world_triangle)
+                            : (depth ? front_and_back : &clip_triangle);
+                        uploaded=upload(geometry,triangles)==1 &&
+                                 mesh_count()==triangles;
                     }
                     if (world) {
                         ogl_rtx_frame_state camera{};
@@ -405,8 +427,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         camera.vertical_fov_radians=1.57079632679f;
                         camera.aspect_ratio=float(original_width)/
                                             float(original_height);
-                        camera.near_clip_m=0.1f;
-                        camera.far_clip_m=100.f;
+                        camera.near_clip_m=depth ? 2.f : 0.1f;
+                        camera.far_clip_m=depth ? 10.f : 100.f;
                         projected=set_camera(&camera)==1 &&
                                   camera_ready()==1;
                     }

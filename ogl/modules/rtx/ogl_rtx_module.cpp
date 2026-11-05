@@ -720,7 +720,15 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     const bool raster=raster_env && std::strcmp(raster_env,"1")==0;
     const char* depth_env=std::getenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
     const bool depth_test=depth_env && std::strcmp(depth_env,"1")==0;
-    if (depth_test && !raster) return 0;
+    // A separate optical negative control uses the same Z-based fragment
+    // colors WITHOUT a depth attachment. Far geometry submitted last must
+    // overwrite near geometry. This never enables depth for real world frames.
+    const char* depth_color_env=std::getenv(
+        "OGL_VULKAN_EXCLUSIVE_DEPTH_COLOR_PROBE");
+    const bool depth_color=depth_color_env &&
+                            std::strcmp(depth_color_env,"1")==0;
+    if ((depth_test || depth_color) && !raster) return 0;
+    if (depth_test && depth_color) return 0; // controls remain exclusive
     const char* world_env=std::getenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
     const bool world_projection=world_env && std::strcmp(world_env,"1")==0;
     if (world_projection && (!raster || !world_device.world_camera_ready))
@@ -1006,9 +1014,9 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=depth_test
+            fragment_info.codeSize=(depth_test || depth_color)
                 ? sizeof(ogl_dev_depth_frag_spv) : sizeof(ogl_dev_frag_spv);
-            fragment_info.pCode=depth_test
+            fragment_info.pCode=(depth_test || depth_color)
                 ? ogl_dev_depth_frag_spv : ogl_dev_frag_spv;
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &fragment_shader)!=VK_SUCCESS || !fragment_shader)
