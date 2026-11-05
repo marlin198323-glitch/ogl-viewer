@@ -363,6 +363,34 @@ weiterhin NICHT implementiert/abgenommen.
 P05 formal 2/20, Blöcke 3/4 offen; nächstes Gate echte
 Live-Region-Frames und generationssichere Mesh-Updates.
 
+**P05/3–4 GPU-Fence-Meshgeneration und Region-Clear (05.11.2026, Code fb53a9e9):**
+20 technische Aufgaben; der persistenten Vulkan-
+World-Depth-Entwicklerpipeline wurde dynamischer
+GPU-Meshupload ohne Swapchain-Neustart ergänzt.
+Separate Modul-/SDL-Entwicklerfreigaben;
+alte VkBuffers nur nach maximal 2 s bounded
+waitAll über wirklich ausstehende Submit-Fences
+der vorherigen Scene-Generation freigeben.
+Kein vkQueueWaitIdle pro Frame oder Meshwechsel.
+Bei Timeout sperren und GPU-Buffers belassen;
+ungültige NaN-Meshdaten ohne Fence-Wait verwerfen.
+Region-Clear und neuer Meshsnapshot invalidieren
+die alte Kamera bis zur nächsten gültigen Pose.
+Native GPU: zwei vorherige Frame-Slot-Submissions,
+sichtbar Rot/Grün/Leer/Rot/Grün, drei Fence-Waits,
+0 Retirement-Fehler, kein zusätzlicher QueueIdle.
+Echter SDL-X11-Viewer vor GL: 20 World-Frames,
+100 GPU-RGB-Samples, drei Extents, geordnete
+Meshuploads/Region-Clear, danach GL-Login/Exit 0.
+7 neue plus 31 alte GUI-Fälle bestanden; Linux-
+Vollbuild, 342 Python- und 41 CTests grün.
+VORHERIGE GitHub-CI vollständig grün, NEUE nach
+Code fb53a9e9 noch abzunehmen.
+Synthetische Testmeshes, keine authentifizierte
+OpenSim-Welt. Keine fertige Vulkan-Engine mit
+Terrain, Texturen, Avataren, UI oder Live-Window-
+Ownership. P05 weiter 2/20, Block 3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

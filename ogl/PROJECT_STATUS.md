@@ -6,6 +6,102 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Aufgaben: GPU-Fence-gesicherte Mesh-Generationen und Regionsverlust (05.11.2026)
+
+**Implementiert:** Die bisher beim ersten persistenten Vulkan-Present
+gesperrte Mesh-Aktualisierung kann unter separatem Entwickler-Opt-in
+nun während derselben laufenden X11-Swapchain erfolgen. Vor dem
+Freigeben alter VkVertex/VkIndexBuffer wartet der Renderer **gezielt
+auf die noch ausstehenden Submit-Fences der bisherigen GPU-Mesh-
+Generation** (waitAll, maximal 2 Sekunden). Ein globales
+vkQueueWaitIdle wird nicht im Frame-Loop oder beim Meshwechsel
+verwendet. Ein Timeout sperrt die weitere Entwicklerdiagnose und
+lässt die alten GPU-Buffers unangetastet.
+
+Jeder akzeptierte Meshsnapshot und jedes Regions-Clear erhält
+eine neue Scene-Generation; jedes von zwei GPU-Frame-Slots merkt
+sich seine referenzierte Meshgeneration. Ungültige Geometrie
+wird bereits VOR jeder Fence-Warteoperation abgewiesen. Nach
+einem gültigen Meshwechsel ist der vorherige Kameraframe ungültig,
+bis ein zur aktuellen Swapchain passendes neues Kameraupdate vorliegt.
+Ein explizit geleertes Regionsmesh lässt keinen weiteren
+World-Present zu, bis ein neuer Meshsnapshot vorliegt.
+
+**20 konkret durchgeführte technische Aufgaben und Abnahmen:**
+
+01. Sauberen Branch, kanonischen Projektstatus, Handoff, AGENTS und den P05-Plan erneut geprüft; vorige GitHub-CI vollständig grün.
+02. Den bestehenden Vulkan-Mesh-Upload auf vorzeitiges Freigeben noch von GPU-Submissions referenzierter Buffer untersucht.
+03. Separates Entwickler-Opt-in OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE für Meshwechsel im persistenten Welt-Framepfad eingeführt.
+04. Bei fehlendem Entwicklerflag oder inkompatiblem/nicht freigegebenem persistenten World-Framepfad das bisherige Fail-Closed-Verhalten erhalten.
+05. Monotone Scene-Generation für akzeptierte GPU-Mesh-Uploads und explizites Regions-Clear eingeführt.
+06. Die zugehörige Mesh-Generation bei jedem erfolgreichen VkQueueSubmit in beiden GPU-Frame-Slots erfasst.
+07. Ungültige Welt-XYZ-Geometrie vor jeglichem GPU-Fence-Wait abgewiesen, ohne alte Meshdaten oder den Generationszähler zu ändern.
+08. Nur tatsächlich ausstehende VkFence-Objekte der noch referenzierten bisherigen Mesh-Generation ermittelt.
+09. Diese Fences per VkWaitForFences waitAll mit maximal zwei Sekunden Wait freigegeben, ohne QueueIdle und ohne Fenster-Neuaufbau.
+10. Bei GPU-Wait-Fehlern den persistenten Entwicklerpfad gesperrt und alte GPU-Buffer vor vorzeitiger Freigabe geschützt.
+11. Nach erfolgreichem Fence-Wait die entsprechenden Pending-Marker aufgehoben und gezielte Mesh-Retirement-Zähler fortgeschrieben.
+12. Bereits vorhandene atomare GPU-Vertex-/Indexbuffer-Allokation vor Veröffentlichung einer neuen Scene-Generation beibehalten und geprüft.
+13. Bei erfolgreichem Meshwechsel die vorherige Kameraprojektion invalidiert und einen frischen Kameraframe vor dem nächsten Vulkan-Present verlangt.
+14. Regionsverlust und Region-Clear während der laufenden Swapchain zugelassen, aber ohne Mesh/Kamera jeden weiteren World-Present verweigert.
+15. Read-only-C-ABI für Scene-Generation, tatsächliche Mesh-Retirement-Waits und GPU-Wait-Fehler implementiert.
+16. Native Vulkan-GPU: zwei vorherige Frame-Slot-Submissions, anschließend sicherer Meshwechsel Rot-zu-Grün bei unveränderter Swapchain bestanden.
+17. Native GPU: Regions-Clear, neues rotes Mesh, erneutes grünes Mesh und drei begrenzte GPU-Fence-Waits mit unverändertem Per-Frame-QueueIdle-Zähler bestätigt.
+18. Echte SDL/X11-Vorlogin-Probe um gezielte Mesh-Generationswechsel, Regionsverlust, Kameraneufreigabe und RGB-Kontrolle erweitert.
+19. 7/7 neue GUI-Testfälle mit 20 Vulkan-Frames, 100 RGB-Samples, drei Fenstergrößen und fehlerfreiem OpenGL-Fallback bestanden; weitere 31 ältere Fälle seriell erneut grün.
+20. Linux-Vollviewer-Build, 342/342 Python-Tests und 41/41 native CTests bestanden; Code unter fb53a9e9 committed, produktiver Vulkan-Live-World-Gate weiter offen.
+
+**Native Vulkan-GPU-Abnahme:** Erst zwei GPU-Submissions
+aus den zwei persistenten Frame-Slots, dann geordneter
+Meshwechsel auf der gleichen VkSwapchainKHR. Sichtbare
+Bildfolge mit echten X11-RGB-Pixeln:
+vorderes Rot, hinteres Grün, Region-Clear,
+neues Rot und neues Grün. Insgesamt **drei
+gezielte Fence-Retirement-Waits** und keine
+GPU-Retirement-Fehler. Der QueueIdle-Zähler
+blieb während des Frame-Loops unverändert.
+Ungültige NaN-Geometrie wurde abgewiesen,
+ohne Meshgeneration, alte VkBuffers oder
+Retirement-Wait-Zähler zu verändern.
+
+**Echte SDL/X11-Viewer-Abnahme VOR OpenGL:**
+20 GPU-Welt-/Depth-Presents über drei
+Window-Extents (8/8/4) mit **100 echten
+X11-RGB-Samples**, gezielten Mesh-Rotationen
+und Region-Clear im ersten Abschnitt.
+mesh-rotation, raster, depth, camera,
+persistent-world und resize jeweils
+verified; anschließend regulärer
+OpenGL-Login und Exit 0. Fehlende Modul-
+oder SDL-Freigaben, fehlender Vulkan-ICD
+und der normale Legacy-Pfad erfolgreich
+auf OpenGL zurückgeführt. **7/7 neue**
+und **31/31 ältere** GUI-Fälle bestanden:
+**38/38** insgesamt. Kein User-Viewer,
+Login, Cache oder persönlicher Zustand
+wurde verändert.
+
+**Linux-Vollviewer-Build, 342/342 Python-Tests,
+41/41 native CTests** bestanden. Die letzte
+GitHub-CI vor diesem Code-Commit war
+vollständig erfolgreich. Die neue CI muss
+noch den veröffentlichten Stand prüfen.
+
+**Grenze:** Auch dies ist eine ausdrücklich
+freigegebene, vor dem GL-Login ausgeführte
+Vulkan-Entwicklerdiagnose mit synthetischen
+OpenSim-artigen Weltmeshes. Keine echte
+authentifizierte OpenSim-In-World-Vulkan-
+Darstellung, kein vollständiger Terrain-,
+Material-, Textur-, Avatar- oder UI-Renderer
+und kein dauerhaft aktiver Vulkan-Backend-
+Switch in der laufenden Viewer-Welt.
+P05 formal weiter **2/20**, Block 3 und
+vollständiger Block 4 noch NICHT abgenommen.
+Nächster Gate: echte nachgewiesene Live-
+Regionsmesh-/Kamera-Snapshots und sichere
+persistente Vulkan-Fenster-Ownership nach Login.
+Code-Commit: fb53a9e94d91b827f3ec9c0ec26171eb2a5139b2.
+
 ## P05/3–4 – 20 technische Aufgaben: persistente Vulkan-World-Geometrie mit GPU-Tiefentest (05.11.2026)
 
 Der bestehende persistente Vulkan-X11-Swapchain-Renderer zeichnet

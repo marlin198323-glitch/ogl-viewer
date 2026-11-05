@@ -1504,6 +1504,29 @@ Block 3/4 offen. Nächstes Gate: dynamischer
 Live-Mesh-Update mit Fence-Generation und
 authentifizierte OpenSim-Region unter Vulkan.
 
+**P05/3–4 Dynamischer GPU-Meshwechsel per Scene-Generation (05.11.2026, Code fb53a9e9):**
+Echte VkVertex-/Indexbuffer können jetzt im
+persistenten Vulkan-Testframepfad bei laufender
+Swapchain ausgetauscht werden. Gültige Generation,
+Kamerabereitschaft und jeweils die ausstehenden
+GPU-Frame-Slot-Fences steuern sichere Freigaben
+(maximal 2 s waitAll, kein QueueIdle je Frame).
+Region-Clear invalidiert die Kamera und sperrt
+World-Present bis zu neuer Region-Geometrie
+und neuem Camera-Frame. Native GPU prüft
+Rot/Grün/Region-Clear/Rot/Grün, zwei zuvor
+verwendete Frame-Slots, drei Fence-Retirements.
+SDL-Vorlogin: 20 World-Presents, 100 Pixel
+bei drei Extents; 7 neue und 31 alte
+GUI-Smokes grün. Linux-Vollbuild, 342
+Python und 41 native Tests erfolgreich.
+Kein authentifiziertes Vulkan-OpenSim-Live-
+Rendering, keine Terrain-/Avatar-/Textur-
+/UI-Engine, kein produktiver Vulkan-Switch.
+P05 2/20, Block 3/4 offen. Nächstes Gate:
+tatsächliche eingeloggte Regionsmesh-/
+Camera-Übergabe und Vulkan-Fensterlebenszyklus.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

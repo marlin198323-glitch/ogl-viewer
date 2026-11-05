@@ -4,31 +4,43 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code 6734cdef):
-Persistente Vulkan-Swapchain zeichnet jetzt
-echte indexierte World-XYZ-GPU-Testdreiecke
-mit 4x4-Kamera-PushConstant und Depth-Z-Test.
-VkGraphicsPipeline, Shader, Framebuffers und
-separate Depth-Images/Memory/Views pro Swapchain-
-Bild bleiben persistent. Zwei GPU-Frame-Slots,
-kein QueueWaitIdle pro Frame, ein abschließender
-QueueIdle beim Detach. Meshmutation/Region-Clear
-während ausstehender GPU-Bufferreferenzen verboten.
-Native GPU 16 Frames, Kamera-Move, Resize, Pixel,
-Mesh-Sperre bestanden. Echte SDL-X11-Viewer-XID
-VOR GL: 20 World-/Depth-Presents, 100 Pixel,
-drei Größen, dann GL-Login/Exit 0.
-5 neue +26 alte GUI-Fälle erfolgreich;
-Linux-Vollbuild 341 Python/41 native CTests grün.
-Vorige GitHub-CI ganz grün, neue CI noch prüfen.
-Nur synthetische Testmeshes, KEIN
-authentifiziertes OpenSim-In-World-Rendering,
-keine Vulkan-Terrain-/Avatar-/Textur-/UI-Engine,
-kein produktiver Vulkan-Backend-Switch.
-P05 operativ 2/20, Blöcke 3/4 noch offen.
-Bestehende Dateien bearbeiten, Nutzer-Viewer,
-Cache, Login, Accounts und Secrets nicht
-ändern. Historie: ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code fb53a9e9):
+GPU-Fence-gesicherte dynamische Mesh-
+Generationen jetzt im persistenten
+Vulkan-World-Depth-Entwicklerpfad.
+Alte Vertex/Index-VkBuffers erst nach
+bounded <=2s waitAll der ausstehenden
+GPU-Submit-Fences freigeben. Kein
+QueueIdle pro Frame oder Meshupdate.
+Separates Modul+SDL-Dev-Opt-in;
+Timeout blockiert weitere Probe,
+keine GPU-Buffer-Freigabe bei Fehler.
+Region-Clear inkrementiert Generation
+und sperrt Draw ohne neue Pose/Mesh.
+Ungültige Meshdaten ohne Fence-Wait
+verwerfen. Native GPU: zwei Slots
+vor Generationstausch; sichtbare
+Rot/Grün/Leer/Rot/Grün-Frames,
+3 Retirement-Waits, 0 Fehler.
+SDL/X11-Viewer VOR GL: 20 Frames,
+100 RGB-Pixel, drei Größen,
+GL-Login/Exit 0. 7 neue+31 alte
+GUI-Smokes erfolgreich. Linux-
+Vollbuild, 342 Python/41 CTests.
+Vorige GitHub-CI grün, neue
+nach Commits noch zu prüfen.
+Nur synthetische Meshes; KEINE
+authentifizierte OpenSim-Region
+per Vulkan, KEIN produktiver
+Vulkan-Window-/World-Backend-Switch.
+P05 formal 2/20, Block 3/4 offen.
+Nächster Fokus: echte In-World-
+Scene-/Camera-Eingänge und sichere
+Vulkan-Live-Window-Ownership.
+Bestehende Dateien bearbeiten;
+User-Viewer, Accounts, Cache,
+Logins und Secrets nicht anfassen.
+Historie: ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
