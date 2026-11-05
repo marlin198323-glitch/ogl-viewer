@@ -334,7 +334,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("wm.subsystem!=SDL_SYSWM_X11",win)
         self.assertIn("SDL_LoadObject(\"./lib/ogl_rtx.so\")",win)
         self.assertIn("SDL_LoadFunction(library,\"ogl_vulkan_world_present_exclusive_test_frame\")",win)
-        self.assertIn("presented=present(1);",win)
+        self.assertIn("if (present(1)!=1 ||",win)
         self.assertIn("detach();\n            stop();",win)
         self.assertIn("SDL_UnloadObject(library);",win)
         self.assertIn("ogl_probe_real_sdl_window_before_gl(mWindow);",win)
@@ -343,7 +343,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OpenGL follows.",win)
         self.assertIn("XGetImage(wm.info.x11.display,",win)
         self.assertIn("XGetPixel(image,0,0)",win)
-        self.assertIn("pixel_verified=r>=16 && r<=25",win)
+        self.assertIn("std::abs(red-(warm?166:20))<=5",win)
         self.assertIn('pixel_verified ? "verified" : "unverified"',win)
         self.assertIn("XDestroyImage(image);",win)
         self.assertLess(win.index("XDestroyImage(image);"),
@@ -354,6 +354,22 @@ class PublicGraphicsContracts(unittest.TestCase):
             (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
         self.assertNotIn("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE",
             (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+
+    def test_p05_actual_sdl_three_extent_multiframe_probe_contract(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        self.assertIn('ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE")',win)
+        self.assertIn('ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP")',win)
+        self.assertIn('SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count")',win)
+        self.assertIn('original_width,original_height,8',win)
+        self.assertIn('frame_group(actual_width,actual_height,8)',win)
+        self.assertIn('restored_width,restored_height,4',win)
+        self.assertIn('SDL_SetWindowSize(window,target_width,target_height);',win)
+        self.assertIn('SDL_SetWindowSize(window,original_width,original_height);',win)
+        self.assertIn('sequence_verified && presented==20',win)
+        self.assertIn('(sequence ? "/20" : "/1")',win)
+        self.assertIn('if (count && count()!=0) good=false;',win)
+        self.assertIn('pixel_verified=frame_group(',win)
+        self.assertIn('mContext = SDL_GL_CreateContext( mWindow );',win)
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

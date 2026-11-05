@@ -90,8 +90,8 @@ static bool ATIbug = false;
 // be only one object of this class at any time.  Currently this is true.
 static LLWindowSDL *gWindowImplementation = NULL;
 
-// Pre-GL developer smoke test: for precisely one frame Vulkan owns the
-// *actual SDL/X11 viewer window* before any OpenGL context is created.
+// Pre-GL developer smoke test: one, or explicitly 20 staged frames,
+// Vulkan owns the *actual SDL/X11 viewer window* before any OpenGL context.
 // The test detaches/releases ALL Vulkan handles before GL initialization.
 // No ordinary viewer/renderer setting can enable this path.
 #if LL_LINUX && LL_X11
@@ -156,46 +156,110 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     uint32_t presented=0;
     bool attached=false;
     bool pixel_verified=false;
+    bool sequence_verified=false;
+    // A separate explicit opt-in permits a 20-frame/three-extent acceptance
+    // run on the actual, pre-GL SDL window. Normal opt-in retains ONE frame.
+    // All GPU presents finish and all WSI objects die before GL creation.
+    const bool sequence=ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE") &&
+                        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
     if (start && stop && attach && present && detach) {
         const ogl_host_api host{sizeof(ogl_host_api),
                                 OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
         if (start(&host)==0) {
-            int width=0,height=0;
-            SDL_GetWindowSize(window,&width,&height);
-            if (width>0 && height>0 &&
-                attach(wm.info.x11.display,
-                       static_cast<uint64_t>(wm.info.x11.window),
-                       static_cast<uint32_t>(width),
-                       static_cast<uint32_t>(height))==1) {
-                attached=true;
-                // No GL context has been created. This flag denotes actual
-                // exclusive pre-GL ownership, not a fake runtime handoff.
-                presented=present(1);
-                if (presented==1) {
-                    // Verify the actual SDL/X11 front buffer BEFORE the GL
-                    // context replaces it. The Vulkan probe clears to
-                    // RGB(20,54,115); use the X11 Visual's native masks.
+            int original_width=0,original_height=0;
+            SDL_GetWindowSize(window,&original_width,&original_height);
+            // The X11 probe is limited to the real SDL window, never a
+            // second GL/Vulkan window and never a persisted user preference.
+            if (original_width>0 && original_height>0) {
+                using Count = uint32_t (*)();
+                const auto count=reinterpret_cast<Count>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
+                auto verify_pixel=[&](int width,int height,uint32_t frame) {
                     XSync(wm.info.x11.display,False);
                     XImage* image=XGetImage(wm.info.x11.display,
                         wm.info.x11.window,width/2,height/2,1,1,
                         AllPlanes,ZPixmap);
-                    if (image) {
-                        const unsigned long value=XGetPixel(image,0,0);
-                        auto channel=[value](unsigned long mask) -> int {
-                            if (!mask) return -1;
-                            unsigned shift=0;
-                            while (!(mask&1UL)) { mask>>=1; ++shift; }
-                            return static_cast<int>(
-                                (((value>>shift)&mask)*255UL+mask/2)/mask);
-                        };
-                        const int r=channel(image->red_mask);
-                        const int g=channel(image->green_mask);
-                        const int b=channel(image->blue_mask);
-                        pixel_verified=r>=16 && r<=25 &&
-                                       g>=49 && g<=59 &&
-                                       b>=110 && b<=120;
-                        XDestroyImage(image);
+                    if (!image) return false;
+                    const unsigned long value=XGetPixel(image,0,0);
+                    auto channel=[value](unsigned long mask) -> int {
+                        if (!mask) return -1;
+                        unsigned shift=0;
+                        while (!(mask&1UL)) { mask>>=1; ++shift; }
+                        return static_cast<int>(
+                            (((value>>shift)&mask)*255UL+mask/2)/mask);
+                    };
+                    const int red=channel(image->red_mask);
+                    const int green=channel(image->green_mask);
+                    const int blue=channel(image->blue_mask);
+                    XDestroyImage(image);
+                    const bool warm=(frame%2)==1;
+                    return std::abs(red-(warm?166:20))<=5 &&
+                           std::abs(green-(warm?89:54))<=5 &&
+                           std::abs(blue-(warm?31:115))<=5;
+                };
+                auto frame_group=[&](int width,int height,uint32_t frames) {
+                    bool good=attach(wm.info.x11.display,
+                        static_cast<uint64_t>(wm.info.x11.window),
+                        static_cast<uint32_t>(width),
+                        static_cast<uint32_t>(height))==1;
+                    attached|=good;
+                    if (good) {
+                        for (uint32_t frame=0;frame<frames;++frame) {
+                            if (present(1)!=1 ||
+                                !verify_pixel(width,height,frame) ||
+                                (count && count()!=frame+1)) {
+                                good=false;
+                                break;
+                            }
+                            ++presented;
+                        }
                     }
+                    // Never carry a swapchain or stale native window handle
+                    // across resize; release before SDL_SetWindowSize.
+                    detach();
+                    if (count && count()!=0) good=false;
+                    return good;
+                };
+                if (sequence && count) {
+                    // Probe three real window extents: original, temporary,
+                    // restored. Restore even if an intermediate step fails.
+                    int target_width=original_width+64;
+                    int target_height=original_height+48;
+                    if (target_width>16000) target_width=original_width-64;
+                    if (target_height>16000) target_height=original_height-48;
+                    sequence_verified=frame_group(
+                        original_width,original_height,8);
+                    if (sequence_verified) {
+                        SDL_SetWindowSize(window,target_width,target_height);
+                        XSync(wm.info.x11.display,False);
+                        int actual_width=0,actual_height=0;
+                        SDL_GetWindowSize(window,&actual_width,&actual_height);
+                        sequence_verified=
+                            actual_width==target_width &&
+                            actual_height==target_height &&
+                            frame_group(actual_width,actual_height,8);
+                    }
+                    // A GL context must see the original initial size,
+                    // regardless of a failed frame or resized swapchain.
+                    SDL_SetWindowSize(window,original_width,original_height);
+                    XSync(wm.info.x11.display,False);
+                    int restored_width=0,restored_height=0;
+                    SDL_GetWindowSize(window,&restored_width,&restored_height);
+                    if (sequence_verified &&
+                        restored_width==original_width &&
+                        restored_height==original_height)
+                        sequence_verified=frame_group(
+                            restored_width,restored_height,4);
+                    // The exact requested 20 frames and original size are
+                    // required to accept the three-stage sequence.
+                    sequence_verified=sequence_verified && presented==20 &&
+                        restored_width==original_width &&
+                        restored_height==original_height;
+                    pixel_verified=sequence_verified;
+                } else {
+                    // Original single-frame startup diagnostic unchanged.
+                    pixel_verified=frame_group(
+                        original_width,original_height,1);
                 }
             }
             detach();
@@ -205,7 +269,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     SDL_UnloadObject(library);
     LL_INFOS("OGLRenderer") <<
         "P05 actual SDL/X11 pre-GL Vulkan frame: " << presented <<
-        "/1 presented, pixel=" << (pixel_verified ? "verified" : "unverified") <<
+        (sequence ? "/20" : "/1") <<
+        " presented, pixel=" << (pixel_verified ? "verified" : "unverified") <<
+        ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
+                                 : "not-requested") <<
         ", surface=" << (attached ? "ready" : "unavailable") <<
         "; Vulkan fully detached BEFORE SDL_GL_CreateContext; OpenGL follows."
         << LL_ENDL;
