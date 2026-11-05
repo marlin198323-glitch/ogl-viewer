@@ -146,6 +146,9 @@ struct WorldGraphicsDevice {
     PFN_vkDestroySwapchainKHR destroy_swapchain = nullptr;
     bool xlib_surface_extension = false;
     bool swapchain_probe_ready = false;
+    bool exclusive_present_used = false;
+    VkFormat swapchain_format = VK_FORMAT_UNDEFINED;
+    VkExtent2D swapchain_extent{};
 
     // P05/4: private Vulkan world-geometry data, not an RTX BLAS/TLAS and
     // not a completed draw pipeline. Both buffers belong to this VkDevice.
@@ -180,6 +183,9 @@ struct WorldGraphicsDevice {
             destroy_swapchain(device, swapchain, nullptr);
         swapchain = VK_NULL_HANDLE;
         swapchain_probe_ready = false;
+        exclusive_present_used = false;
+        swapchain_format = VK_FORMAT_UNDEFINED;
+        swapchain_extent = {};
         if (surface && destroy_surface && instance)
             destroy_surface(instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
@@ -525,7 +531,9 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         return false;
     }
     world_device.swapchain_probe_ready=true;
-    // Deliberately NO vkAcquireNextImageKHR/vkQueuePresentKHR here.
+    world_device.swapchain_format=format.format;
+    world_device.swapchain_extent=extent;
+    // Passive WSI attach never acquires or presents; GL remains unchanged.
     return true;
 #else
     (void)native_display; (void)native_window; (void)width; (void)height;
@@ -534,6 +542,215 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
 }
 
 ogl_log_fn logger = nullptr;
+// P05/3: native-only, exclusive X11 swapchain-present acceptance test.
+// The interactive GL viewer NEVER invokes this function. Its disposable
+// X11 test window has no OpenGL context and is owned by the caller.
+// One-frame-only: a real Vulkan world renderer needs a multi-frame design.
+uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
+#if defined(OGL_HAS_XLIB_WSI)
+    const char* flag=std::getenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE");
+    if (!flag || std::strcmp(flag,"1")!=0 || gl_released!=1 ||
+        !world_device.swapchain_probe_ready ||
+        world_device.exclusive_present_used || !world_device.device ||
+        !world_device.queue || !world_device.swapchain ||
+        world_device.swapchain_format==VK_FORMAT_UNDEFINED ||
+        !world_device.swapchain_extent.width ||
+        !world_device.swapchain_extent.height ||
+        !world_device.device_proc) return 0;
+    auto fn=[&](const char* name) {
+        return world_device.device_proc(world_device.device,name);
+    };
+#define OGL_PRESENT_FN(name) auto name=reinterpret_cast<PFN_##name>(fn(#name))
+    OGL_PRESENT_FN(vkGetSwapchainImagesKHR);
+    OGL_PRESENT_FN(vkAcquireNextImageKHR);
+    OGL_PRESENT_FN(vkQueuePresentKHR);
+    OGL_PRESENT_FN(vkCreateSemaphore);
+    OGL_PRESENT_FN(vkDestroySemaphore);
+    OGL_PRESENT_FN(vkCreateFence);
+    OGL_PRESENT_FN(vkDestroyFence);
+    OGL_PRESENT_FN(vkWaitForFences);
+    OGL_PRESENT_FN(vkCreateImageView);
+    OGL_PRESENT_FN(vkDestroyImageView);
+    OGL_PRESENT_FN(vkCreateRenderPass);
+    OGL_PRESENT_FN(vkDestroyRenderPass);
+    OGL_PRESENT_FN(vkCreateFramebuffer);
+    OGL_PRESENT_FN(vkDestroyFramebuffer);
+    OGL_PRESENT_FN(vkCreateCommandPool);
+    OGL_PRESENT_FN(vkDestroyCommandPool);
+    OGL_PRESENT_FN(vkAllocateCommandBuffers);
+    OGL_PRESENT_FN(vkBeginCommandBuffer);
+    OGL_PRESENT_FN(vkCmdBeginRenderPass);
+    OGL_PRESENT_FN(vkCmdEndRenderPass);
+    OGL_PRESENT_FN(vkEndCommandBuffer);
+    OGL_PRESENT_FN(vkQueueSubmit);
+    OGL_PRESENT_FN(vkQueueWaitIdle);
+#undef OGL_PRESENT_FN
+    if (!vkGetSwapchainImagesKHR || !vkAcquireNextImageKHR || !vkQueuePresentKHR ||
+        !vkCreateSemaphore || !vkDestroySemaphore ||
+        !vkCreateFence || !vkDestroyFence || !vkWaitForFences ||
+        !vkCreateImageView || !vkDestroyImageView ||
+        !vkCreateRenderPass || !vkDestroyRenderPass ||
+        !vkCreateFramebuffer || !vkDestroyFramebuffer ||
+        !vkCreateCommandPool || !vkDestroyCommandPool ||
+        !vkAllocateCommandBuffers || !vkBeginCommandBuffer ||
+        !vkCmdBeginRenderPass || !vkCmdEndRenderPass ||
+        !vkEndCommandBuffer || !vkQueueSubmit || !vkQueueWaitIdle) return 0;
+
+    // A rejected frame is never retried against an acquired swapchain image.
+    world_device.exclusive_present_used=true;
+    VkSemaphore acquired=VK_NULL_HANDLE,rendered=VK_NULL_HANDLE;
+    VkFence submit_fence=VK_NULL_HANDLE;
+    VkImageView view=VK_NULL_HANDLE;
+    VkRenderPass pass=VK_NULL_HANDLE;
+    VkFramebuffer fb=VK_NULL_HANDLE;
+    VkCommandPool pool=VK_NULL_HANDLE;
+    bool in_flight=false;
+    auto cleanup=[&]() {
+        if (submit_fence) vkDestroyFence(world_device.device,submit_fence,nullptr);
+        if (pool) vkDestroyCommandPool(world_device.device,pool,nullptr);
+        if (fb) vkDestroyFramebuffer(world_device.device,fb,nullptr);
+        if (pass) vkDestroyRenderPass(world_device.device,pass,nullptr);
+        if (view) vkDestroyImageView(world_device.device,view,nullptr);
+        if (acquired) vkDestroySemaphore(world_device.device,acquired,nullptr);
+        if (rendered) vkDestroySemaphore(world_device.device,rendered,nullptr);
+    };
+    auto run=[&]() -> bool {
+        uint32_t count=0;
+        if (vkGetSwapchainImagesKHR(world_device.device,world_device.swapchain,
+                                   &count,nullptr)!=VK_SUCCESS ||
+            count<2 || count>16) return false;
+        std::vector<VkImage> images(count);
+        if (vkGetSwapchainImagesKHR(world_device.device,world_device.swapchain,
+                                   &count,images.data())!=VK_SUCCESS ||
+            count<2) return false;
+        VkSemaphoreCreateInfo si{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        if (vkCreateSemaphore(world_device.device,&si,nullptr,&acquired)!=VK_SUCCESS ||
+            !acquired ||
+            vkCreateSemaphore(world_device.device,&si,nullptr,&rendered)!=VK_SUCCESS ||
+            !rendered) return false;
+        uint32_t idx=UINT32_MAX;
+        const auto acquire=vkAcquireNextImageKHR(world_device.device,
+            world_device.swapchain,2000000000ULL,acquired,VK_NULL_HANDLE,&idx);
+        if ((acquire!=VK_SUCCESS && acquire!=VK_SUBOPTIMAL_KHR) ||
+            idx>=count) return false;
+
+        VkImageViewCreateInfo iv{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        iv.image=images[idx];
+        iv.viewType=VK_IMAGE_VIEW_TYPE_2D;
+        iv.format=world_device.swapchain_format;
+        iv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        iv.subresourceRange.levelCount=1;
+        iv.subresourceRange.layerCount=1;
+        if (vkCreateImageView(world_device.device,&iv,nullptr,&view)!=VK_SUCCESS ||
+            !view) return false;
+
+        VkAttachmentDescription attachment{};
+        attachment.format=world_device.swapchain_format;
+        attachment.samples=VK_SAMPLE_COUNT_1_BIT;
+        attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachment.storeOp=VK_ATTACHMENT_STORE_OP_STORE;
+        attachment.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+        attachment.finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        VkAttachmentReference ref{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount=1;
+        subpass.pColorAttachments=&ref;
+        VkRenderPassCreateInfo pi{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+        pi.attachmentCount=1;
+        pi.pAttachments=&attachment;
+        pi.subpassCount=1;
+        pi.pSubpasses=&subpass;
+        if (vkCreateRenderPass(world_device.device,&pi,nullptr,&pass)!=VK_SUCCESS ||
+            !pass) return false;
+        VkFramebufferCreateInfo fbi{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+        fbi.renderPass=pass;
+        fbi.attachmentCount=1;
+        fbi.pAttachments=&view;
+        fbi.width=world_device.swapchain_extent.width;
+        fbi.height=world_device.swapchain_extent.height;
+        fbi.layers=1;
+        if (vkCreateFramebuffer(world_device.device,&fbi,nullptr,&fb)!=VK_SUCCESS ||
+            !fb) return false;
+
+        VkCommandPoolCreateInfo pooli{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+        pooli.queueFamilyIndex=world_device.queue_family;
+        pooli.flags=VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        if (vkCreateCommandPool(world_device.device,&pooli,nullptr,&pool)!=VK_SUCCESS ||
+            !pool) return false;
+        VkCommandBuffer cmd=VK_NULL_HANDLE;
+        VkCommandBufferAllocateInfo ai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        ai.commandPool=pool;
+        ai.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        ai.commandBufferCount=1;
+        if (vkAllocateCommandBuffers(world_device.device,&ai,&cmd)!=VK_SUCCESS ||
+            !cmd) return false;
+        VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        bi.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (vkBeginCommandBuffer(cmd,&bi)!=VK_SUCCESS) return false;
+        VkClearValue clear{};
+        clear.color.float32[0]=0.08f;
+        clear.color.float32[1]=0.21f;
+        clear.color.float32[2]=0.45f;
+        clear.color.float32[3]=1.f;
+        VkRenderPassBeginInfo rbi{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        rbi.renderPass=pass;
+        rbi.framebuffer=fb;
+        rbi.renderArea.extent=world_device.swapchain_extent;
+        rbi.clearValueCount=1;
+        rbi.pClearValues=&clear;
+        vkCmdBeginRenderPass(cmd,&rbi,VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdEndRenderPass(cmd);
+        if (vkEndCommandBuffer(cmd)!=VK_SUCCESS) return false;
+
+        VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        if (vkCreateFence(world_device.device,&fi,nullptr,&submit_fence)!=VK_SUCCESS ||
+            !submit_fence) return false;
+        VkPipelineStageFlags stage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkSubmitInfo sub{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        sub.waitSemaphoreCount=1;
+        sub.pWaitSemaphores=&acquired;
+        sub.pWaitDstStageMask=&stage;
+        sub.commandBufferCount=1;
+        sub.pCommandBuffers=&cmd;
+        sub.signalSemaphoreCount=1;
+        sub.pSignalSemaphores=&rendered;
+        if (vkQueueSubmit(world_device.queue,1,&sub,submit_fence)!=VK_SUCCESS)
+            return false;
+        in_flight=true;
+        if (vkWaitForFences(world_device.device,1,&submit_fence,VK_TRUE,
+                            2000000000ULL)!=VK_SUCCESS) return false;
+        in_flight=false;
+        VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+        present.waitSemaphoreCount=1;
+        present.pWaitSemaphores=&rendered;
+        present.swapchainCount=1;
+        present.pSwapchains=&world_device.swapchain;
+        present.pImageIndices=&idx;
+        const auto presented=vkQueuePresentKHR(world_device.queue,&present);
+        if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
+            return false;
+        // Vulkan 1.1 present-completion lacks a bounded wait. This one call
+        // exists ONLY in an isolated native X11 subprocess with timeout,
+        // never in the running Viewer / GL rendering loop.
+        in_flight=true;
+        if (vkQueueWaitIdle(world_device.queue)!=VK_SUCCESS) return false;
+        in_flight=false;
+        if (logger)
+            logger(1,"P05 isolated native Vulkan X11: real swapchain acquire, clear and present; NOT in Viewer.");
+        return true;
+    };
+    const bool success=run();
+    if (!in_flight) cleanup(); // do not free GPU resources still in flight
+    return success ? 1u : 0u;
+#else
+    (void)gl_released;
+    return 0;
+#endif
+}
+
 // P05/3 foundation: exercise the REAL Vulkan graphics queue with two
 // independent primary command buffers and completion fences. NO swapchain
 // acquisition/presentation, render passes, shaders or OpenGL resources.
@@ -1716,6 +1933,11 @@ extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_attach_x11_window(
     void* display, uint64_t window, uint32_t width, uint32_t height)
 {
     return attach_world_xlib_window(display,window,width,height) ? 1 : 0;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
+    uint32_t gl_released)
+{
+    return present_exclusive_native_test_frame(gl_released);
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready() {
     return world_device.swapchain_probe_ready ? 1 : 0;

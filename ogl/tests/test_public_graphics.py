@@ -147,7 +147,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         # P05 now probes a real VkSwapchainKHR on the existing X11 window,
         # but does not acquire/present or switch the OpenGL world renderer.
         self.assertIn('"vkCreateSwapchainKHR"',module)
-        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
         self.assertIn("surface and world renderer NOT implemented.",module)
         self.assertIn('renderer->setEnabledByValue("vulkan", false)',preferences)
         self.assertIn("VK_KHR_SWAPCHAIN_EXTENSION_NAME",module)
@@ -180,8 +181,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("LLWindowSDL::get_SDL_XWindowID()",host)
         self.assertIn("LLWindowSDL::get_SDL_Display()",host)
         self.assertIn("detach(); // default one-shot probe must leave GL alone.",host)
-        self.assertNotIn("vkQueuePresentKHR(",module)
-        self.assertNotIn("vkAcquireNextImageKHR(",module)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+        self.assertIn("gl_released!=1",module)
         self.assertIn("assert(window_attach(nullptr,0,1920,1080)==0)",native)
         self.assertIn("assert(window_ready() == 0)",native)
         self.assertIn("SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE",
@@ -213,7 +215,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('setOglWindowWillDestroyCallback(nullptr)',host)
         self.assertIn("P05 persistent X11 WSI resize/window refresh:",host)
         self.assertIn("detach_window(); // WSI handles must die",module)
-        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
         self.assertIn('renderer->setEnabledByValue("vulkan", false)',
                       (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
 
@@ -239,8 +242,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("P05 Vulkan graphics queue sync probe: ",host)
         self.assertIn("no image present, OpenGL world unchanged.",host)
         self.assertIn('unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE")',native)
-        self.assertNotIn("vkQueuePresentKHR(",module)
-        self.assertNotIn("vkAcquireNextImageKHR(",module)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+        self.assertIn("gl_released!=1",module)
 
     def test_p05_offscreen_vulkan_gpu_frame_is_verified_not_presented(self):
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
@@ -272,8 +276,45 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("return 11;",native)
         self.assertIn("P05 real Vulkan offscreen GPU frame:",host)
         self.assertIn("no swapchain present, OpenGL unchanged.",host)
-        self.assertNotIn("vkQueuePresentKHR(",module)
-        self.assertNotIn("vkAcquireNextImageKHR(",module)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+        self.assertIn("gl_released!=1",module)
+
+    def test_p05_native_present_is_exclusive_x11_only_not_live_gl(self):
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        cmake=(ROOT/"ogl/modules/CMakeLists.txt").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn("ogl_vulkan_world_present_exclusive_test_frame",header)
+        self.assertIn("present_exclusive_native_test_frame(gl_released)",module)
+        self.assertIn('std::getenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE")',module)
+        self.assertIn("gl_released!=1",module)
+        self.assertIn("world_device.exclusive_present_used",module)
+        self.assertIn("world_device.swapchain_format=format.format;",module)
+        self.assertIn("world_device.swapchain_extent=extent;",module)
+        for item in ("vkAcquireNextImageKHR","vkQueuePresentKHR",
+                     "vkCreateImageView","vkCreateRenderPass",
+                     "vkCmdBeginRenderPass","vkCmdEndRenderPass",
+                     "vkCreateSemaphore","vkWaitForFences",
+                     "vkQueueWaitIdle"):
+            self.assertIn("OGL_PRESENT_FN("+item+")",module)
+        self.assertIn("VK_IMAGE_LAYOUT_PRESENT_SRC_KHR",module)
+        self.assertIn("VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT",module)
+        self.assertIn("OGL_VULKAN_PRESENT_TEST_X11",native)
+        self.assertIn("XCreateSimpleWindow",native)
+        self.assertIn("const uint32_t without_owner=exclusive_present(0)",native)
+        self.assertIn("const uint32_t without_flag=exclusive_present(1)",native)
+        self.assertIn("const uint32_t presented=exclusive_present(1)",native)
+        self.assertIn("const uint32_t duplicate=exclusive_present(1)",native)
+        self.assertIn("XResizeWindow(display,window,480,300)",native)
+        self.assertIn("resized_presented=exclusive_present(1)",native)
+        self.assertIn("resized_duplicate=exclusive_present(1)",native)
+        self.assertIn("Native X11 present QA unavailable in this build",native)
+        self.assertIn('CMAKE_SYSTEM_NAME STREQUAL "Linux"',cmake)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",host)
+        self.assertIn('renderer->setEnabledByValue("vulkan", false)',
+                      (ROOT/"indra/newview/llfloaterpreference.cpp").read_text())
 
     def test_p05_vertex_index_world_upload_is_bounded_and_rt_independent(self):
         api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
@@ -305,7 +346,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD")',pipeline)
         self.assertIn("if (publish_geometry && !triangles.empty())",pipeline)
         self.assertIn("bool ogl_vulkan_world_mesh_staging_enabled()",host)
-        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
     def test_p05_persistent_optin_vulkan_world_device_and_cleanup(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

@@ -294,6 +294,15 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
     target_include_directories(ogl_rtx_frame_bridge_test PRIVATE include)
     target_compile_features(ogl_rtx_frame_bridge_test PRIVATE cxx_std_17)
     target_link_libraries(ogl_rtx_frame_bridge_test PRIVATE ${CMAKE_DL_LIBS})
+    # Only native X11 QA links Xlib, not Windows/macOS or the Viewer.
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(X11 QUIET)
+        if(X11_FOUND)
+            target_include_directories(ogl_rtx_frame_bridge_test PRIVATE ${X11_INCLUDE_DIR})
+            target_link_libraries(ogl_rtx_frame_bridge_test PRIVATE ${X11_LIBRARIES})
+            target_compile_definitions(ogl_rtx_frame_bridge_test PRIVATE OGL_TEST_X11_WSI=1)
+        endif()
+    endif()
     add_test(NAME ogl_rtx_frame_bridge
              COMMAND ogl_rtx_frame_bridge_test $<TARGET_FILE:ogl_rtx_module>)
 

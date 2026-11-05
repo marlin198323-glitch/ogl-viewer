@@ -246,6 +246,14 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
 OGL_MODULE_EXPORT int ogl_vulkan_world_attach_x11_window(
     void* x11_display, uint64_t x11_window, uint32_t width, uint32_t height);
 OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
+/* Native X11 developer QA ONLY. Caller MUST own the window exclusively
+ * (no OpenGL presentation), pass gl_released=1, and set
+ * OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE=1. Never called by the GL Viewer.
+ * Executes a single real GPU swapchain acquire/clear/present operation;
+ * this is NOT an interactive Vulkan world renderer.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
+    uint32_t gl_released);
 OGL_MODULE_EXPORT void ogl_vulkan_world_detach_window(void);
 
 /* Read-only status; valid until module is unloaded. Never store credentials. */

@@ -5,6 +5,10 @@
 #include <limits>
 #include <vector>
 #include <dlfcn.h>
+#if defined(OGL_TEST_X11_WSI)
+#include <X11/Xlib.h>
+#include <cstring>
+#endif
 
 void log_cb(int, const char*) {}
 
@@ -36,6 +40,8 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_rtx_copy_depth_debug"));
     const auto world_device = reinterpret_cast<int(*)()>(
         dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
+    const auto exclusive_present = reinterpret_cast<uint32_t(*)(uint32_t)>(
+        dlsym(library,"ogl_vulkan_world_present_exclusive_test_frame"));
     const auto world_sync = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
     const auto offscreen_frame = reinterpret_cast<uint32_t(*)()>(
@@ -50,6 +56,7 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
+    assert(exclusive_present && exclusive_present(1)==0);
     assert(window_attach && window_ready && window_detach &&
            world_sync && world_upload && world_gpu_count && offscreen_frame);
     assert(start && stop && status && submit && count && world_device &&
@@ -281,6 +288,71 @@ int main(int argc, char** argv) {
     }
     assert(status()->rendering_active == 0);
     stop();
+#if defined(OGL_TEST_X11_WSI)
+    // Explicit opt-in: disposable X11 QA window, with NO OpenGL context.
+    // This is not a parallel window of the interactive GL Viewer.
+    const char* native_flag=std::getenv("OGL_VULKAN_PRESENT_TEST_X11");
+    if (native_flag && std::strcmp(native_flag,"1")==0) {
+        Display* display=XOpenDisplay(nullptr);
+        if (!display) {
+            std::fputs("No X11 display for required Vulkan present test\n",stderr);
+            return 12;
+        }
+        const Window root=DefaultRootWindow(display);
+        Window window=XCreateSimpleWindow(display,root,30,30,320,240,0,0,0);
+        XMapWindow(display,window);
+        XSync(display,False);
+        setenv("OGL_VULKAN_WORLD_BOOTSTRAP","1",1);
+        setenv("OGL_VULKAN_WINDOW_SURFACE","1",1);
+        setenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE","1",1);
+        const int started=start(&host);
+        const int device=world_device();
+        const int attached=window_attach(display,static_cast<uint64_t>(window),320,240);
+        const int swapchain=window_ready();
+        const uint32_t without_owner=exclusive_present(0);
+        unsetenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE");
+        const uint32_t without_flag=exclusive_present(1);
+        setenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE","1",1);
+        const uint32_t presented=exclusive_present(1);
+        const uint32_t duplicate=exclusive_present(1);
+        window_detach();
+        // A resized native X11 window needs a newly attached swapchain;
+        // never reuse an image/view/extent from the old attachment.
+        XResizeWindow(display,window,480,300);
+        XSync(display,False);
+        const int resized=window_attach(display,static_cast<uint64_t>(window),480,300);
+        const int resized_ready=window_ready();
+        const uint32_t resized_presented=exclusive_present(1);
+        const uint32_t resized_duplicate=exclusive_present(1);
+        window_detach();
+        stop();
+        XDestroyWindow(display,window);
+        XCloseDisplay(display);
+        if (started!=0 || device!=1 || attached!=1 || swapchain!=1 ||
+            without_owner!=0 || without_flag!=0 ||
+            presented!=1 || duplicate!=0 ||
+            resized!=1 || resized_ready!=1 ||
+            resized_presented!=1 || resized_duplicate!=0) {
+            std::fprintf(stderr,
+                "Native Vulkan present FAILED: start=%d gpu=%d attach=%d "
+                "swapchain=%d no-owner=%u no-flag=%u present=%u repeat=%u "
+                "resized=%d ready=%d second=%u second-repeat=%u\n",
+                started,device,attached,swapchain,without_owner,
+                without_flag,presented,duplicate,resized,resized_ready,
+                resized_presented,resized_duplicate);
+            return 12;
+        }
+        std::puts("P05 native isolated X11 swapchain acquire/clear/present: PASS");
+    }
+#else
+    // Portable CI may omit X11 headers. Strict X11 acceptance mode must
+    // FAIL, not silently pass, if that native test cannot be compiled.
+    const char* native_flag=std::getenv("OGL_VULKAN_PRESENT_TEST_X11");
+    if (native_flag && native_flag[0]=='1' && native_flag[1]=='\0') {
+        std::fputs("Native X11 present QA unavailable in this build\n",stderr);
+        return 12;
+    }
+#endif
     dlclose(library);
     std::puts("OGL RTX camera/sun frame bridge API: PASS (raytraced pixels inactive)");
 }
