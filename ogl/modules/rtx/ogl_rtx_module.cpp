@@ -543,6 +543,65 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
 #endif
 }
 
+// P05/4: frozen Vulkan 1.0 SPIR-V for an opt-in, clip-space test triangle.
+// GLSL 450 generated with Khronos glslang 15.1.0, validated by spirv-val;
+// source lives in this comment, no runtime shader compiler is required:
+//   vertex: layout(location=0) in vec3 position;
+//           void main(){gl_Position=vec4(position,1.0);}
+//   fragment: layout(location=0) out vec4 color;
+//           void main(){color=vec4(0.93,0.19,0.15,1.0);}
+// Real OpenSim agent-space vertices still REQUIRE a camera transform.
+// The ordinary GL Viewer never opts into this clip-space GPU diagnostic.
+static constexpr uint32_t ogl_dev_vert_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x0000001bu, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0007000fu, 0x00000000u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000du, 0x00000012u, 0x00030003u, 0x00000002u, 0x000001c2u, 0x00040005u, 0x00000004u,
+    0x6e69616du, 0x00000000u, 0x00060005u, 0x0000000bu, 0x505f6c67u, 0x65567265u, 0x78657472u,
+    0x00000000u, 0x00060006u, 0x0000000bu, 0x00000000u, 0x505f6c67u, 0x7469736fu, 0x006e6f69u,
+    0x00070006u, 0x0000000bu, 0x00000001u, 0x505f6c67u, 0x746e696fu, 0x657a6953u, 0x00000000u,
+    0x00070006u, 0x0000000bu, 0x00000002u, 0x435f6c67u, 0x4470696cu, 0x61747369u, 0x0065636eu,
+    0x00070006u, 0x0000000bu, 0x00000003u, 0x435f6c67u, 0x446c6c75u, 0x61747369u, 0x0065636eu,
+    0x00030005u, 0x0000000du, 0x00000000u, 0x00050005u, 0x00000012u, 0x69736f70u, 0x6e6f6974u,
+    0x00000000u, 0x00030047u, 0x0000000bu, 0x00000002u, 0x00050048u, 0x0000000bu, 0x00000000u,
+    0x0000000bu, 0x00000000u, 0x00050048u, 0x0000000bu, 0x00000001u, 0x0000000bu, 0x00000001u,
+    0x00050048u, 0x0000000bu, 0x00000002u, 0x0000000bu, 0x00000003u, 0x00050048u, 0x0000000bu,
+    0x00000003u, 0x0000000bu, 0x00000004u, 0x00040047u, 0x00000012u, 0x0000001eu, 0x00000000u,
+    0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u, 0x00000006u,
+    0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000004u, 0x00040015u, 0x00000008u,
+    0x00000020u, 0x00000000u, 0x0004002bu, 0x00000008u, 0x00000009u, 0x00000001u, 0x0004001cu,
+    0x0000000au, 0x00000006u, 0x00000009u, 0x0006001eu, 0x0000000bu, 0x00000007u, 0x00000006u,
+    0x0000000au, 0x0000000au, 0x00040020u, 0x0000000cu, 0x00000003u, 0x0000000bu, 0x0004003bu,
+    0x0000000cu, 0x0000000du, 0x00000003u, 0x00040015u, 0x0000000eu, 0x00000020u, 0x00000001u,
+    0x0004002bu, 0x0000000eu, 0x0000000fu, 0x00000000u, 0x00040017u, 0x00000010u, 0x00000006u,
+    0x00000003u, 0x00040020u, 0x00000011u, 0x00000001u, 0x00000010u, 0x0004003bu, 0x00000011u,
+    0x00000012u, 0x00000001u, 0x0004002bu, 0x00000006u, 0x00000014u, 0x3f800000u, 0x00040020u,
+    0x00000019u, 0x00000003u, 0x00000007u, 0x00050036u, 0x00000002u, 0x00000004u, 0x00000000u,
+    0x00000003u, 0x000200f8u, 0x00000005u, 0x0004003du, 0x00000010u, 0x00000013u, 0x00000012u,
+    0x00050051u, 0x00000006u, 0x00000015u, 0x00000013u, 0x00000000u, 0x00050051u, 0x00000006u,
+    0x00000016u, 0x00000013u, 0x00000001u, 0x00050051u, 0x00000006u, 0x00000017u, 0x00000013u,
+    0x00000002u, 0x00070050u, 0x00000007u, 0x00000018u, 0x00000015u, 0x00000016u, 0x00000017u,
+    0x00000014u, 0x00050041u, 0x00000019u, 0x0000001au, 0x0000000du, 0x0000000fu, 0x0003003eu,
+    0x0000001au, 0x00000018u, 0x000100fdu, 0x00010038u,
+};
+
+static constexpr uint32_t ogl_dev_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x0000000fu, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0006000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x00000009u, 0x00030010u, 0x00000004u, 0x00000007u, 0x00030003u, 0x00000002u, 0x000001c2u,
+    0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u, 0x00040005u, 0x00000009u, 0x6f6c6f63u,
+    0x00000072u, 0x00040047u, 0x00000009u, 0x0000001eu, 0x00000000u, 0x00020013u, 0x00000002u,
+    0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u, 0x00000006u, 0x00000020u, 0x00040017u,
+    0x00000007u, 0x00000006u, 0x00000004u, 0x00040020u, 0x00000008u, 0x00000003u, 0x00000007u,
+    0x0004003bu, 0x00000008u, 0x00000009u, 0x00000003u, 0x0004002bu, 0x00000006u, 0x0000000au,
+    0x3f6e147bu, 0x0004002bu, 0x00000006u, 0x0000000bu, 0x3e428f5cu, 0x0004002bu, 0x00000006u,
+    0x0000000cu, 0x3e19999au, 0x0004002bu, 0x00000006u, 0x0000000du, 0x3f800000u, 0x0007002cu,
+    0x00000007u, 0x0000000eu, 0x0000000au, 0x0000000bu, 0x0000000cu, 0x0000000du, 0x00050036u,
+    0x00000002u, 0x00000004u, 0x00000000u, 0x00000003u, 0x000200f8u, 0x00000005u, 0x0003003eu,
+    0x00000009u, 0x0000000eu, 0x000100fdu, 0x00010038u,
+};
+
 ogl_log_fn logger = nullptr;
 // P05/3 developer-only exclusive X11 swapchain-present acceptance probe.
 // Its caller is either the isolated native X11 QA window, or the real SDL
@@ -568,6 +627,15 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
          world_device.exclusive_present_count>=max_native_frames))
         return 0;
     const uint32_t sequence=world_device.exclusive_present_count;
+    const char* raster_env=std::getenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
+    const bool raster=raster_env && std::strcmp(raster_env,"1")==0;
+    // A geometry pipeline must never silently degrade to solid-color clear.
+    // Existing OpenSim vertex/index VkBuffers may be used only after a
+    // validated clip-space diagnostic upload, not as world coordinates.
+    if (raster && (!world_device.mesh_vertices || !world_device.mesh_indices ||
+                   world_device.mesh_triangle_count==0 ||
+                   world_device.mesh_triangle_count>OGL_RTX_MAX_SCENE_TRIANGLES))
+        return 0;
     auto fn=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -595,6 +663,16 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     OGL_PRESENT_FN(vkEndCommandBuffer);
     OGL_PRESENT_FN(vkQueueSubmit);
     OGL_PRESENT_FN(vkQueueWaitIdle);
+    OGL_PRESENT_FN(vkCreateShaderModule);
+    OGL_PRESENT_FN(vkDestroyShaderModule);
+    OGL_PRESENT_FN(vkCreatePipelineLayout);
+    OGL_PRESENT_FN(vkDestroyPipelineLayout);
+    OGL_PRESENT_FN(vkCreateGraphicsPipelines);
+    OGL_PRESENT_FN(vkDestroyPipeline);
+    OGL_PRESENT_FN(vkCmdBindPipeline);
+    OGL_PRESENT_FN(vkCmdBindVertexBuffers);
+    OGL_PRESENT_FN(vkCmdBindIndexBuffer);
+    OGL_PRESENT_FN(vkCmdDrawIndexed);
 #undef OGL_PRESENT_FN
     if (!vkGetSwapchainImagesKHR || !vkAcquireNextImageKHR || !vkQueuePresentKHR ||
         !vkCreateSemaphore || !vkDestroySemaphore ||
@@ -606,6 +684,12 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         !vkAllocateCommandBuffers || !vkBeginCommandBuffer ||
         !vkCmdBeginRenderPass || !vkCmdEndRenderPass ||
         !vkEndCommandBuffer || !vkQueueSubmit || !vkQueueWaitIdle) return 0;
+    if (raster && (!vkCreateShaderModule || !vkDestroyShaderModule ||
+                   !vkCreatePipelineLayout || !vkDestroyPipelineLayout ||
+                   !vkCreateGraphicsPipelines || !vkDestroyPipeline ||
+                   !vkCmdBindPipeline || !vkCmdBindVertexBuffers ||
+                   !vkCmdBindIndexBuffer || !vkCmdDrawIndexed))
+        return 0;
 
     // A rejected frame is never retried against an acquired swapchain image.
     world_device.exclusive_present_used=true;
@@ -615,8 +699,19 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     VkRenderPass pass=VK_NULL_HANDLE;
     VkFramebuffer fb=VK_NULL_HANDLE;
     VkCommandPool pool=VK_NULL_HANDLE;
+    VkShaderModule vertex_shader=VK_NULL_HANDLE,fragment_shader=VK_NULL_HANDLE;
+    VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
+    VkPipeline graphics_pipeline=VK_NULL_HANDLE;
     bool in_flight=false;
     auto cleanup=[&]() {
+        if (graphics_pipeline) vkDestroyPipeline(
+            world_device.device,graphics_pipeline,nullptr);
+        if (pipeline_layout) vkDestroyPipelineLayout(
+            world_device.device,pipeline_layout,nullptr);
+        if (vertex_shader) vkDestroyShaderModule(
+            world_device.device,vertex_shader,nullptr);
+        if (fragment_shader) vkDestroyShaderModule(
+            world_device.device,fragment_shader,nullptr);
         if (submit_fence) vkDestroyFence(world_device.device,submit_fence,nullptr);
         if (pool) vkDestroyCommandPool(world_device.device,pool,nullptr);
         if (fb) vkDestroyFramebuffer(world_device.device,fb,nullptr);
@@ -686,6 +781,105 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (vkCreateFramebuffer(world_device.device,&fbi,nullptr,&fb)!=VK_SUCCESS ||
             !fb) return false;
 
+        // Optional genuine rasterization of indexed vertex data. The
+        // normal single/16-frame clear tests use no shaders/pipelines.
+        if (raster) {
+            VkShaderModuleCreateInfo vertex_info{
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            vertex_info.codeSize=sizeof(ogl_dev_vert_spv);
+            vertex_info.pCode=ogl_dev_vert_spv;
+            if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
+                                     &vertex_shader)!=VK_SUCCESS || !vertex_shader)
+                return false;
+            VkShaderModuleCreateInfo fragment_info{
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            fragment_info.codeSize=sizeof(ogl_dev_frag_spv);
+            fragment_info.pCode=ogl_dev_frag_spv;
+            if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
+                                     &fragment_shader)!=VK_SUCCESS || !fragment_shader)
+                return false;
+            VkPipelineShaderStageCreateInfo stages[2]{};
+            stages[0].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;
+            stages[0].module=vertex_shader;
+            stages[0].pName="main";
+            stages[1].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;
+            stages[1].module=fragment_shader;
+            stages[1].pName="main";
+            VkVertexInputBindingDescription vertex_binding{};
+            vertex_binding.binding=0;
+            vertex_binding.stride=sizeof(float)*3;
+            vertex_binding.inputRate=VK_VERTEX_INPUT_RATE_VERTEX;
+            VkVertexInputAttributeDescription vertex_attribute{};
+            vertex_attribute.location=0;
+            vertex_attribute.binding=0;
+            vertex_attribute.format=VK_FORMAT_R32G32B32_SFLOAT;
+            vertex_attribute.offset=0;
+            VkPipelineVertexInputStateCreateInfo vertex_input{
+                VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+            vertex_input.vertexBindingDescriptionCount=1;
+            vertex_input.pVertexBindingDescriptions=&vertex_binding;
+            vertex_input.vertexAttributeDescriptionCount=1;
+            vertex_input.pVertexAttributeDescriptions=&vertex_attribute;
+            VkPipelineInputAssemblyStateCreateInfo assembly{
+                VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+            assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            VkViewport viewport{};
+            viewport.width=static_cast<float>(world_device.swapchain_extent.width);
+            viewport.height=static_cast<float>(world_device.swapchain_extent.height);
+            viewport.minDepth=0.f;
+            viewport.maxDepth=1.f;
+            VkRect2D scissor{};
+            scissor.extent=world_device.swapchain_extent;
+            VkPipelineViewportStateCreateInfo viewport_state{
+                VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+            viewport_state.viewportCount=1;
+            viewport_state.pViewports=&viewport;
+            viewport_state.scissorCount=1;
+            viewport_state.pScissors=&scissor;
+            VkPipelineRasterizationStateCreateInfo raster_state{
+                VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+            raster_state.polygonMode=VK_POLYGON_MODE_FILL;
+            raster_state.cullMode=VK_CULL_MODE_NONE;
+            raster_state.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE;
+            raster_state.lineWidth=1.f;
+            VkPipelineMultisampleStateCreateInfo multisample{
+                VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+            multisample.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
+            VkPipelineColorBlendAttachmentState color_attachment{};
+            color_attachment.colorWriteMask=VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT;
+            VkPipelineColorBlendStateCreateInfo blend{
+                VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+            blend.attachmentCount=1;
+            blend.pAttachments=&color_attachment;
+            VkPipelineLayoutCreateInfo layout_info{
+                VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+            if (vkCreatePipelineLayout(world_device.device,&layout_info,nullptr,
+                                       &pipeline_layout)!=VK_SUCCESS ||
+                !pipeline_layout)
+                return false;
+            VkGraphicsPipelineCreateInfo graphics_info{
+                VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+            graphics_info.stageCount=2;
+            graphics_info.pStages=stages;
+            graphics_info.pVertexInputState=&vertex_input;
+            graphics_info.pInputAssemblyState=&assembly;
+            graphics_info.pViewportState=&viewport_state;
+            graphics_info.pRasterizationState=&raster_state;
+            graphics_info.pMultisampleState=&multisample;
+            graphics_info.pColorBlendState=&blend;
+            graphics_info.layout=pipeline_layout;
+            graphics_info.renderPass=pass;
+            graphics_info.subpass=0;
+            if (vkCreateGraphicsPipelines(world_device.device,VK_NULL_HANDLE,
+                1,&graphics_info,nullptr,&graphics_pipeline)!=VK_SUCCESS ||
+                !graphics_pipeline)
+                return false;
+        }
+
         VkCommandPoolCreateInfo pooli{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         pooli.queueFamilyIndex=world_device.queue_family;
         pooli.flags=VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -715,6 +909,17 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         rbi.clearValueCount=1;
         rbi.pClearValues=&clear;
         vkCmdBeginRenderPass(cmd,&rbi,VK_SUBPASS_CONTENTS_INLINE);
+        if (raster) {
+            vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              graphics_pipeline);
+            const VkDeviceSize vertex_offset=0;
+            vkCmdBindVertexBuffers(cmd,0,1,&world_device.mesh_vertices,
+                                   &vertex_offset);
+            vkCmdBindIndexBuffer(cmd,world_device.mesh_indices,0,
+                                 VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u,
+                             1,0,0,0);
+        }
         vkCmdEndRenderPass(cmd);
         if (vkEndCommandBuffer(cmd)!=VK_SUCCESS) return false;
 
@@ -755,7 +960,9 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
             return false;
         if (logger)
-            logger(1,"P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL.");
+            logger(1,raster
+                ? "P05 Vulkan X11 indexed triangle raster: real VkGraphicsPipeline and vkCmdDrawIndexed; dev only."
+                : "P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL.");
         return true;
     };
     const bool success=run();

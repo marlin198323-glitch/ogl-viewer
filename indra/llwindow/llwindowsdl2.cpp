@@ -161,6 +161,12 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     using Attach = int (*)(void*,uint64_t,uint32_t,uint32_t);
     using Present = uint32_t (*)(uint32_t);
     using Detach = void (*)();
+    using Upload = int (*)(const ogl_rtx_triangle*,uint32_t);
+    using MeshCount = uint32_t (*)();
+    const auto upload=reinterpret_cast<Upload>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_upload_triangles"));
+    const auto mesh_count=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_gpu_triangle_count"));
     const auto start=reinterpret_cast<ogl_module_start_fn>(
         SDL_LoadFunction(library,"ogl_module_start"));
     const auto stop=reinterpret_cast<ogl_module_stop_fn>(
@@ -175,6 +181,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool attached=false;
     bool pixel_verified=false;
     bool sequence_verified=false;
+    bool raster_verified=false;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -182,6 +189,12 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     // All GPU presents finish and all WSI objects die before GL creation.
     const bool sequence=ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE") &&
                         ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
+    // Strictly one Vulkan triangle frame, never mixed into multiframe
+    // diagnostics, an already-owned GL context or the world renderer.
+    const bool raster=ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_GEOMETRY_PROBE") &&
+                      ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE") &&
+                      ogl_pre_gl_flag("OGL_VULKAN_WORLD_MESH_UPLOAD") &&
+                      !sequence && upload && mesh_count;
     if (start && stop && attach && present && detach) {
         const ogl_host_api host{sizeof(ogl_host_api),
                                 OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
@@ -194,17 +207,18 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                 using Count = uint32_t (*)();
                 const auto count=reinterpret_cast<Count>(
                     SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
-                // A visible frame must cover the whole swapchain. Sample
-                // five separated X11 pixels for each successfully presented
-                // GPU frame; a stale middle pixel cannot pass the gate.
+                // Five X11 front-buffer pixels per GPU frame. With the
+                // raster diagnostic, the centre MUST be an indexed triangle
+                // and the four corners MUST retain the clear color.
                 auto verify_pixel=[&](int width,int height,uint32_t frame) {
                     const int coords[5][2]={
-                        {width/2,height/2}, {width/4,height/4},
-                        {3*width/4,height/4}, {width/4,3*height/4},
-                        {3*width/4,3*height/4}
+                        {width/2,height/2}, {width/10,height/10},
+                        {9*width/10,height/10}, {width/10,9*height/10},
+                        {9*width/10,9*height/10}
                     };
                     XSync(wm.info.x11.display,False);
-                    for (const auto& coord: coords) {
+                    for (unsigned sample=0;sample<5;++sample) {
+                        const auto& coord=coords[sample];
                         XImage* image=XGetImage(wm.info.x11.display,
                             wm.info.x11.window,coord[0],coord[1],1,1,
                             AllPlanes,ZPixmap);
@@ -221,10 +235,11 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         const int green=channel(image->green_mask);
                         const int blue=channel(image->blue_mask);
                         XDestroyImage(image);
+                        const bool red_triangle=raster && sample==0;
                         const bool warm=(frame%2)==1;
-                        if (std::abs(red-(warm?166:20))>5 ||
-                            std::abs(green-(warm?89:54))>5 ||
-                            std::abs(blue-(warm?31:115))>5)
+                        if (std::abs(red-(red_triangle?237:(warm?166:20)))>5 ||
+                            std::abs(green-(red_triangle?48:(warm?89:54)))>5 ||
+                            std::abs(blue-(red_triangle?38:(warm?31:115)))>5)
                             return false;
                         ++verified_pixels;
                     }
@@ -320,9 +335,24 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         x11_extent_matches(original_width,original_height);
                     pixel_verified=sequence_verified;
                 } else {
-                    // Original single-frame startup diagnostic unchanged.
-                    pixel_verified=frame_group(
+                    // Exactly one indexed clip-space triangle is uploaded
+                    // only under three distinct developer raster flags.
+                    bool uploaded=false;
+                    if (raster) {
+                        const ogl_rtx_triangle clip_triangle{{
+                            -0.72f,-0.68f,0.25f,
+                             0.72f,-0.68f,0.25f,
+                             0.f,  0.72f,0.25f
+                        }};
+                        uploaded=upload(&clip_triangle,1)==1 &&
+                                 mesh_count()==1;
+                    }
+                    // Original single-frame startup diagnostic remains
+                    // unchanged when raster mode was not requested.
+                    pixel_verified=(!raster || uploaded) && frame_group(
                         original_width,original_height,1);
+                    raster_verified=raster && uploaded && pixel_verified;
+                    if (raster && upload) upload(nullptr,0);
                 }
             }
             detach();
@@ -336,6 +366,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         " presented, pixel=" << (pixel_verified ? "verified" : "unverified") <<
         ", samples=" << verified_pixels <<
         ", groups=" << attempted_groups <<
+        ", raster=" << (raster ? (raster_verified ? "verified" : "failed")
+                              : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<
         ", surface=" << (attached ? "ready" : "unavailable") <<

@@ -343,7 +343,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OpenGL follows.",win)
         self.assertIn("XGetImage(wm.info.x11.display,",win)
         self.assertIn("XGetPixel(image,0,0)",win)
-        self.assertIn("std::abs(red-(warm?166:20))>5",win)
+        self.assertIn("std::abs(red-(red_triangle?237:(warm?166:20)))>5",win)
         self.assertIn('pixel_verified ? "verified" : "unverified"',win)
         self.assertIn("XDestroyImage(image);",win)
         self.assertLess(win.index("XDestroyImage(image);"),
@@ -368,7 +368,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('sequence_verified && presented==20',win)
         self.assertIn('(sequence ? "/20" : "/1")',win)
         self.assertIn('if (count && count()!=0) good=false;',win)
-        self.assertIn('pixel_verified=frame_group(',win)
+        self.assertIn('pixel_verified=(!raster || uploaded) && frame_group(',win)
         self.assertIn('mContext = SDL_GL_CreateContext( mWindow );',win)
 
     def test_p05_sdl_pre_gl_five_pixels_geometry_and_fault_recovery(self):
@@ -391,6 +391,57 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('SDL_SetWindowSize(window,original_width,original_height);',win)
         self.assertIn('detach();\n            stop();',win)
         self.assertIn('mContext = SDL_GL_CreateContext( mWindow );',win)
+
+    def test_p05_indexed_vulkan_graphics_pipeline_uses_validated_spirv(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn("ogl_dev_vert_spv[]",module)
+        self.assertIn("ogl_dev_frag_spv[]",module)
+        self.assertIn('OGL_VULKAN_EXCLUSIVE_RASTER_PROBE',module)
+        self.assertIn('world_device.mesh_triangle_count==0',module)
+        self.assertIn('mesh_triangle_count>OGL_RTX_MAX_SCENE_TRIANGLES',module)
+        self.assertIn('OGL_PRESENT_FN(vkCreateGraphicsPipelines)',module)
+        self.assertIn('OGL_PRESENT_FN(vkCmdBindVertexBuffers)',module)
+        self.assertIn('OGL_PRESENT_FN(vkCmdBindIndexBuffer)',module)
+        self.assertIn('OGL_PRESENT_FN(vkCmdDrawIndexed)',module)
+        self.assertIn('VK_FORMAT_R32G32B32_SFLOAT',module)
+        self.assertIn('VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST',module)
+        self.assertIn('graphics_info.renderPass=pass;',module)
+        self.assertIn('vkCreateGraphicsPipelines(world_device.device',module)
+        self.assertIn('vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u',module)
+        self.assertIn('if (graphics_pipeline) vkDestroyPipeline(',module)
+        self.assertIn('if (vertex_shader) vkDestroyShaderModule(',module)
+        self.assertIn('OGL_VULKAN_RASTER_TEST_X11',native)
+        self.assertIn('P05 Vulkan indexed raster X11 pixel:',native)
+        self.assertIn('raster_pixels=center && background',native)
+        self.assertIn('raster_cleared=world_upload(nullptr,0)==1',native)
+        self.assertIn('raster_without_mesh=exclusive_present(1)',native)
+        self.assertIn('raster_without_mesh!=0',native)
+        self.assertIn('OGL_VULKAN_EXCLUSIVE_RASTER_PROBE',header)
+        self.assertIn('OpenSim agent coordinates still require a camera/world matrix',header)
+        self.assertIn('ogl_vulkan_world_upload_triangles',header)
+
+    def test_p05_actual_sdl_triangle_raster_is_strict_pre_gl_opt_in(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        for name in ('OGL_VULKAN_SDL_PREGL_GEOMETRY_PROBE',
+                     'OGL_VULKAN_EXCLUSIVE_RASTER_PROBE',
+                     'OGL_VULKAN_WORLD_MESH_UPLOAD'):
+            self.assertIn('ogl_pre_gl_flag("'+name+'")',win)
+        self.assertIn('!sequence && upload && mesh_count',win)
+        self.assertIn('SDL_LoadFunction(library,"ogl_vulkan_world_upload_triangles")',win)
+        self.assertIn('SDL_LoadFunction(library,"ogl_vulkan_world_gpu_triangle_count")',win)
+        self.assertIn('const ogl_rtx_triangle clip_triangle',win)
+        self.assertIn('mesh_count()==1',win)
+        self.assertIn('const bool red_triangle=raster && sample==0',win)
+        self.assertIn('std::abs(red-(red_triangle?237:(warm?166:20)))>5',win)
+        self.assertIn('raster_verified=raster && uploaded && pixel_verified;',win)
+        self.assertIn('if (raster && upload) upload(nullptr,0);',win)
+        self.assertIn('raster_verified ? "verified" : "failed"',win)
+        self.assertLess(win.index('if (raster && upload) upload(nullptr,0);'),
+                        win.index('SDL_GL_CreateContext( mWindow );'))
+        self.assertNotIn('OGL_VULKAN_EXCLUSIVE_RASTER_PROBE',
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

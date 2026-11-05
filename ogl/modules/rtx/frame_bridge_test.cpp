@@ -401,6 +401,78 @@ int main(int argc, char** argv) {
         const uint32_t restored_count=exclusive_count();
         window_detach();
         const uint32_t restored_reset=exclusive_count();
+        // Strict developer-only raster QA. This reuses the existing real
+        // OpenSim XYZ VkVertex/VkIndex upload ABI, with explicitly
+        // CLIP-SPACE coordinates solely for the graphics pipeline test.
+        // Normal QA still tests only swapchain clears, not scene draws.
+        const char* raster_test_env=std::getenv("OGL_VULKAN_RASTER_TEST_X11");
+        const bool raster_test=raster_test_env &&
+                               std::strcmp(raster_test_env,"1")==0;
+        int raster_attached=0,raster_uploaded=0;
+        uint32_t raster_presented=0,raster_count=0,raster_without_mesh=0;
+        bool raster_pixels=false,raster_cleared=false;
+        if (raster_test) {
+            XResizeWindow(display,window,512,384);
+            XSync(display,False);
+            const ogl_rtx_triangle clip_triangle{{
+                -0.72f,-0.68f,0.25f,
+                 0.72f,-0.68f,0.25f,
+                 0.f,  0.72f,0.25f
+            }};
+            setenv("OGL_VULKAN_WORLD_MESH_UPLOAD","1",1);
+            raster_attached=window_attach(display,
+                static_cast<uint64_t>(window),512,384);
+            setenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE","1",1);
+            // If no GPU mesh was uploaded, raster MUST decline without
+            // consuming or submitting a Vulkan swapchain image.
+            if (raster_attached==1)
+                raster_without_mesh=exclusive_present(1);
+            raster_uploaded=world_upload(&clip_triangle,1);
+            raster_count=world_gpu_count();
+            if (raster_uploaded==1 && raster_attached==1 &&
+                raster_count==1 && raster_without_mesh==0)
+                raster_presented=exclusive_present(1);
+            if (raster_presented==1) {
+                auto sample=[&](int x,int y,int& red,int& green,int& blue) {
+                    XSync(display,False);
+                    XImage* image=XGetImage(display,window,x,y,1,1,
+                                           AllPlanes,ZPixmap);
+                    if (!image) return false;
+                    const unsigned long pixel=XGetPixel(image,0,0);
+                    auto channel=[&](unsigned long mask) {
+                        if (!mask) return -1;
+                        unsigned shift=0;
+                        while (!(mask&1UL)) { mask>>=1; ++shift; }
+                        return static_cast<int>(
+                            (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                    };
+                    red=channel(image->red_mask);
+                    green=channel(image->green_mask);
+                    blue=channel(image->blue_mask);
+                    XDestroyImage(image);
+                    return true;
+                };
+                int cr=0,cg=0,cb=0,br=0,bg=0,bb=0;
+                const bool center=sample(256,192,cr,cg,cb);
+                const bool background=sample(30,30,br,bg,bb);
+                raster_pixels=center && background &&
+                    std::abs(cr-237)<=5 &&
+                    std::abs(cg-48)<=5 &&
+                    std::abs(cb-38)<=5 &&
+                    std::abs(br-20)<=5 &&
+                    std::abs(bg-54)<=5 &&
+                    std::abs(bb-115)<=5;
+                std::fprintf(stdout,
+                    "P05 Vulkan indexed raster X11 pixel: center=%d,%d,%d "
+                    "background=%d,%d,%d accepted=%d\n",
+                    cr,cg,cb,br,bg,bb,raster_pixels ? 1:0);
+            }
+            unsetenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
+            window_detach();
+            raster_cleared=world_upload(nullptr,0)==1 &&
+                           world_gpu_count()==0;
+            unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
         XDestroyWindow(display,window);
@@ -418,7 +490,11 @@ int main(int argc, char** argv) {
             reset_count!=0 || restored_attach!=1 ||
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
-            stopped_count!=0) {
+            stopped_count!=0 ||
+            (raster_test && (raster_attached!=1 || raster_uploaded!=1 ||
+                             raster_count!=1 || raster_without_mesh!=0 ||
+                             raster_presented!=1 || !raster_pixels ||
+                             !raster_cleared))) {
             std::fprintf(stderr,
                 "Native Vulkan present FAILED: start=%d gpu=%d attach=%d "
                 "swapchain=%d no-owner=%u no-flag=%u present=%u repeat=%u "
@@ -434,6 +510,8 @@ int main(int argc, char** argv) {
             return 12;
         }
         std::puts("P05 native X11 swapchain: 16 consecutive GPU presents, bounded frames and 2 resizes PASS");
+        if (raster_test)
+            std::puts("P05 real indexed triangle graphics raster in X11 swapchain: PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

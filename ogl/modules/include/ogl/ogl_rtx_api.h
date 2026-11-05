@@ -252,6 +252,11 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
  * native X11 test OR once from the actual SDL window BEFORE GL context
  * creation, under an additional explicit developer opt-in. NOT callable
  * during GL world rendering, and NOT an interactive Vulkan world renderer.
+ * Extra opt-in OGL_VULKAN_EXCLUSIVE_RASTER_PROBE=1 enables a genuine indexed
+ * VkGraphicsPipeline draw ONLY when validated vertex and index VkBuffers
+ * were uploaded. The test vertex shader treats XYZ as CLIP-SPACE; actual
+ * OpenSim agent coordinates still require a camera/world matrix projection.
+ * The default behavior is an RGBA clear without shaders or vertex draws.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
     uint32_t gl_released);
