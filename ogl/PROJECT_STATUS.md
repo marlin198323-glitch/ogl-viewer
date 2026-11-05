@@ -6,6 +6,80 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Teilaufgaben: echter Vulkan-Z-/Depth-Buffer im Viewerfenster (05.11.2026)
+
+**Neuer GPU-Fortschritt:** Die bisherige Vulkan-Indexed-Grafikpipeline
+unterstützt jetzt zusätzlich einen echten hardwarebeschleunigten
+Tiefentest. Ein separates VkImage (D32_SFLOAT, Fallback D16_UNORM)
+mit eigener VkDeviceMemory, VkImageView, VkRenderPass-Attachment,
+Framebuffer-Depth-Bindung, VkPipelineDepthStencilState und
+Tiefen-Clear auf 1.0 steht nur im ausdrücklich freigegebenen
+Entwicklerpfad zur Verfügung. Depth-Compare ist LESS,
+Depth-Write und Depth-Test sind aktiviert.
+
+**20 nachweisbar bearbeitete technische Schritte:**
+
+01. Branch, sauberen Git-Ausgangsstand, AGENTS.md, Handoff, Status und P05-Roadmap erneut kontrolliert.
+02. Erfolgreiche vorangehende GitHub-CI des letzten P05-Kamerabridge-Commits geprüft.
+03. Den vorhandenen VkRenderPass mit ausschließlich Color-Attachment auf fehlenden Tiefentest untersucht.
+04. Depth-Fragmentshader für echtes GPU-Z-basiertes Rot-/Grün-Dreieck in GLSL 450 geschrieben.
+05. Shader für Vulkan 1.0 mit lokalem Khronos-glslang kompiliert und mit spirv-val validiert.
+06. Validierte 182 SPIR-V-Wörter in das bestehende Vulkan-Modul eingebettet, ohne neue Projektdatei.
+07. Zusätzliches Entwicklerflag OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE=1 eingeführt, das echten Indexed-Draw voraussetzt.
+08. Fehlende Vulkan-Image-/Memory-Prozeduren und fehlende physische Format-/Memory-Abfragen sicher abgewiesen.
+09. Unterstützte D32_SFLOAT-Depth-Tiling-Eigenschaft abgefragt und D16_UNORM als Fallback vorgesehen.
+10. Eigenes Vulkan-Depth-Image in der tatsächlichen Swapchain-Fenstergröße mit DEPTH_STENCIL_ATTACHMENT_USAGE angelegt.
+11. Kompatiblen VkDeviceMemory-Typ unter Bevorzugung von DEVICE_LOCAL gewählt, zugewiesen und an das Image gebunden.
+12. Depth-VkImageView mit VK_IMAGE_ASPECT_DEPTH_BIT erzeugt und bei Fehlern fail-closed.
+13. VkRenderPass um Depth-Attachment und eindeutiges VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ergänzt.
+14. VkFramebuffer um separate Depth-ImageView erweitert und Imagegröße an Swapchain-Resize gekoppelt.
+15. VkGraphicsPipeline mit depthTestEnable, depthWriteEnable und VK_COMPARE_OP_LESS ausgerüstet.
+16. VkRenderPassBegin um Depth-Clear 1.0 ergänzt; Legacy-Clear-/Rasterproben ohne Depth weiterhin beibehalten.
+17. Depth-View, Image und DeviceMemory im bestehenden GPU-Cleanup in korrekter Eigentumsreihenfolge freigegeben.
+18. Native GPU-X11-Abnahme mit nahem rotem Dreieck zuerst, entferntem grünem Dreieck zuletzt durchgeführt: Rot vorne sichtbar; 2 Fenstergrößen inklusive Resize und Clear bestanden.
+19. Echten SDL/X11-Viewer-Startup nur bei separatem OGL_VULKAN_SDL_PREGL_DEPTH_PROBE freigegeben; fehlende Flags und ungültiger Treiber mit OpenGL-Fallback geprüft.
+20. Linux-Vollviewer-Build, 337/337 Python-Tests, 41/41 CTests, Khronos-Shaderprüfung, native GPU-Depthtests und 12/12 isolierte Viewer-GUI-Starts bestanden.
+
+**Reale GPU-Abnahme:** Das vordere rote Dreieck (z=0.25) wurde
+zuerst, danach das überlappende entfernte grüne Dreieck
+(z=0.75) in echte GPU-Vertex-/Indexbuffer hochgeladen.
+Der native Vulkan-GPU-Test meldet near_over_far=1,
+resized=1 und cleared=1. Es wurde durch tatsächliche
+X11-Vordergrundpixel gezeigt, dass das rote Dreieck trotz
+zuletzt gezeichneter grüner Fläche sichtbar bleibt.
+Bei 512x384 und 640x400 sind Farbe und Hintergrund
+verifiziert; der zweite Lauf benutzt eine neue
+Swapchain-/Depth-Fläche nach Resize.
+
+**Viewer-GUI-Abnahme:** Im echten SDL/X11-Window des
+OGL-Viewers VOR GL-Erzeugung: 1/1 Vulkan-Present,
+pixel=verified, depth=verified, danach OpenGL-Login
+und regulärer Exit 0. Beide Depth-Opt-ins sind
+erforderlich; fehlende SDL-Freigabe, fehlender Raster-
+Opt-in und ungültiger Vulkan-Treiber behalten den
+normalen OpenGL-Start. Bestehende Kamera-/Indexed-
+Raster-/Clear-/Fallback-GUI-Fälle erneut geprüft:
+**12/12** erfolgreich. Linux-Vollbuild,
+**337/337 Python-Tests**, **41/41 native CTests**
+bestanden. Keine Benutzerprofile, laufenden
+Viewer oder persönliche Daten angefasst.
+
+**Wichtig:** Noch immer ausschließlich eine
+explizite Entwicklerdiagnose VOR dem Start des
+OpenGL-Kontexts. Es ist ein echter Vulkan-Depth-
+/Raster-Draw, aber KEIN eingeloggter OpenSim-
+World-Frame, keine vollständige Vulkan-Engine,
+kein produktiver Vulkan-Frame-Loop und keine
+dauerhafte exklusive Vulkan-Fensterkontrolle.
+Echte Live-Regionsabnahme bleibt offen.
+**P05 operativ 2/20; Block 3 und vollständiger
+Block 4 bleiben offen.** Nächster technischer
+Schwerpunkt: Depth-geprüfte Welt-Meshes mit
+aktueller Firestorm-Kamera im exklusiven
+Live-Vulkan-Renderer; danach nonblocking
+Swapchain-Frame-Scheduling und GL-Fallback.
+Code-Commit: cf2cc17fbfa575a64ff2b1bbb5f66e9f7f5ea1ba.
+
 ## P05/3–4 – 20 technische Teilaufgaben: Firestorm-Live-Kamera und Vulkan-Regionsmesh-Kopplung (05.11.2026)
 
 **Code-Fortschritt:** Der vorhandene OpenGL-Deferred-Renderpfad übergibt

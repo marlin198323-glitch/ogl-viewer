@@ -247,6 +247,28 @@ P05 operativ 2/20. Nächstes Gate echte In-World-
 Eingänge nachweisen, dann alleiniger Vulkan-
 Window-/Frame-/Present-Besitz mit Fallback.
 
+**P05/3–4 Vulkan-Depth-Buffer, 05.11.2026 (Code cf2cc17f):**
+20 technische Teilaufgaben umgesetzt und geprüft.
+Realer Vulkan-GPU-Z-Test per eigenem VkDepthImage,
+D32_SFLOAT/D16_UNORM, VkRenderPass-Depth-Attachment,
+Framebuffer-/Pipeline-Depth-State, LESS-Depth-
+Vergleich und Depth-Clear 1.0. Native GPU-Prüfung
+mit identisch überlappenden Dreiecken: nah rot
+Z=.25 zuerst, fern grün Z=.75 zuletzt; Vordergrund
+bleibt rot bei 512x384 und 640x400 mit Resize.
+Auch im echten SDL/X11-Viewer-Window nur VOR
+SDL_GL_CreateContext mit separatem Depth-Opt-in
+geprüft: 1/1 Present, Depth/Pixel verified,
+GL-Login/Exit 0. Insgesamt 12/12 isolierte
+GUI-Starts, Linux-Vollbuild, 337 Python-Tests
+und 41 native CTests bestanden.
+Keine authentifizierte OpenSim-Live-Welt abgenommen,
+kein vollständiger Vulkan-Renderer oder produktiver
+Live-Frame-Loop. P05 formal 2/20, Block 3/4 offen.
+Nächster Gate: echte Welt/Depth-/Kameraframe-
+Integration und dauerhafter SDL-Vulkan-Window-
+Owner mit sicherem GL-Fallback.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

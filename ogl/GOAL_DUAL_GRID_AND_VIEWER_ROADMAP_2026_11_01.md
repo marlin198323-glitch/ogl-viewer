@@ -1394,6 +1394,26 @@ Nächster Gate: echtes Regionskamera-/Mesh-Paar
 bei eingeloggtem Viewer nachweisen, dann den
 Vulkan-Live-Window-Present-Loop entwickeln.
 
+**P05/3–4 echter Vulkan-GPU-Depth-Test (05.11.2026, Code cf2cc17f):**
+D32/D16-Vulkan-Depth-Image mit GPU-Memory,
+2-Attachment-Renderpass, eigener VkFramebuffer-
+Depth-View und VkPipelineDepthStencilState.
+LESS-Depthvergleich, DepthClear=1.0 und echte
+Depth-Z-abhängige Rot-/Grün-Fragmentfarben.
+Native X11 GPU 512x384 und 640x400:
+near_over_far=1, resized=1, cleared=1.
+Auch im tatsächlichen SDL-Viewer vor GL
+mit eigenen Depth-Entwicklerflags präsentiert,
+sichtbarer Pixel und GL-Login/Exit 0.
+12 isolierte GUI-Fälle sowie Linux-Vollbuild,
+337 Python und 41 native CTests erfolgreich.
+Weiterhin nur Pre-GL-GPU-Entwicklerdiagnose.
+Kein Vulkan-Live-OpenSim-Welt-Frame und keine
+permanente Vulkan-Fenster-Ownership.
+**P05 formal 2/20, Block 3/4 offen.**
+Nächster Gate: Depth + echte Region-/Kamera-
+Eingaben im exklusiven Vulkan-Live-Renderer.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

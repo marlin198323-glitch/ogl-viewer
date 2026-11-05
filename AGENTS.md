@@ -4,30 +4,30 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code ae00535c):
-Echte Firestorm-Kamera aus bestehendem Deferred-
-World-Pass wird jetzt optional auch ohne RTX an
-Vulkan-Kamera-Matrix übergeben; erforderlich
-OGL_VULKAN_WORLD_BOOTSTRAP=1 plus
-OGL_VULKAN_WORLD_MESH_UPLOAD=1 plus
-OGL_VULKAN_WORLD_CAMERA_PROBE=1.
-GPU-Regionsmesh-Capture existiert; neue Eingabe-
-Paarungsprüfung invalidiert Kamera nach jedem
-Meshupload oder Region-Clear. Gültige Kamera
-nach Mesh requalifiziert, ungültige Kamera
-verwirft Berechtigung. Read-only ABI meldet
-Inputbereitschaft und Akzeptanzzähler, KEIN
-Vulkan-World-Present. Native GPU-Tests
-einschl. Mesh-/Kamera-Invalidierung grün;
-Linux-Vollbuild, 336 Python/41 CTests und
-12/12 Xvfb-Vorlogin-Viewer-Smokes bestanden.
-Keine eingeloggte OpenSim-Region wurde getestet,
-somit Live-In-World-Input-Gate OFFEN.
-OpenGL ist immer noch einzige Weltengine.
-P05 weiterhin 2/20, Block 3/4 offen.
-User-Caches, Logins, Secrets nicht ändern,
-aktive Viewer weder terminieren noch überschreiben.
-Frühere P05-Nachweise in ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code cf2cc17f):
+Vulkan-Pipeline besitzt jetzt auch echten
+GPU-Z-/Depth-Test im exklusiven Pre-GL-Entwickler-
+WSI-Pfad: D32_SFLOAT/D16_UNORM DepthImage,
+VkDeviceMemory/View, Depth-Renderpass und
+Framebuffer, VkPipelineDepthStencilState
+LESS mit DepthClear=1.0. GPU-Nachweis:
+nah rot z=.25 zuerst, fern grün z=.75
+zuletzt, echter sichtbarer Vordergrund
+bei 2 X11-Swapchain-Größen nach Resize.
+Tatsächliche SDL/X11-Viewer-XID PreGL
+depth=verified, danach GL-Login und Exit 0.
+Separate SDL- und Modul-Dev-Opt-ins
+erforderlich, fehlende Flags fail-closed.
+12 isolierte GUI-Tests, Linux-Vollbuild,
+337 Python-/41 native CTests erfolgreich.
+Live-OpenSim-Mesh+Kamera-In-World-Test
+weiterhin ausstehend. KEINE vollständige
+Vulkan-Weltengine, KEIN Vulkan-Live-Handoff.
+P05 2/20, Block 3/4 offen. Weiter
+bestehende Dateien bearbeiten, keine
+Duplikate, User-Caches/Logins/Secrets
+nicht anfassen, Nutzersitzungen nicht killen.
+Historie in ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
