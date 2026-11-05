@@ -96,6 +96,21 @@ Real-GPU-Test, Linux-Vollbuild, 326 Python-/
 In-World-Szene und Vulkan-Draws nicht geprüft.
 P05 weiter 2/20, Block 3 Present offen.
 
+**P05/3 Weiterarbeit 05.11.2026:** GPU-Renderpass
+erzeugt nun echte Vulkan-Offscreen-Pixel (32x32
+RGBA8) mit Image-/Host-Speicherbarrieren,
+VkBuffer-Rücklesung und Farbverifikation an drei
+Pixelpositionen, nur unter Opt-in
+OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1.
+Zweimaliger GPU-Test grün; Linux-Vollviewer
+gebaut, 327 Python-/41 native Tests bestanden,
+drei echte Xvfb-GUI-Smokes: GPU 1/1, fehlender
+ICD 0/1, Standard kein Probe, stets GL-Login/
+Exit 0. Noch KEIN Swapchain-Acquire/Present
+oder NexVerse-Vulkan-Weltframe. P05 bleibt
+2/20, Block 3 offen. Neue optionale C-ABI-
+Funktion ogl_vulkan_world_render_offscreen_probe.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

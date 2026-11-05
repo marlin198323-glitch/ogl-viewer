@@ -38,6 +38,8 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
     const auto world_sync = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
+    const auto offscreen_frame = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library, "ogl_vulkan_world_render_offscreen_probe"));
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_upload_triangles"));
     const auto world_gpu_count = reinterpret_cast<uint32_t(*)()>(
@@ -49,7 +51,7 @@ int main(int argc, char** argv) {
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
     assert(window_attach && window_ready && window_detach &&
-           world_sync && world_upload && world_gpu_count);
+           world_sync && world_upload && world_gpu_count && offscreen_frame);
     assert(start && stop && status && submit && count && world_device &&
            submit_geometry && triangle_count &&
            geometry_revision && copy_geometry && submit_depth && copy_depth);
@@ -59,7 +61,9 @@ int main(int argc, char** argv) {
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
     unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+    unsetenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
     assert(start(&host) == 0);
+    assert(offscreen_frame()==0);
     assert(world_sync()==0);
     assert(world_gpu_count()==0);
     assert(world_device() == 0);
@@ -79,6 +83,16 @@ int main(int argc, char** argv) {
     assert(world_sync()==(ready ? 2u : 0u));
     unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
     assert(world_sync()==0);
+    // A genuine graphics VkRenderPass that clears 32x32 RGBA and verifies
+    // multiple GPU-written pixels via VkBuffer image readback and fences.
+    // Do not require a GPU on CI or any ray tracing hardware.
+    assert(offscreen_frame()==0);
+    assert(setenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE","1",1)==0);
+    const uint32_t actual_frame=offscreen_frame();
+    assert(actual_frame==0 || actual_frame==1);
+    if (actual_frame) assert(offscreen_frame()==1);
+    unsetenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+    assert(offscreen_frame()==0);
     // Vertex/index GPU buffer ownership is independent of RTX. A missing
     // Vulkan GPU or missing host-coherent memory must fail closed.
     ogl_rtx_triangle world_triangle{};
@@ -121,6 +135,7 @@ int main(int argc, char** argv) {
     stop();
     assert(world_device() == 0);
     assert(window_ready()==0);
+    assert(offscreen_frame()==0);
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     assert(start(&host) == 0);
     assert(world_device() == 0);

@@ -228,6 +228,18 @@ Kein Vulkan-Welt-Draw, kein Frame-Present und
 keine authentifizierte OpenSim-Abnahme; P05
 bleibt 2/20 bis Block 3 abgeschlossen ist.
 
+P05/3 Stand 05.11.2026: Reale Vulkan-Offscreen-
+Grafikframes mit VkRenderPass/Framebuffer (32x32),
+Gpu-Fence, Image-zu-Buffer-Transfer und
+Host-Rücklesung mit Pixel-Verifikation. Nur
+Opt-in OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1;
+default GL unverändert. Native zweimal GPU
+bestanden, Linux-Vollviewer, 327 Python-/41
+native Tests, drei GL-GUI-Smokes GPU/ICD-Fehler/
+Default bestanden. KEINE Swapchain-Präsentation,
+kein Vulkan-Welt-/Avatar-/Mesh-Draw und noch
+kein Phasenfortschritt über P05 2/20.
+
 Verbindlich ist der Anfang von PROJECT_STATUS.md.
 
 Alte Phasen A–I sind fachliche Referenzen, keine separate

@@ -298,6 +298,20 @@ void ogl_init_rtx_module() {
             << submissions << "/2 real fence-backed submits; "
                "no image present, OpenGL world unchanged." << LL_ENDL;
     }
+    // P05 offscreen render-pass validation is separate from the world
+    // renderer. It verifies a GPU-produced color frame by readback once on
+    // explicit developer request, without acquiring/presenting SDL pixels.
+    const char* frame_flag=std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+    if (frame_flag && std::strcmp(frame_flag,"1")==0) {
+        auto frame_probe=reinterpret_cast<std::uint32_t(*)()>(
+            ogl_resolve_module(rtx_module_handle,
+                               "ogl_vulkan_world_render_offscreen_probe"));
+        const std::uint32_t rendered=frame_probe ? frame_probe() : 0;
+        LL_INFOS("OGLRenderer")
+            << "P05 real Vulkan offscreen GPU frame: "
+            << rendered << "/1 verified 32x32 images; "
+               "no swapchain present, OpenGL unchanged." << LL_ENDL;
+    }
 #if LL_LINUX && LL_X11 && LL_SDL2
     // Never attempt to create a Vulkan SDL window beside the real GL window.
     // Explicit developer-only probe uses the actual SDL/X11 window to

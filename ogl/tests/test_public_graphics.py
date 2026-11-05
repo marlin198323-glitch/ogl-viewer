@@ -242,6 +242,36 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("vkQueuePresentKHR(",module)
         self.assertNotIn("vkAcquireNextImageKHR(",module)
 
+    def test_p05_offscreen_vulkan_gpu_frame_is_verified_not_presented(self):
+        header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn("ogl_vulkan_world_render_offscreen_probe",header)
+        self.assertIn("ogl_vulkan_world_render_offscreen_probe",module)
+        self.assertIn('std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE")',module)
+        self.assertIn('std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE")',host)
+        for fn in ("vkCreateImage","vkCreateRenderPass",
+                   "vkCreateFramebuffer","vkCmdBeginRenderPass",
+                   "vkCmdEndRenderPass","vkCmdCopyImageToBuffer",
+                   "vkCmdPipelineBarrier","vkQueueSubmit","vkWaitForFences",
+                   "vkMapMemory","vkUnmapMemory"):
+            self.assertIn("OGL_OFFSCREEN_FN("+fn+")",module)
+        self.assertIn("VK_FORMAT_R8G8B8A8_UNORM",module)
+        self.assertIn("VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT",module)
+        self.assertIn("VK_ACCESS_TRANSFER_READ_BIT",module)
+        self.assertIn("VK_ACCESS_TRANSFER_WRITE_BIT",module)
+        self.assertIn("VK_ACCESS_HOST_READ_BIT",module)
+        self.assertIn("const bool correct=matches(0)",module)
+        self.assertIn("return correct ? 1u : 0u;",module)
+        self.assertIn('unsetenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE")',native)
+        self.assertIn("assert(offscreen_frame()==0);",native)
+        self.assertIn("if (actual_frame) assert(offscreen_frame()==1);",native)
+        self.assertIn("P05 real Vulkan offscreen GPU frame:",host)
+        self.assertIn("no swapchain present, OpenGL unchanged.",host)
+        self.assertNotIn("vkQueuePresentKHR(",module)
+        self.assertNotIn("vkAcquireNextImageKHR(",module)
+
     def test_p05_vertex_index_world_upload_is_bounded_and_rt_independent(self):
         api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

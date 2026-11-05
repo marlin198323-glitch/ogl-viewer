@@ -1,6 +1,6 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 04.11.2026
+Stand: 05.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
@@ -90,6 +90,53 @@ Ohne laufenden Chat findet keine Hintergrundentwicklung statt.
 | P11 – Clientseitiger Pflicht-Updater und Update-UI | offen | 0/20 | nach Abschluss der Vorphase |
 | P12 – Serverseitige Mindestversion für beide Grids | offen | 0/20 | nach Abschluss der Vorphase |
 | P13 – Portal-Releases, End-to-End-QA und Dauerbereinigung | offen | 0/20 | nach Abschluss der Vorphase |
+
+## P05 Block 3 – realer Vulkan-Offscreen-Renderpass mit GPU-Pixelnachweis (05.11.2026)
+
+Weiterarbeit am bestehenden Vulkan-Modul (ogl_rtx_module.cpp,
+ogl_rtx_api.h), Host (oglrtxhost.cpp), nativem
+frame_bridge_test.cpp und test_public_graphics.py.
+Unter explizitem Entwicklerflag
+OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1 und vorhandenem
+Vulkan-Device erstellt das Modul ein 32x32 RGBA8-
+VkImage, VkDeviceMemory, VkImageView, VkRenderPass
+und VkFramebuffer, zeichnet per Graphics-Renderpass
+eine Clear-Farbe, führt die Image-/Transfer-/Host-
+Memory-Barriers aus, kopiert in einen VkBuffer und
+liest nach GPU-Fence-Fertigstellung die Daten zurück.
+Erst bei erfolgreicher Pixelprüfung an drei
+Bildpositionen meldet die neue optionale C-ABI-
+Funktion ogl_vulkan_world_render_offscreen_probe()
+Erfolg (1), sonst 0. Zwei direkt aufeinanderfolgende
+native GPU-Frames erfolgreich. GPU-Wait auf 2 s
+begrenzt; im Timeoutfall keine unsichere Freigabe
+noch aktiver Vulkan-Commands. Es werden weder
+Swapchain-Bilder noch GL-Fenster-/Weltpixel angefasst.
+
+**Linux-Nachweise:** Vollviewer neu kompiliert/gelinkt
+und gepackt. 327/327 Python-Tests und 41/41
+native CTests bestanden, inklusive native ABI-/GPU-
+Bildnachweis und Test mit ungültigem Vulkan-ICD.
+Drei echte isolierte Xvfb-DE-GUI-Starts (1280x720):
+GPU-Fall 1/1 verifiziertes Offscreen-Bild, ungültiger
+Treiber 0/1, Standardstart ohne Entwicklerflag keine
+Offscreen-Aktivierung. Alle drei mit OpenGL-Backend,
+Login-Wait und Exit 0. Keine Änderung an
+Nutzerprofilen, Cache oder aktiven Nutzerprozessen.
+Plattformübergreifender CI-Lauf für diesen Commit
+erst nach Push auswertbar; kein Windows/macOS-
+Vollviewer-Login behauptet.
+
+**Abnahmegrenze:** Noch kein Vulkan-Swapchain-Acquire,
+vkQueuePresentKHR, vollständiger World-Draw,
+Textur-/Mesh-/Avatar-Pipeline oder anwählbarer
+Vulkan-Renderer. Dies ist ein ECHTER offscreen
+GPU-Renderpass, nicht die sichtbare NexVerse-Welt.
+P05 formal weiterhin 2/20, Block 3 offen.
+Nächster konkreter Schritt: exklusives Vulkan-
+Fenster-/Present-Ownership statt gleichzeitiger
+Präsentation in das SDL-OpenGL-Fenster; danach
+vollständige Frame-Synchronisation und World-Draw.
 
 ## P05 Block 4/20 – realer GPU-Vertex-/Indexbuffer-Stagingpfad; Welt-Draw OFFEN (04.11.2026)
 

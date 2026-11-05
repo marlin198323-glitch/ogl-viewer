@@ -645,6 +645,320 @@ uint32_t submit_world_sync_probe() {
     return submitted==2 ? 2u : 0u;
 }
 
+// P05/3: verified Vulkan offscreen color frame, isolated from the GL window.
+// This is an actual GPU graphics render pass and CPU-verified image, not a
+// swapchain acquire/present or an OpenSim world renderer. Developer opt-in.
+uint32_t render_offscreen_color_frame() {
+    static bool disabled_after_timeout = false;
+    if (disabled_after_timeout) return 0;
+    const char* enabled = std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+    if (!enabled || std::strcmp(enabled,"1")!=0 ||
+        !world_device.device || !world_device.queue ||
+        !world_device.physical_device || !world_device.device_proc ||
+        !world_device.instance_proc ||
+        world_device.queue_family==UINT32_MAX) return 0;
+
+    auto device_fn = [&](const char* name) {
+        return world_device.device_proc(world_device.device,name);
+    };
+    auto instance_fn = [&](const char* name) {
+        return world_device.instance_proc(world_device.instance,name);
+    };
+#define OGL_OFFSCREEN_FN(name) auto name = reinterpret_cast<PFN_##name>(device_fn(#name))
+    OGL_OFFSCREEN_FN(vkCreateImage);
+    OGL_OFFSCREEN_FN(vkDestroyImage);
+    OGL_OFFSCREEN_FN(vkGetImageMemoryRequirements);
+    OGL_OFFSCREEN_FN(vkCreateImageView);
+    OGL_OFFSCREEN_FN(vkDestroyImageView);
+    OGL_OFFSCREEN_FN(vkCreateRenderPass);
+    OGL_OFFSCREEN_FN(vkDestroyRenderPass);
+    OGL_OFFSCREEN_FN(vkCreateFramebuffer);
+    OGL_OFFSCREEN_FN(vkDestroyFramebuffer);
+    OGL_OFFSCREEN_FN(vkCreateBuffer);
+    OGL_OFFSCREEN_FN(vkDestroyBuffer);
+    OGL_OFFSCREEN_FN(vkGetBufferMemoryRequirements);
+    OGL_OFFSCREEN_FN(vkAllocateMemory);
+    OGL_OFFSCREEN_FN(vkFreeMemory);
+    OGL_OFFSCREEN_FN(vkBindImageMemory);
+    OGL_OFFSCREEN_FN(vkBindBufferMemory);
+    OGL_OFFSCREEN_FN(vkMapMemory);
+    OGL_OFFSCREEN_FN(vkUnmapMemory);
+    OGL_OFFSCREEN_FN(vkCreateCommandPool);
+    OGL_OFFSCREEN_FN(vkDestroyCommandPool);
+    OGL_OFFSCREEN_FN(vkAllocateCommandBuffers);
+    OGL_OFFSCREEN_FN(vkBeginCommandBuffer);
+    OGL_OFFSCREEN_FN(vkEndCommandBuffer);
+    OGL_OFFSCREEN_FN(vkCmdBeginRenderPass);
+    OGL_OFFSCREEN_FN(vkCmdEndRenderPass);
+    OGL_OFFSCREEN_FN(vkCmdPipelineBarrier);
+    OGL_OFFSCREEN_FN(vkCmdCopyImageToBuffer);
+    OGL_OFFSCREEN_FN(vkCreateFence);
+    OGL_OFFSCREEN_FN(vkDestroyFence);
+    OGL_OFFSCREEN_FN(vkQueueSubmit);
+    OGL_OFFSCREEN_FN(vkWaitForFences);
+#undef OGL_OFFSCREEN_FN
+    auto get_memory_properties =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(
+            instance_fn("vkGetPhysicalDeviceMemoryProperties"));
+    auto get_format_properties =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceFormatProperties>(
+            instance_fn("vkGetPhysicalDeviceFormatProperties"));
+    if (!vkCreateImage || !vkDestroyImage || !vkGetImageMemoryRequirements ||
+        !vkCreateImageView || !vkDestroyImageView || !vkCreateRenderPass ||
+        !vkDestroyRenderPass || !vkCreateFramebuffer ||
+        !vkDestroyFramebuffer || !vkCreateBuffer || !vkDestroyBuffer ||
+        !vkGetBufferMemoryRequirements || !vkAllocateMemory || !vkFreeMemory ||
+        !vkBindImageMemory || !vkBindBufferMemory || !vkMapMemory ||
+        !vkUnmapMemory || !vkCreateCommandPool || !vkDestroyCommandPool ||
+        !vkAllocateCommandBuffers || !vkBeginCommandBuffer ||
+        !vkEndCommandBuffer || !vkCmdBeginRenderPass ||
+        !vkCmdEndRenderPass || !vkCmdPipelineBarrier ||
+        !vkCmdCopyImageToBuffer || !vkCreateFence || !vkDestroyFence ||
+        !vkQueueSubmit || !vkWaitForFences ||
+        !get_memory_properties || !get_format_properties) return 0;
+
+    constexpr uint32_t size=32;
+    constexpr VkDeviceSize readback_bytes=size*size*4;
+    constexpr VkFormat format=VK_FORMAT_R8G8B8A8_UNORM;
+    VkFormatProperties fmt{};
+    get_format_properties(world_device.physical_device,format,&fmt);
+    const auto required_features =
+        VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
+        VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
+    if ((fmt.optimalTilingFeatures & required_features)!=required_features)
+        return 0;
+
+    VkPhysicalDeviceMemoryProperties mem{};
+    get_memory_properties(world_device.physical_device,&mem);
+    auto choose_memory=[&](uint32_t bits, VkMemoryPropertyFlags wanted) {
+        for (uint32_t i=0;i<mem.memoryTypeCount && i<32;++i)
+            if ((bits & (1u<<i)) &&
+                (mem.memoryTypes[i].propertyFlags & wanted)==wanted)
+                return i;
+        return UINT32_MAX;
+    };
+    VkImage color=VK_NULL_HANDLE;
+    VkDeviceMemory color_mem=VK_NULL_HANDLE, readback_mem=VK_NULL_HANDLE;
+    VkImageView view=VK_NULL_HANDLE;
+    VkRenderPass render_pass=VK_NULL_HANDLE;
+    VkFramebuffer framebuffer=VK_NULL_HANDLE;
+    VkBuffer readback=VK_NULL_HANDLE;
+    VkCommandPool command_pool=VK_NULL_HANDLE;
+    VkFence fence=VK_NULL_HANDLE;
+    auto cleanup=[&]() {
+        if (fence) vkDestroyFence(world_device.device,fence,nullptr);
+        if (command_pool)
+            vkDestroyCommandPool(world_device.device,command_pool,nullptr);
+        if (framebuffer)
+            vkDestroyFramebuffer(world_device.device,framebuffer,nullptr);
+        if (render_pass)
+            vkDestroyRenderPass(world_device.device,render_pass,nullptr);
+        if (view) vkDestroyImageView(world_device.device,view,nullptr);
+        if (color) vkDestroyImage(world_device.device,color,nullptr);
+        if (readback) vkDestroyBuffer(world_device.device,readback,nullptr);
+        if (color_mem) vkFreeMemory(world_device.device,color_mem,nullptr);
+        if (readback_mem) vkFreeMemory(world_device.device,readback_mem,nullptr);
+    };
+    auto frame=[&]() -> uint32_t {
+        VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+        image.imageType=VK_IMAGE_TYPE_2D;
+        image.format=format;
+        image.extent={size,size,1};
+        image.mipLevels=1;
+        image.arrayLayers=1;
+        image.samples=VK_SAMPLE_COUNT_1_BIT;
+        image.tiling=VK_IMAGE_TILING_OPTIMAL;
+        image.usage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        image.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+        image.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+        if (vkCreateImage(world_device.device,&image,nullptr,&color)!=VK_SUCCESS ||
+            !color) return 0;
+        VkMemoryRequirements req{};
+        vkGetImageMemoryRequirements(world_device.device,color,&req);
+        uint32_t mem_index=choose_memory(req.memoryTypeBits,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (mem_index==UINT32_MAX)
+            mem_index=choose_memory(req.memoryTypeBits,0);
+        if (mem_index==UINT32_MAX) return 0;
+        VkMemoryAllocateInfo alloc{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        alloc.allocationSize=req.size;
+        alloc.memoryTypeIndex=mem_index;
+        if (vkAllocateMemory(world_device.device,&alloc,nullptr,
+                             &color_mem)!=VK_SUCCESS || !color_mem ||
+            vkBindImageMemory(world_device.device,color,color_mem,0)!=VK_SUCCESS)
+            return 0;
+
+        VkImageViewCreateInfo iv{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        iv.image=color;
+        iv.viewType=VK_IMAGE_VIEW_TYPE_2D;
+        iv.format=format;
+        iv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        iv.subresourceRange.levelCount=1;
+        iv.subresourceRange.layerCount=1;
+        if (vkCreateImageView(world_device.device,&iv,nullptr,&view)!=VK_SUCCESS ||
+            !view) return 0;
+
+        VkAttachmentDescription attachment{};
+        attachment.format=format;
+        attachment.samples=VK_SAMPLE_COUNT_1_BIT;
+        attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachment.storeOp=VK_ATTACHMENT_STORE_OP_STORE;
+        attachment.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+        attachment.finalLayout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference ref{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount=1;
+        subpass.pColorAttachments=&ref;
+        VkRenderPassCreateInfo rp{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+        rp.attachmentCount=1;
+        rp.pAttachments=&attachment;
+        rp.subpassCount=1;
+        rp.pSubpasses=&subpass;
+        if (vkCreateRenderPass(world_device.device,&rp,nullptr,
+                               &render_pass)!=VK_SUCCESS || !render_pass)
+            return 0;
+        VkFramebufferCreateInfo fb{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+        fb.renderPass=render_pass;
+        fb.attachmentCount=1;
+        fb.pAttachments=&view;
+        fb.width=size;
+        fb.height=size;
+        fb.layers=1;
+        if (vkCreateFramebuffer(world_device.device,&fb,nullptr,
+                                &framebuffer)!=VK_SUCCESS || !framebuffer)
+            return 0;
+
+        VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bi.size=readback_bytes;
+        bi.usage=VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bi.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+        if (vkCreateBuffer(world_device.device,&bi,nullptr,
+                           &readback)!=VK_SUCCESS || !readback)
+            return 0;
+        vkGetBufferMemoryRequirements(world_device.device,readback,&req);
+        mem_index=choose_memory(req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (mem_index==UINT32_MAX) return 0;
+        alloc.allocationSize=req.size;
+        alloc.memoryTypeIndex=mem_index;
+        if (vkAllocateMemory(world_device.device,&alloc,nullptr,
+                             &readback_mem)!=VK_SUCCESS || !readback_mem ||
+            vkBindBufferMemory(world_device.device,readback,
+                               readback_mem,0)!=VK_SUCCESS)
+            return 0;
+
+        VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+        pool.queueFamilyIndex=world_device.queue_family;
+        pool.flags=VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        if (vkCreateCommandPool(world_device.device,&pool,nullptr,
+                                &command_pool)!=VK_SUCCESS || !command_pool)
+            return 0;
+        VkCommandBuffer command=VK_NULL_HANDLE;
+        VkCommandBufferAllocateInfo ca{
+            VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        ca.commandPool=command_pool;
+        ca.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        ca.commandBufferCount=1;
+        if (vkAllocateCommandBuffers(world_device.device,&ca,
+                                     &command)!=VK_SUCCESS || !command)
+            return 0;
+        VkCommandBufferBeginInfo cb{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        cb.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (vkBeginCommandBuffer(command,&cb)!=VK_SUCCESS) return 0;
+
+        VkClearValue clear{};
+        clear.color.float32[0]=0.2f;
+        clear.color.float32[1]=0.4f;
+        clear.color.float32[2]=0.6f;
+        clear.color.float32[3]=1.0f;
+        VkRenderPassBeginInfo begin{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        begin.renderPass=render_pass;
+        begin.framebuffer=framebuffer;
+        begin.renderArea.extent={size,size};
+        begin.clearValueCount=1;
+        begin.pClearValues=&clear;
+        vkCmdBeginRenderPass(command,&begin,VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdEndRenderPass(command);
+        VkImageMemoryBarrier color_to_transfer{
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        color_to_transfer.srcAccessMask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        color_to_transfer.dstAccessMask=VK_ACCESS_TRANSFER_READ_BIT;
+        color_to_transfer.oldLayout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_to_transfer.newLayout=VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        color_to_transfer.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        color_to_transfer.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        color_to_transfer.image=color;
+        color_to_transfer.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        color_to_transfer.subresourceRange.levelCount=1;
+        color_to_transfer.subresourceRange.layerCount=1;
+        vkCmdPipelineBarrier(command,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,0,0,nullptr,0,nullptr,
+            1,&color_to_transfer);
+        VkBufferImageCopy copy{};
+        copy.imageSubresource.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        copy.imageSubresource.layerCount=1;
+        copy.imageExtent={size,size,1};
+        vkCmdCopyImageToBuffer(command,color,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                               readback,1,&copy);
+        VkBufferMemoryBarrier transfer_to_host{
+            VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+        transfer_to_host.srcAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;
+        transfer_to_host.dstAccessMask=VK_ACCESS_HOST_READ_BIT;
+        transfer_to_host.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        transfer_to_host.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        transfer_to_host.buffer=readback;
+        transfer_to_host.size=readback_bytes;
+        vkCmdPipelineBarrier(command,VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_HOST_BIT,0,0,nullptr,1,&transfer_to_host,
+            0,nullptr);
+        if (vkEndCommandBuffer(command)!=VK_SUCCESS) return 0;
+
+        VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        if (vkCreateFence(world_device.device,&fi,nullptr,&fence)!=VK_SUCCESS ||
+            !fence) return 0;
+        VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submit.commandBufferCount=1;
+        submit.pCommandBuffers=&command;
+        if (vkQueueSubmit(world_device.queue,1,&submit,fence)!=VK_SUCCESS)
+            return 0;
+        const auto result=vkWaitForFences(world_device.device,1,&fence,
+                                          VK_TRUE,2000000000ULL);
+        if (result!=VK_SUCCESS) {
+            // No unbounded QueueWaitIdle and no freeing in-flight GPU data.
+            // Diagnostic allocations stay on device until module shutdown.
+            disabled_after_timeout=true;
+            return 2;
+        }
+        void* pixels=nullptr;
+        if (vkMapMemory(world_device.device,readback_mem,0,
+                        readback_bytes,0,&pixels)!=VK_SUCCESS || !pixels)
+            return 0;
+        const auto* rgba=static_cast<const uint8_t*>(pixels);
+        const auto matches=[&](size_t offset) {
+            return std::abs(int(rgba[offset])-51)<=1 &&
+                   std::abs(int(rgba[offset+1])-102)<=1 &&
+                   std::abs(int(rgba[offset+2])-153)<=1 &&
+                   rgba[offset+3]==255;
+        };
+        const bool correct=matches(0) && matches(4*(size*size/2)) &&
+                           matches(4*(size*size-1));
+        vkUnmapMemory(world_device.device,readback_mem);
+        if (logger && correct)
+            logger(1,"P05 real Vulkan offscreen render pass: 32x32 RGBA pixels validated after GPU fence; no swapchain present.");
+        return correct ? 1u : 0u;
+    };
+    uint32_t result=frame();
+    // 2 means a submitted command is still in flight: releasing any of its
+    // VkObjects would be invalid. Quarantine, never retry this dev probe.
+    if (result!=2) cleanup();
+    return result==1 ? 1u : 0u;
+}
+
 // P05/4 Vulkan vertex/index buffer staging from the existing real OpenSim
 // triangle ABI. Not tied to NVIDIA/RTX/ray queries or to GL rendering.
 // Opt-in until a complete Vulkan render pass + shader pipeline exists.
@@ -1390,6 +1704,9 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count() {
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe() {
     return submit_world_sync_probe();
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe() {
+    return render_offscreen_color_frame();
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped() {
     return world_device.device != VK_NULL_HANDLE &&

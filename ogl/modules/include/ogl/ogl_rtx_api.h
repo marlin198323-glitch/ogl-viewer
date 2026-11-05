@@ -227,6 +227,13 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped(void);
  * NOT evidence that Vulkan world frames are working.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe(void);
+/* P05/3: opt-in Vulkan offscreen graphics render pass, 32x32 RGBA clear.
+ * Returns 1 ONLY after GPU fence completion, buffer readback, and
+ * pixel verification; 0 when disabled, unsupported or failed.
+ * Requires OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1 and bootstrapped VkDevice.
+ * NOT a swapchain frame, scene draw, Vulkan world or active renderer.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
 /* P05 developer-only Linux/X11 WSI probe on the ACTUAL viewer window.
  * Requires both OGL_VULKAN_WORLD_BOOTSTRAP=1 and
  * OGL_VULKAN_WINDOW_SURFACE=1. Creates real VkSurfaceKHR and VkSwapchainKHR

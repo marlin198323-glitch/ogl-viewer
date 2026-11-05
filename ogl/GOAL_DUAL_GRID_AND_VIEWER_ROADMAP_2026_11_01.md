@@ -1253,6 +1253,19 @@ angemeldete OpenSim-Szene, kein Bild-Present.
 Block 3 und vollständige Block-4-Darstellung
 weiter offen, Phasenfortschritt formal 2/20.
 
+**P05/3 GPU-Bildaufbau 05.11.2026:**
+Opt-in Vulkan-Renderpass mit 32x32 RGBA8
+VkImage/Framebuffer, synchronisiertem
+GPU-Clear, Image-zu-Host-Buffer-Transfer und
+Dreipunkt-Pixelprüfung. Realer GPU-Test zweimal
+erfolgreich. Linux-Vollviewer gebaut,
+327 Python-/41 native Tests, drei
+GUI-Login-Smokes (GPU 1/1, invalides ICD 0/1,
+Standard kein Test) erfolgreich, OpenGL aktiv.
+Das ist OFFSCREEN-Bildaufbau, kein Swapchain-
+Acquire/Present und kein NexVerse-Welt-Draw;
+Block 3 und P05 formal weiterhin bei 2/20.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
