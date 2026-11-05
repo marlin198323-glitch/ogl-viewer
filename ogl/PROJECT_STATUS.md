@@ -6,6 +6,63 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20 technische Arbeitsblöcke: Vulkan-Multiframe und sichtbare GPU-Pixel (05.11.2026)
+
+**Aktueller operativer Stand: P05 2/20, Block 3 weiterhin offen.**
+Diese Runde umfasst 20 echte Teilaufgaben/Tests zur Frame-Synchronisation,
+nicht den Abschluss der 20 operativen Vulkan-Weltphasen-Blöcke.
+Code-Commit 1428a4d986b0b71ca74828344b7b3db4059429cc.
+
+01. AGENTS.md, Handoff, Status und P05-Roadmap gelesen; korrekter Branch und sauberer Ausgangsbaum geprüft.
+02. Aktuelles SDL_WINDOW_OPENGL-/SDL_GL_CreateContext-Ownership analysiert; keinen Vulkan-GL-Parallelbetrieb aktiviert.
+03. Eigenen Entwicklerflag OGL_VULKAN_EXCLUSIVE_FRAME_LOOP=1 nur im isolierten nativen X11-Test eingebaut.
+04. Bisherige Einmal-Present-Policy bleibt ohne Multi-Frame-Flag bestehen.
+05. WSI-Zähler exclusive_present_count in bestehender WorldGraphicsDevice-Struktur ergänzt.
+06. Read-only C-ABI ogl_vulkan_world_exclusive_present_count() für überprüfbare GPU-Präsentationen ergänzt.
+07. Swapchain-Detach setzt Zähler und Einmal-Present-Schutz auf null zurück.
+08. Multi-Frame-Limit hart auf 16 echte erfolgreich abgeschlossene Präsentationen begrenzt.
+09. Unzulässiger 17. Present auf identischer Swapchain wird mit 0 abgewiesen.
+10. GPU-Fehlersperre bleibt bestehen: Fehlversuche ohne erfolgreiche Präsentation erhöhen den Zähler nicht.
+11. Vulkan-Clear-Farben wechseln je erfolgreichem Bild zwischen Blau und Warmton.
+12. Echte vkAcquireNextImageKHR / vkQueueSubmit / Fence / vkQueuePresentKHR für 16 Frames nacheinander durchlaufen.
+13. Fehlerhärtung: Auch nach Present-Fehler werden Queue-Referenzen vor Freigabe mit isoliertem QA-Queue-Wait behandelt.
+14. XGetImage liest nach jedem Frame das sichtbare 1x1-Frontbuffer-Pixel aus dem echten X11-Testfenster.
+15. XGetPixel/Farbmasken-Normalisierung prüft 16 wechselnde RGB-Werte mit begrenzter Toleranz.
+16. Xvfb-GPU-Nachweis: Frame 1 RGB(20,54,115), Frame 2 und 16 RGB(166,89,31); 16/16 Bilder gültig.
+17. Vorhandene Fenster-Resizes 320x240 -> 480x300 und erneuter Attach 640x360 mit 16 Frames geprüft.
+18. Nach 256x192-Neuaufbau wiederhergestelltes Einmal-Present bestätigt; erneuter Versuch und Zähler nach Detach abgewiesen.
+19. Ungültiger Vulkan-ICD reproduzierbar Exit 12; 329/329 Python-Tests, 41/41 native CTests und Linux-Vollviewer-Build grün.
+20. Zwei isolierte OGL-GUI-Läufe: Xvfb-Login-Wait, OpenGL tatsächlich aktiv und Exit 0 trotz aller Entwicklerflags bzw. ungültigem ICD.
+
+**Mess-/Testnachweise:** 16 aufeinanderfolgende real präsentierte
+VkSwapchainKHR-Bilder auf ein und derselben nativen X11-Swapchain.
+Jedes GPU-Bild wurde über XGetImage und RGB-Masken des X11-Visuals
+pixelweise geprüft (16/16); Abwechseln der Bildfarbe bestätigt.
+GPU-/Present-/Fence-Fehlerbehandlung erweitert, Kontingent 16,
+17. Versuch korrekt abgelehnt. Nach Window-Resize und neuer Swapchain
+setzt der Present-Zähler zurück, die Einmal-Frame-Policy ist wiederhergestellt.
+Dies findet auf einer von der nativen QA eigens erzeugten
+X11-Window-ID ohne OpenGL-Kontext statt. Keine echte OpenSim-Welt
+oder Vulkan-Pixel im tatsächlichen SDL-Viewer behaupten.
+
+**Regressionen:** Vollständiger Linux-Vollviewer-Build,
+329 Python-Tests und 41 native CTests bestanden.
+Im echten isolierten OGL-Viewer auf Xvfb bestätigten zwei Starts
+mit Vulkan-Entwicklerflags einerseits und ungültigem Vulkan-ICD
+andererseits jeweils Login-Wait, tatsächlich aktives OpenGL und
+sauberen Ctrl+Q-Shutdown mit Exit-Code 0. Die präsentierende
+native C-ABI ist NICHT im Viewer-Host aufgerufen.
+GitHub-CI- und Windows/macOS-Vollviewer-Gates getrennt führen;
+letztere bleiben P13.
+
+**Nächster P05/3-Schritt:** Exklusives Ownership/Engine-Handoff des
+tatsächlichen SDL-Viewerfensters: kein Vulkan-Present, solange dessen
+OpenGL-Kontext die Welt zeichnet; Vulkan-Frame-Lifecycle, Resize,
+GPU-Fehler und Fallback im realen Viewerfenster nachweisen.
+Danach erst P05/4 Terrain-/Mesh-World-Draw. Keine produktive
+Vulkan-Engine, Raytracing-Darstellung oder Grid-Live-Abnahme
+ohne tatsächlichen Nachweis als fertig markieren.
+
 ## P05/3 – 20 technische Arbeits-/Prüfschritte: natives Vulkan-WSI-Present (05.11.2026)
 
 **Fachliche Einordnung:** 20 überprüfte technische Teilaufgaben dieser Arbeitsrunde,

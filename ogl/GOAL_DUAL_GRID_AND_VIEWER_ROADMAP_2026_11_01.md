@@ -1282,6 +1282,20 @@ Exklusiver SDL-Viewer-Window-Owner, echte Weltframes und
 plattformspezifisches WSI weiterhin offen. **P05 2/20**,
 nächster P05 Block 3 mit sicherem GL->Vulkan-Hand-off.
 
+**P05/3 Folgerunde mit 20 technischen Nachweisen (05.11.2026, 1428a4d9):**
+Bisherige isolierte native X11-WSI zu 16 fortlaufenden
+realen Vulkan-Presents erweitert, 16/16 Frontbuffer-Pixel
+mit XGetImage/RGB-Masken und abwechselnder Clear-Farbe
+verifiziert. Frame-Limit 16, Fehler-/Queue-Ressourcenpfad,
+erzwungener Resize und Einmal-Present-Wiederherstellung
+geprüft. Invalides ICD Exit 12, 329 Python-/41 native Tests,
+Linux-Vollbuild, zwei echte OpenGL-Xvfb-GUI-Starts Exit 0.
+Wichtig: Nur natives GL-freies QA-Testfenster, NICHT
+OpenSim-Welt im tatsächlichen Viewer-SDL-Fenster.
+**P05 2/20, Block 3 bleibt offen** bis tatsächliches
+exklusives Viewer-Handoff/Frame/Present und Fallback
+sicher implementiert und live nachgewiesen sind.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

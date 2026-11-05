@@ -4,6 +4,20 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
+Aktueller P05-Stand 05.11.2026 (Commit 1428a4d9):
+Weitere 20 echte technische Teilaufgaben in P05/3:
+16 native Vulkan-WSI-Presents auf einer Swapchain,
+16/16 echte X11-Bildpixel verifiziert, Frame-17-
+Limit, Resize/Reset und negatives ICD geprüft.
+329 Python-/41 native Tests und vollständiger
+Linux-Build bestanden; zwei isolierte Viewer-GL-
+GUI-Starts Exit 0. Die QA nutzt ein eigenes
+X11-Fenster ohne GL-Kontext. Kein Vulkan-Welt-
+Frame im echten Viewer. P05 formal 2/20,
+Block 3 offen: echtes SDL-Fenster-Ownership,
+Frame-Lifecycle und Fallback folgen. Keine neuen
+Projektdateien, bestehende Nutzerprofile schützen.
+
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
 2. ogl/PROJECT_STATUS.md

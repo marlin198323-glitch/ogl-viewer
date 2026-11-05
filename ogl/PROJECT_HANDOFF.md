@@ -125,6 +125,19 @@ P05 bleibt 2/20, Block 3 offen; nächster Schritt exklusives
 Fenster-/Present-Ownership und Multi-Frame-Synchronisation im SDL-Viewer.
 Windows-/macOS-Full-Viewer-Test noch nicht freigegeben.
 
+**P05/3 Vulkan-Multiframe 20er-Runde vom 05.11.2026 (Code 1428a4d9):**
+Auf einem isolierten nativen X11-Fenster 16 reale Vulkan-
+Swapchain-Presents am Stück mit Pixelprüfung 16/16,
+RGB-Wechsel, 17. Frame abgelehnt, Resize/Reattach
+und Rückkehr zum Einmal-Present geprüft. Vollständiger
+Linux-Build, 329 Python-/41 native Tests sowie zwei
+isolierte GL-GUI-Smokes mit Exit 0 bestanden.
+Das ist weiterhin KEIN Vulkan-World-Frame im echten
+SDL-Viewer; GL bleibt der einzige aktive Welt-Renderer.
+**P05 formal 2/20, Block 3 offen.** Nächster Schwerpunkt:
+exklusives OpenGL->Vulkan-Fenster-Ownership im Viewer,
+danach P05/4 Terrain/Mesh. Keine neuen Projektdateien.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
