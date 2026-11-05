@@ -189,6 +189,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool raster_verified=false;
     bool world_verified=false;
     bool depth_verified=false;
+    bool dual_sync_verified=false;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -225,6 +226,16 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_UnloadObject(library);
         return; // GL starts normally, never draw unapproved Vulkan depth
     }
+    // The dual-fence sync probe is distinct from WSI presentation and
+    // requires BOTH a module-level and an SDL-level developer permission.
+    // If it fails, no Vulkan present is attempted; the OpenGL login follows.
+    const bool dual_sync_requested=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_DUAL_SYNC_PROBE");
+    if (dual_sync_requested &&
+        !ogl_pre_gl_flag("OGL_VULKAN_FRAME_SYNC_PROBE")) {
+        SDL_UnloadObject(library);
+        return;
+    }
     if (start && stop && attach && present && detach) {
         const ogl_host_api host{sizeof(ogl_host_api),
                                 OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
@@ -233,7 +244,21 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             SDL_GetWindowSize(window,&original_width,&original_height);
             // The X11 probe is limited to the real SDL window, never a
             // second GL/Vulkan window and never a persisted user preference.
-            if (original_width>0 && original_height>0) {
+            if (dual_sync_requested) {
+                using SyncProbe = uint32_t (*)();
+                const auto sync=reinterpret_cast<SyncProbe>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_submit_sync_probe"));
+                const auto highwater=reinterpret_cast<SyncProbe>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_sync_max_outstanding"));
+                const auto queued=reinterpret_cast<SyncProbe>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_sync_last_submitted"));
+                const auto completed=reinterpret_cast<SyncProbe>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_sync_last_completed"));
+                dual_sync_verified=sync && highwater && queued && completed &&
+                    sync()==2 && highwater()==2 && queued()==2 && completed()==2;
+            }
+            if (original_width>0 && original_height>0 &&
+                (!dual_sync_requested || dual_sync_verified)) {
                 using Count = uint32_t (*)();
                 const auto count=reinterpret_cast<Count>(
                     SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
@@ -460,6 +485,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                               : "not-requested") <<
         ", depth=" << (depth ? (depth_verified ? "verified" : "failed")
                               : "not-requested") <<
+        ", dual-sync=" << (dual_sync_requested
+            ? (dual_sync_verified ? "verified" : "failed")
+            : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<
         ", surface=" << (attached ? "ready" : "unavailable") <<

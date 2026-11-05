@@ -604,6 +604,65 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn('OGL_VULKAN_EXCLUSIVE_DEPTH_COLOR_PROBE',
                          (ROOT/'indra/newview/oglrtxhost.cpp').read_text())
 
+    def test_p05_dual_outstanding_gpu_fences_and_resize_camera_gate(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        start=module.index("uint32_t submit_world_sync_probe() {")
+        end=module.index("// P05/3: verified Vulkan offscreen color frame",start)
+        sync=module[start:end]
+        self.assertIn("std::array<VkCommandBuffer,2> commands",sync)
+        self.assertIn("std::array<VkFence,2> fences",sync)
+        self.assertIn("++submitted;",sync)
+        self.assertIn("world_device.sync_last_submitted=submitted;",sync)
+        self.assertIn("world_device.sync_last_completed=submitted;",sync)
+        self.assertIn("sync_max_outstanding=std::max(",sync)
+        self.assertIn("fences.data(),VK_TRUE,2000000000ULL",sync)
+        self.assertLess(sync.index("++submitted;"),
+                        sync.index("world_device.sync_last_submitted=submitted;"))
+        self.assertLess(sync.index("world_device.sync_last_submitted=submitted;"),
+                        sync.index("const auto completed=wait("))
+        self.assertNotIn("vkQueueWaitIdle",sync[sync.index("uint32_t submitted=0;"):])
+        self.assertIn("disabled_after_gpu_timeout=true;",sync)
+        self.assertIn("world_device.sync_last_completed=submitted;",sync)
+        for suffix in ("max_outstanding","last_submitted","last_completed"):
+            self.assertIn("ogl_vulkan_world_sync_"+suffix+"(void)",api)
+            self.assertIn("ogl_vulkan_world_sync_"+suffix+"()",module)
+        self.assertIn("sync_last_submitted()==(ready ? 2u : 0u)",native)
+        self.assertIn("sync_last_completed()==(ready ? 2u : 0u)",native)
+        self.assertIn("sync_max_outstanding()==(ready ? 2u : 0u)",native)
+        self.assertIn("aspect_matches()==0",native)
+        self.assertIn("world_camera_aspect = 0.f;",module)
+        self.assertIn("world_device.world_camera_aspect=frame->aspect_ratio;",module)
+        self.assertIn("world_device.world_camera_aspect-swap_aspect",module)
+        self.assertIn("world_device.world_camera_ready=false;",module)
+        self.assertIn("ogl_vulkan_world_camera_matches_swapchain(void)",api)
+        self.assertIn("ogl_vulkan_world_camera_matches_swapchain()",module)
+        self.assertIn("world_depth_aspect=rejected_stale && corrected_present;",native)
+        self.assertIn("projection.aspect_ratio=800.f/450.f;",native)
+        self.assertIn("read_rgb(400,225,237,48,38)",native)
+        self.assertIn("world_depth_aspect?1:0",native)
+        self.assertIn("!world_depth_aspect ||",native)
+        self.assertIn("world_depth_invalid=world_camera(&projection)==0",native)
+        self.assertIn("OGL_VULKAN_SDL_PREGL_DUAL_SYNC_PROBE",
+                      (ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text())
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        self.assertIn('OGL_VULKAN_FRAME_SYNC_PROBE',win)
+        self.assertIn('dual_sync_verified=sync && highwater && queued && completed &&',win)
+        self.assertIn('sync()==2 && highwater()==2 && queued()==2 && completed()==2',win)
+        self.assertIn('(!dual_sync_requested || dual_sync_verified)',win)
+        self.assertIn('dual_sync_verified ? "verified" : "failed"',win)
+        self.assertLess(win.index('dual_sync_verified=sync && highwater'),
+                        win.index('const int coords[5][2]'))
+        self.assertLess(win.index('dual_sync_verified=sync && highwater'),
+                        win.index('SDL_GL_CreateContext( mWindow );'))
+
+        self.assertIn("aspect_matches()==0 &&",native)
+        # Rendering is still clearly experimental: the visible world is GL.
+        self.assertIn("vkQueueWaitIdle(world_device.queue)",module)
+        self.assertNotIn("vkQueuePresentKHR(",
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

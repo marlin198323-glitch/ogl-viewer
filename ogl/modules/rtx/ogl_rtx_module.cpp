@@ -162,8 +162,15 @@ struct WorldGraphicsDevice {
     // camera. Exactly 16 column-major floats for the 64-byte push constant.
     std::array<float,16> world_to_clip{};
     bool world_camera_ready = false;
+    float world_camera_aspect = 0.f;
     uint64_t world_camera_accepts = 0; // CPU matrix updates, no GPU presents
     uint64_t mesh_uploads = 0; // accepted snapshots, never a draw counter
+    // P05/3: bounded GPU queue submission diagnostic. These counters refer
+    // to commands submitted BEFORE waiting on their completion fences,
+    // NOT to simultaneous GPU execution or completed swapchain presents.
+    uint32_t sync_max_outstanding = 0;
+    uint32_t sync_last_submitted = 0;
+    uint32_t sync_last_completed = 0;
     PFN_vkDestroyBuffer destroy_buffer = nullptr;
     PFN_vkFreeMemory free_memory = nullptr;
 
@@ -201,9 +208,13 @@ struct WorldGraphicsDevice {
     void close() {
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
         world_camera_ready = false;
+        world_camera_aspect = 0.f;
         world_to_clip.fill(0.f);
         world_camera_accepts = 0;
         mesh_uploads = 0;
+        sync_max_outstanding = 0;
+        sync_last_submitted = 0;
+        sync_last_completed = 0;
         clear_mesh();     // Vertex/index buffers never outlive VkDevice.
         if (device && destroy_device) destroy_device(device, nullptr);
         device = VK_NULL_HANDLE;
@@ -545,6 +556,16 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
     world_device.swapchain_probe_ready=true;
     world_device.swapchain_format=format.format;
     world_device.swapchain_extent=extent;
+    // A camera belonging to a DIFFERENT viewport aspect must never
+    // render into this swapchain after a resize, even when it is valid
+    // for the same region/mesh. A new camera update is required.
+    const float swap_aspect=float(extent.width)/float(extent.height);
+    if (world_device.world_camera_ready &&
+        std::fabs(world_device.world_camera_aspect-swap_aspect)>0.01f) {
+        world_device.world_camera_ready=false;
+        world_device.world_camera_aspect=0.f;
+        world_device.world_to_clip.fill(0.f);
+    }
     // Passive WSI attach never acquires or presents; GL remains unchanged.
     return true;
 #else
@@ -731,7 +752,11 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     if (depth_test && depth_color) return 0; // controls remain exclusive
     const char* world_env=std::getenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
     const bool world_projection=world_env && std::strcmp(world_env,"1")==0;
-    if (world_projection && (!raster || !world_device.world_camera_ready))
+    if (world_projection &&
+        (!raster || !world_device.world_camera_ready ||
+         std::fabs(world_device.world_camera_aspect-
+             float(world_device.swapchain_extent.width)/
+             float(world_device.swapchain_extent.height))>0.01f))
         return 0;
     // A geometry pipeline must never silently degrade to solid-color clear.
     // Existing OpenSim vertex/index VkBuffers may be used only after a
@@ -1300,36 +1325,43 @@ uint32_t submit_world_sync_probe() {
             cleanup(); return 0;
         }
     }
+    // Real dual-frame-in-flight foundation: both commands are submitted
+    // before waiting on either GPU fence. They are distinct command buffers
+    // and fences, queued in submission order to one real graphics VkQueue.
+    // NO vkQueueWaitIdle or per-submit CPU fence wait; this is NOT a
+    // swapchain renderer and does not render a visible world.
     uint32_t submitted=0;
-    bool gpu_work_might_be_pending=false;
+    world_device.sync_last_submitted=0;
+    world_device.sync_last_completed=0;
     for (size_t i=0;i<commands.size();++i) {
         VkSubmitInfo info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         info.commandBufferCount=1;
         info.pCommandBuffers=&commands[i];
         if (submit(world_device.queue,1,&info,fences[i])!=VK_SUCCESS)
             break;
-        gpu_work_might_be_pending=true;
-        // Bounded wait. Never block an interactive OpenGL viewer on
-        // vkQueueWaitIdle when a Vulkan test GPU driver malfunctions.
-        if (wait(world_device.device,1,&fences[i],VK_TRUE,
-                 2000000000ULL)!=VK_SUCCESS)
-            break;
-        gpu_work_might_be_pending=false;
         ++submitted;
+        world_device.sync_max_outstanding=std::max(
+            world_device.sync_max_outstanding,submitted);
     }
-    if (gpu_work_might_be_pending) {
-        // This developer-only test leaves at most one command pool and two
-        // fences for VkDevice teardown rather than illegally freeing
-        // still-pending Vulkan commands. Disable any subsequent submissions.
-        disabled_after_gpu_timeout=true;
-        if (logger)
-            logger(2,"P05 Vulkan queue fence timed out/failed; future frame probes disabled; OpenGL unaffected.");
-        return 0;
+    world_device.sync_last_submitted=submitted;
+    if (submitted) {
+        // One bounded, wait-all fence operation for all queued GPU work.
+        // If any fence remains pending, destroying its pool/semaphore would
+        // violate Vulkan ownership rules. The device teardown owns those.
+        const auto completed=wait(world_device.device,submitted,
+                                  fences.data(),VK_TRUE,2000000000ULL);
+        if (completed!=VK_SUCCESS) {
+            disabled_after_gpu_timeout=true;
+            if (logger)
+                logger(2,"P05 Vulkan two-submit fence wait failed or timed out; probe disabled, GPU resources quarantined; GL unaffected.");
+            return 0;
+        }
+        world_device.sync_last_completed=submitted;
     }
     cleanup();
-    if (logger && submitted==2)
-        logger(1,"P05 Vulkan graphics queue: 2 command buffers and 2 GPU fence waits validated; NO world/present.");
-    return submitted==2 ? 2u : 0u;
+    if (logger && submitted==commands.size())
+        logger(1,"P05 Vulkan graphics queue: TWO separate GPU submissions issued BEFORE a single bounded wait-all fence; no queue-idle, no world/present.");
+    return submitted==commands.size() ? submitted : 0u;
 }
 
 // P05/3: verified Vulkan offscreen color frame, isolated from the GL window.
@@ -1655,10 +1687,16 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
     if (!world_device.device || !enabled || std::strcmp(enabled,"1")!=0)
         return 0;
     world_device.world_camera_ready=false;
+    world_device.world_camera_aspect=0.f;
     world_device.world_to_clip.fill(0.f);
     if (!frame || !ogl::valid_camera_frame(*frame)) return 0;
     const float actual_aspect=float(frame->width)/float(frame->height);
     if (std::fabs(actual_aspect-frame->aspect_ratio)>0.15f) return 0;
+    if (world_device.swapchain_probe_ready &&
+        std::fabs(frame->aspect_ratio-
+            float(world_device.swapchain_extent.width)/
+            float(world_device.swapchain_extent.height))>0.01f)
+        return 0;
     const float* axes[]={frame->camera_forward,frame->camera_right,
                          frame->camera_up};
     for (const float* axis:axes) {
@@ -1708,6 +1746,7 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
     for (float v:matrix)
         if (!std::isfinite(v)) return 0;
     world_device.world_to_clip=matrix;
+    world_device.world_camera_aspect=frame->aspect_ratio;
     world_device.world_camera_ready=true;
     ++world_device.world_camera_accepts; // no Vulkan draw/queue work
     return 1;
@@ -1728,6 +1767,7 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
         world_device.clear_mesh(); // region/scene cleared, no stale vertices
         // Invalidate the old region's projection on teleport/region loss.
         world_device.world_camera_ready=false;
+        world_device.world_camera_aspect=0.f;
         world_device.world_to_clip.fill(0.f);
         return 1;
     }
@@ -1831,6 +1871,7 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     // Mesh and camera MUST be paired only after another real camera
     // submission. A new snapshot may correspond to a new region/camera.
     world_device.world_camera_ready=false;
+    world_device.world_camera_aspect=0.f;
     world_device.world_to_clip.fill(0.f);
     if (logger)
         logger(1,(std::string("P05 Vulkan vertex/index upload: triangles=")+
@@ -2468,6 +2509,16 @@ extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_projection_camera_ready() {
     return world_device.world_camera_ready ? 1u : 0u;
 }
+// 1 only when an actual current Vulkan swapchain is paired with a
+// projection from the same viewport aspect. This does not imply a present.
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_camera_matches_swapchain() {
+    if (!world_device.world_camera_ready ||
+        !world_device.swapchain_probe_ready ||
+        !world_device.swapchain_extent.height) return 0;
+    return std::fabs(world_device.world_camera_aspect-
+        float(world_device.swapchain_extent.width)/
+        float(world_device.swapchain_extent.height))<=0.01f ? 1u : 0u;
+}
 // This is a read-only INPUT handshake, never renderer/present readiness.
 // A freshly uploaded mesh invalidates the old camera, so only a subsequent
 // camera frame can pair with the new GPU buffers.
@@ -2488,6 +2539,16 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count() {
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe() {
     return submit_world_sync_probe();
+}
+// Only read-only diagnostic counts; a submitted fence is not a presented frame.
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_max_outstanding() {
+    return world_device.sync_max_outstanding;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_last_submitted() {
+    return world_device.sync_last_submitted;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_last_completed() {
+    return world_device.sync_last_completed;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe() {
     return render_offscreen_color_frame();

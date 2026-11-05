@@ -47,6 +47,12 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_exclusive_present_count"));
     const auto world_sync = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
+    const auto sync_max_outstanding = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_sync_max_outstanding"));
+    const auto sync_last_submitted = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_sync_last_submitted"));
+    const auto sync_last_completed = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_sync_last_completed"));
     const auto offscreen_frame = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_render_offscreen_probe"));
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
@@ -57,6 +63,8 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_set_projection_camera"));
     const auto camera_ready = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_projection_camera_ready"));
+    const auto aspect_matches = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_camera_matches_swapchain"));
     const auto live_inputs = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_live_inputs_ready"));
     const auto camera_updates = reinterpret_cast<uint64_t(*)()>(
@@ -69,10 +77,10 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
-    assert(world_camera && camera_ready && live_inputs &&
+    assert(world_camera && camera_ready && aspect_matches && live_inputs &&
            camera_updates && mesh_uploads);
     assert(camera_ready()==0 && live_inputs()==0 &&
-           camera_updates()==0 && mesh_uploads()==0);
+           aspect_matches()==0 && camera_updates()==0 && mesh_uploads()==0);
     assert(world_camera(nullptr)==0);
     assert(exclusive_present && exclusive_count &&
            exclusive_count()==0 && exclusive_present(1)==0);
@@ -91,6 +99,10 @@ int main(int argc, char** argv) {
     unsetenv("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
     assert(start(&host) == 0);
     assert(offscreen_frame()==0);
+    assert(world_sync && sync_max_outstanding && sync_last_submitted &&
+           sync_last_completed);
+    assert(sync_max_outstanding()==0 && sync_last_submitted()==0 &&
+           sync_last_completed()==0);
     assert(world_sync()==0);
     assert(world_gpu_count()==0);
     assert(world_device() == 0);
@@ -107,9 +119,20 @@ int main(int argc, char** argv) {
     // otherwise explicitly no-op on Vulkan-less CI machines.
     assert(world_sync()==0);
     assert(setenv("OGL_VULKAN_FRAME_SYNC_PROBE", "1", 1)==0);
+    const uint32_t actual_sync=world_sync();
+    assert(actual_sync==(ready ? 2u : 0u));
+    assert(sync_max_outstanding()==(ready ? 2u : 0u));
+    assert(sync_last_submitted()==(ready ? 2u : 0u));
+    assert(sync_last_completed()==(ready ? 2u : 0u));
+    // Repeating the probe must not re-use signaled fences or reset the
+    // historical high-water mark. It submits two FRESH GPU command buffers.
     assert(world_sync()==(ready ? 2u : 0u));
+    assert(sync_max_outstanding()==(ready ? 2u : 0u));
+    assert(sync_last_submitted()==(ready ? 2u : 0u));
+    assert(sync_last_completed()==(ready ? 2u : 0u));
     unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
     assert(world_sync()==0);
+    assert(sync_max_outstanding()==(ready ? 2u : 0u));
     // A genuine graphics VkRenderPass that clears 32x32 RGBA and verifies
     // multiple GPU-written pixels via VkBuffer image readback and fences.
     // Do not require a GPU on CI or any ray tracing hardware.
@@ -210,7 +233,10 @@ int main(int argc, char** argv) {
     assert(window_ready()==0);
     assert(offscreen_frame()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
+           aspect_matches()==0 &&
            camera_updates()==0 && mesh_uploads()==0);
+    assert(sync_max_outstanding()==0 && sync_last_submitted()==0 &&
+           sync_last_completed()==0);
     unsetenv("OGL_VULKAN_WORLD_BOOTSTRAP");
     assert(start(&host) == 0);
     assert(world_device() == 0);
@@ -708,6 +734,7 @@ int main(int argc, char** argv) {
                                   std::strcmp(world_depth_env,"1")==0;
         bool world_depth_near=false,world_depth_control=false;
         bool world_depth_moved=false,world_depth_resized=false;
+        bool world_depth_aspect=false;
         bool world_depth_invalid=false,world_depth_cleared=false;
         if (test_world_depth) {
             const ogl_rtx_triangle projected_near{{
@@ -816,9 +843,33 @@ int main(int argc, char** argv) {
             const bool resize_attach=window_attach(
                 display,static_cast<uint64_t>(window),640,480)==1;
             world_depth_resized=resized_camera && resize_attach &&
+                aspect_matches()==1 &&
                 exclusive_present(1)==1 &&
                 read_rgb(320,240,237,48,38) &&
                 read_rgb(30,30,20,54,115);
+            window_detach();
+
+            // Real 4:3 -> 16:9 X11 resize: an old camera has the wrong
+            // viewport and cannot be used until a matching update arrives.
+            XResizeWindow(display,window,800,450);
+            XSync(display,False);
+            const bool changed_aspect=window_attach(
+                display,static_cast<uint64_t>(window),800,450)==1;
+            const bool rejected_stale=changed_aspect &&
+                camera_ready()==0 && aspect_matches()==0 &&
+                live_inputs()==0 && exclusive_present(1)==0 &&
+                exclusive_count()==0;
+            projection.width=800;
+            projection.height=450;
+            projection.aspect_ratio=800.f/450.f;
+            const bool corrected_camera=world_camera(&projection)==1 &&
+                camera_ready()==1 && live_inputs()==1 &&
+                aspect_matches()==1;
+            const bool corrected_present=corrected_camera &&
+                exclusive_present(1)==1 &&
+                read_rgb(400,225,237,48,38) &&
+                read_rgb(30,30,20,54,115);
+            world_depth_aspect=rejected_stale && corrected_present;
             window_detach();
 
             // A failed camera update kills the previous projection, even
@@ -827,7 +878,7 @@ int main(int argc, char** argv) {
             world_depth_invalid=world_camera(&projection)==0 &&
                                 camera_ready()==0 && live_inputs()==0;
             const bool rejected_attach=window_attach(
-                display,static_cast<uint64_t>(window),640,480)==1;
+                display,static_cast<uint64_t>(window),800,450)==1;
             world_depth_invalid=world_depth_invalid && rejected_attach &&
                 exclusive_present(1)==0 && exclusive_count()==0;
             window_detach();
@@ -842,9 +893,10 @@ int main(int argc, char** argv) {
             unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
             std::fprintf(stdout,
                 "P05 Vulkan projected world depth: near=%d no_depth_far=%d "
-                "moved=%d resized=%d invalid=%d clear=%d\n",
+                "moved=%d resized=%d aspect=%d invalid=%d clear=%d\n",
                 world_depth_near?1:0,world_depth_control?1:0,
                 world_depth_moved?1:0,world_depth_resized?1:0,
+                world_depth_aspect?1:0,
                 world_depth_invalid?1:0,world_depth_cleared?1:0);
         }
         stop();
@@ -870,6 +922,7 @@ int main(int argc, char** argv) {
                                   !world_depth_control ||
                                   !world_depth_moved ||
                                   !world_depth_resized ||
+                                  !world_depth_aspect ||
                                   !world_depth_invalid ||
                                   !world_depth_cleared)) ||
             (test_depth && (!depth_positive || !depth_resized ||

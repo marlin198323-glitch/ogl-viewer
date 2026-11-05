@@ -92,6 +92,12 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count(void);
 OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
     const ogl_rtx_frame_state* frame);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_projection_camera_ready(void);
+/* Read-only WSI viewport handshake. Successful mesh+camera acceptance
+ * alone is insufficient after an aspect-changing swapchain resize.
+ * Returns 1 only for a ready camera whose viewport aspect matches the
+ * currently attached VkSwapchainKHR. Never indicates a world present.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_camera_matches_swapchain(void);
 
 /* P05 actual Firestorm input bridge: diagnostics only. These read-only
  * counters distinguish successfully accepted CPU camera matrices and actual
@@ -253,6 +259,15 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped(void);
  * NOT evidence that Vulkan world frames are working.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_submit_sync_probe(void);
+/* P05 opt-in GPU queue prerequisite: dual commands MUST be queued before
+ * waiting for BOTH completion fences (single bounded wait-all).
+ * max_outstanding counts submitted-but-not-yet-waited commands, not
+ * truly parallel GPU execution or swapchain presents. The values reset on
+ * module stop; the main Vulkan present path still uses a blocking queue-idle.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_max_outstanding(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_last_submitted(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_last_completed(void);
 /* P05/3: opt-in Vulkan offscreen graphics render pass, 32x32 RGBA clear.
  * Returns 1 ONLY after GPU fence completion, buffer readback, and
  * pixel verification; 0 when disabled, unsupported or failed.
