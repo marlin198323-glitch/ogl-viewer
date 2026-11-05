@@ -147,6 +147,7 @@ struct WorldGraphicsDevice {
     bool xlib_surface_extension = false;
     bool swapchain_probe_ready = false;
     bool exclusive_present_used = false;
+    uint32_t exclusive_present_count = 0; // bounded, QA-only completed presents
     VkFormat swapchain_format = VK_FORMAT_UNDEFINED;
     VkExtent2D swapchain_extent{};
 
@@ -184,6 +185,7 @@ struct WorldGraphicsDevice {
         swapchain = VK_NULL_HANDLE;
         swapchain_probe_ready = false;
         exclusive_present_used = false;
+        exclusive_present_count = 0;
         swapchain_format = VK_FORMAT_UNDEFINED;
         swapchain_extent = {};
         if (surface && destroy_surface && instance)
@@ -551,12 +553,21 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     const char* flag=std::getenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE");
     if (!flag || std::strcmp(flag,"1")!=0 || gl_released!=1 ||
         !world_device.swapchain_probe_ready ||
-        world_device.exclusive_present_used || !world_device.device ||
-        !world_device.queue || !world_device.swapchain ||
+        !world_device.device || !world_device.queue || !world_device.swapchain ||
         world_device.swapchain_format==VK_FORMAT_UNDEFINED ||
         !world_device.swapchain_extent.width ||
         !world_device.swapchain_extent.height ||
         !world_device.device_proc) return 0;
+    // Only isolated native QA can request up to sixteen sequential frames.
+    // The Viewer never calls this ABI and does not request frame-loop mode.
+    const char* loop=std::getenv("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
+    const bool multi_frame=loop && std::strcmp(loop,"1")==0;
+    constexpr uint32_t max_native_frames=16;
+    if (world_device.exclusive_present_used &&
+        (!multi_frame || world_device.exclusive_present_count==0 ||
+         world_device.exclusive_present_count>=max_native_frames))
+        return 0;
+    const uint32_t sequence=world_device.exclusive_present_count;
     auto fn=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -691,9 +702,11 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         bi.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         if (vkBeginCommandBuffer(cmd,&bi)!=VK_SUCCESS) return false;
         VkClearValue clear{};
-        clear.color.float32[0]=0.08f;
-        clear.color.float32[1]=0.21f;
-        clear.color.float32[2]=0.45f;
+        // Alternating clear colors prove that consecutive GPU frames are
+        // distinct and avoid accidentally treating a stale image as progress.
+        clear.color.float32[0]=(sequence%2)==0 ? 0.08f : 0.65f;
+        clear.color.float32[1]=(sequence%2)==0 ? 0.21f : 0.35f;
+        clear.color.float32[2]=(sequence%2)==0 ? 0.45f : 0.12f;
         clear.color.float32[3]=1.f;
         VkRenderPassBeginInfo rbi{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         rbi.renderPass=pass;
@@ -729,21 +742,25 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         present.swapchainCount=1;
         present.pSwapchains=&world_device.swapchain;
         present.pImageIndices=&idx;
-        const auto presented=vkQueuePresentKHR(world_device.queue,&present);
-        if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
-            return false;
-        // Vulkan 1.1 present-completion lacks a bounded wait. This one call
-        // exists ONLY in an isolated native X11 subprocess with timeout,
-        // never in the running Viewer / GL rendering loop.
+        // A present attempt may retain semaphore/image references even if
+        // it reports OUT_OF_DATE or SUBOPTIMAL. Quarantine the resources
+        // until the native QA queue has completed all submitted work.
         in_flight=true;
+        const auto presented=vkQueuePresentKHR(world_device.queue,&present);
+        // Vulkan 1.1 present-completion lacks a bounded wait. This exists
+        // ONLY in the isolated native QA subprocess with external timeout;
+        // the Viewer never enters this blocking path.
         if (vkQueueWaitIdle(world_device.queue)!=VK_SUCCESS) return false;
         in_flight=false;
+        if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
+            return false;
         if (logger)
             logger(1,"P05 isolated native Vulkan X11: real swapchain acquire, clear and present; NOT in Viewer.");
         return true;
     };
     const bool success=run();
     if (!in_flight) cleanup(); // do not free GPU resources still in flight
+    if (success) ++world_device.exclusive_present_count;
     return success ? 1u : 0u;
 #else
     (void)gl_released;
@@ -1938,6 +1955,9 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_fr
     uint32_t gl_released)
 {
     return present_exclusive_native_test_frame(gl_released);
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_exclusive_present_count() {
+    return world_device.exclusive_present_count;
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready() {
     return world_device.swapchain_probe_ready ? 1 : 0;

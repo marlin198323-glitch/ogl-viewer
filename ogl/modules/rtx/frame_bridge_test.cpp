@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #if defined(OGL_TEST_X11_WSI)
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <cstring>
 #endif
 
@@ -42,6 +43,8 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_device_bootstrapped"));
     const auto exclusive_present = reinterpret_cast<uint32_t(*)(uint32_t)>(
         dlsym(library,"ogl_vulkan_world_present_exclusive_test_frame"));
+    const auto exclusive_count = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_exclusive_present_count"));
     const auto world_sync = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
     const auto offscreen_frame = reinterpret_cast<uint32_t(*)()>(
@@ -56,7 +59,8 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_swapchain_probe_ready"));
     const auto window_detach = reinterpret_cast<void(*)()>(
         dlsym(library, "ogl_vulkan_world_detach_window"));
-    assert(exclusive_present && exclusive_present(1)==0);
+    assert(exclusive_present && exclusive_count &&
+           exclusive_count()==0 && exclusive_present(1)==0);
     assert(window_attach && window_ready && window_detach &&
            world_sync && world_upload && world_gpu_count && offscreen_frame);
     assert(start && stop && status && submit && count && world_device &&
@@ -69,6 +73,7 @@ int main(int argc, char** argv) {
     unsetenv("OGL_VULKAN_FRAME_SYNC_PROBE");
     unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
     unsetenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+    unsetenv("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
     assert(start(&host) == 0);
     assert(offscreen_frame()==0);
     assert(world_sync()==0);
@@ -315,7 +320,9 @@ int main(int argc, char** argv) {
         setenv("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE","1",1);
         const uint32_t presented=exclusive_present(1);
         const uint32_t duplicate=exclusive_present(1);
+        const uint32_t first_count=exclusive_count();
         window_detach();
+        const uint32_t after_first_detach=exclusive_count();
         // A resized native X11 window needs a newly attached swapchain;
         // never reuse an image/view/extent from the old attachment.
         XResizeWindow(display,window,480,300);
@@ -324,25 +331,109 @@ int main(int argc, char** argv) {
         const int resized_ready=window_ready();
         const uint32_t resized_presented=exclusive_present(1);
         const uint32_t resized_duplicate=exclusive_present(1);
+        const uint32_t second_count=exclusive_count();
         window_detach();
+        const uint32_t after_second_detach=exclusive_count();
+
+        // P05/3 multi-frame lifecycle: one X11 swapchain, sixteen distinct
+        // consecutive acquired/presented images; no reattachment in between.
+        // The 17th frame must fail closed rather than reusing pending memory.
+        XResizeWindow(display,window,640,360);
+        XSync(display,False);
+        const int frame_loop_attached=window_attach(
+            display,static_cast<uint64_t>(window),640,360);
+        const int frame_loop_ready=window_ready();
+        setenv("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP","1",1);
+        uint32_t completed=0;
+        bool frame_sequence_valid=true;
+        for (uint32_t i=0; i<16; ++i) {
+            if (exclusive_present(1)!=1 || exclusive_count()!=i+1) {
+                frame_sequence_valid=false;
+                break;
+            }
+            ++completed;
+            // Verify every presented pixel, not just the native API result.
+            // Normalize each RGB component through the X11 Visual masks,
+            // so 24/32-bit vs 16-bit visuals are interpreted correctly.
+            XSync(display,False);
+            XImage* image=XGetImage(display,window,320,180,1,1,
+                                   AllPlanes,ZPixmap);
+            if (image) {
+                const unsigned long pixel=XGetPixel(image,0,0);
+                auto channel=[&](unsigned long mask) -> int {
+                    if (!mask) return -1;
+                    unsigned shift=0;
+                    while (!(mask&1UL)) { mask>>=1U; ++shift; }
+                    const unsigned long value=(pixel>>shift)&mask;
+                    return static_cast<int>((value*255UL+mask/2)/mask);
+                };
+                const int red=channel(image->red_mask);
+                const int green=channel(image->green_mask);
+                const int blue=channel(image->blue_mask);
+                const bool warm=(i%2)==1;
+                const bool valid=std::abs(red-(warm?166:20))<=5 &&
+                                 std::abs(green-(warm?89:54))<=5 &&
+                                 std::abs(blue-(warm?31:115))<=5;
+                if (!valid) frame_sequence_valid=false;
+                if (i==0 || i==1 || i==15)
+                    std::fprintf(stdout,
+                        "P05 verified X11 swapchain pixel frame %u: R=%d G=%d B=%d valid=%d\n",
+                        i+1,red,green,blue,valid?1:0);
+                XDestroyImage(image);
+            } else {
+                frame_sequence_valid=false;
+            }
+        }
+        const uint32_t overflow=exclusive_present(1);
+        const uint32_t frame_count=exclusive_count();
+        unsetenv("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
+        const uint32_t without_loop=exclusive_present(1);
+        window_detach();
+        const uint32_t reset_count=exclusive_count();
+        // After leaving multi-frame mode and recreating the swapchain,
+        // the original single-shot policy must be restored exactly.
+        XResizeWindow(display,window,256,192);
+        XSync(display,False);
+        const int restored_attach=window_attach(display,
+            static_cast<uint64_t>(window),256,192);
+        const uint32_t restored_frame=exclusive_present(1);
+        const uint32_t restored_repeat=exclusive_present(1);
+        const uint32_t restored_count=exclusive_count();
+        window_detach();
+        const uint32_t restored_reset=exclusive_count();
         stop();
+        const uint32_t stopped_count=exclusive_count();
         XDestroyWindow(display,window);
         XCloseDisplay(display);
         if (started!=0 || device!=1 || attached!=1 || swapchain!=1 ||
             without_owner!=0 || without_flag!=0 ||
             presented!=1 || duplicate!=0 ||
+            first_count!=1 || after_first_detach!=0 ||
             resized!=1 || resized_ready!=1 ||
-            resized_presented!=1 || resized_duplicate!=0) {
+            resized_presented!=1 || resized_duplicate!=0 ||
+            second_count!=1 || after_second_detach!=0 ||
+            frame_loop_attached!=1 || frame_loop_ready!=1 ||
+            !frame_sequence_valid || completed!=16 ||
+            overflow!=0 || frame_count!=16 || without_loop!=0 ||
+            reset_count!=0 || restored_attach!=1 ||
+            restored_frame!=1 || restored_repeat!=0 ||
+            restored_count!=1 || restored_reset!=0 ||
+            stopped_count!=0) {
             std::fprintf(stderr,
                 "Native Vulkan present FAILED: start=%d gpu=%d attach=%d "
                 "swapchain=%d no-owner=%u no-flag=%u present=%u repeat=%u "
-                "resized=%d ready=%d second=%u second-repeat=%u\n",
+                "resized=%d ready=%d second=%u second-repeat=%u "
+                "frame-loop=%d/%d, completed=%u, overflow=%u, count=%u, "
+                "reset=%u, restored=%d/%u/%u/%u, stopped=%u\n",
                 started,device,attached,swapchain,without_owner,
                 without_flag,presented,duplicate,resized,resized_ready,
-                resized_presented,resized_duplicate);
+                resized_presented,resized_duplicate,
+                frame_loop_attached,frame_loop_ready,completed,overflow,
+                frame_count,reset_count,restored_attach,restored_frame,
+                restored_repeat,restored_count,stopped_count);
             return 12;
         }
-        std::puts("P05 native isolated X11 swapchain acquire/clear/present: PASS");
+        std::puts("P05 native X11 swapchain: 16 consecutive GPU presents, bounded frames and 2 resizes PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

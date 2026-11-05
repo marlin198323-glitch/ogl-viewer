@@ -254,6 +254,12 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
     uint32_t gl_released);
+/* Isolated native QA: sequence count for successfully completed presents,
+ * reset on swapchain detach/recreate. Frame-loop opt-in (at most 16) is
+ * OGL_VULKAN_EXCLUSIVE_FRAME_LOOP=1; regular single-shot mode stays default.
+ * This does not count or present any frames of the real OpenSim Viewer.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_exclusive_present_count(void);
 OGL_MODULE_EXPORT void ogl_vulkan_world_detach_window(void);
 
 /* Read-only status; valid until module is unloaded. Never store credentials. */
