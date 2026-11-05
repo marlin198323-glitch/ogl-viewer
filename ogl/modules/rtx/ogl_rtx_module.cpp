@@ -134,6 +134,17 @@ struct OglPersistentClearFrames {
     VkCommandPool pool = VK_NULL_HANDLE;
     std::vector<VkImageView> views;
     std::vector<VkFramebuffer> framebuffers;
+    // World+depth mode: depth resources are PER SWAPCHAIN IMAGE, never
+    // shared across simultaneously outstanding GPU frame submissions.
+    std::vector<VkImage> depth_images;
+    std::vector<VkDeviceMemory> depth_memories;
+    std::vector<VkImageView> depth_views;
+    VkFormat depth_format = VK_FORMAT_UNDEFINED;
+    VkShaderModule vertex_shader = VK_NULL_HANDLE;
+    VkShaderModule fragment_shader = VK_NULL_HANDLE;
+    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    bool world_depth = false;
     std::vector<VkSemaphore> presented_by_image;
     std::vector<VkFence> image_in_flight;
     std::array<VkCommandBuffer,2> commands{};
@@ -248,9 +259,38 @@ struct WorldGraphicsDevice {
             device_proc(device,"vkDestroySemaphore"));
         auto destroy_fence=reinterpret_cast<PFN_vkDestroyFence>(
             device_proc(device,"vkDestroyFence"));
+        auto destroy_pipeline=reinterpret_cast<PFN_vkDestroyPipeline>(
+            device_proc(device,"vkDestroyPipeline"));
+        auto destroy_layout=reinterpret_cast<PFN_vkDestroyPipelineLayout>(
+            device_proc(device,"vkDestroyPipelineLayout"));
+        auto destroy_shader=reinterpret_cast<PFN_vkDestroyShaderModule>(
+            device_proc(device,"vkDestroyShaderModule"));
+        auto destroy_image=reinterpret_cast<PFN_vkDestroyImage>(
+            device_proc(device,"vkDestroyImage"));
+        auto free_memory=reinterpret_cast<PFN_vkFreeMemory>(
+            device_proc(device,"vkFreeMemory"));
+        if (destroy_pipeline && persistent.pipeline)
+            destroy_pipeline(device,persistent.pipeline,nullptr);
+        if (destroy_layout && persistent.pipeline_layout)
+            destroy_layout(device,persistent.pipeline_layout,nullptr);
+        if (destroy_shader) {
+            if (persistent.vertex_shader)
+                destroy_shader(device,persistent.vertex_shader,nullptr);
+            if (persistent.fragment_shader)
+                destroy_shader(device,persistent.fragment_shader,nullptr);
+        }
         if (destroy_fb)
             for (auto fb:persistent.framebuffers)
                 if (fb) destroy_fb(device,fb,nullptr);
+        if (destroy_view)
+            for (auto view:persistent.depth_views)
+                if (view) destroy_view(device,view,nullptr);
+        if (destroy_image)
+            for (auto image:persistent.depth_images)
+                if (image) destroy_image(device,image,nullptr);
+        if (free_memory)
+            for (auto memory:persistent.depth_memories)
+                if (memory) free_memory(device,memory,nullptr);
         if (destroy_pass && persistent.pass)
             destroy_pass(device,persistent.pass,nullptr);
         if (destroy_view)
@@ -1344,6 +1384,31 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
 #if defined(OGL_HAS_XLIB_WSI)
     const char* enabled=std::getenv(
         "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
+    const char* world_enabled=std::getenv(
+        "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");
+    const bool world=world_enabled && std::strcmp(world_enabled,"1")==0;
+    if (world) {
+        // Mesh/camera/graphics/depth flags MUST all be independently on.
+        // No fallback to a solid-color clear when any input is missing.
+        auto flagged=[](const char* name) {
+            const char* value=std::getenv(name);
+            return value && std::strcmp(value,"1")==0;
+        };
+        if (!flagged("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE") ||
+            !flagged("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE") ||
+            !flagged("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE") ||
+            !flagged("OGL_VULKAN_WORLD_MESH_UPLOAD") ||
+            !flagged("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
+            !world_device.world_camera_ready ||
+            !world_device.mesh_vertices || !world_device.mesh_indices ||
+            !world_device.mesh_triangle_count ||
+            world_device.mesh_triangle_count>OGL_RTX_MAX_SCENE_TRIANGLES ||
+            !world_device.swapchain_extent.height ||
+            std::fabs(world_device.world_camera_aspect-
+                float(world_device.swapchain_extent.width)/
+                float(world_device.swapchain_extent.height))>0.01f)
+            return 0;
+    }
     if (!enabled || std::strcmp(enabled,"1")!=0 ||
         gl_released!=1 || !world_device.swapchain_probe_ready ||
         !world_device.device || !world_device.queue ||
@@ -1351,7 +1416,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         world_device.exclusive_present_used)
         return 0;
     auto& p=world_device.persistent;
-    if (p.blocked || p.frame_count>=16) return 0;
+    if (p.blocked || p.frame_count>=16 ||
+        (p.initialized && p.world_depth!=world)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -1374,6 +1440,18 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     OGL_PERSIST_FN(vkAcquireNextImageKHR);
     OGL_PERSIST_FN(vkQueueSubmit);
     OGL_PERSIST_FN(vkQueuePresentKHR);
+    OGL_PERSIST_FN(vkCreateImage);
+    OGL_PERSIST_FN(vkGetImageMemoryRequirements);
+    OGL_PERSIST_FN(vkAllocateMemory);
+    OGL_PERSIST_FN(vkBindImageMemory);
+    OGL_PERSIST_FN(vkCreateShaderModule);
+    OGL_PERSIST_FN(vkCreatePipelineLayout);
+    OGL_PERSIST_FN(vkCreateGraphicsPipelines);
+    OGL_PERSIST_FN(vkCmdBindPipeline);
+    OGL_PERSIST_FN(vkCmdBindVertexBuffers);
+    OGL_PERSIST_FN(vkCmdBindIndexBuffer);
+    OGL_PERSIST_FN(vkCmdDrawIndexed);
+    OGL_PERSIST_FN(vkCmdPushConstants);
 #undef OGL_PERSIST_FN
     if (!vkGetSwapchainImagesKHR || !vkCreateImageView ||
         !vkCreateRenderPass || !vkCreateFramebuffer ||
@@ -1383,6 +1461,22 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         !vkBeginCommandBuffer || !vkCmdBeginRenderPass ||
         !vkCmdEndRenderPass || !vkEndCommandBuffer ||
         !vkAcquireNextImageKHR || !vkQueueSubmit || !vkQueuePresentKHR)
+        return 0;
+    auto get_format_properties=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceFormatProperties>(
+        world_device.instance_proc(world_device.instance,
+            "vkGetPhysicalDeviceFormatProperties"));
+    auto get_mem_properties=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceMemoryProperties>(
+        world_device.instance_proc(world_device.instance,
+            "vkGetPhysicalDeviceMemoryProperties"));
+    if (world && (!vkCreateImage || !vkGetImageMemoryRequirements ||
+        !vkAllocateMemory || !vkBindImageMemory ||
+        !vkCreateShaderModule || !vkCreatePipelineLayout ||
+        !vkCreateGraphicsPipelines || !vkCmdBindPipeline ||
+        !vkCmdBindVertexBuffers || !vkCmdBindIndexBuffer ||
+        !vkCmdDrawIndexed || !vkCmdPushConstants ||
+        !get_format_properties || !get_mem_properties))
         return 0;
 
     if (!p.initialized) {
@@ -1397,6 +1491,23 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 count<2 || count>16) return false;
             images.resize(count);
             p.image_count=count;
+            p.world_depth=world;
+            if (world) {
+                for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
+                                     VK_FORMAT_D16_UNORM}) {
+                    VkFormatProperties properties{};
+                    get_format_properties(world_device.physical_device,
+                        format,&properties);
+                    if (properties.optimalTilingFeatures &
+                        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                        p.depth_format=format; break;
+                    }
+                }
+                if (p.depth_format==VK_FORMAT_UNDEFINED) return false;
+                p.depth_images.resize(count,VK_NULL_HANDLE);
+                p.depth_memories.resize(count,VK_NULL_HANDLE);
+                p.depth_views.resize(count,VK_NULL_HANDLE);
+            }
             p.views.resize(count,VK_NULL_HANDLE);
             p.framebuffers.resize(count,VK_NULL_HANDLE);
             p.presented_by_image.resize(count,VK_NULL_HANDLE);
@@ -1410,16 +1521,31 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             color.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
             color.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
             color.finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            VkAttachmentDescription depth_attachment{};
+            depth_attachment.format=p.depth_format;
+            depth_attachment.samples=VK_SAMPLE_COUNT_1_BIT;
+            depth_attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depth_attachment.storeOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            depth_attachment.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            depth_attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            depth_attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+            depth_attachment.finalLayout=
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            const VkAttachmentDescription attachments[2]{
+                color,depth_attachment};
             VkAttachmentReference ref{0,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+            VkAttachmentReference depth_ref{1,
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
             VkSubpassDescription subpass{};
             subpass.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;
             subpass.colorAttachmentCount=1;
             subpass.pColorAttachments=&ref;
+            subpass.pDepthStencilAttachment=world ? &depth_ref : nullptr;
             VkRenderPassCreateInfo ri{
                 VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-            ri.attachmentCount=1;
-            ri.pAttachments=&color;
+            ri.attachmentCount=world ? 2u : 1u;
+            ri.pAttachments=attachments;
             ri.subpassCount=1;
             ri.pSubpasses=&subpass;
             if (vkCreateRenderPass(world_device.device,&ri,nullptr,
@@ -1439,11 +1565,69 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 if (vkCreateImageView(world_device.device,&vi,nullptr,
                                       &p.views[i])!=VK_SUCCESS ||
                     !p.views[i]) return false;
+                if (world) {
+                    // Each acquired swapchain image gets its OWN depth
+                    // attachment, so frames in flight cannot race Z writes.
+                    VkImageCreateInfo di{
+                        VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+                    di.imageType=VK_IMAGE_TYPE_2D;
+                    di.format=p.depth_format;
+                    di.extent={world_device.swapchain_extent.width,
+                               world_device.swapchain_extent.height,1};
+                    di.mipLevels=1; di.arrayLayers=1;
+                    di.samples=VK_SAMPLE_COUNT_1_BIT;
+                    di.tiling=VK_IMAGE_TILING_OPTIMAL;
+                    di.usage=VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                    di.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+                    if (vkCreateImage(world_device.device,&di,nullptr,
+                                      &p.depth_images[i])!=VK_SUCCESS ||
+                        !p.depth_images[i]) return false;
+                    VkMemoryRequirements req{};
+                    vkGetImageMemoryRequirements(world_device.device,
+                        p.depth_images[i],&req);
+                    VkPhysicalDeviceMemoryProperties properties{};
+                    get_mem_properties(world_device.physical_device,
+                        &properties);
+                    uint32_t type=UINT32_MAX;
+                    for (uint32_t m=0;m<properties.memoryTypeCount &&
+                         m<32;++m) {
+                        if (!(req.memoryTypeBits&(1u<<m))) continue;
+                        if (type==UINT32_MAX) type=m;
+                        if (properties.memoryTypes[m].propertyFlags &
+                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+                            type=m;break;
+                        }
+                    }
+                    if (type==UINT32_MAX) return false;
+                    VkMemoryAllocateInfo alloc{
+                        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+                    alloc.allocationSize=req.size;
+                    alloc.memoryTypeIndex=type;
+                    if (vkAllocateMemory(world_device.device,&alloc,nullptr,
+                                         &p.depth_memories[i])!=VK_SUCCESS ||
+                        !p.depth_memories[i]) return false;
+                    if (vkBindImageMemory(world_device.device,
+                        p.depth_images[i],p.depth_memories[i],0)!=VK_SUCCESS)
+                        return false;
+                    VkImageViewCreateInfo dv{
+                        VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+                    dv.image=p.depth_images[i];
+                    dv.viewType=VK_IMAGE_VIEW_TYPE_2D;
+                    dv.format=p.depth_format;
+                    dv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_DEPTH_BIT;
+                    dv.subresourceRange.levelCount=1;
+                    dv.subresourceRange.layerCount=1;
+                    if (vkCreateImageView(world_device.device,&dv,nullptr,
+                                          &p.depth_views[i])!=VK_SUCCESS ||
+                        !p.depth_views[i]) return false;
+                }
+                const VkImageView framebuffer_views[2]{
+                    p.views[i],world ? p.depth_views[i] : VK_NULL_HANDLE};
                 VkFramebufferCreateInfo fi{
                     VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
                 fi.renderPass=p.pass;
-                fi.attachmentCount=1;
-                fi.pAttachments=&p.views[i];
+                fi.attachmentCount=world ? 2u : 1u;
+                fi.pAttachments=framebuffer_views;
                 fi.width=world_device.swapchain_extent.width;
                 fi.height=world_device.swapchain_extent.height;
                 fi.layers=1;
@@ -1454,6 +1638,123 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                                       &p.presented_by_image[i])!=VK_SUCCESS ||
                     !p.presented_by_image[i]) return false;
             }
+        // Optional genuine rasterization of indexed vertex data. The
+        // normal single/16-frame clear tests use no shaders/pipelines.
+        if (world) {
+            VkShaderModuleCreateInfo vertex_info{
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            vertex_info.codeSize=true
+                ? sizeof(ogl_dev_world_vert_spv) : sizeof(ogl_dev_vert_spv);
+            vertex_info.pCode=true
+                ? ogl_dev_world_vert_spv : ogl_dev_vert_spv;
+            if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
+                                     &p.vertex_shader)!=VK_SUCCESS || !p.vertex_shader)
+                return false;
+            VkShaderModuleCreateInfo fragment_info{
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            fragment_info.codeSize=true
+                ? sizeof(ogl_dev_depth_frag_spv) : sizeof(ogl_dev_frag_spv);
+            fragment_info.pCode=true
+                ? ogl_dev_depth_frag_spv : ogl_dev_frag_spv;
+            if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
+                                     &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
+                return false;
+            VkPipelineShaderStageCreateInfo stages[2]{};
+            stages[0].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;
+            stages[0].module=p.vertex_shader;
+            stages[0].pName="main";
+            stages[1].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;
+            stages[1].module=p.fragment_shader;
+            stages[1].pName="main";
+            VkVertexInputBindingDescription vertex_binding{};
+            vertex_binding.binding=0;
+            vertex_binding.stride=sizeof(float)*3;
+            vertex_binding.inputRate=VK_VERTEX_INPUT_RATE_VERTEX;
+            VkVertexInputAttributeDescription vertex_attribute{};
+            vertex_attribute.location=0;
+            vertex_attribute.binding=0;
+            vertex_attribute.format=VK_FORMAT_R32G32B32_SFLOAT;
+            vertex_attribute.offset=0;
+            VkPipelineVertexInputStateCreateInfo vertex_input{
+                VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+            vertex_input.vertexBindingDescriptionCount=1;
+            vertex_input.pVertexBindingDescriptions=&vertex_binding;
+            vertex_input.vertexAttributeDescriptionCount=1;
+            vertex_input.pVertexAttributeDescriptions=&vertex_attribute;
+            VkPipelineInputAssemblyStateCreateInfo assembly{
+                VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+            assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            VkViewport viewport{};
+            viewport.width=static_cast<float>(world_device.swapchain_extent.width);
+            viewport.height=static_cast<float>(world_device.swapchain_extent.height);
+            viewport.minDepth=0.f;
+            viewport.maxDepth=1.f;
+            VkRect2D scissor{};
+            scissor.extent=world_device.swapchain_extent;
+            VkPipelineViewportStateCreateInfo viewport_state{
+                VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+            viewport_state.viewportCount=1;
+            viewport_state.pViewports=&viewport;
+            viewport_state.scissorCount=1;
+            viewport_state.pScissors=&scissor;
+            VkPipelineRasterizationStateCreateInfo raster_state{
+                VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+            raster_state.polygonMode=VK_POLYGON_MODE_FILL;
+            raster_state.cullMode=VK_CULL_MODE_NONE;
+            raster_state.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE;
+            raster_state.lineWidth=1.f;
+            VkPipelineMultisampleStateCreateInfo multisample{
+                VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+            multisample.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
+            VkPipelineDepthStencilStateCreateInfo depth_state{
+                VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+            depth_state.depthTestEnable=VK_TRUE;
+            depth_state.depthWriteEnable=VK_TRUE;
+            depth_state.depthCompareOp=VK_COMPARE_OP_LESS;
+            VkPipelineColorBlendAttachmentState color_attachment{};
+            color_attachment.colorWriteMask=VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT;
+            VkPipelineColorBlendStateCreateInfo blend{
+                VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+            blend.attachmentCount=1;
+            blend.pAttachments=&color_attachment;
+            VkPushConstantRange camera_range{};
+            camera_range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
+            camera_range.offset=0;
+            camera_range.size=sizeof(float)*16;
+            VkPipelineLayoutCreateInfo layout_info{
+                VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+            layout_info.pushConstantRangeCount=1u;
+            layout_info.pPushConstantRanges=true
+                ? &camera_range : nullptr;
+            if (vkCreatePipelineLayout(world_device.device,&layout_info,nullptr,
+                                       &p.pipeline_layout)!=VK_SUCCESS ||
+                !p.pipeline_layout)
+                return false;
+            VkGraphicsPipelineCreateInfo graphics_info{
+                VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+            graphics_info.stageCount=2;
+            graphics_info.pStages=stages;
+            graphics_info.pVertexInputState=&vertex_input;
+            graphics_info.pInputAssemblyState=&assembly;
+            graphics_info.pViewportState=&viewport_state;
+            graphics_info.pRasterizationState=&raster_state;
+            graphics_info.pMultisampleState=&multisample;
+            graphics_info.pDepthStencilState=&depth_state;
+            graphics_info.pColorBlendState=&blend;
+            graphics_info.layout=p.pipeline_layout;
+            graphics_info.renderPass=p.pass;
+            graphics_info.subpass=0;
+            if (vkCreateGraphicsPipelines(world_device.device,VK_NULL_HANDLE,
+                1,&graphics_info,nullptr,&p.pipeline)!=VK_SUCCESS ||
+                !p.pipeline)
+                return false;
+        }
+
+
             VkCommandPoolCreateInfo ci{
                 VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
             ci.queueFamilyIndex=world_device.queue_family;
@@ -1538,9 +1839,21 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     rbi.renderPass=p.pass;
     rbi.framebuffer=p.framebuffers[image_index];
     rbi.renderArea.extent=world_device.swapchain_extent;
-    rbi.clearValueCount=1;
-    rbi.pClearValues=&clear;
+    VkClearValue clears[2]{clear,{}};
+    clears[1].depthStencil.depth=1.f;
+    rbi.clearValueCount=world ? 2u : 1u;
+    rbi.pClearValues=clears;
     vkCmdBeginRenderPass(cmd,&rbi,VK_SUBPASS_CONTENTS_INLINE);
+    if (world) {
+        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,p.pipeline);
+        vkCmdPushConstants(cmd,p.pipeline_layout,VK_SHADER_STAGE_VERTEX_BIT,
+            0,sizeof(float)*16,world_device.world_to_clip.data());
+        const VkDeviceSize offset=0;
+        vkCmdBindVertexBuffers(cmd,0,1,&world_device.mesh_vertices,&offset);
+        vkCmdBindIndexBuffer(cmd,world_device.mesh_indices,0,
+                             VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u,1,0,0,0);
+    }
     vkCmdEndRenderPass(cmd);
     if (vkEndCommandBuffer(cmd)!=VK_SUCCESS ||
         vkResetFences(world_device.device,1,&slot_fence)!=VK_SUCCESS) {
@@ -2102,6 +2415,11 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
         !world_device.destroy_buffer || !world_device.free_memory ||
         count>OGL_RTX_MAX_SCENE_TRIANGLES || (count && !triangles))
         return 0;
+    // Persistent World GPU submissions may still reference these buffers.
+    // Refuse ANY upload/clear until the swapchain has been detached and
+    // its queue made idle. Never free GPU memory still used by a frame.
+    if (world_device.persistent.initialized &&
+        world_device.persistent.submitted_any) return 0;
     if (count==0) {
         world_device.clear_mesh(); // region/scene cleared, no stale vertices
         // Invalidate the old region's projection on teleport/region loss.

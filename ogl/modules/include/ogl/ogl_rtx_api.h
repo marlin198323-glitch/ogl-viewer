@@ -325,7 +325,15 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
  * renderpass, command pool, 2 fences/command buffers and swapchain-image-
  * indexed present semaphores persist across <=16 frames PER ATTACH.
  * No per-frame vkQueueWaitIdle; ONE queue idle on detach to retire presents.
- * A single standalone clear diagnostic, not OpenSim world rendering.
+ * With additional OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE=1
+ * and independent SDL approval, the existing indexed World-XYZ shader,
+ * 64-byte camera matrix, VkDepthStencilState and image-indexed GPU depth
+ * attachments render a SYNTHETIC OpenSim-style scene across multiple
+ * frames. World inputs MUST be provided and camera aspect must match the
+ * current swapchain. Mesh changes/region-clear while any persistent GPU
+ * submission may reference the VkBuffers are rejected until detach.
+ * This is developer-only, pre-GL and NOT live authenticated OpenSim world
+ * rendering, a usable Vulkan engine selection, or finished UI/terrain.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_persistent_clear_frame(
     uint32_t gl_released);

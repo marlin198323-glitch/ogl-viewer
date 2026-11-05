@@ -991,6 +991,148 @@ int main(int argc, char** argv) {
                 persistent_ok?1:0,persistent_resized?1:0,
                 persistent_builds(),persistent_releases(),persistent_idles());
         }
+        // Persistent indexed WORLD + Depth GPU QA: identical projected
+        // foreground/background triangles with depth buffers PER IMAGE.
+        // A real camera motion happens without destroying the Vulkan
+        // pipeline or rebuilding the GPU mesh. No vkQueueWaitIdle per frame.
+        const char* persistent_world_env=std::getenv(
+            "OGL_VULKAN_PERSISTENT_WORLD_TEST_X11");
+        const bool test_persistent_world=persistent_world_env &&
+            std::strcmp(persistent_world_env,"1")==0;
+        bool persistent_world_ok=true,persistent_world_moved=true;
+        bool persistent_world_immutable=true,persistent_world_resize=true;
+        if (test_persistent_world) {
+            setenv("OGL_VULKAN_WORLD_MESH_UPLOAD","1",1);
+            setenv("OGL_VULKAN_WORLD_CAMERA_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE","1",1);
+            setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE","1",1);
+            const ogl_rtx_triangle front{{12.5f,18.f,28.4f,
+                12.5f,22.f,28.4f,12.5f,20.f,31.6f}};
+            const ogl_rtx_triangle back{{15.f,16.f,26.8f,
+                15.f,24.f,26.8f,15.f,20.f,33.2f}};
+            const ogl_rtx_triangle mesh[2]{front,back};
+            ogl_rtx_frame_state camera{};
+            camera.struct_size=sizeof(camera);
+            camera.frame_version=OGL_RTX_FRAME_VERSION;
+            camera.width=512;camera.height=384;
+            camera.camera_position[0]=10.f;
+            camera.camera_position[1]=20.f;
+            camera.camera_position[2]=30.f;
+            camera.camera_forward[0]=1.f;
+            camera.camera_right[1]=1.f;
+            camera.camera_up[2]=1.f;
+            camera.sun_direction[2]=1.f;
+            camera.vertical_fov_radians=1.57079632679f;
+            camera.aspect_ratio=4.f/3.f;
+            camera.near_clip_m=2.f;camera.far_clip_m=10.f;
+            const bool inputs=world_upload(mesh,2)==1 &&
+                world_gpu_count()==2 && camera_ready()==0 &&
+                world_camera(&camera)==1 && live_inputs()==1;
+            XResizeWindow(display,window,512,384);
+            XSync(display,False);
+            const bool attach_world=window_attach(display,
+                static_cast<uint64_t>(window),512,384)==1 &&
+                aspect_matches()==1;
+            const uint32_t starts=persistent_builds();
+            const uint32_t idles_before=persistent_idles();
+            auto matches=[&](int x,int y,int red,int green,int blue){
+                for (unsigned attempt=0;attempt<120;++attempt) {
+                    XSync(display,False);
+                    XImage* img=XGetImage(display,window,x,y,1,1,
+                                          AllPlanes,ZPixmap);
+                    if (img) {
+                        const unsigned long pixel=XGetPixel(img,0,0);
+                        auto channel=[pixel](unsigned long mask) {
+                            if (!mask) return -1;
+                            unsigned shift=0;
+                            while (!(mask&1UL)) {mask>>=1; ++shift;}
+                            return static_cast<int>(
+                                (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                        };
+                        const bool ok=
+                            std::abs(channel(img->red_mask)-red)<=5 &&
+                            std::abs(channel(img->green_mask)-green)<=5 &&
+                            std::abs(channel(img->blue_mask)-blue)<=5;
+                        XDestroyImage(img);
+                        if (ok) return true;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+                }
+                return false;
+            };
+            bool frames=inputs && attach_world;
+            for (uint32_t frame=0;frame<16 && frames;++frame) {
+                if (frame==8) {
+                    camera.camera_position[1]=32.f;
+                    persistent_world_moved=world_camera(&camera)==1 &&
+                        world_gpu_count()==2 && live_inputs()==1;
+                    frames=frames && persistent_world_moved;
+                }
+                if (frame==12) {
+                    camera.camera_position[1]=20.f;
+                    frames=frames && world_camera(&camera)==1 &&
+                        live_inputs()==1;
+                }
+                frames=frames && persistent_clear(1)==1 &&
+                    persistent_count()==frame+1 &&
+                    persistent_builds()==starts+1 &&
+                    persistent_idles()==idles_before;
+                if (!frames) break;
+                const bool clear_warm=(frame%2)==1;
+                const bool moved=frame>=8 && frame<12;
+                const int r=moved ? (clear_warm?166:20) : 237;
+                const int g=moved ? (clear_warm?89:54) : 48;
+                const int b=moved ? (clear_warm?31:115) : 38;
+                frames=matches(256,192,r,g,b) &&
+                    matches(26,26,clear_warm?166:20,
+                        clear_warm?89:54,clear_warm?31:115);
+                if (frame==0) {
+                    // Drawing submissions still refer to these VkBuffers.
+                    // Both mutation and region-clear must be rejected.
+                    persistent_world_immutable=world_upload(mesh,2)==0 &&
+                        world_upload(nullptr,0)==0 && world_gpu_count()==2;
+                    frames=frames && persistent_world_immutable;
+                }
+            }
+            persistent_world_ok=frames && persistent_clear(1)==0 &&
+                persistent_count()==16;
+            window_detach();
+            persistent_world_ok=persistent_world_ok &&
+                persistent_idles()==idles_before+1 &&
+                persistent_count()==0;
+            const bool cleared=world_upload(nullptr,0)==1 &&
+                world_gpu_count()==0 && camera_ready()==0;
+            // Rebuild a different aspect only after matching new camera.
+            XResizeWindow(display,window,640,480);
+            XSync(display,False);
+            const bool attach_again=window_attach(display,
+                static_cast<uint64_t>(window),640,480)==1;
+            camera.width=640;camera.height=480;
+            const bool inputs_again=world_upload(mesh,2)==1 &&
+                world_camera(&camera)==1 && aspect_matches()==1;
+            const uint32_t build_before=persistent_builds();
+            persistent_world_resize=cleared && attach_again && inputs_again &&
+                persistent_clear(1)==1 &&
+                persistent_builds()==build_before+1 &&
+                matches(320,240,237,48,38);
+            window_detach();
+            persistent_world_resize=persistent_world_resize &&
+                world_upload(nullptr,0)==1 && live_inputs()==0;
+            unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
+            unsetenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+            std::fprintf(stdout,
+                "P05 persistent Vulkan WORLD depth: frames=%d moved=%d guarded=%d resize=%d\n",
+                persistent_world_ok?1:0,persistent_world_moved?1:0,
+                persistent_world_immutable?1:0,persistent_world_resize?1:0);
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
         if (test_world && camera_ready()!=0) world_bad=false;
@@ -1010,6 +1152,9 @@ int main(int argc, char** argv) {
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
+            (test_persistent_world && (!persistent_world_ok ||
+                !persistent_world_moved || !persistent_world_immutable ||
+                !persistent_world_resize)) ||
             (test_persistent && (!persistent_ok || !persistent_resized)) ||
             (test_world_depth && (!world_depth_near ||
                                   !world_depth_control ||
@@ -1050,6 +1195,8 @@ int main(int argc, char** argv) {
             std::puts("P05 native GPU world XYZ projected depth, anti-depth control, camera move/resize and stale reject: PASS");
         if (test_persistent)
             std::puts("P05 persistent Vulkan swapchain CLEAR: 16 GPU presents, one initialization, teardown-only queue idle, resize/recreate PASS");
+        if (test_persistent_world)
+            std::puts("P05 persistent Vulkan WORLD depth: 16 indexed GPU frames, camera motion, immutable mesh, resize/recreate PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

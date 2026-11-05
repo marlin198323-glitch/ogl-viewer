@@ -208,16 +208,23 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     // All GPU presents finish and all WSI objects die before GL creation.
     const bool sequence=ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE") &&
                         ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
+    const bool persistent_world_requested=
+        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");
+    const bool persistent_world_permission=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE");
+    const bool persistent_world_both=
+        persistent_world_requested && persistent_world_permission;
     // Strictly one Vulkan triangle frame, never mixed into multiframe
     // diagnostics, an already-owned GL context or the world renderer.
     const bool raster=ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_GEOMETRY_PROBE") &&
                       ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE") &&
                       ogl_pre_gl_flag("OGL_VULKAN_WORLD_MESH_UPLOAD") &&
-                      !sequence && upload && mesh_count;
+                      (!sequence || persistent_world_both) &&
+                      upload && mesh_count;
     // Synthetic agent-local world XYZ camera/triangle QA, NOT the live
     // logged-in region. Only explicit developer flags enable this mode;
     // real OpenSim world geometry and UI are still drawn by OpenGL.
-    const bool world=raster && !sequence &&
+    const bool world=raster && (!sequence || persistent_world_both) &&
         ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_WORLD_PROJECTION_PROBE") &&
         ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE") &&
         ogl_pre_gl_flag("OGL_VULKAN_WORLD_CAMERA_PROBE") &&
@@ -253,9 +260,13 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE");
     // Persistent clear owns its OWN image and synchronization resources.
     // Never overlap the geometry/world/depth diagnostic with that path.
+    const bool persistent_world=persistent_world_both &&
+        raster && world && depth;
     const bool persistent=persistent_requested && persistent_permission &&
-        !raster && !world && !depth;
+        ((!raster && !world && !depth) || persistent_world);
     if (persistent_requested!=persistent_permission ||
+        persistent_world_requested!=persistent_world_permission ||
+        (persistent_world_requested && !persistent_world) ||
         (persistent_requested && (!persistent ||
          !persistent_present || !persistent_count || !persistent_builds ||
          !persistent_releases || !persistent_idles))) {
@@ -290,6 +301,20 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     reinterpret_cast<Count>(
                         SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
                 const auto selected_present=persistent ? persistent_present : present;
+                // Before the multi-extent acceptance, stage the synthetic
+                // camera-projected test mesh ONCE. It is immutable while GPU
+                // submissions may still refer to its VkBuffers.
+                bool persistent_world_uploaded=true;
+                if (persistent_world && sequence) {
+                    const ogl_rtx_triangle mesh[2]{
+                        {{12.5f,18.f,28.4f,12.5f,22.f,28.4f,
+                          12.5f,20.f,31.6f}},
+                        {{15.f,16.f,26.8f,15.f,24.f,26.8f,
+                          15.f,20.f,33.2f}}
+                    };
+                    persistent_world_uploaded=upload(mesh,2)==1 &&
+                        mesh_count()==2;
+                }
                 // Five X11 front-buffer pixels per GPU frame. With the
                 // raster diagnostic, the centre MUST be an indexed triangle
                 // and the four corners MUST retain the clear color.
@@ -363,6 +388,28 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         static_cast<uint64_t>(wm.info.x11.window),
                         static_cast<uint32_t>(width),
                         static_cast<uint32_t>(height))==1;
+                    if (good && persistent_world) {
+                        // Reproject on EVERY extent, including restored,
+                        // so 4:3 vs 16:9 cannot reuse a stale camera.
+                        ogl_rtx_frame_state camera{};
+                        camera.struct_size=sizeof(camera);
+                        camera.frame_version=OGL_RTX_FRAME_VERSION;
+                        camera.width=static_cast<uint32_t>(width);
+                        camera.height=static_cast<uint32_t>(height);
+                        camera.camera_position[0]=10.f;
+                        camera.camera_position[1]=20.f;
+                        camera.camera_position[2]=30.f;
+                        camera.camera_forward[0]=1.f;
+                        camera.camera_right[1]=1.f;
+                        camera.camera_up[2]=1.f;
+                        camera.sun_direction[2]=1.f;
+                        camera.vertical_fov_radians=1.57079632679f;
+                        camera.aspect_ratio=float(width)/float(height);
+                        camera.near_clip_m=2.f;camera.far_clip_m=10.f;
+                        good=persistent_world_uploaded &&
+                            set_camera(&camera)==1 && camera_ready()==1 &&
+                            mesh_count()==2;
+                    }
                     attached|=good;
                     if (good) {
                         for (uint32_t frame=0;frame<frames;++frame) {
@@ -444,6 +491,13 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     pixel_verified=sequence_verified;
                     if (persistent) persistent_verified=
                         persistent_verified && sequence_verified;
+                    if (persistent_world) {
+                        raster_verified=persistent_world_uploaded &&
+                            sequence_verified;
+                        world_verified=raster_verified;
+                        depth_verified=raster_verified;
+                        if (upload) upload(nullptr,0);
+                    }
                 } else {
                     // Exactly one indexed clip-space triangle is uploaded
                     // only under three distinct developer raster flags.
@@ -545,6 +599,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             : "not-requested") <<
         ", persistent=" << (persistent
             ? (persistent_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", persistent-world=" << (persistent_world
+            ? (persistent_verified && world_verified && depth_verified
+                ? "verified" : "failed")
             : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<
