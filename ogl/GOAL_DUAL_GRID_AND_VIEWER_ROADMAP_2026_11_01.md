@@ -1296,6 +1296,17 @@ OpenSim-Welt im tatsächlichen Viewer-SDL-Fenster.
 exklusives Viewer-Handoff/Frame/Present und Fallback
 sicher implementiert und live nachgewiesen sind.
 
+**P05/3 nächste 20er-Runde (05.11.2026, Code 7c533cc6):**
+Erstmals native Vulkan-Pixel in der tatsächlichen
+SDL/X11-Viewer-XID VOR GL-Kontexterzeugung: 1/1
+Vulkan-Present, X11-Farbpixel pixel=verified,
+Vulkan vor GL vollständig freigegeben; anschließender
+OpenGL-GUI-Login und sauberer Exit 0. Vier Negativ-
+Tests, Linux-Vollbuild, 330 Python-/41 native Tests.
+Nur ausdrücklich opt-in Entwicklerdiagnose, KEIN
+permanenter Vulkan-World-Renderer oder Live-Wechsel.
+P05 formal 2/20, Block 3 weiterhin offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

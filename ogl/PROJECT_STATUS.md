@@ -6,6 +6,58 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20er-Runde: Vulkan-Present im echten SDL-Viewerfenster (05.11.2026)
+
+**Ergebnis:** Mit vier ausdrücklichen Entwicklerflags kann Vulkan
+vor SDL_GL_CreateContext ein sichtbares Bild im ECHTEN SDL/X11-
+Viewerfenster präsentieren. Nach überprüftem X11-Pixel wurde
+Vulkan vollständig abgebaut und OpenGL normal gestartet.
+Dies ist kein produktiver Rendererwechsel oder OpenSim-Vulkan-World-Draw.
+
+**20 erledigte technische Teilaufgaben und Prüfgates:**
+
+01. AGENTS.md, Handoff, Status und P05-Roadmap gelesen; Branch und Ausgangsbaum geprüft.
+02. Echten SDL-Viewerfenster-Erzeugungsort in LLWindowSDL::createContext gefunden.
+03. SDL_WINDOW_OPENGL und SDL_GL_CreateContext-Reihenfolge untersucht.
+04. Vor-GL-Entwicklerprobe zwischen SDL_CreateWindow und SDL_GL_CreateContext ergänzt.
+05. OGL-Branding sowie LL_LINUX/LL_X11 als Plattformgrenzen eingesetzt.
+06. Vier voneinander unabhängige Entwickler-Opt-ins, exakt Wert 1, verlangt.
+07. Vulkan-Präsentation bei bereits aktivem GL-Kontext gesperrt.
+08. Echte SDL_GetWindowWMInfo-X11-Display- und Window-Handles übernommen.
+09. Ohne echte X11-Fenster-Handles auf OpenGL zurückgeführt.
+10. Vorhandenes OGL-Vulkan-Modul über SDL_LoadObject und C-ABI verwendet.
+11. Modul-Start über versionierte ogl_host_api und Log-Callback abgesichert.
+12. Echte VkSurfaceKHR und VkSwapchainKHR auf der tatsächlichen SDL-Window-XID aufgebaut.
+13. Echtes vkAcquireNextImageKHR/Renderpass/vkQueuePresentKHR vor GL-Kontext ausgeführt.
+14. Per XGetImage/XGetPixel echte SDL/X11-Fensterbildpunkte gelesen.
+15. Vulkan-Farbe RGB(20,54,115) nach X11-Farbmasken innerhalb Toleranz validiert.
+16. Vulkan-Detach, Modulstop und SDL_UnloadObject vor SDL_GL_CreateContext umgesetzt.
+17. Positiver Real-GUI-Test: 1/1 GPU-Bild, pixel=verified, danach OpenGL-Login und Exit 0.
+18. Negativer Real-GUI-Test: fehlender Entwicklerflag und ungültiger Flagwert.
+19. Negative Real-GUI-Tests: fehlender Device-Bootstrap und ungültiger Vulkan-ICD.
+20. Linux-Vollbuild, 330 Python-/41 native Tests und vorheriger 16-Frame-GPU-Test bestanden.
+
+**Reale Prüfergebnisse:** SDL/X11-Pre-GL-Vulkan-Present 1/1,
+Pixel verified, Surface ready; danach normales OpenGL-Welt-
+Backend und STATE_LOGIN_WAIT, Ctrl+Q Exit 0 im isolierten
+Xvfb-Viewer. Vier negative GUI-Läufe (fehlender Flag,
+ungültiger Flagwert, fehlender Bootstrap, ungültiger
+Vulkan-ICD) jeweils mit GL-Login und Exit 0.
+Ungültiger ICD meldet 0/1 Vulkan-Present. Linux-Vollbuild,
+330/330 Python-Tests, 41/41 CTests und der native
+16/16-Frame-GPU-Present-Test wurden bestanden.
+
+**Grenze:** Vulkan präsentiert VOR dem GL-Kontext, niemals
+gleichzeitig mit der OpenGL-Welt. Der Diagnosepfad verwendet
+vkQueueWaitIdle und bleibt deshalb ausschließlich per
+Entwickler-Opt-in erlaubt, nicht als Produktiv-Frame-Loop.
+Eine permanente auswählbare Vulkan-Weltengine, Terrain-/Mesh-/
+Textur-/Avatar-/UI-Darstellung, echter Live-Engine-Wechsel und
+Windows/macOS/Wayland-Abnahmen fehlen. **P05 bleibt 2/20,
+Block 3 offen** bis zur dauerhaften exklusiven SDL-Window-
+Ownership mit Frame-/Resize-Lifecycle und GL-Fallback.
+Code-Commit 7c533cc68d6879d3e95f31e6e2f01076118c9245.
+
 ## P05/3 – 20 technische Arbeitsblöcke: Vulkan-Multiframe und sichtbare GPU-Pixel (05.11.2026)
 
 **Aktueller operativer Stand: P05 2/20, Block 3 weiterhin offen.**

@@ -18,6 +18,22 @@ Block 3 offen: echtes SDL-Fenster-Ownership,
 Frame-Lifecycle und Fallback folgen. Keine neuen
 Projektdateien, bestehende Nutzerprofile schützen.
 
+P05/3 Stand 05.11.2026 (Code 7c533cc6):
+Vulkan-GPU-Present vor GL-Kontexterzeugung
+im tatsächlichen OGL-Viewer-SDL/X11-Fenster
+1/1, sichtbare Pixel verifiziert.
+Danach OpenGL-Login/Exit 0; vier negative
+GUI-Fälle mit GL-Fallback erfolgreich.
+Linux-Vollbuild, 330 Python-/41 native Tests.
+Diagnose ausschließlich per vier Entwicklerflags;
+kein Vulkan-Welt-Rendering oder Live-Umschalten.
+P05 weiterhin 2/20, Block 3 offen.
+Nächster Schritt dauerhaftes exklusives
+Window-Ownership, Vulkan-Frame-/Resize-
+Lifecycle und zuverlässiger GL-Fallback.
+Keine neuen Projektdateien, keine Cache-/
+Profil-/Secret-Änderungen.
+
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
 2. ogl/PROJECT_STATUS.md

@@ -138,6 +138,18 @@ SDL-Viewer; GL bleibt der einzige aktive Welt-Renderer.
 exklusives OpenGL->Vulkan-Fenster-Ownership im Viewer,
 danach P05/4 Terrain/Mesh. Keine neuen Projektdateien.
 
+**P05/3 echter SDL-Pre-GL-Present (05.11.2026, Code 7c533cc6):**
+Eine weitere 20er-Runde weist erstmals echtes Vulkan-
+GPU-Present im tatsächlichen SDL/X11-Viewerfenster
+vor Erstellung des GL-Kontexts nach: 1/1,
+pixel=verified. Danach GL-Login/Exit 0. Vier
+negative GUI-Fälle erfolgreich, Linux-Vollbuild,
+330 Python-/41 native Tests, zusätzlich nativer
+16-Frame-Present-Test. Kein Vulkan-Welt-Renderer,
+kein dauerhafter Live-Engine-Wechsel. P05 2/20,
+Block 3 offen: SDL-Fenster-Ownership mit dauerhaftem
+Frame-/Resize-Lifecycle und GL-Fallback als nächstes.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
