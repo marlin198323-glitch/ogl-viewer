@@ -661,6 +661,36 @@ static constexpr uint32_t ogl_dev_world_vert_spv[] = {
     0x000100fdu, 0x00010038u,
 };
 
+// Depth QA shader: near red, far green (actual GPU gl_FragCoord.z).
+static constexpr uint32_t ogl_dev_depth_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000020u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0007000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x00000009u, 0x0000000bu, 0x00030010u, 0x00000004u, 0x00000007u, 0x00030003u, 0x00000002u,
+    0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u, 0x00040005u, 0x00000009u,
+    0x6f6c6f63u, 0x00000072u, 0x00060005u, 0x0000000bu, 0x465f6c67u, 0x43676172u, 0x64726f6fu,
+    0x00000000u, 0x00040047u, 0x00000009u, 0x0000001eu, 0x00000000u, 0x00040047u, 0x0000000bu,
+    0x0000000bu, 0x0000000fu, 0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u,
+    0x00030016u, 0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000004u,
+    0x00040020u, 0x00000008u, 0x00000003u, 0x00000007u, 0x0004003bu, 0x00000008u, 0x00000009u,
+    0x00000003u, 0x00040020u, 0x0000000au, 0x00000001u, 0x00000007u, 0x0004003bu, 0x0000000au,
+    0x0000000bu, 0x00000001u, 0x00040015u, 0x0000000cu, 0x00000020u, 0x00000000u, 0x0004002bu,
+    0x0000000cu, 0x0000000du, 0x00000002u, 0x00040020u, 0x0000000eu, 0x00000001u, 0x00000006u,
+    0x0004002bu, 0x00000006u, 0x00000011u, 0x3f000000u, 0x00020014u, 0x00000012u, 0x0004002bu,
+    0x00000006u, 0x00000014u, 0x3f6e147bu, 0x0004002bu, 0x00000006u, 0x00000015u, 0x3e428f5cu,
+    0x0004002bu, 0x00000006u, 0x00000016u, 0x3e19999au, 0x0004002bu, 0x00000006u, 0x00000017u,
+    0x3f800000u, 0x0007002cu, 0x00000007u, 0x00000018u, 0x00000014u, 0x00000015u, 0x00000016u,
+    0x00000017u, 0x0004002bu, 0x00000006u, 0x00000019u, 0x3da3d70au, 0x0004002bu, 0x00000006u,
+    0x0000001au, 0x3f47ae14u, 0x0004002bu, 0x00000006u, 0x0000001bu, 0x3e23d70au, 0x0007002cu,
+    0x00000007u, 0x0000001cu, 0x00000019u, 0x0000001au, 0x0000001bu, 0x00000017u, 0x00040017u,
+    0x0000001du, 0x00000012u, 0x00000004u, 0x00050036u, 0x00000002u, 0x00000004u, 0x00000000u,
+    0x00000003u, 0x000200f8u, 0x00000005u, 0x00050041u, 0x0000000eu, 0x0000000fu, 0x0000000bu,
+    0x0000000du, 0x0004003du, 0x00000006u, 0x00000010u, 0x0000000fu, 0x000500b8u, 0x00000012u,
+    0x00000013u, 0x00000010u, 0x00000011u, 0x00070050u, 0x0000001du, 0x0000001eu, 0x00000013u,
+    0x00000013u, 0x00000013u, 0x00000013u, 0x000600a9u, 0x00000007u, 0x0000001fu, 0x0000001eu,
+    0x00000018u, 0x0000001cu, 0x0003003eu, 0x00000009u, 0x0000001fu, 0x000100fdu, 0x00010038u,
+};
+
 ogl_log_fn logger = nullptr;
 // P05/3 developer-only exclusive X11 swapchain-present acceptance probe.
 // Its caller is either the isolated native X11 QA window, or the real SDL
@@ -688,6 +718,9 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     const uint32_t sequence=world_device.exclusive_present_count;
     const char* raster_env=std::getenv("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE");
     const bool raster=raster_env && std::strcmp(raster_env,"1")==0;
+    const char* depth_env=std::getenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
+    const bool depth_test=depth_env && std::strcmp(depth_env,"1")==0;
+    if (depth_test && !raster) return 0;
     const char* world_env=std::getenv("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE");
     const bool world_projection=world_env && std::strcmp(world_env,"1")==0;
     if (world_projection && (!raster || !world_device.world_camera_ready))
@@ -737,6 +770,12 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     OGL_PRESENT_FN(vkCmdBindIndexBuffer);
     OGL_PRESENT_FN(vkCmdDrawIndexed);
     OGL_PRESENT_FN(vkCmdPushConstants);
+    OGL_PRESENT_FN(vkCreateImage);
+    OGL_PRESENT_FN(vkDestroyImage);
+    OGL_PRESENT_FN(vkGetImageMemoryRequirements);
+    OGL_PRESENT_FN(vkAllocateMemory);
+    OGL_PRESENT_FN(vkFreeMemory);
+    OGL_PRESENT_FN(vkBindImageMemory);
 #undef OGL_PRESENT_FN
     if (!vkGetSwapchainImagesKHR || !vkAcquireNextImageKHR || !vkQueuePresentKHR ||
         !vkCreateSemaphore || !vkDestroySemaphore ||
@@ -755,6 +794,19 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
                    !vkCmdBindIndexBuffer || !vkCmdDrawIndexed))
         return 0;
     if (world_projection && !vkCmdPushConstants) return 0;
+    const auto get_mem_properties=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceMemoryProperties>(
+        world_device.instance_proc(world_device.instance,
+            "vkGetPhysicalDeviceMemoryProperties"));
+    const auto get_format_properties=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceFormatProperties>(
+        world_device.instance_proc(world_device.instance,
+            "vkGetPhysicalDeviceFormatProperties"));
+    if (depth_test && (!vkCreateImage || !vkDestroyImage ||
+                       !vkGetImageMemoryRequirements || !vkAllocateMemory ||
+                       !vkFreeMemory || !vkBindImageMemory ||
+                       !get_mem_properties || !get_format_properties))
+        return 0;
 
     // A rejected frame is never retried against an acquired swapchain image.
     world_device.exclusive_present_used=true;
@@ -767,6 +819,10 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
     VkShaderModule vertex_shader=VK_NULL_HANDLE,fragment_shader=VK_NULL_HANDLE;
     VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
     VkPipeline graphics_pipeline=VK_NULL_HANDLE;
+    VkImage depth_image=VK_NULL_HANDLE;
+    VkImageView depth_view=VK_NULL_HANDLE;
+    VkDeviceMemory depth_memory=VK_NULL_HANDLE;
+    VkFormat depth_format=VK_FORMAT_UNDEFINED;
     bool in_flight=false;
     auto cleanup=[&]() {
         if (graphics_pipeline) vkDestroyPipeline(
@@ -781,6 +837,12 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (pool) vkDestroyCommandPool(world_device.device,pool,nullptr);
         if (fb) vkDestroyFramebuffer(world_device.device,fb,nullptr);
         if (pass) vkDestroyRenderPass(world_device.device,pass,nullptr);
+        if (depth_view) vkDestroyImageView(
+            world_device.device,depth_view,nullptr);
+        if (depth_image) vkDestroyImage(
+            world_device.device,depth_image,nullptr);
+        if (depth_memory) vkFreeMemory(
+            world_device.device,depth_memory,nullptr);
         if (view) vkDestroyImageView(world_device.device,view,nullptr);
         if (acquired) vkDestroySemaphore(world_device.device,acquired,nullptr);
         if (rendered) vkDestroySemaphore(world_device.device,rendered,nullptr);
@@ -815,6 +877,76 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (vkCreateImageView(world_device.device,&iv,nullptr,&view)!=VK_SUCCESS ||
             !view) return false;
 
+        // Dedicated depth image for ONLY the exclusive Vulkan dev probe.
+        // No OpenGL depth/texture resources are borrowed or modified.
+        if (depth_test) {
+            for (VkFormat candidate: {VK_FORMAT_D32_SFLOAT,
+                                      VK_FORMAT_D16_UNORM}) {
+                VkFormatProperties format_props{};
+                get_format_properties(world_device.physical_device,
+                                      candidate,&format_props);
+                if (format_props.optimalTilingFeatures &
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                    depth_format=candidate;
+                    break;
+                }
+            }
+            if (depth_format==VK_FORMAT_UNDEFINED) return false;
+            VkImageCreateInfo image_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+            image_info.imageType=VK_IMAGE_TYPE_2D;
+            image_info.format=depth_format;
+            image_info.extent={world_device.swapchain_extent.width,
+                               world_device.swapchain_extent.height,1};
+            image_info.mipLevels=1;
+            image_info.arrayLayers=1;
+            image_info.samples=VK_SAMPLE_COUNT_1_BIT;
+            image_info.tiling=VK_IMAGE_TILING_OPTIMAL;
+            image_info.usage=VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            image_info.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+            image_info.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+            if (vkCreateImage(world_device.device,&image_info,nullptr,
+                              &depth_image)!=VK_SUCCESS || !depth_image)
+                return false;
+            VkMemoryRequirements requirements{};
+            vkGetImageMemoryRequirements(world_device.device,depth_image,
+                                         &requirements);
+            VkPhysicalDeviceMemoryProperties memory_properties{};
+            get_mem_properties(world_device.physical_device,
+                               &memory_properties);
+            uint32_t memory_index=UINT32_MAX;
+            for (uint32_t i=0;i<memory_properties.memoryTypeCount && i<32;++i) {
+                if (!(requirements.memoryTypeBits&(1u<<i))) continue;
+                if (memory_index==UINT32_MAX) memory_index=i;
+                if (memory_properties.memoryTypes[i].propertyFlags &
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+                    memory_index=i;
+                    break;
+                }
+            }
+            if (memory_index==UINT32_MAX) return false;
+            VkMemoryAllocateInfo allocation{
+                VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+            allocation.allocationSize=requirements.size;
+            allocation.memoryTypeIndex=memory_index;
+            if (vkAllocateMemory(world_device.device,&allocation,nullptr,
+                                 &depth_memory)!=VK_SUCCESS || !depth_memory)
+                return false;
+            if (vkBindImageMemory(world_device.device,depth_image,
+                                  depth_memory,0)!=VK_SUCCESS)
+                return false;
+            VkImageViewCreateInfo dvi{
+                VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+            dvi.image=depth_image;
+            dvi.viewType=VK_IMAGE_VIEW_TYPE_2D;
+            dvi.format=depth_format;
+            dvi.subresourceRange.aspectMask=VK_IMAGE_ASPECT_DEPTH_BIT;
+            dvi.subresourceRange.levelCount=1;
+            dvi.subresourceRange.layerCount=1;
+            if (vkCreateImageView(world_device.device,&dvi,nullptr,
+                                  &depth_view)!=VK_SUCCESS || !depth_view)
+                return false;
+        }
+
         VkAttachmentDescription attachment{};
         attachment.format=world_device.swapchain_format;
         attachment.samples=VK_SAMPLE_COUNT_1_BIT;
@@ -824,22 +956,36 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
         attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
         attachment.finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        VkAttachmentDescription depth_attachment{};
+        depth_attachment.format=depth_format;
+        depth_attachment.samples=VK_SAMPLE_COUNT_1_BIT;
+        depth_attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_attachment.storeOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depth_attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_attachment.finalLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        const VkAttachmentDescription attachments[2]={attachment,depth_attachment};
         VkAttachmentReference ref{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        VkAttachmentReference depth_ref{
+            1,VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount=1;
         subpass.pColorAttachments=&ref;
+        subpass.pDepthStencilAttachment=depth_test ? &depth_ref : nullptr;
         VkRenderPassCreateInfo pi{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-        pi.attachmentCount=1;
-        pi.pAttachments=&attachment;
+        pi.attachmentCount=depth_test ? 2u : 1u;
+        pi.pAttachments=attachments;
         pi.subpassCount=1;
         pi.pSubpasses=&subpass;
         if (vkCreateRenderPass(world_device.device,&pi,nullptr,&pass)!=VK_SUCCESS ||
             !pass) return false;
         VkFramebufferCreateInfo fbi{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         fbi.renderPass=pass;
-        fbi.attachmentCount=1;
-        fbi.pAttachments=&view;
+        const VkImageView framebuffer_views[2]={view,depth_view};
+        fbi.attachmentCount=depth_test ? 2u : 1u;
+        fbi.pAttachments=framebuffer_views;
         fbi.width=world_device.swapchain_extent.width;
         fbi.height=world_device.swapchain_extent.height;
         fbi.layers=1;
@@ -860,8 +1006,10 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=sizeof(ogl_dev_frag_spv);
-            fragment_info.pCode=ogl_dev_frag_spv;
+            fragment_info.codeSize=depth_test
+                ? sizeof(ogl_dev_depth_frag_spv) : sizeof(ogl_dev_frag_spv);
+            fragment_info.pCode=depth_test
+                ? ogl_dev_depth_frag_spv : ogl_dev_frag_spv;
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &fragment_shader)!=VK_SUCCESS || !fragment_shader)
                 return false;
@@ -914,6 +1062,11 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
             VkPipelineMultisampleStateCreateInfo multisample{
                 VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
             multisample.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
+            VkPipelineDepthStencilStateCreateInfo depth_state{
+                VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+            depth_state.depthTestEnable=VK_TRUE;
+            depth_state.depthWriteEnable=VK_TRUE;
+            depth_state.depthCompareOp=VK_COMPARE_OP_LESS;
             VkPipelineColorBlendAttachmentState color_attachment{};
             color_attachment.colorWriteMask=VK_COLOR_COMPONENT_R_BIT |
                 VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
@@ -944,6 +1097,7 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
             graphics_info.pViewportState=&viewport_state;
             graphics_info.pRasterizationState=&raster_state;
             graphics_info.pMultisampleState=&multisample;
+            graphics_info.pDepthStencilState=depth_test ? &depth_state : nullptr;
             graphics_info.pColorBlendState=&blend;
             graphics_info.layout=pipeline_layout;
             graphics_info.renderPass=pass;
@@ -976,12 +1130,14 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         clear.color.float32[1]=(sequence%2)==0 ? 0.21f : 0.35f;
         clear.color.float32[2]=(sequence%2)==0 ? 0.45f : 0.12f;
         clear.color.float32[3]=1.f;
+        VkClearValue clears[2]{clear,{}};
+        clears[1].depthStencil.depth=1.f;
         VkRenderPassBeginInfo rbi{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         rbi.renderPass=pass;
         rbi.framebuffer=fb;
         rbi.renderArea.extent=world_device.swapchain_extent;
-        rbi.clearValueCount=1;
-        rbi.pClearValues=&clear;
+        rbi.clearValueCount=depth_test ? 2u : 1u;
+        rbi.pClearValues=clears;
         vkCmdBeginRenderPass(cmd,&rbi,VK_SUBPASS_CONTENTS_INLINE);
         if (raster) {
             vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1038,11 +1194,13 @@ uint32_t present_exclusive_native_test_frame(uint32_t gl_released) {
         if (presented!=VK_SUCCESS && presented!=VK_SUBOPTIMAL_KHR)
             return false;
         if (logger)
-            logger(1,world_projection
-                ? "P05 Vulkan X11 camera-projected indexed triangle: real GPU mat4 push constants and vkCmdDrawIndexed; dev only."
-                : (raster
-                    ? "P05 Vulkan X11 indexed triangle raster: real VkGraphicsPipeline and vkCmdDrawIndexed; dev only."
-                    : "P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL."));
+            logger(1,depth_test
+                ? "P05 Vulkan X11 GPU depth-buffer occlusion: depth test LESS with front/back fragment colors; dev only."
+                : (world_projection
+                    ? "P05 Vulkan X11 camera-projected indexed triangle: real GPU mat4 push constants and vkCmdDrawIndexed; dev only."
+                    : (raster
+                        ? "P05 Vulkan X11 indexed triangle raster: real VkGraphicsPipeline and vkCmdDrawIndexed; dev only."
+                        : "P05 exclusive Vulkan X11: real swapchain acquire, clear and present; no concurrent OpenGL.")));
         return true;
     };
     const bool success=run();

@@ -283,6 +283,12 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_swapchain_probe_ready(void);
  * were uploaded. The test vertex shader treats XYZ as CLIP-SPACE; actual
  * OpenSim agent coordinates still require a camera/world matrix projection.
  * The default behavior is an RGBA clear without shaders or vertex draws.
+ * An additional OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE=1 enables an isolated
+ * D32_SFLOAT/D16_UNORM depth attachment, depth compare LESS, and a depth-
+ * dependent fragment color for hardware occlusion verification. This is
+ * explicitly developer-only and NOT a live Vulkan world/frame renderer.
+ * The real SDL pre-GL caller also requires its own distinct opt-in
+ * OGL_VULKAN_SDL_PREGL_DEPTH_PROBE=1; no GL/Vulkan overlap is allowed.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
     uint32_t gl_released);

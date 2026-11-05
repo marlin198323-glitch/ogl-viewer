@@ -188,6 +188,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool sequence_verified=false;
     bool raster_verified=false;
     bool world_verified=false;
+    bool depth_verified=false;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -209,6 +210,16 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE") &&
         ogl_pre_gl_flag("OGL_VULKAN_WORLD_CAMERA_PROBE") &&
         set_camera && camera_ready;
+    // A separate exclusive GPU-Z test. Never infer permission from the
+    // native module flag alone; SDL must explicitly opt in as well.
+    const bool depth_requested=
+        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
+    const bool depth=raster && !world && depth_requested &&
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_DEPTH_PROBE");
+    if (depth_requested && !depth) {
+        SDL_UnloadObject(library);
+        return; // GL starts normally, never draw unapproved Vulkan depth
+    }
     if (start && stop && attach && present && detach) {
         const ogl_host_api host{sizeof(ogl_host_api),
                                 OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
@@ -366,8 +377,17 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                             13.f,22.8f,28.05f,
                             13.f,20.f,31.95f
                         }};
-                        uploaded=upload(world ? &world_triangle : &clip_triangle,
-                                        1)==1 && mesh_count()==1;
+                        const ogl_rtx_triangle front_and_back[2]{
+                            clip_triangle,{{
+                                -.72f,-.68f,.75f,
+                                 .72f,-.68f,.75f,
+                                 0.f, .72f,.75f
+                            }}
+                        };
+                        const uint32_t triangles=depth ? 2u : 1u;
+                        uploaded=upload(world ? &world_triangle :
+                                        (depth ? front_and_back : &clip_triangle),
+                                        triangles)==1 && mesh_count()==triangles;
                     }
                     if (world) {
                         ogl_rtx_frame_state camera{};
@@ -397,6 +417,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         original_width,original_height,1);
                     raster_verified=raster && uploaded && pixel_verified;
                     world_verified=world && projected && pixel_verified;
+                    depth_verified=depth && uploaded && pixel_verified;
                     if (raster && upload) upload(nullptr,0);
                 }
             }
@@ -414,6 +435,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ", raster=" << (raster ? (raster_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", camera=" << (world ? (world_verified ? "verified" : "failed")
+                              : "not-requested") <<
+        ", depth=" << (depth ? (depth_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<
