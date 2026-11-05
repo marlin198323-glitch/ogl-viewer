@@ -167,6 +167,25 @@ P05 formal 2/20, Block 3 offen. Nächster Schritt:
 exklusives Live-Renderer-Ownership, GPU-Frame-/
 Resize-Lifecycle und zuverlässiger GL-Fallback.
 
+**P05/3 Fortsetzung 05.11.2026 (Code 25787548):**
+Weitere 20 technische Teilaufgaben umgesetzt/geprüft:
+100 tatsächliche X11-Pixel aus 20 Vulkan-Presents
+auf der echten SDL-Viewer-Window-ID, über drei
+Window-/Swapchaingrößen. XGetGeometry gegen SDL-
+Fenstergrößen; Fehlereinleitung nach echten
+GPU-Frames in Phase initial/resized/restored.
+Sieben echte GUI-Tests erfolgreich, darunter
+20/20 positive Frames sowie 3/20, 11/20, 19/20
+abgebrochene Frames mit normalem GL-Login und
+Exit 0. Invalides ICD, Einmalmodus und
+komplett deaktivierte Probe ebenso okay.
+Linux-Vollbuild, 332 Python-/41 native Tests.
+Vulkan weiterhin nur Entwicklerprobe VOR
+OpenGL, keine echte Vulkan-OpenSim-Welt.
+**P05 2/20, Block 3 offen.** Nächster
+Schritt echte Vulkan-Raster/Draw-Pipeline
+und anschließende Live-Engine-Ownership.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

@@ -51,6 +51,24 @@ Ownership und echte Vulkan-Welt-Frames.
 Keine neuen Projektdateien und keine
 Nutzerprofil-/Cache-/Secret-Änderungen.
 
+Aktueller P05/3-Stand 05.11.2026 (25787548):
+20 Vulkan-GPU-Presents im tatsächlichen
+SDL/X11-Fenster vor OpenGL; 100 echte RGB-
+Pixelproben, drei Resize-Lebenszyklen,
+XGetGeometry. Drei entwicklerseitige
+GPU-Fehlerfälle 3/20, 11/20, 19/20 und
+fehlender ICD, Einmalmodus, deaktivierte
+Probe im echten GL-GUI getestet: alle
+sieben Login/Exit 0. Vollbuild 332 Python/
+41 CTests grün. Keine echten Vulkan-World-
+Raster-/Mesh-/Avatar-Frames, kein Live-
+Enginewechsel. P05 formal 2/20; Block 3
+weiter offen. Nächster Schwerpunkt:
+Vulkan-Graphics-Draw-Pipeline statt nur
+GPU-Clear und Live-Frame-/Fenster-Ownership.
+Nutzerprofile, Passwörter, Cache und
+laufende Sessions unangetastet lassen.
+
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
 2. ogl/PROJECT_STATUS.md

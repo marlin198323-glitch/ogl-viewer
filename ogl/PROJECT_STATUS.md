@@ -6,6 +6,68 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20 technische Arbeitsschritte: fünf GPU-Pixel/Frame und kontrollierte Fehler (05.11.2026)
+
+**Ziel dieser Runde:** Den exklusiven Vulkan-WSI-Entwicklerpfad auf der
+echten SDL/X11-Fenster-ID vor OpenGL sicherer machen. Statt nur des
+Mittelpixels werden nun fünf verteilte X11-Pixel aus jedem der 20
+nacheinander präsentierten GPU-Bilder geprüft (100 Pixel).
+Zusätzlich prüft XGetGeometry die tatsächliche Fenstergröße und
+kontrollierte Entwickler-Fehlerinjektion den sicheren Abbruch
+jeder der drei Swapchain-/Resize-Phasen.
+
+**20 einzeln umgesetzte/überprüfte technische Schritte:**
+
+01. Projektregeln, Hand-off, Status und P05-Roadmap erneut geprüft; origin/ogl-develop und Ausgangsstand sauber.
+02. Vorhandenen tatsächlichen SDL/X11-Vulkan-Pre-GL-Frame-Pfad und GL-Initialisierung untersucht.
+03. Pre-GL-Vulkan-Startprobe pro Prozess auf einen Versuch begrenzt, um nachträgliche GL-Kontextwechsel auszuschließen.
+04. Bei bereits aktivem OpenGL-Kontext weiterhin keine Vulkan-Präsentation erlaubt.
+05. Fünf über die Fensterfläche verteilte X11-Pixelpositionen für jedes GPU-Bild definiert.
+06. Alle Pixel mit echtem XGetImage/XGetPixel aus dem tatsächlichen Viewerfenster zurückgelesen.
+07. X11-Visual-Farbmasken pro Pixel in normale RGB-Werte umgerechnet.
+08. Blaue und warme GPU-Clear-Farbwechsel mit vorgegebener Toleranz für jedes Sample validiert.
+09. Nach jedem gültigen Vulkan-Frame den realen Zähler geprüfter Bildpunkte fortgeschrieben.
+10. Volle 20-Frame-Sequenz nur bei 100 bestätigten X11-Pixelsamples akzeptiert.
+11. XGetGeometry als unabhängige Kontrolle der tatsächlichen X11-Fenstergröße hinzugefügt.
+12. Fenstergröße vor jedem Swapchain-Attach auf reale X11-Geometrie geprüft.
+13. Fenstergröße nach temporärer SDL-Vergrößerung zusätzlich gegen X11-Geometrie geprüft.
+14. Zurückgesetzte Originalgröße auch nach abgebrochenen Sequenzen gegen X11-Geometrie geprüft.
+15. Explizite entwicklerseitige Fehler-Injektion nach drei echten Frames der Initialphase implementiert.
+16. Explizite Fehler-Injektion nach drei Frames der Resize-Phase implementiert.
+17. Explizite Fehler-Injektion nach drei Frames der Wiederherstellungsphase implementiert.
+18. Reale GUI-Fallback-Nachweise: Initialfehler 3/20, Resizefehler 11/20, Rückkehrfehler 19/20, jeweils GL-Login und Exit 0.
+19. Weitere reale GUI-Prüfungen: Normalfall 20/20 mit 100 Pixeln, ungültiger Vulkan-ICD 0/20, Einmalmodus 1/1 und deaktivierte Probe, jeweils GL-Login/Exit 0.
+20. Linux-Vollbuild, 332 Python-Tests und 41 native CTests bestanden; nativer 16/16-Vulkan-Frame-Test weiterhin bestanden.
+
+**Reale Nachweise:** Sieben getrennte isolierte Xvfb-Viewer-GUI-Tests
+positiv abgeschlossen: regulär 20/20 echte Vulkan-Presents,
+pixel=verified, samples=100, groups=3, resize=verified;
+Fehlergruppe 1 nach 3/20 (15 Pixel), Gruppe 2 nach 11/20
+(55 Pixel), Gruppe 3 nach 19/20 (95 Pixel), jeweils
+pixel=unverified und keine fälschliche Vulkan-Erfolgsmeldung.
+Ungültiger Vulkan-ICD: 0/20 und normaler GL-Login; alter
+Einmalmodus: 1/1, samples=5; ohne Probe: kein Vulkan-Present.
+Alle sieben erreichen STATE_LOGIN_WAIT und Exit 0.
+Vollständiger Linux-Viewer-Build, 332/332 Python-Tests,
+41/41 native CTests und separate 16/16 native WSI-GPU-
+Präsentationsprüfung erfolgreich. Keine Nutzerprozesse
+oder persönlichen Benutzerdateien geändert.
+
+**Grenze / formale Zählung:** Die Vulkan-Testbilder werden
+auf der echten SDL/X11-Window-ID ausschließlich vor
+SDL_GL_CreateContext präsentiert und bleiben farbige Testframes,
+kein Terrain-/Mesh-/Avatar- oder UI-World-Rendering.
+Kein Live-Vulkan-Enginewechsel. Native GPU-Probe enthält noch
+vkQueueWaitIdle und ist deshalb nicht für den
+produktiven interaktiven Frame-Loop freigegeben.
+Wayland/Windows/macOS sowie dauerhafte exklusive SDL-Engine-
+Ownership bleiben offen. **P05 operativ weiterhin 2/20,
+Block 3 nicht freigegeben.** Nächster Schwerpunkt:
+eigentlicher Vulkan-Draw-Pipelineaufbau (Vertex-/Index-Buffer
+mit Raster-/Shader-Pipeline, nicht nur Clear), danach
+echte Welt-Renderframes und sichere GPU-Frame-Synchronisation.
+Code-Commit: 2578754857a8e9328cc8376205a3daec50485eb1.
+
 ## P05/3 – 20 technische Entwicklungsschritte: SDL-Window-Resize, 20 echte Vulkan-Frames (05.11.2026)
 
 **Technisches Ergebnis:** Eine ausdrücklich freigegebene

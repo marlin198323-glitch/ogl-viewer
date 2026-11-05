@@ -1323,6 +1323,21 @@ keine Vulkan-Welt-Engine. **P05 2/20, Block 3 offen.**
 Nächster Gate: dauerhafter Renderer-/Fensterbesitz
 sowie mehrfache Vulkan-Weltbilder im Viewer.
 
+**P05/3 sieben Fehler-/Grafik-Szenarien (05.11.2026, 25787548):**
+20 echte Vulkan-Frames im SDL/X11-Viewerfenster mit
+100 über die Fensterfläche verteilten Farbproben;
+echte X11-Window-Geometry nach jedem Resize geprüft.
+Entwickler-Fehlerinjektion nach 3/11/19 Frames
+in initialer/vergrößerter/zurückgesetzter
+Swapchain-Phase; in allen Fällen GL-Login/Exit 0.
+Zusätzlich Ungültiger-ICD-, Einmal-Present- und
+ohne-Probe-GUI-Smokes bestanden. Linux-Vollbuild,
+332 Python- und 41 native Tests sowie isolierter
+16-Frame-WSI-Test erfolgreich. Keine Vulkan-Welt,
+kein GL/Vulkan-Live-Handoff; **P05 2/20,
+Block 3 offen.** Nächste Arbeit: Vulkan-
+Rasterpipeline und reale Weltgeometrie statt Clear.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
