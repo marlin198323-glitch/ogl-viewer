@@ -269,6 +269,30 @@ Nächster Gate: echte Welt/Depth-/Kameraframe-
 Integration und dauerhafter SDL-Vulkan-Window-
 Owner mit sicherem GL-Fallback.
 
+**P05/3–4 – gemeinsame World-Z-Kamera/Depth-GPU-Prüfung (05.11.2026, c34a0d44):**
+20 technische Aufgaben umgesetzt/überprüft.
+Vulkan-World-to-Clip-Projektion + GPU-Depth-Buffer
+zeichnen nun zwei synthetische Welt-XYZ-Dreiecke mit
+identischer Projektion und unterschiedlichen Tiefen:
+nahes rotes Dreieck vorn (GPU-Z=.25), entferntes
+grünes hinten (Z=.75, zuletzt gerendert).
+Negativkontrolle mit demselben GPU-Shader aber
+OHNE Depth-Image zeigt korrekt die grüne Rückfläche.
+GPU-Gates: nahe Fläche, Negativkontrolle,
+Kameraverschiebung ohne neue Meshbuffer, Resize
+512x384 -> 640x480, ungültige Kamera und Region-
+Clear alle bestanden. Echte SDL-Viewer-XID vor GL
+camera/depth/pixel=verified; 14/14 isolierte
+GUI-/Fallback-Starts inkl. fehlender Freigaben
+und ungültigem Vulkan-Treiber mit GL-Login/Exit 0.
+Linux-Vollbuild, 338 Python-/41 native Tests
+sowie validierte SPIR-V-Shader bestanden.
+Das sind ENTWICKLER-GPU-Testwerte, keine echte
+OpenSim-Region oder Laufzeit-World-Engine.
+P05 operativ 2/20, Block 3/4 offen. Nächstes
+Gate: echte eingeloggte In-World-Snapshots und
+exklusive Vulkan-Live-Present-Frame-Synchronisation.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

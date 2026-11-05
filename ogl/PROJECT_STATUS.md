@@ -6,6 +6,90 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Teilaufgaben: gemeinsamer Vulkan-Weltkamera-/Tiefenpfad (05.11.2026)
+
+**Code-Fortschritt:** Die vorhandene Vulkan-World-to-Clip-Kamera-
+Projektion und der echte VkDepth-Test wurden in einer einzigen
+Grafikpipeline kombiniert. Zwei synthetische Welt-XYZ-Dreiecke
+decken sich im Bild, liegen aber bei GPU-Z=0.25 (vorn) und
+Z=0.75 (hinten). Die reale GPU zeichnet die vordere rote Fläche
+und weist die danach gerasterte grüne Fläche zurück.
+
+**Wesentlicher Negativnachweis:** Dieselben Weltkoordinaten, derselbe
+Shader, dieselbe Kamera und die gleiche Dreiecksreihenfolge zeigen
+OHNE Tiefenpuffer tatsächlich die zuletzt gezeichnete grüne Fläche.
+Eine separate Entwickler-Farbkontrolle wählt deshalb denselben
+GPU-Fragmentshader bewusst ohne Depth-Attachment.
+Das ist kein zusätzlicher produktiver Grafikmodus.
+
+**20 umgesetzte und geprüfte technische Teilaufgaben:**
+
+01. Sauberen Branch ogl-develop, Projekthandoff, AGENTS.md, aktuellen Status und formalen P05-Plan geprüft.
+02. Erfolg der vorangehenden portablen GitHub-CI für den bisherigen GPU-Depth-Baustein nachgewiesen.
+03. Vorhandene Vulkan-World-to-Clip-Kamera-ABI und Z-/Depth-Renderpass auf gemeinsame Nutzbarkeit untersucht.
+04. Zwei deckungsgleiche Dreiecke in synthetischen OpenSim-typischen Welt-XYZ-Koordinaten konstruiert.
+05. Mit der v3-Kameraschnittstelle und Near=2 m/Far=10 m unterschiedliche GPU-NDC-Tiefen 0.25 und 0.75 festgelegt.
+06. Den validierten 275-Wort-Welt-Vertexshader und 182-Wort-Depth-Fragmentshader erneut bytegenau geprüft.
+07. Strikt separate opt-in Depth-Farbkontrolle ohne Tiefen-Image im Vulkan-GPU-Testpfad ergänzt.
+08. Tiefentest und Negativkontrolle als nicht gleichzeitig zulässige Diagnosemodi abgesichert.
+09. Die GPU-Z-Farbshaderauswahl für den normalen Tiefentest sowie den ausdrücklich depthlosen Kontrollfall vereinheitlicht.
+10. Reale Vulkan-GPU-Vertex-/Indexbuffer mit beiden Welt-XYZ-Dreiecken bestückt und Meshcount/Gültigkeit geprüft.
+11. Vulkan-Kamera nach dem neuen GPU-Meshsnapshot aktiviert; Bereitschaft vor gültiger Kamera sicher zurückgesetzt.
+12. Native X11-GPU-Abnahme mit aktiviertem Depth-Test: vorderes Rot bleibt trotz zuletzt gezeichneter grüner Rückfläche sichtbar.
+13. Gegenprobe mit identischen Vertexdaten, Kamera und Shader aber ohne Depth-Attachment: Rückfläche erscheint erwartungsgemäß grün.
+14. Kamerabewegung bei unveränderten GPU-Vertexdaten geprüft: beide Dreiecke verlassen die Bildmitte, Hintergrund wird sichtbar.
+15. Fenster-/Swapchain-Resize auf 640x480 mit erneut gültigem Kamera-Frame und neuem Depth-Attachment geprüft.
+16. Ungültigen Kameraframe nach einem erfolgreichen Bild abgewiesen und weiteren Vulkan-Present ohne gültige Kamera verhindert.
+17. Regions-/Mesh-Clear durchgeführt; Vertexbuffer, Kamerabereitschaft und Live-Input-Ready korrekt invalidiert.
+18. Echte SDL/X11-Window-Probe um gleichzeitige World-Projektion und Depth-Test mit zwei Weltkoordinaten-Dreiecken erweitert.
+19. SDL-/Modul-Depth-Freigaben symmetrisch geprüft; 14/14 reale isolierte GUI-Fälle zu GPU-Depth, fehlenden Freigaben, Kamera, Treiber und Legacy-Raster erfolgreich.
+20. Linux-Vollviewer-Build, 338/338 Python-Tests, 41/41 native CTests, echte native GPU-Weltprojektion mit Depth-/Gegenprobe und Shader-Binärvergleich bestanden.
+
+**Hardware-Nachweise:** Der native Vulkan/X11-Test bestätigt
+near=1, no_depth_far=1, moved=1, resized=1,
+invalid=1, clear=1. Bei 512x384 und 640x480 Pixeln
+stimmen reale X11-Farbproben nach GPU-Present.
+Der neue Test prüft auch die Kamera-Invalidierung
+und die vollständige Geometriefreigabe nach Region-Clear.
+Alle vorigen 16-Frame-Swapchain-, Index-Raster-
+und Camera/Depth-Smoketests bleiben bestanden.
+
+**Echte SDL-Viewer-Abnahme:** Unter voneinander unabhängigen
+Entwicklerfreigaben läuft die kombinierte Projektion
+und Tiefenprüfung AUF DEM VORHANDENEN SDL/X11-VIEWERFENSTER,
+streng bevor SDL_GL_CreateContext aktiviert wird.
+Ein echter GPU-Present lieferte pixel=verified,
+raster=verified, camera=verified, depth=verified.
+Auch fehlende Kamera, ungültiger Vulkan-ICD,
+fehlende Depth-Freigaben und bestehende Clear-/Raster-
+Modi starten OpenGL ohne Fehler.
+**14/14 isolierte echte GUI-Tests erreichen
+STATE_LOGIN_WAIT und Exit 0.**
+Der vollständige Linux-Viewer-Build,
+**338/338 Python-Tests**, **41/41 native CTests**
+und SPIR-V-Binärnachweise sind erfolgreich.
+Keine Nutzersessions, gespeicherten Profile
+oder Zugangsdaten wurden angefasst.
+
+**Ausstehende Arbeit:** Der Test benutzt bewusst
+synthetische OpenSim-artige Weltkoordinaten und
+eine Testkamera, keine angemeldete echte Region.
+Eine authentifizierte OpenSim-World-Scene mit
+realen Texturen, Terrain, Avataren, UI und
+permanenter Vulkan-Window-Ownership ist nicht
+nachgewiesen. Die echte Vulkan-Welt-Engine ist
+nicht auswählbar. Jeder Vulkan-Present dieses
+Tests endet vollständig VOR OpenGL. Der
+Entwicklungs-Frame-Pfad verwendet weiterhin
+vkQueueWaitIdle und ist nicht produktionsbereit.
+**P05 formal weiterhin 2/20; Block 3 und
+vollständiger Block 4 OFFEN.**
+Nächster Gate: nachgewiesene echte In-World-
+Mesh-/Kamera-Snapshots und langlebiger
+exklusiver Vulkan-Window-/Frame-Loop mit
+bounded nonblocking GPU-Synchronisation.
+Code-Commit: c34a0d44aa26e70c0281274cb4075a72b977d513.
+
 ## P05/3–4 – 20 technische Teilaufgaben: echter Vulkan-Z-/Depth-Buffer im Viewerfenster (05.11.2026)
 
 **Neuer GPU-Fortschritt:** Die bisherige Vulkan-Indexed-Grafikpipeline

@@ -1414,6 +1414,29 @@ permanente Vulkan-Fenster-Ownership.
 Nächster Gate: Depth + echte Region-/Kamera-
 Eingaben im exklusiven Vulkan-Live-Renderer.
 
+**P05/3–4 Vulkan-World-Kamera plus Depth-Test (05.11.2026, c34a0d44):**
+Validierte Vulkan-GPU-Kameraprojektion und echter
+Depth-Buffer jetzt in GEMEINSAMER
+VkGraphicsPipeline. Zwei synthetische Welt-
+XYZ-Dreiecke (GPU-Z=.25 und .75) zeigen
+korrekte Verdeckung, die depthlose
+Negativkontrolle zeigt grüne Rückfläche.
+Real X11 GPU bei 512x384 und 640x480 nach
+Resize, Kamerabewegung, Invalidkamera und
+Region-Clear geprüft. Auch im echten
+SDL-Viewerfenster vor dem GL-Kontext
+camera/depth/pixel=verified, dann Login.
+14/14 isolierte GUI-Tests, Linux-Vollbuild,
+338 Python/41 native CTests grün.
+Keine tatsächlich eingeloggte OpenSim-Region,
+kein produktiver Vulkan-Live-Frame-/UI-
+Worldrenderer, keine dauerhafte Vulkan-
+Window-Ownership. P05 operativ 2/20,
+Block 3/4 weiter offen.
+Nächstes Gate: echte OpenSim-Welt-Capture-
+Daten, exklusiver Vulkan-Window-Owner
+und nichtblockierende GPU-Frames.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

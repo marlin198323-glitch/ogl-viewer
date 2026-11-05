@@ -4,30 +4,31 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code cf2cc17f):
-Vulkan-Pipeline besitzt jetzt auch echten
-GPU-Z-/Depth-Test im exklusiven Pre-GL-Entwickler-
-WSI-Pfad: D32_SFLOAT/D16_UNORM DepthImage,
-VkDeviceMemory/View, Depth-Renderpass und
-Framebuffer, VkPipelineDepthStencilState
-LESS mit DepthClear=1.0. GPU-Nachweis:
-nah rot z=.25 zuerst, fern grün z=.75
-zuletzt, echter sichtbarer Vordergrund
-bei 2 X11-Swapchain-Größen nach Resize.
-Tatsächliche SDL/X11-Viewer-XID PreGL
-depth=verified, danach GL-Login und Exit 0.
-Separate SDL- und Modul-Dev-Opt-ins
-erforderlich, fehlende Flags fail-closed.
-12 isolierte GUI-Tests, Linux-Vollbuild,
-337 Python-/41 native CTests erfolgreich.
-Live-OpenSim-Mesh+Kamera-In-World-Test
-weiterhin ausstehend. KEINE vollständige
-Vulkan-Weltengine, KEIN Vulkan-Live-Handoff.
-P05 2/20, Block 3/4 offen. Weiter
-bestehende Dateien bearbeiten, keine
-Duplikate, User-Caches/Logins/Secrets
-nicht anfassen, Nutzersitzungen nicht killen.
-Historie in ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code c34a0d44):
+Vulkan-Projektion aus synthetischen
+OpenSim-artigen Welt-XYZ und echte GPU-
+Z-Verdeckung nun in EINER VkGraphicsPipeline:
+nah rot GPU-Z=.25, fern grün .75, far
+wird zuletzt gezeichnet. Tiefe aktiv:
+Rot vorne; separater GPU-Farbkontrollmodus
+ohne Depth-Image: fern Grün sichtbar.
+Native Vulkan/X11-Gates Kameraverschiebung,
+Resize 512x384/640x480, invalide Kamera,
+Region-Clear erfolgreich. Echte SDL/X11-
+Viewer-XID pre-GL: camera, depth, pixel
+verified, normaler GL-Login/Exit 0.
+14 isolierte GUI-Fälle, Linux-Vollbuild,
+338 Python/41 native Tests erfolgreich.
+Strikte Entwickler-Opt-ins, keine
+weitere Windows/macOS-WSI-Implementierung.
+KEIN echter OpenSim-Live-Vulkan-Worldframe,
+KEINE dauerhaft laufende Vulkan-Grafikengine.
+P05 weiterhin 2/20, Block 3/4 offen.
+Nächstes Gate: echte angemeldete In-World-
+Daten und Vulkan-exklusive Live-Frame-
+Synchronisation. Nutzer-Viewer, Cache,
+Accounts und Secrets nicht verändern.
+Frühere Schritte in ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
