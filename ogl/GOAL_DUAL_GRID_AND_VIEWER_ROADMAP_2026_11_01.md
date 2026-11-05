@@ -1338,6 +1338,22 @@ kein GL/Vulkan-Live-Handoff; **P05 2/20,
 Block 3 offen.** Nächste Arbeit: Vulkan-
 Rasterpipeline und reale Weltgeometrie statt Clear.
 
+**P05/3 und P05/4 echte GPU-Raster-Vorarbeit (05.11.2026, Code 410f7d9a):**
+Erstmals validierte Vulkan-SPIR-V-Vertex/Fragmentshader,
+echte Graphics-Pipeline, gebundene GPU-Vertex-/Indexbuffer
+und vkCmdDrawIndexed im bereits existierenden
+VkSwapchainKHR-Renderpass. X11-Pixel beweisen ein
+echtes rotes Dreieck (237,48,38) auf blauem
+Hintergrund (20,54,115). Auch auf der echten SDL-
+Viewer-XID vor GL-Beginn 1/1 Pixelprüfung bestanden;
+fünf SDL-GUI-/Fallback-Tests mit GL-Login/Exit 0.
+Linux-Vollbuild, 334 Python-/41 native Tests.
+Testdaten nur Clip-Space, nicht OpenSim-Agent-
+Koordinaten projiziert, kein laufender Vulkan-
+Welt-Renderer. Formal P05 2/20, Block 3/4 offen.
+Nächster Gate: Kamera-/Welttransformationen,
+echte Weltobjekte und exklusiver Live-Vulkan-Frame.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

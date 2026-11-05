@@ -6,6 +6,71 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 und P05/4 – 20 technische Raster- und Grafik-Nachweise (05.11.2026)
+
+**Ergebnis:** Erstmals ein ECHTER indexierter Vulkan-Grafikdraw
+aus vorhandenen VkVertex-/VkIndex-Bufferdaten in einer
+VkGraphicsPipeline, mit GLSL-450-Vertex-/Fragmentshadern
+und vkCmdDrawIndexed. Der native GPU-Test liest ein rotes
+Dreieck (RGB 237/48/38) und den unveränderten blauen
+Hintergrund (RGB 20/54/115) aus dem tatsächlichen X11-
+Fenster. Dasselbe Dreieck wurde mit strengem Entwickler-
+Opt-in im tatsächlichen SDL-Viewerfenster vor
+SDL_GL_CreateContext gerastert, fünf sichtbare Pixel
+verifiziert und danach OpenGL bis zum Login/Exit 0 gestartet.
+
+**20 umgesetzte und verifizierte technische Teilaufgaben:**
+
+01. Vor Entwicklungsbeginn Branch, sauberen Git-Stand, AGENTS.md, Handoff, Status und P05-Roadmap verifiziert.
+02. Bestehende OpenSim-Dreieck-ABI und bereits GPU-gestagte Vulkan-Vertex-/Indexbuffer untersucht.
+03. Vorhandenen lokal entpackten Khronos-glslang- und SPIR-V-Validator ohne Installation benutzt.
+04. GLSL-450-Vertexshader für ein eindeutig als Clip-Space markiertes Testdreieck erstellt.
+05. GLSL-450-Fragmentshader für sichtbare rote Rasterfarbe erstellt.
+06. Beide Shader mit glslang für Vulkan 1.0 in echte SPIR-V-Module übersetzt.
+07. Vertex- und Fragment-SPIR-V per Khronos spirv-val erfolgreich validiert.
+08. Shader-SPIR-V in bestehendes Vulkan-Modul eingebettet, ohne zusätzliche Projektdateien oder Laufzeit-Compiler.
+09. Bytegenauen Vergleich der eingebetteten Shaderdaten gegen geprüfte SPIR-V-Binärdateien bestanden.
+10. Rasterspezifisches Entwickler-Opt-in OGL_VULKAN_EXCLUSIVE_RASTER_PROBE=1 implementiert.
+11. Vor vkAcquireNextImageKHR fehlende Mesh-/Vertex-/Indexbuffer und ungültige Dreieckanzahl kontrolliert abgewiesen.
+12. Neue VkShaderModule-, VkPipelineLayout-, VkGraphicsPipeline- und Renderbefehle dynamisch geladen.
+13. VkShaderModule für beide Shader und VkPipelineLayout in den bestehenden WSI-Renderpass integriert.
+14. Vertex-Format R32G32B32_SFLOAT, 12-Byte-Stride und Dreiecklisten-Indexing festgelegt.
+15. Rasterizer, Viewport, Scissor, MSAA-1 und RGBA-Blend-Ziel für echte VkGraphicsPipeline eingerichtet.
+16. Im Renderpass Vertex-/Indexbuffer an VkCommandBuffer gebunden und realen vkCmdDrawIndexed-Befehl aufgezeichnet.
+17. GPU-Fence-/Queue-Synchronisation der WSI beibehalten und Pipeline-/Shader-Ressourcen vor Device-Abbau freigegeben.
+18. Nativen X11-GPU-Test um Raster-Opt-in, Ablehnung ohne Mesh, Clip-Space-Dreieck und anschließenden Mesh-Clear erweitert.
+19. Echte GPU/X11-Pixel bestätigt: Dreiecksmitte RGB(237,48,38), Hintergrund RGB(20,54,115); SDL-Viewer-GUI mit GL-Login/Exit 0.
+20. Linux-Vollbuild, 334 Python-Tests, 41 native CTests und fünf reale SDL-GUI-Fallback/Raster-Fälle erfolgreich geprüft.
+
+**Zusätzliche Prüfergebnisse:** Der native X11-WSI-Test
+behält die bereits funktionierenden 16 aufeinanderfolgenden
+Swapchain-Presents inklusive Resize und Einzel-Frame-
+Schutz. Im neuen Rastermodus wird eine fehlende
+hochgeladene Geometrie vor dem Acquire abgewiesen.
+Der neue SDL-Entwicklertest prüfte fünf Fälle:
+echte Dreiecks-Rasterisierung 1/1, normales Clear 1/1,
+fehlender Mesh-Upload 0/1, kein Vulkan-Treiber 0/1
+und ausgeschaltete Rasterprobe; alle erreichten
+das tatsächliche OpenGL-Login und Exit 0.
+Linux-Vollviewer-Build, 334/334 Python-Tests,
+41/41 native CTests und Shader-Binärvergleich grün.
+
+**Freigabegrenze:** Die neuen XYZ-Daten sind künstliche
+CLIP-SPACE-Testkoordinaten (nur im Entwicklerprobe-Pfad),
+KEINE korrekt projizierte OpenSim-Szene.
+Die GLSL-Shader demonstrieren eine reale Rasterpipeline,
+aber OpenSim-Kamera-/Weltmatrizen, Terrain, Meshmaterialien,
+Texturen, Sky, Wasser, Avatare, UI-Compositing und dauerhafter
+Vulkan-Welt-Frame-Loop sind weiterhin NICHT integriert.
+Der Grafik-Backend-Schalter bleibt auf OpenGL.
+P05/3 ist technisch weiter vorbereitet, **P05 formal 2/20,
+Block 3 und vollwertiger Block 4 bleiben offen**.
+Nächster Gate: echte Agent-/Weltgeometrie über aktuelle
+Kameramatrizen projizieren und innerhalb einer exklusiv
+Vulkan-eigenen Display-Session rendern; danach produktive
+Swapchain-Frames ohne blockierendes vkQueueWaitIdle.
+Code-Commit: 410f7d9a80129fa9f86f2e1328480deed597482f.
+
 ## P05/3 – 20 technische Arbeitsschritte: fünf GPU-Pixel/Frame und kontrollierte Fehler (05.11.2026)
 
 **Ziel dieser Runde:** Den exklusiven Vulkan-WSI-Entwicklerpfad auf der

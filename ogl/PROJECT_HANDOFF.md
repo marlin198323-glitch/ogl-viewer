@@ -186,6 +186,26 @@ OpenGL, keine echte Vulkan-OpenSim-Welt.
 Schritt echte Vulkan-Raster/Draw-Pipeline
 und anschließende Live-Engine-Ownership.
 
+**P05/3-4 echter Vulkan-Indexed-Draw (05.11.2026, Code 410f7d9a):**
+20 technische Schritte. Echte VkGraphicsPipeline mit
+Khronos-valider, eingebetteter SPIR-V-Vertex-/Fragment-
+Pipeline; VkVertex/VkIndexBuffer und VkCmdDrawIndexed
+zeichnen ein rotes Testdreieck mit GPU-X11-
+Pixelnachweis: Mitte 237/48/38, Hintergrund 20/54/115.
+Auch vor GL-Kontexterzeugung in der tatsächlichen
+SDL-Viewer-Window-ID nachgewiesen. Raster-Opt-in,
+ohne-Mesh-/ungültiger-ICD-Fallback und vorheriger
+Clear-Test: 5 echte Viewer-GUI-Fälle bis GL-Login/Exit 0.
+Linux-Vollbuild, 334 Python-/41 native Tests.
+Keine neuen Projektdateien, kein zusätzliches
+Programm für den Betrieb. Wichtig: nur CLIP-SPACE-
+Entwicklerdreieck VOR OpenGL; KEIN Vulkan-World-
+Renderer, keine echte OpenSim-Kamera-Matrix/Materialien.
+P05 formal 2/20; Block 3/4 nicht abgeschlossen.
+Nächstes Gate: Projektion echter Weltgeometrie,
+dauerhaft exklusives Vulkan-SDL-Fenster-Ownership,
+produktive Frame-/Swapchain-Synchronisation.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

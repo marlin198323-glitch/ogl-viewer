@@ -4,70 +4,24 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Commit 1428a4d9):
-Weitere 20 echte technische Teilaufgaben in P05/3:
-16 native Vulkan-WSI-Presents auf einer Swapchain,
-16/16 echte X11-Bildpixel verifiziert, Frame-17-
-Limit, Resize/Reset und negatives ICD geprüft.
-329 Python-/41 native Tests und vollständiger
-Linux-Build bestanden; zwei isolierte Viewer-GL-
-GUI-Starts Exit 0. Die QA nutzt ein eigenes
-X11-Fenster ohne GL-Kontext. Kein Vulkan-Welt-
-Frame im echten Viewer. P05 formal 2/20,
-Block 3 offen: echtes SDL-Fenster-Ownership,
-Frame-Lifecycle und Fallback folgen. Keine neuen
-Projektdateien, bestehende Nutzerprofile schützen.
-
-P05/3 Stand 05.11.2026 (Code 7c533cc6):
-Vulkan-GPU-Present vor GL-Kontexterzeugung
-im tatsächlichen OGL-Viewer-SDL/X11-Fenster
-1/1, sichtbare Pixel verifiziert.
-Danach OpenGL-Login/Exit 0; vier negative
-GUI-Fälle mit GL-Fallback erfolgreich.
-Linux-Vollbuild, 330 Python-/41 native Tests.
-Diagnose ausschließlich per vier Entwicklerflags;
-kein Vulkan-Welt-Rendering oder Live-Umschalten.
-P05 weiterhin 2/20, Block 3 offen.
-Nächster Schritt dauerhaftes exklusives
-Window-Ownership, Vulkan-Frame-/Resize-
-Lifecycle und zuverlässiger GL-Fallback.
-Keine neuen Projektdateien, keine Cache-/
-Profil-/Secret-Änderungen.
-
-Aktuell P05/3 05.11.2026 (Code aa71c8dd):
-20 reale Vulkan-Present-Frames im echten
-SDL/X11-Viewerfenster, drei Fenstergrößen-
-Zyklen 8+8+4, 20 Pixel und Resize geprüft.
-Vulkan wird VOR GL-Kontexterzeugung detached;
-danach normaler OpenGL-Login, Exit 0.
-Fehlerdriver/OpenGL-Fallbacks geprüft;
-331 Python-/41 native Tests und Linux-Vollbuild
-bestanden. Der GPU-Frame-Loop ist nur explizite
-Entwicklerdiagnose VOR der 3D-Welt, keine
-auswählbare Vulkan-Weltengine. Operativ P05
-weiter 2/20; Block 3 offen.
-Nächster Schritt: exklusives Live-Window-
-Ownership und echte Vulkan-Welt-Frames.
-Keine neuen Projektdateien und keine
-Nutzerprofil-/Cache-/Secret-Änderungen.
-
-Aktueller P05/3-Stand 05.11.2026 (25787548):
-20 Vulkan-GPU-Presents im tatsächlichen
-SDL/X11-Fenster vor OpenGL; 100 echte RGB-
-Pixelproben, drei Resize-Lebenszyklen,
-XGetGeometry. Drei entwicklerseitige
-GPU-Fehlerfälle 3/20, 11/20, 19/20 und
-fehlender ICD, Einmalmodus, deaktivierte
-Probe im echten GL-GUI getestet: alle
-sieben Login/Exit 0. Vollbuild 332 Python/
-41 CTests grün. Keine echten Vulkan-World-
-Raster-/Mesh-/Avatar-Frames, kein Live-
-Enginewechsel. P05 formal 2/20; Block 3
-weiter offen. Nächster Schwerpunkt:
-Vulkan-Graphics-Draw-Pipeline statt nur
-GPU-Clear und Live-Frame-/Fenster-Ownership.
-Nutzerprofile, Passwörter, Cache und
-laufende Sessions unangetastet lassen.
+Aktueller P05-Stand 05.11.2026 (Code 410f7d9a):
+Echte Vulkan VkGraphicsPipeline mit validierten
+SPIR-V-Shadern, gebundenen GPU-Vertex-/Indexbuffers
+und realem vkCmdDrawIndexed. Native und echte SDL/
+X11-Pre-GL-GPU-Pixel zeigen rotes Clip-Space-Dreieck
+RGB 237/48/38 über blauem Hintergrund 20/54/115.
+GPU-only mit mehrfachen expliziten Entwicklerflags,
+normales OpenGL und Login/Exit unberührt.
+5 reale Viewer-GUI-/Fallback-Tests grün,
+Linux-Vollbuild, 334 Python-/41 native CTests.
+Nutzerdaten, User-Viewer und Profile schützen.
+Kein echter OpenSim-World-/Terrain-/Avatar-Vulkan-
+Renderer, kein laufender Vulkan-Frame-Loop.
+P05 formal weiterhin 2/20, Block 3/4 offen.
+Nächster Gate: korrekte Agent-/Kameraprojektion
+sowie exklusives dauerhaftes Vulkan-Frame-Ownership.
+Frühere technische Fortschritte stehen historisch
+in ogl/PROJECT_STATUS.md, nicht mehrfach hier.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
