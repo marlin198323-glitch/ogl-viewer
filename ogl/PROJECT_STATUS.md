@@ -6,6 +6,61 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – 20 technische Arbeits-/Prüfschritte: natives Vulkan-WSI-Present (05.11.2026)
+
+**Fachliche Einordnung:** 20 überprüfte technische Teilaufgaben dieser Arbeitsrunde,
+**NICHT** 20 abgeschlossene operative P05-Phasenblöcke. Die Entwicklung verbleibt
+bei P05 **2/20**; operativ ist **Block 3** weiter offen. Alle Änderungen im
+bestehenden Quellbaum, keine neuen Projektdateien, kein Eingriff in Nutzerprofile,
+keine Löschung von Upstream-Lizenzen oder vermeintlich verwaisten Ressourcen.
+
+01. Richtige GitHub-Quelle und Branch ogl-develop verifiziert; Ausgangsbaum sauber.
+02. Passive OpenGL-/Vulkan-WSI-Grenze und SDL-Window-Ownership geprüft.
+03. Opt-in OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE nur für separaten nativen Test ergänzt.
+04. Explizites gl_released=1 als erforderliches Test-Owner-Token umgesetzt; 0 wird abgewiesen.
+05. Xlib/WSI-Code nur unter Linux/X11, portable Stub-Funktion für andere Systeme.
+06. Vorhandene Present-Queue, Surface-Caps, FIFO-Format-/Extent-Wahl beibehalten.
+07. Swapchain-Images mit Anzahlprüfung 2..16 real abgefragt.
+08. Echtes vkAcquireNextImageKHR mit begrenztem 2-s-Timeout integriert.
+09. ImageView nutzt das gewählte Swapchain-Bild und dessen VkFormat.
+10. Vulkan-Renderpass mit Clear, UNDEFINED -> PRESENT_SRC_KHR konfiguriert.
+11. Framebuffer verwendet tatsächliche Swapchain-Extent; kein festes 4K/HD-Profil.
+12. Primärer Command Buffer: Renderpass starten, Color-Clear, Renderpass beenden.
+13. Acquire-Semaphore wird erst nach erfolgreicher Erstellung für Image-Ready genutzt.
+14. Graphics Queue wartet in COLOR_ATTACHMENT_OUTPUT auf Acquire und signalisiert Render-Fertig-Semaphore.
+15. GPU-Submission mit VkFence, maximal zwei Sekunden vkWaitForFences.
+16. Echtes vkQueuePresentKHR mit korrekt ausgewähltem Image-Index ausgeführt.
+17. Nur im separaten nativen QA-Prozess Queue-Idle vor Resource-Cleanup; äußerer Test-Timeout.
+18. Nach X11-Resize 320x240 -> 480x300 Swapchain neu erstellt und zweites Bild präsentiert; Wiederholung ohne Reattach abgelehnt.
+19. Negativgates bestätigt: Owner 0, fehlendes Flag und ungültiger Vulkan-ICD dürfen nicht bestehen; 328 Python- und 41 CTests grün.
+20. Vollständiger Linux-Vollviewer-Build 7.2.5.229; isolierter Xvfb-Viewer bis Login-Wait mit OpenGL und persistentem WSI, Ctrl+Q/Exit 0; Code-Commit e492f8be.
+
+**Echte GPU-Nachweise:** Zwei erfolgreiche Swapchain-Presents auf dem
+isolierten X11-Testfenster, jeweils als echte Vulkan-GPU-Writes;
+Negativfall ohne Vulkan-ICD Exit 12. Das separate Testfenster wird nur
+von frame_bridge_test.cpp für den QA-Lauf erzeugt, NICHT vom Viewer.
+Linux-Paket und voller Viewer-Build bestanden, 328/328 Python-Tests,
+41/41 CTests; GL-Viewer-GUI mit echtem OGL-Fenster 1024x680
+(Xvfb 1280x720), GL-Backend und WSI-Attach, Login-Wait,
+Ctrl+Q Shutdown Exit 0. Windows-/macOS-Vollviewer und GPU-Present
+auf diesen Plattformen sind NICHT getestet; deren Volltests bleiben P13.
+
+**Sicherheitsgrenze:** Dieses einmalige native Vulkan-Present läuft auf
+einem *eigens erzeugten* X11-Fenster OHNE OpenGL-Kontext. Der echte
+SDL/OpenGL-Viewer ruft die neue Präsentations-ABI nicht auf. Deshalb
+existiert noch KEIN exklusiver Vulkan-Fenster-Renderer im Viewer,
+keine 3D-OpenSim-Terrain-/Mesh-/Avatar-/UI-Darstellung mit Vulkan.
+Der native Test verwendet für Present-Abschluss vkQueueWaitIdle,
+aber ausschließlich im extern zeitbegrenzten QA-Prozess, niemals
+in der interaktiven GL-Hauptschleife. Bei GPU-Fence-Timeout werden
+in-flight Ressourcen nicht vorzeitig freigegeben.
+**Nächster Schritt: /goal P05 Block 3** – GL/WSI-Fensterbesitz im
+tatsächlichen SDL-Viewer sicher umschalten, Vulkan-Frame-/Resize-Lifecycle
+im Viewer integrieren und echte präsentierte Bilder dort prüfen.
+Dabei bleibt OpenGL-Fallback verpflichtend. P05/4-Welt-Draw folgt
+erst nach bestandenem Block-3-Gate.
+**Code-Commit:** e492f8beb5547ad73579a04803b7f91ada0a76a0 auf ogl-develop.
+
 ## Wartungsfix: Emoji-Daten im Chat wieder gefunden (04.11.2026)
 
 Echter Fehler in OGL.log: Emoji file characters not found.

@@ -1266,6 +1266,22 @@ Das ist OFFSCREEN-Bildaufbau, kein Swapchain-
 Acquire/Present und kein NexVerse-Welt-Draw;
 Block 3 und P05 formal weiterhin bei 2/20.
 
+**P05/3 20er-Entwicklungsrunde (05.11.2026, e492f8be):**
+Native, strikt isolierte X11-Vulkan-Win-Probe mit echter
+vkAcquireNextImageKHR -> VkRenderPass -> GPU-Semaphore/Fence ->
+vkQueuePresentKHR. Zwei Frames inklusive Window-Resize
+320x240 -> 480x300 nachweislich präsentiert; mehrfacher
+Present-Versuch ohne Reattach abgewiesen. Real-GPU/Nativtest,
+Negativ-ICD, Linux-Vollbuild 7.2.5.229, 328 Python-/41 CTests
+und isolierter GL-Login-/Quit-Smoke erfolgreich.
+Die 20 Nachweise sind technische Teilaufgaben, **nicht** der
+Abschluss P05/3 oder die 20 operativen P05-Blöcke.
+Native QA nutzt ein eigenes, GL-freies Testfenster; der
+produktive Viewer zeigt weiterhin OpenGL-Weltbilder.
+Exklusiver SDL-Viewer-Window-Owner, echte Weltframes und
+plattformspezifisches WSI weiterhin offen. **P05 2/20**,
+nächster P05 Block 3 mit sicherem GL->Vulkan-Hand-off.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

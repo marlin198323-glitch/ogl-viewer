@@ -198,6 +198,20 @@ Nächster P05 Block 2/20: kontrollierter dauerhafter
 WSI-Window-/Frame-/Resize-Lifecycle, weiterhin
 OpenGL-Fallback und keine Nutzerprofile anfassen.
 
+P05/3 Weiterarbeit 05.11.2026 (Code e492f8be):
+20 echte technische QA-/Entwicklungsprüfungen der
+nativen X11-Vulkan-WSI-Present-Probe; zwei real
+präsentierte Swapchain-Bilder inklusive Resize
+im EIGENEN GL-FREIEN NATIVEN TESTFENSTER.
+Linux-Vollbuild 7.2.5.229, 328 Python-/41
+native Tests und echte OpenGL-Xvfb-GUI
+bis Login-Wait/Exit 0. Negativ-ICD und
+Opt-in/Owner-Sperren geprüft.
+Dies ist KEIN Vulkan-Frame im SDL-Viewer:
+P05 bleibt 2/20, Block 3 offen, nächste
+Aufgabe exklusives Viewer-Fenster-Ownership.
+Keine neuen Projektdateien.
+
 P05 Block 2 abgeschlossen (04.11.2026):
 Persistentes Vulkan-WSI nur auf Linux/X11 und mit drei
 Entwickler-Opt-ins; echte SDL-Resize-/Destroy-Callbacks.

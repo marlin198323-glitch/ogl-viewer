@@ -111,6 +111,20 @@ oder NexVerse-Vulkan-Weltframe. P05 bleibt
 2/20, Block 3 offen. Neue optionale C-ABI-
 Funktion ogl_vulkan_world_render_offscreen_probe.
 
+**P05/3 Vulkan-WSI-Present-QA (05.11.2026, Commit e492f8be):**
+20 reale Entwicklungs-/Prüfschritte im bestehenden Projekt, aber
+kein P05-Phasenabschluss. Ein ausdrücklich eingeschalteter nativer
+X11-Test erzeugt eine eigene reine Vulkan-Window-Swapchain,
+erwirbt und rendert das erste und ein nach Resize neu erzeugtes
+zweites Swapchain-Bild und präsentiert beide tatsächlich.
+Owner-/Opt-in-/Doppelpresentschutz und fehlender Vulkan-ICD
+negativ geprüft; 328 Python-/41 CTests, Linux-Vollviewer-Build
+7.2.5.229 und isolierter GL-Viewer-Login/Exit 0 erfolgreich.
+**Der echte Viewer hat weiterhin keine Vulkan-World-Präsentation.**
+P05 bleibt 2/20, Block 3 offen; nächster Schritt exklusives
+Fenster-/Present-Ownership und Multi-Frame-Synchronisation im SDL-Viewer.
+Windows-/macOS-Full-Viewer-Test noch nicht freigegeben.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
