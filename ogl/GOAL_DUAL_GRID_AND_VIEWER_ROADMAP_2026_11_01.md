@@ -1372,6 +1372,28 @@ Block 3/4 offen. Nächster Gate: echte
 In-World-Frames, Regionenmesh-Integration und
 permanenter exklusiver Vulkan-Window-Owner.
 
+**P05/3–4 RTX-unabhängige Live-Input-Bridge (05.11.2026, Code ae00535c):**
+In bestehendem pipeline.cpp-World-Pass tatsächlich
+erfasste Firestorm-Kamera nun optional an Vulkan-
+Kameraprojektion weitergeleitet, unabhängig von
+RTX, nur unter drei Entwicklerflags. Vorher
+existierende GPU-Erfassung echter OpenSim-Mesh-
+Dreiecke mit Vulkan-Camera+Mesh-Input-Paarung
+versehen. Neu-Upload, Region-Clear und invalides
+Kamera-Frame verwerfen stale Zuordnung;
+read-only ABI unterscheidet echte angenommene
+Inputs von gerenderten Vulkan-Weltbildern.
+Native Hardware-GPU-/Failclosed-Tests grün;
+Linux-Vollbuild, 336 Python-/41 native Tests,
+12 GL-GUI-Starts erfolgreich. Noch KEINE
+authentifizierte OpenSim-In-World-Abnahme: Vorlogin-
+GUI erzeugte kein Live-Kamera/Mesh-Paar. Kein
+permanenter Vulkan-World-Renderer, P05 2/20,
+Block 3 und vollständiger Block 4 offen.
+Nächster Gate: echtes Regionskamera-/Mesh-Paar
+bei eingeloggtem Viewer nachweisen, dann den
+Vulkan-Live-Window-Present-Loop entwickeln.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

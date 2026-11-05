@@ -4,29 +4,30 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code 439b8a27):
-Die native Vulkan-Graphics-Pipeline hat eine
-validierte World-XYZ-Kamera-Projektion über
-GLSL-SPIR-V-Mat4/64-Byte-Push-Constants.
-V3-Kamera-ABI validiert FOV, Clipping, Achsen,
-Aspect, Händigkeit; invalidierte Kameras
-geben alte Matrizen nicht weiter.
-Native GPU-Testkamera: Welt-Dreieck sichtbar,
-nach Seitenverschiebung nicht mehr im Zentrum.
-Echte SDL/X11-Viewer-XID: GPU-Kameratest
-1/1 Pixel/camera verifiziert vor GL-Start.
-8 neue + 7 vorherige isolierte Viewer-GUI-
-Fallback-Smokes alle Login/Exit 0. Linux-
-Vollbuild, 335 Python-/41 native Tests grün.
-Alle Shader im bestehenden Modul eingebettet.
-KEIN echter OpenSim-Region-/Terrain-/
-Avatar-/UI-Vulkan-World-Renderer, keine
-dauerhafte Vulkan-Live-Engine. P05 weiterhin
-2/20, Block 3/4 nicht vollständig.
-Künftige Arbeit: echter In-World-Framebridge,
-exklusives Vulkan-Window-/Frame-Ownership,
-nichtblockierender produktiver Frame-Loop.
-Frühere P05-Berichte in ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 05.11.2026 (Code ae00535c):
+Echte Firestorm-Kamera aus bestehendem Deferred-
+World-Pass wird jetzt optional auch ohne RTX an
+Vulkan-Kamera-Matrix übergeben; erforderlich
+OGL_VULKAN_WORLD_BOOTSTRAP=1 plus
+OGL_VULKAN_WORLD_MESH_UPLOAD=1 plus
+OGL_VULKAN_WORLD_CAMERA_PROBE=1.
+GPU-Regionsmesh-Capture existiert; neue Eingabe-
+Paarungsprüfung invalidiert Kamera nach jedem
+Meshupload oder Region-Clear. Gültige Kamera
+nach Mesh requalifiziert, ungültige Kamera
+verwirft Berechtigung. Read-only ABI meldet
+Inputbereitschaft und Akzeptanzzähler, KEIN
+Vulkan-World-Present. Native GPU-Tests
+einschl. Mesh-/Kamera-Invalidierung grün;
+Linux-Vollbuild, 336 Python/41 CTests und
+12/12 Xvfb-Vorlogin-Viewer-Smokes bestanden.
+Keine eingeloggte OpenSim-Region wurde getestet,
+somit Live-In-World-Input-Gate OFFEN.
+OpenGL ist immer noch einzige Weltengine.
+P05 weiterhin 2/20, Block 3/4 offen.
+User-Caches, Logins, Secrets nicht ändern,
+aktive Viewer weder terminieren noch überschreiben.
+Frühere P05-Nachweise in ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

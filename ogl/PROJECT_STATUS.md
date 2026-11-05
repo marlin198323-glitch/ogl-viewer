@@ -6,6 +6,78 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Teilaufgaben: Firestorm-Live-Kamera und Vulkan-Regionsmesh-Kopplung (05.11.2026)
+
+**Code-Fortschritt:** Der vorhandene OpenGL-Deferred-Renderpfad übergibt
+aktuelle Firestorm-Kameraachsen, Viewport, FOV, Near/Far und Sonne in
+der bereits bestehenden v3-Kamera-ABI nun optional auch an das
+Vulkan-Grafikmodul. Diese Weiterleitung ist unabhängig von einer
+RTX-/Raytracing-Fähigkeit der GPU und ausschließlich bei drei expliziten
+Entwicklerflags und echtem Vulkan-Gerät aktiv. Das Rendern selbst
+bleibt OpenGL; es wird KEIN Vulkan-Weltbild präsentiert.
+
+Die vorhandene OpenSim-Regionsgeometrie wurde bereits zuvor optional
+als Dreiecksliste in echte GPU-Vertex-/Indexbuffer hochgeladen. Neu:
+ein GPU-Snapshot löscht die alte Kamerabereitschaft; erst eine
+danach akzeptierte Kamera qualifiziert das gemeinsame Datenpaar.
+Region-Clear, ungültige Kamera und Modulstop verhindern stale Daten.
+Die zusätzlichen C-ABI-Zähler melden angenommene Eingaben, KEINE FPS
+oder sichtbaren Vulkan-Frames.
+
+**20 umgesetzte technische Teilaufgaben und Prüfgates:**
+
+01. Branch ogl-develop, sauberen Ausgangsstand, AGENTS, Handoff, Status, P05-Plan und vorherige CI geprüft.
+02. Tatsächliche OpenGL-Deferred-Pipeline und Real-Kamera-Aufruf in pipeline.cpp lokalisiert.
+03. Vorhandene Regions-ID-Umschaltung und gecappte Live-OpenSim-Mesh-Erfassung nachvollzogen.
+04. Unbeabsichtigte Kopplung der Kamerafreigabe an RTX-Hardware in oglrtxhost.cpp identifiziert.
+05. Dreifache ausdrückliche Entwicklerfreigabe für Vulkan-Device, Meshupload und Kamera implementiert.
+06. Gültiges Vulkan-Gerät als Voraussetzung der neuen Kameraweitergabe unabhängig von NVIDIA/RTX geprüft.
+07. Kamera-ABI des vertrauten Moduls zur Laufzeit dynamisch aufgelöst und bei fehlender Schnittstelle auf GL zurückgeführt.
+08. Neue Read-only-Eingangsbereitschaft des Vulkan-Moduls über ein eigenes C-ABI-Symbol aufgelöst.
+09. Real-Firestorm-Kamera mit Viewport, Position, Blick-/Rechts-/Hochachse, FOV, Aspect, Near/Far und Sonne in bestehende v3-Frame-Struktur übernommen.
+10. Nur bei echter Opt-in-Freigabe die aktuelle Kamera aus dem vorhandenen Rendererpfad an Vulkan-CPU-Projektion weitergereicht.
+11. RTX-Kamera- und Raytracing-Diagnostik weiterhin ausschließlich bei gültiger RTX-Hardwarefähigkeit ausgeführt.
+12. Erste angenommene Kamera und erstes qualifiziertes Kamera/Mesh-Eingangspaar separat und ohne falsche Vulkan-Present-Meldung logbar gemacht.
+13. Im Vulkan-Modul Zähler für erfolgreich angenommene Kameratransformationen und erfolgreich hochgeladene GPU-Meshsnapshots ergänzt.
+14. Echte Read-only-Ready-Prüfung verlangt gültige Kamera, Dreiecke und vorhandene Vulkan-Vertex-/Indexbuffer.
+15. Jeder angenommene neue GPU-Meshsnapshot invalidiert die vorherige Projektionskamera bis zum nächsten gültigen Frame.
+16. Regions-/Szenen-Clear invalidiert Kamerabereitschaft und Matrix, während GPU-Meshbuffer freigegeben werden.
+17. Ungültige Kameraupdates löschen Bereitschaft; atomar abgelehnte Meshuploads behalten dagegen das letzte gültige Datenpaar.
+18. Native-GPU-Tests prüfen Opt-in, Kamera, drei erfolgreiche Kameraframes, Meshwechsel, Invalidierung, Regions-Clear und Geräte-Shutdown.
+19. Portabler Quellcode-Regresstest prüft echten Pipeline-Firestorm-Aufruf, RTX-unabhängige Weiterleitung, C-ABI und fehlende Welt-Präsentation.
+20. Linux-Vollbuild, 336 Python-/41 native Tests, native Vulkan-GPU-Abnahme sowie 12 getrennte isolierte GL-GUI-/Fallback-Starts bestanden.
+
+**Verifizierte Ergebnisse:** Native Vulkan-GPU-Tests mit echter
+Mesh-/Kamerapaarung, gültiger und ungültiger Kamera, mehreren
+GPU-Buffer-Uploads, atomar abgewiesenem Mesh, Region-Clear
+und Modul-Shutdown bestanden. Die bisherige echte Kamera-Projektions-
+GPU-Abnahme mit bewegter Testkamera, Rasterpixel und dem nativen
+16-Frame-WSI-Test bleibt erfolgreich. Linux-Vollviewer-Build,
+336/336 Python-Tests und 41/41 native CTests bestanden.
+Vier neue isolierte Xvfb-Starts (Live-Kamera-Flags an/aus,
+ungültiger Vulkan-ICD, reines OpenGL) und acht bestehende
+Vulkan-Raster-/Fallback-GUI-Starts: **12/12** zum
+Login-Wartezustand und regulärem Exit-Code 0. Keine
+Nutzerprofile, Zugänge oder laufenden Viewer berührt.
+
+**Nicht nachgewiesen:** Die Xvfb-Starts erreichten nur das
+Vorlogin-Fenster. Es wurde KEINE OpenSim-Region authentifiziert;
+daher ist in diesen GUI-Smokes auch kein Live-Kamera-und-
+Regionsmesh-Paar tatsächlich beobachtet worden. Der reale
+Firestorm-Eingangspfad ist im Quellcode implementiert und
+statisch geprüft; das Datenpaar und dessen Invalidierung
+sind nativ auf echter Vulkan-GPU mit definierten Testwerten
+geprüft. Ein authentifizierter In-World-Snapshot bleibt
+ein separates zwingendes Abnahme-Gate. Vollständiges
+Terrain-/Material-/Avatar-/UI-Rendering, dauerhaftes
+exklusives Vulkan-Fenster-Ownership und nichtblockierende
+Frame-Synchronisation fehlen. **Operative P05-Blöcke
+weiterhin 2/20; Block 3 und vollständiger Block 4 offen.**
+Nächster Schritt: authentifizierter echter OpenSim-
+Regionstest mit im Log belegten Camera+Mesh-Inputs,
+anschließend exklusive Vulkan-Weltpräsentation.
+Code-Commit: ae00535c6ed75af3f9c0bb0fd73793270bb83bbe.
+
 ## P05/3–4 – 20 technische Schritte: Vulkan-Projektion aus Welt-X/Y/Z und Kamera (05.11.2026)
 
 **Ergebnis:** Die bestehende Vulkan-Indexed-Draw-Pipeline verarbeitet

@@ -224,6 +224,29 @@ Vulkan-Live-Session. P05 bleibt 2/20, Block 3/4 noch offen.
 Nächstes Gate: echte aktuelle Kameraframe/Region-Mesh-ABI
 in Vulkan-eigener Render-Session, nicht vor GL-Boot.
 
+**P05 Live-Kamera-und-Mesh-Eingangsbridge (05.11.2026, Code ae00535c):**
+20 technische Teilaufgaben im bestehenden Viewer-/RTX-Modul-
+Quellcode. Der echte Firestorm-Deferred-World-Pass übergibt
+die bisher RTX-gated Kamera nun zusätzlich an Vulkan
+OHNE Raytracing-Hardwarevoraussetzung, nur unter drei
+Dev-Flags für Bootstrap, GPU-Meshupload und Kamera.
+Vorhandener echter OpenSim-Regionsgeometrie-Capture
+wird als VkVertex-/VkIndexbuffer gestaged; neuer Mesh-
+Snapshot und Region-Clear invalidieren die alte Kamera.
+Neue read-only C-ABI meldet erst ein validiertes Kamera-
+nach-Mesh-Eingangspaar, zählt nur angenommene Inputs.
+Native Vulkan-GPU-Abnahme einschl. ungültiger Kamera,
+Meshwechsel, Region-Clear/Shutdown erfolgreich.
+Linux-Vollbuild, 336 Python, 41 native Tests,
+12/12 isolierte GUI-Login-/GL-Fallback-Tests grün.
+WICHTIG: Keine authentifizierte OpenSim-Region im
+Test betreten, deshalb kein tatsächliches In-World-
+Camera+Mesh-Paar im GUI-Log bestätigt; noch keine
+Vulkan-Weltbilder, Vulkan-Weltengine bleibt gesperrt.
+P05 operativ 2/20. Nächstes Gate echte In-World-
+Eingänge nachweisen, dann alleiniger Vulkan-
+Window-/Frame-/Present-Besitz mit Fallback.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
