@@ -106,6 +106,13 @@ bool ogl_pre_gl_flag(const char* name) {
     return value && value[0]=='1' && value[1]=='\0';
 }
 
+// Only developer QA can inject a controlled failure into a frame group.
+// Never persist these flags, and never modify the production GL world.
+bool ogl_pre_gl_fault_at(const char* stage) {
+    const char* value=std::getenv("OGL_VULKAN_SDL_PREGL_FAULT_STAGE");
+    return value && std::strcmp(value,stage)==0;
+}
+
 void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     if (!window || APP_NAME != "OGL" ||
         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE") ||
@@ -113,6 +120,17 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         !ogl_pre_gl_flag("OGL_VULKAN_WINDOW_SURFACE") ||
         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE"))
         return;
+    // Refuse repeated probes during SDL context recreation: GL resources
+    // may already be owned by a background thread despite no current
+    // context on the main thread. The test is startup-only, once per PID.
+    static bool startup_probe_attempted=false;
+    if (startup_probe_attempted) {
+        LL_INFOS("OGLRenderer") <<
+            "P05 actual SDL pre-GL probe skipped: already attempted this process."
+            << LL_ENDL;
+        return;
+    }
+    startup_probe_attempted=true;
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -157,6 +175,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool attached=false;
     bool pixel_verified=false;
     bool sequence_verified=false;
+    uint32_t verified_pixels=0;
+    uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
     // run on the actual, pre-GL SDL window. Normal opt-in retains ONE frame.
     // All GPU presents finish and all WSI objects die before GL creation.
@@ -174,37 +194,77 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                 using Count = uint32_t (*)();
                 const auto count=reinterpret_cast<Count>(
                     SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
+                // A visible frame must cover the whole swapchain. Sample
+                // five separated X11 pixels for each successfully presented
+                // GPU frame; a stale middle pixel cannot pass the gate.
                 auto verify_pixel=[&](int width,int height,uint32_t frame) {
-                    XSync(wm.info.x11.display,False);
-                    XImage* image=XGetImage(wm.info.x11.display,
-                        wm.info.x11.window,width/2,height/2,1,1,
-                        AllPlanes,ZPixmap);
-                    if (!image) return false;
-                    const unsigned long value=XGetPixel(image,0,0);
-                    auto channel=[value](unsigned long mask) -> int {
-                        if (!mask) return -1;
-                        unsigned shift=0;
-                        while (!(mask&1UL)) { mask>>=1; ++shift; }
-                        return static_cast<int>(
-                            (((value>>shift)&mask)*255UL+mask/2)/mask);
+                    const int coords[5][2]={
+                        {width/2,height/2}, {width/4,height/4},
+                        {3*width/4,height/4}, {width/4,3*height/4},
+                        {3*width/4,3*height/4}
                     };
-                    const int red=channel(image->red_mask);
-                    const int green=channel(image->green_mask);
-                    const int blue=channel(image->blue_mask);
-                    XDestroyImage(image);
-                    const bool warm=(frame%2)==1;
-                    return std::abs(red-(warm?166:20))<=5 &&
-                           std::abs(green-(warm?89:54))<=5 &&
-                           std::abs(blue-(warm?31:115))<=5;
+                    XSync(wm.info.x11.display,False);
+                    for (const auto& coord: coords) {
+                        XImage* image=XGetImage(wm.info.x11.display,
+                            wm.info.x11.window,coord[0],coord[1],1,1,
+                            AllPlanes,ZPixmap);
+                        if (!image) return false;
+                        const unsigned long value=XGetPixel(image,0,0);
+                        auto channel=[value](unsigned long mask) -> int {
+                            if (!mask) return -1;
+                            unsigned shift=0;
+                            while (!(mask&1UL)) { mask>>=1; ++shift; }
+                            return static_cast<int>(
+                                (((value>>shift)&mask)*255UL+mask/2)/mask);
+                        };
+                        const int red=channel(image->red_mask);
+                        const int green=channel(image->green_mask);
+                        const int blue=channel(image->blue_mask);
+                        XDestroyImage(image);
+                        const bool warm=(frame%2)==1;
+                        if (std::abs(red-(warm?166:20))>5 ||
+                            std::abs(green-(warm?89:54))>5 ||
+                            std::abs(blue-(warm?31:115))>5)
+                            return false;
+                        ++verified_pixels;
+                    }
+                    return true;
+                };
+                // Verify the server-side X11 window extent rather than
+                // trusting only the dimensions cached by SDL.
+                auto x11_extent_matches=[&](int width,int height) {
+                    Window root=None;
+                    int x=0,y=0;
+                    unsigned int actual_width=0,actual_height=0,border=0,depth=0;
+                    XSync(wm.info.x11.display,False);
+                    return XGetGeometry(wm.info.x11.display,wm.info.x11.window,
+                        &root,&x,&y,&actual_width,&actual_height,&border,&depth)
+                        && actual_width==static_cast<unsigned int>(width)
+                        && actual_height==static_cast<unsigned int>(height);
                 };
                 auto frame_group=[&](int width,int height,uint32_t frames) {
-                    bool good=attach(wm.info.x11.display,
+                    const uint32_t group=++attempted_groups;
+                    const char* group_name=group==1 ? "initial" :
+                                           group==2 ? "resized" : "restored";
+                    bool good=x11_extent_matches(width,height) &&
+                              attach(wm.info.x11.display,
                         static_cast<uint64_t>(wm.info.x11.window),
                         static_cast<uint32_t>(width),
                         static_cast<uint32_t>(height))==1;
                     attached|=good;
                     if (good) {
                         for (uint32_t frame=0;frame<frames;++frame) {
+                            // Faults are injected AFTER a few successful
+                            // frames to validate cleanup with an acquired
+                            // and presented swapchain, not just startup.
+                            if (frame==3 &&
+                                ogl_pre_gl_fault_at(group_name)) {
+                                LL_WARNS("OGLRenderer") <<
+                                    "P05 frame stage fault injected: "
+                                    << group_name << LL_ENDL;
+                                good=false;
+                                break;
+                            }
                             if (present(1)!=1 ||
                                 !verify_pixel(width,height,frame) ||
                                 (count && count()!=frame+1)) {
@@ -237,6 +297,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         sequence_verified=
                             actual_width==target_width &&
                             actual_height==target_height &&
+                            x11_extent_matches(actual_width,actual_height) &&
                             frame_group(actual_width,actual_height,8);
                     }
                     // A GL context must see the original initial size,
@@ -253,8 +314,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     // The exact requested 20 frames and original size are
                     // required to accept the three-stage sequence.
                     sequence_verified=sequence_verified && presented==20 &&
+                        verified_pixels==100 &&
                         restored_width==original_width &&
-                        restored_height==original_height;
+                        restored_height==original_height &&
+                        x11_extent_matches(original_width,original_height);
                     pixel_verified=sequence_verified;
                 } else {
                     // Original single-frame startup diagnostic unchanged.
@@ -271,6 +334,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         "P05 actual SDL/X11 pre-GL Vulkan frame: " << presented <<
         (sequence ? "/20" : "/1") <<
         " presented, pixel=" << (pixel_verified ? "verified" : "unverified") <<
+        ", samples=" << verified_pixels <<
+        ", groups=" << attempted_groups <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<
         ", surface=" << (attached ? "ready" : "unavailable") <<

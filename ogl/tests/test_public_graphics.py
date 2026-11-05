@@ -343,7 +343,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OpenGL follows.",win)
         self.assertIn("XGetImage(wm.info.x11.display,",win)
         self.assertIn("XGetPixel(image,0,0)",win)
-        self.assertIn("std::abs(red-(warm?166:20))<=5",win)
+        self.assertIn("std::abs(red-(warm?166:20))>5",win)
         self.assertIn('pixel_verified ? "verified" : "unverified"',win)
         self.assertIn("XDestroyImage(image);",win)
         self.assertLess(win.index("XDestroyImage(image);"),
@@ -369,6 +369,27 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('(sequence ? "/20" : "/1")',win)
         self.assertIn('if (count && count()!=0) good=false;',win)
         self.assertIn('pixel_verified=frame_group(',win)
+        self.assertIn('mContext = SDL_GL_CreateContext( mWindow );',win)
+
+    def test_p05_sdl_pre_gl_five_pixels_geometry_and_fault_recovery(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        self.assertIn('static bool startup_probe_attempted=false;',win)
+        self.assertIn('if (startup_probe_attempted)',win)
+        self.assertIn('SDL_GL_GetCurrentContext()!=nullptr',win)
+        self.assertIn('OGL_VULKAN_SDL_PREGL_FAULT_STAGE',win)
+        self.assertIn('std::strcmp(value,stage)==0',win)
+        self.assertIn('group==1 ? "initial"',win)
+        self.assertIn('group==2 ? "resized"',win)
+        self.assertIn('"restored"',win)
+        self.assertIn('if (frame==3 &&',win)
+        self.assertIn('P05 frame stage fault injected:',win)
+        self.assertIn('const int coords[5][2]',win)
+        self.assertIn('++verified_pixels;',win)
+        self.assertIn('verified_pixels==100',win)
+        self.assertIn('XGetGeometry(wm.info.x11.display,wm.info.x11.window,',win)
+        self.assertIn('x11_extent_matches(original_width,original_height)',win)
+        self.assertIn('SDL_SetWindowSize(window,original_width,original_height);',win)
+        self.assertIn('detach();\n            stop();',win)
         self.assertIn('mContext = SDL_GL_CreateContext( mWindow );',win)
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
