@@ -1354,6 +1354,24 @@ Welt-Renderer. Formal P05 2/20, Block 3/4 offen.
 Nächster Gate: Kamera-/Welttransformationen,
 echte Weltobjekte und exklusiver Live-Vulkan-Frame.
 
+**P05/3–4 World-XYZ-Kamera-Projektion (05.11.2026, Code 439b8a27):**
+Eigenständige Vulkan-C-ABI für validierten v3-Firestorm-
+Kameraframe und Welt-zu-Clip-Matrix mit VkPushConstants.
+Echte GPU-Shaderpipeline projiziert definierte
+Welt-XYZ-Koordinaten, testet bewegte Kamera mit
+unverändertem Mesh, und weist ungültige Kameras ab.
+Auch im realen SDL/X11-Viewerfenster VOR GL:
+camera=verified, 1/1 GPU-Present mit korrekten
+X11-Pixeln, anschließend GL-Login und Exit 0.
+8 neue plus 7 alte GUI-Gates, Linux-Vollbuild,
+335 Python/41 native Tests bestanden.
+Kein echter eingeloggter OpenSim-World-Renderer:
+GPU-Test nutzt synthetische Kamera-/Objektdaten
+und weiterhin Vor-GL-Opt-in. P05 formal 2/20,
+Block 3/4 offen. Nächster Gate: echte
+In-World-Frames, Regionenmesh-Integration und
+permanenter exklusiver Vulkan-Window-Owner.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

@@ -6,6 +6,76 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: Vulkan-Projektion aus Welt-X/Y/Z und Kamera (05.11.2026)
+
+**Ergebnis:** Die bestehende Vulkan-Indexed-Draw-Pipeline verarbeitet
+jetzt eine validierte 4x4-Welt-zu-Clip-Kameramatrix über echte
+GPU-Push-Constants. Ein neues Shaderprofil projiziert Welt-XYZ
+mittels Blickrichtung, Rechts-/Hochachse, Sichtwinkel,
+Seitenverhältnis sowie Near/Far in Vulkan-NDC mit Z in 0..1.
+Die Kameradaten verwenden die bestehende v3-Firestorm-Kamera-ABI,
+die Projektion ist unabhängig von NVIDIA-/RTX-Fähigkeiten.
+
+**20 einzeln umgesetzte/überprüfte technische Arbeitsschritte:**
+
+01. Repository- und Branchzustand, P05-Roadmap, AGENTS.md und Projekthandoff vor Beginn kontrolliert; vorherige portable GitHub-CI erfolgreich.
+02. Vorhandene v3-Firestorm-Kameraschnittstelle, Kamera-Validator und Welt-Dreiecksdaten-ABI untersucht.
+03. Vorhandenes lokales Khronos-glslang/spirv-val verwendet; keine zusätzlichen Programmabhängigkeiten installiert.
+04. GLSL-450-Vertexshader mit 4x4-World-to-Clip-Matrix als Vulkan-Push-Constant erstellt.
+05. Shader als SPIR-V für Vulkan 1.0 kompiliert und durch Khronos SPIR-V-Validator geprüft.
+06. 275 SPIR-V-Shaderwörter direkt im bestehenden Vulkan-Modul eingebettet; bytegenau mit validierter Shaderdatei abgeglichen.
+07. Eigenständige additive Vulkan-C-ABI zum Setzen und Abfragen der projektionsbereiten Kamera eingebaut.
+08. Exakte Strukturversion, Kameraposition, FOV, Near/Far, Blickachsen und numerische Gültigkeit mit vorhandenem Kamera-Validator geprüft.
+09. Seitenverhältnis der Kamera mit den echten Frame-Bildmaßen abgeglichen und unpassende Eingaben abgewiesen.
+10. Drei Kameraachsen auf näherungsweise Einheitslänge und paarweise Orthogonalität geprüft.
+11. Handedness über das Kreuzprodukt aus Rechts-/Hochachse gegen Blickrichtung zusätzlich geprüft.
+12. Vulkan-Perspektivprojektion mit Tiefenbereich 0..1 und korrektem Y-Vorzeichen implementiert.
+13. Welt-zu-Clip-Kameramatrix aus echten XYZ-Basisachsen, Position und Clipping-Ebenen spaltenweise aufgebaut.
+14. Ungültige Aktualisierungen lassen keine frühere gültige Vulkan-Kameramatrix als veralteten Frame weiterverwenden.
+15. VkPipelineLayout und Vulkan-Render-Befehl um 64 Byte VkPushConstantRange sowie vkCmdPushConstants ergänzt.
+16. World-Shader und Clip-Space-Shader klar getrennt; Weltprojektion nur unter zusätzlicher Entwicklerfreigabe mit Vulkan-GPU und vorhandenem Mesh.
+17. Nativer Vulkan-GPU-Test rendert ein reales indexiertes Dreieck aus Weltkoordinaten und prüft echte X11-Vordergrund-/Hintergrundpixel.
+18. Mit unveränderten Welt-Vertexdaten nach seitlicher Kameraverschiebung die erwartete leere Bildmitte GPU-seitig nachgewiesen; ungültige Achsen/Aspect/FOV abgewiesen.
+19. Auf tatsächlicher SDL-Viewer-XID den synthetischen Weltkamera-Test vor OpenGL geprüft; 8/8 neue Raster-/Fallback-GUI-Fälle und 7/7 bisherige Resize-/Fehler-GUI-Fälle bestanden.
+20. Linux-Vollviewer-Build, 335/335 Python-Tests, 41/41 native CTests, native Vulkan-Projektion und negative GPU-Treiberprüfung bestanden.
+
+**GPU-/GUI-Nachweise:** Der echte native Vulkan-GPU-Test präsentiert
+ein rotes indexiertes Dreieck aus Weltkoordinaten und überprüft
+die Mitte des X11-Fensters sowie den blauen Hintergrund.
+Bei unveränderten GPU-Vertexdaten verschwindet das Dreieck
+nach einer seitlichen Kameraverschiebung erwartungsgemäß
+aus der Bildmitte (visible=1 moved=1 invalid=1).
+Ungültige Achsen, falsches Aspect und ungültiges FOV
+werden verweigert; der zuletzt gültige Kamera-Transform
+wird bei invalidem Update gelöscht. In der tatsächlichen
+SDL/X11-Viewer-Window-ID: synthetische World-Kamera
+1/1 presented, pixel=verified, camera=verified,
+danach regulär World backend: OpenGL (actual),
+Login-Wartezustand und Exit 0. Weitere GUI-Fallbacks
+ohne Kamera-Freigabe, ohne Vulkan-Treiber, ohne Mesh,
+mit altem Rastershader und ausgeschalteter Vulkan-Probe:
+**8/8 GUI-Tests erfolgreich**. Ältere 20-Frame-/Resize-
+und Fehlereinleitungs-Gates: **7/7 weitere GUI-Tests**
+erfolgreich. Linux-Vollbuild, **335 Python-Tests,
+41 native CTests** und Shader-Binärvergleich bestanden.
+Vulkan-less native Hardwarecheck schlägt mit erwartetem
+Exit-Code 12 fehl, nicht stillschweigend als GPU-Erfolg.
+
+**Strenge Grenze:** Die Kamera und das Dreieck im SDL-Test
+sind bewusst synthetische World-XYZ-Daten, keine live
+eingeloggten OpenSim-Szenen oder Avatar-/Terrain-Daten.
+Die Kamera-Schnittstelle kann künftig aktuelle Firestorm-
+Frames entgegennehmen; tatsächliche Live-Einspeisung in
+eine dauerhaft Vulkan-eigene Welt-Rendering-Session,
+Terrain, Texturen, Avatare, UI-Compositing, Vulkan-Frame-
+Scheduling ohne vkQueueWaitIdle sowie Windows/macOS/Wayland
+sind weiterhin offen. Der produktive OpenGL-Renderer und
+dessen Login bleiben unverändert. **P05 formal 2/20;
+P05/3 und der vollständige P05/4 weiterhin nicht abgenommen.**
+Nächster Gate: realer in-world Kameraframe plus Regions-
+Dreieckdaten in einer exklusiven Vulkan-Renderer-Session.
+Code-Commit: 439b8a2710722da93155fbe520ba5158d1356986.
+
 ## P05/3 und P05/4 – 20 technische Raster- und Grafik-Nachweise (05.11.2026)
 
 **Ergebnis:** Erstmals ein ECHTER indexierter Vulkan-Grafikdraw

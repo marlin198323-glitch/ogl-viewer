@@ -206,6 +206,24 @@ Nächstes Gate: Projektion echter Weltgeometrie,
 dauerhaft exklusives Vulkan-SDL-Fenster-Ownership,
 produktive Frame-/Swapchain-Synchronisation.
 
+**P05/3–4 Kamera-/World-XYZ-Projektion (05.11.2026, Code 439b8a27):**
+Wieder 20 nachweisbare technische Aufgaben. Der Vulkan-Vertexshader
+verarbeitet echte World-XYZ per neuer v3-Kamera-ABI und
+64-Byte-Push-Constant-Matrix. CPU-Validierung: Kamera-FOV,
+Clips, Achsen, Aspect, Händigkeit und Stale-Kamera-Invaliderung.
+Nativer GPU-Test: dieselben XYZ werden aus einer Testkamera
+sichtbar gerastert; geänderte Kamera ohne neuen Vertexupload
+entfernt das Dreieck aus der Bildmitte (visible=1 moved=1
+invalid=1). Tatsächliches SDL/X11-Viewerfenster vor GL:
+1/1 presented, Pixel und Kamera verifiziert, dann
+OpenGL-Login/Exit 0. 8 neue und 7 vorherige GUI-Fälle
+bestanden; Linux-Vollbuild, 335 Python-/41 native Tests,
+portabler SPIR-V-Binärvergleich grün. Synthetische World-
+Daten, **keine echte OpenSim-In-World-Darstellung**, keine
+Vulkan-Live-Session. P05 bleibt 2/20, Block 3/4 noch offen.
+Nächstes Gate: echte aktuelle Kameraframe/Region-Mesh-ABI
+in Vulkan-eigener Render-Session, nicht vor GL-Boot.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

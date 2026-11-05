@@ -4,24 +4,29 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code 410f7d9a):
-Echte Vulkan VkGraphicsPipeline mit validierten
-SPIR-V-Shadern, gebundenen GPU-Vertex-/Indexbuffers
-und realem vkCmdDrawIndexed. Native und echte SDL/
-X11-Pre-GL-GPU-Pixel zeigen rotes Clip-Space-Dreieck
-RGB 237/48/38 über blauem Hintergrund 20/54/115.
-GPU-only mit mehrfachen expliziten Entwicklerflags,
-normales OpenGL und Login/Exit unberührt.
-5 reale Viewer-GUI-/Fallback-Tests grün,
-Linux-Vollbuild, 334 Python-/41 native CTests.
-Nutzerdaten, User-Viewer und Profile schützen.
-Kein echter OpenSim-World-/Terrain-/Avatar-Vulkan-
-Renderer, kein laufender Vulkan-Frame-Loop.
-P05 formal weiterhin 2/20, Block 3/4 offen.
-Nächster Gate: korrekte Agent-/Kameraprojektion
-sowie exklusives dauerhaftes Vulkan-Frame-Ownership.
-Frühere technische Fortschritte stehen historisch
-in ogl/PROJECT_STATUS.md, nicht mehrfach hier.
+Aktueller P05-Stand 05.11.2026 (Code 439b8a27):
+Die native Vulkan-Graphics-Pipeline hat eine
+validierte World-XYZ-Kamera-Projektion über
+GLSL-SPIR-V-Mat4/64-Byte-Push-Constants.
+V3-Kamera-ABI validiert FOV, Clipping, Achsen,
+Aspect, Händigkeit; invalidierte Kameras
+geben alte Matrizen nicht weiter.
+Native GPU-Testkamera: Welt-Dreieck sichtbar,
+nach Seitenverschiebung nicht mehr im Zentrum.
+Echte SDL/X11-Viewer-XID: GPU-Kameratest
+1/1 Pixel/camera verifiziert vor GL-Start.
+8 neue + 7 vorherige isolierte Viewer-GUI-
+Fallback-Smokes alle Login/Exit 0. Linux-
+Vollbuild, 335 Python-/41 native Tests grün.
+Alle Shader im bestehenden Modul eingebettet.
+KEIN echter OpenSim-Region-/Terrain-/
+Avatar-/UI-Vulkan-World-Renderer, keine
+dauerhafte Vulkan-Live-Engine. P05 weiterhin
+2/20, Block 3/4 nicht vollständig.
+Künftige Arbeit: echter In-World-Framebridge,
+exklusives Vulkan-Window-/Frame-Ownership,
+nichtblockierender produktiver Frame-Loop.
+Frühere P05-Berichte in ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
