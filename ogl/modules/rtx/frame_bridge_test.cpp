@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <limits>
 #include <vector>
+#include <thread>
+#include <chrono>
 #include <dlfcn.h>
 #if defined(OGL_TEST_X11_WSI)
 #include <X11/Xlib.h>
@@ -45,6 +47,16 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_present_exclusive_test_frame"));
     const auto exclusive_count = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_exclusive_present_count"));
+    const auto persistent_clear = reinterpret_cast<uint32_t(*)(uint32_t)>(
+        dlsym(library,"ogl_vulkan_world_persistent_clear_frame"));
+    const auto persistent_count = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_persistent_frame_count"));
+    const auto persistent_builds = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_persistent_build_count"));
+    const auto persistent_releases = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_persistent_release_count"));
+    const auto persistent_idles = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_persistent_teardown_idles"));
     const auto world_sync = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_submit_sync_probe"));
     const auto sync_max_outstanding = reinterpret_cast<uint32_t(*)()>(
@@ -84,6 +96,11 @@ int main(int argc, char** argv) {
     assert(world_camera(nullptr)==0);
     assert(exclusive_present && exclusive_count &&
            exclusive_count()==0 && exclusive_present(1)==0);
+    assert(persistent_clear && persistent_count && persistent_builds &&
+           persistent_releases && persistent_idles);
+    assert(persistent_clear(1)==0 && persistent_count()==0 &&
+           persistent_builds()==0 && persistent_releases()==0 &&
+           persistent_idles()==0);
     assert(window_attach && window_ready && window_detach &&
            world_sync && world_upload && world_gpu_count && offscreen_frame);
     assert(start && stop && status && submit && count && world_device &&
@@ -899,6 +916,81 @@ int main(int argc, char** argv) {
                 world_depth_aspect?1:0,
                 world_depth_invalid?1:0,world_depth_cleared?1:0);
         }
+        // P05/3 persistent real X11 Vulkan WSI: keep all GPU objects across
+        // 16 frames. The per-frame function MUST contain no queue idle;
+        // release must perform at most ONE teardown queue idle.
+        const char* persistent_env=std::getenv(
+            "OGL_VULKAN_PERSISTENT_WSI_TEST_X11");
+        const bool test_persistent=persistent_env &&
+            std::strcmp(persistent_env,"1")==0;
+        bool persistent_ok=true,persistent_resized=true;
+        if (test_persistent) {
+            setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE","1",1);
+            XResizeWindow(display,window,640,360);
+            XSync(display,False);
+            const bool attached_persistent=window_attach(
+                display,static_cast<uint64_t>(window),640,360)==1;
+            bool frames_ok=attached_persistent &&
+                persistent_builds()==0 && persistent_idles()==0;
+            const auto front_matches=[&](uint32_t i,int cx,int cy) {
+                const bool warm=(i%2)!=0;
+                for (unsigned attempt=0;attempt<120;++attempt) {
+                    XSync(display,False);
+                    XImage* img=XGetImage(display,window,cx,cy,1,1,
+                                         AllPlanes,ZPixmap);
+                    if (img) {
+                        const unsigned long pixel=XGetPixel(img,0,0);
+                        auto channel=[pixel](unsigned long mask) {
+                            if (!mask) return -1;
+                            unsigned shift=0;
+                            while (!(mask&1UL)) {mask>>=1; ++shift;}
+                            return static_cast<int>(
+                                (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                        };
+                        const bool match=
+                            std::abs(channel(img->red_mask)-(warm?166:20))<=5 &&
+                            std::abs(channel(img->green_mask)-(warm?89:54))<=5 &&
+                            std::abs(channel(img->blue_mask)-(warm?31:115))<=5;
+                        XDestroyImage(img);
+                        if (match) return true;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+                }
+                return false;
+            };
+            for (uint32_t i=0;i<16 && frames_ok;++i) {
+                frames_ok=persistent_clear(1)==1 &&
+                    persistent_count()==i+1 &&
+                    persistent_builds()==1 &&
+                    persistent_releases()==0 &&
+                    persistent_idles()==0 &&
+                    front_matches(i,320,180);
+            }
+            frames_ok=frames_ok && persistent_clear(1)==0 &&
+                persistent_count()==16 && persistent_builds()==1 &&
+                persistent_idles()==0;
+            window_detach();
+            persistent_ok=frames_ok && persistent_count()==0 &&
+                persistent_releases()==1 && persistent_idles()==1;
+            XResizeWindow(display,window,480,300);
+            XSync(display,False);
+            const bool resized_attach=window_attach(
+                display,static_cast<uint64_t>(window),480,300)==1;
+            const bool resized_draw=resized_attach &&
+                persistent_clear(1)==1 &&
+                persistent_count()==1 &&
+                persistent_builds()==2 &&
+                front_matches(0,240,150);
+            window_detach();
+            persistent_resized=resized_draw &&
+                persistent_releases()==2 && persistent_idles()==2 &&
+                persistent_count()==0;
+            unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
+            std::fprintf(stdout,
+                "P05 persistent X11 WSI: frames=%d resized=%d builds=%u releases=%u teardown_idle=%u\n",
+                persistent_ok?1:0,persistent_resized?1:0,
+                persistent_builds(),persistent_releases(),persistent_idles());
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
         if (test_world && camera_ready()!=0) world_bad=false;
@@ -918,6 +1010,7 @@ int main(int argc, char** argv) {
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
+            (test_persistent && (!persistent_ok || !persistent_resized)) ||
             (test_world_depth && (!world_depth_near ||
                                   !world_depth_control ||
                                   !world_depth_moved ||
@@ -955,6 +1048,8 @@ int main(int argc, char** argv) {
             std::puts("P05 native GPU depth occlusion (near over far) at 2 X11 extents: PASS");
         if (test_world_depth)
             std::puts("P05 native GPU world XYZ projected depth, anti-depth control, camera move/resize and stale reject: PASS");
+        if (test_persistent)
+            std::puts("P05 persistent Vulkan swapchain CLEAR: 16 GPU presents, one initialization, teardown-only queue idle, resize/recreate PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

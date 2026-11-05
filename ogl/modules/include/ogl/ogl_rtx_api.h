@@ -317,6 +317,22 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_present_exclusive_test_frame(
  * OGL_VULKAN_EXCLUSIVE_FRAME_LOOP=1; regular single-shot mode stays default.
  * This does not count or present any frames of the real OpenSim Viewer.
  */
+/* Developer-only persistent WSI clear-frame gate.
+ * Explicit opt-in: OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE=1.
+ * The calling viewer must independently authorize the real SDL pre-GL
+ * probe; never invoke while GL owns the window. Requires an attached
+ * X11 Vulkan swapchain and gl_released==1. Framebuffer/image views,
+ * renderpass, command pool, 2 fences/command buffers and swapchain-image-
+ * indexed present semaphores persist across <=16 frames PER ATTACH.
+ * No per-frame vkQueueWaitIdle; ONE queue idle on detach to retire presents.
+ * A single standalone clear diagnostic, not OpenSim world rendering.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_persistent_clear_frame(
+    uint32_t gl_released);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_persistent_frame_count(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_persistent_build_count(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_persistent_release_count(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_persistent_teardown_idles(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_exclusive_present_count(void);
 OGL_MODULE_EXPORT void ogl_vulkan_world_detach_window(void);
 

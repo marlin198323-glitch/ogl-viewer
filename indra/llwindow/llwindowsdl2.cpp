@@ -180,6 +180,16 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_LoadFunction(library,"ogl_vulkan_world_attach_x11_window"));
     const auto present=reinterpret_cast<Present>(
         SDL_LoadFunction(library,"ogl_vulkan_world_present_exclusive_test_frame"));
+    const auto persistent_present=reinterpret_cast<Present>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_persistent_clear_frame"));
+    const auto persistent_count=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_persistent_frame_count"));
+    const auto persistent_builds=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_persistent_build_count"));
+    const auto persistent_releases=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_persistent_release_count"));
+    const auto persistent_idles=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_persistent_teardown_idles"));
     const auto detach=reinterpret_cast<Detach>(
         SDL_LoadFunction(library,"ogl_vulkan_world_detach_window"));
     uint32_t presented=0;
@@ -190,6 +200,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool world_verified=false;
     bool depth_verified=false;
     bool dual_sync_verified=false;
+    bool persistent_verified=false;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -236,6 +247,21 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_UnloadObject(library);
         return;
     }
+    const bool persistent_requested=
+        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
+    const bool persistent_permission=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE");
+    // Persistent clear owns its OWN image and synchronization resources.
+    // Never overlap the geometry/world/depth diagnostic with that path.
+    const bool persistent=persistent_requested && persistent_permission &&
+        !raster && !world && !depth;
+    if (persistent_requested!=persistent_permission ||
+        (persistent_requested && (!persistent ||
+         !persistent_present || !persistent_count || !persistent_builds ||
+         !persistent_releases || !persistent_idles))) {
+        SDL_UnloadObject(library);
+        return; // OpenGL still initializes normally.
+    }
     if (start && stop && attach && present && detach) {
         const ogl_host_api host{sizeof(ogl_host_api),
                                 OGL_MODULE_ABI_VERSION,ogl_pre_gl_log};
@@ -260,8 +286,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             if (original_width>0 && original_height>0 &&
                 (!dual_sync_requested || dual_sync_verified)) {
                 using Count = uint32_t (*)();
-                const auto count=reinterpret_cast<Count>(
-                    SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
+                const auto count=persistent ? persistent_count :
+                    reinterpret_cast<Count>(
+                        SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count"));
+                const auto selected_present=persistent ? persistent_present : present;
                 // Five X11 front-buffer pixels per GPU frame. With the
                 // raster diagnostic, the centre MUST be an indexed triangle
                 // and the four corners MUST retain the clear color.
@@ -300,6 +328,20 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     }
                     return true;
                 };
+                // Present completion is not CPU-waited per frame in the
+                // persistent Vulkan path. Poll visible pixels (up to 360 ms)
+                // rather than misreporting an asynchronous display as stale.
+                auto verified_visible_pixel=[&](int width,int height,
+                                                uint32_t frame) {
+                    if (!persistent) return verify_pixel(width,height,frame);
+                    for (unsigned attempt=0;attempt<120;++attempt) {
+                        const uint32_t before=verified_pixels;
+                        if (verify_pixel(width,height,frame)) return true;
+                        verified_pixels=before;
+                        SDL_Delay(3);
+                    }
+                    return false;
+                };
                 // Verify the server-side X11 window extent rather than
                 // trusting only the dimensions cached by SDL.
                 auto x11_extent_matches=[&](int width,int height) {
@@ -335,8 +377,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                 good=false;
                                 break;
                             }
-                            if (present(1)!=1 ||
-                                !verify_pixel(width,height,frame) ||
+                            if (selected_present(1)!=1 ||
+                                !verified_visible_pixel(width,height,frame) ||
                                 (count && count()!=frame+1)) {
                                 good=false;
                                 break;
@@ -348,6 +390,17 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     // across resize; release before SDL_SetWindowSize.
                     detach();
                     if (count && count()!=0) good=false;
+                    if (persistent) {
+                        // Exactly one resource construction and exactly one
+                        // retirement per swapchain attachment. Queue idle
+                        // occurs on teardown only, never on GPU frames.
+                        const bool lifecycle=persistent_builds() == group &&
+                            persistent_releases() == group &&
+                            persistent_idles() == group;
+                        persistent_verified=lifecycle &&
+                            (group==1 || persistent_verified);
+                        good=good && lifecycle;
+                    }
                     return good;
                 };
                 if (sequence && count) {
@@ -389,6 +442,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         restored_height==original_height &&
                         x11_extent_matches(original_width,original_height);
                     pixel_verified=sequence_verified;
+                    if (persistent) persistent_verified=
+                        persistent_verified && sequence_verified;
                 } else {
                     // Exactly one indexed clip-space triangle is uploaded
                     // only under three distinct developer raster flags.
@@ -487,6 +542,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                               : "not-requested") <<
         ", dual-sync=" << (dual_sync_requested
             ? (dual_sync_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", persistent=" << (persistent
+            ? (persistent_verified ? "verified" : "failed")
             : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<
