@@ -6,6 +6,115 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: echte OpenSim-GPU-World-Inputs ohne Vulkan-Fensterübernahme (06.11.2026)
+
+**Implementiert:** Ein zusätzlicher Vulkan-Welt-Renderpfad zeichnet die
+vorhandenen, aus dem echten Firestorm-Deferred-Scanner übernommenen
+GPU-Vertex-/Indexdaten mit der bereits validierten OpenSim-Kameramatrix
+und einem GPU-Depth-Test in eine **private 32×32-VkImage-Fläche**.
+Er benötigt KEINE Vulkan-X11-Surface, keine VkSwapchainKHR, keine
+SDL-Fensterübernahme und keinen VkQueuePresentKHR. Das eigentliche
+Viewerfenster und die sichtbare 3D-Welt bleiben ausschließlich bei
+OpenGL. Der Pfad nutzt die vorhandenen shaderbasierten
+World-XYZ-Grafikressourcen sowie die frühere sichere GPU-Mesh-
+Generationsverwaltung. Bildinformationen werden NICHT nach außen
+exportiert oder gespeichert.
+
+**Sicherheit und Aufwand:** Nur mit allen ausdrücklichen Freigaben
+OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1,
+OGL_VULKAN_WORLD_OFFSCREEN_RASTER=1,
+OGL_VULKAN_WORLD_MESH_UPLOAD=1 und
+OGL_VULKAN_WORLD_CAMERA_PROBE=1 kann das Vulkan-Modul einen
+Offscreen-Weltframe rendern. Der echte Firestorm-Host benötigt
+zusätzlich OGL_VULKAN_LIVE_WORLD_OFFSCREEN=1 und die
+zuvor freigegebene Kamera-/Mesh-Neubindung. Die Diagnose ist
+auf die ersten drei erfolgreichen neuen Szene-Generationen
+und danach maximal jeden 64. erfolgreichen Szenenwechsel
+begrenzt; eine GPU-Fence-Warteoperation ist auf maximal 2 s
+beschränkt. Die vorhandenen OpenGL-Anwender werden damit
+nicht zusätzlich belastet. Read-only-C-ABI meldet abgeschlossene
+Frames und die Anzahl sichtbarer, vom Hintergrund abweichender
+Pixel (0..1024). Null sichtbare Pixel sind ein gültiger
+GPU-Renderabschluss, NICHT der Nachweis sichtbarer Weltgeometrie.
+
+**20 tatsächlich implementierte oder geprüfte Teilaufgaben:**
+
+01. Branch, AGENTS, Projekt-Handoff, P05-Roadmap und die vorige vollständige GitHub-CI geprüft; ursprünglicher Checkout sauber.
+02. Bestehenden 32×32 Vulkan-Offscreen-Clear-Pfad und die vorherige echte World-XYZ-/Depth-Swapchain-Pipeline analysiert.
+03. Separate Entwicklerfreigabe OGL_VULKAN_WORLD_OFFSCREEN_RASTER eingeführt; vorhandene Offscreen-, Kamera- und Meshflags bleiben zusätzliche Pflicht.
+04. Neuen Vulkan-Weltrenderpfad an bereits akzeptierte GPU-Vertex-/Indexbuffer mit passender Kamera-/Mesh-Generation gebunden.
+05. Privates 32×32-VkImage in VK_FORMAT_R8G8B8A8_UNORM verwendet; kein VkSurfaceKHR, keine VkSwapchainKHR und keine SDL-Fensterinteraktion.
+06. GPU-Farbimage mit VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT und VK_IMAGE_USAGE_TRANSFER_SRC_BIT sowie eigenem Device-Speicher erzeugt.
+07. Unterstütztes GPU-Depth-Format D32_SFLOAT beziehungsweise D16_UNORM gesucht und private Depth-Image-/Memory-/ImageView-Ressourcen angelegt.
+08. Den Offscreen-VkRenderPass und VkFramebuffer mit separatem Farb- und Depth-Attachment erweitert.
+09. Die bereits validierten Vulkan-World-Vertex- und Depth-Fragment-SPIR-V-Shader ohne neue Shaderdateien wiederverwendet.
+10. GPU-VkGraphicsPipeline mit World-Kamera-PushConstant, indexed Triangle-List und VK_COMPARE_OP_LESS erzeugt.
+11. 64-Byte-World-to-Clip-Matrix aus dem vorhandenen Firestorm-Kamera-ABI in den Vertexshader übergeben.
+12. Reale GPU-VkVertex- und VkIndexBuffer aus dem OpenSim-Mesh-Staging per vkCmdBindVertexBuffers, vkCmdBindIndexBuffer und vkCmdDrawIndexed gerendert.
+13. Offscreen-Farbbild nach dem Renderpass per Image-Barrier und vkCmdCopyImageToBuffer in einen privaten Readback-Buffer übertragen.
+14. GPU-Submit-Fence mit höchstens zwei Sekunden Wartezeit abgesichert; bei Timeout keine möglicherweise noch referenzierten GPU-Objekte vorzeitig freigegeben.
+15. Read-only-C-ABI für abgeschlossene indexed World-Offscreen-Frames und die Zahl tatsächlich nicht-hintergrundfarbiger Pixel implementiert.
+16. Ein Bild ohne sichtbare Geometrie wird als abgeschlossener GPU-Render gemeldet, aber korrekt mit null sichtbaren Weltpixeln ausgewiesen.
+17. Echten Firestorm-Host mit der neuen Offscreen-ABI verbunden und als Entwicklerlauf nur nach erfolgreicher Camera-/Mesh-Generationskopplung ausgeführt.
+18. Live-Entwicklertrigger OGL_VULKAN_LIVE_WORLD_OFFSCREEN mit höchstens drei frühen und danach einer Probe pro 64 neue Meshgenerationen begrenzt; Logs ohne Spieler-/Regions-/Bilddaten.
+19. Native Vulkan-GPU: drei private World-/Depth-Offscreen-Frames ohne vorherige Swapchain, sichtbare Pixel, Kamera außerhalb des Blickfelds mit null sichtbaren Pixeln, neue Region und Negativfreigaben erfolgreich.
+20. Linux-Vollviewer-Build, 345/345 Python-Tests einschließlich 54/54 gezielter Quellcodeprüfungen, 41/41 native CTests und 15/15 isolierte Viewer-GUI-Tests einschließlich normalem OpenGL-Login/Exit 0 bestanden.
+
+**Native echte Vulkan-Abnahme:** Drei GPU-World-/Depth-Draws
+im privaten 32×32-Image, ohne dass vorher eine
+X11-Vulkan-Swapchain angelegt werden musste.
+Die Kamera-Probe meldete nach sichtbarer vorderer
+Region Weltpixel, nach vollständiger Abwendung der
+Kamera **0** sichtbare Weltpixel und nach neuer
+Region erneut sichtbare GPU-Mesh-Pixel.
+Der zuletzt gemessene Wert: **192 von 1024 Pixeln**,
+die nicht der Hintergrundfarbe entsprechen.
+Weder fehlende Freigaben noch Regions-Clear dürfen
+einen Framezähler erhöhen. Bestehende echte
+Vulkan-Tests für X11-Present, Depth-Z-Test,
+Kamera-Move, Fence-Retirement, GPU-Meshrotation,
+Resize und zwei sichere Regionsbarrieren erneut
+bestanden. Offscreen-Ergebnisse sind keine
+sichtbaren Vulkan-Viewerbilder.
+
+**Echter SDL/X11-Viewer in isolierter Xvfb-Sitzung:**
+15/15 GUI-Fälle bestanden, darunter Standard-
+OpenGL-Start, Offscreen-Entwicklerflags mit
+fehlender Einzelfreigabe, Vulkan-GPU-Weltstart
+unter gleichzeitigen Offscreen-Flags, 20
+Vulkan-Welt-/Depth-Presents mit 100 echten
+X11-Pixelproben und alle vorherigen
+Regions-, Mesh-, Treiber- und Berechtigungs-
+Fallbacks. Jeder Fall kam bis zum normalen
+OpenGL-Login-Wait und Exit 0. Kein normales
+Benutzerprofil/Cache/Account wurde angerührt.
+
+**Build:** Linux-Vollviewer erfolgreich;
+345/345 Python-Tests (darunter 54/54 gezielte
+Grafik-/Quellcode-Tests) und 41/41 native
+CTests bestanden. Vorige plattformübergreifende
+GitHub-CI vor den neuen Commits vollständig
+grün; für den neuen Branch-HEAD separat prüfen.
+
+**Grenzen:** Die HOST-VERBINDUNG zum tatsächlichen
+Firestorm-/OpenSim-Capture-ABI ist gebaut, aber es
+wurde **kein authentifizierter Regionslogin und
+kein Live-OpenSim-GPU-Bild aus einer angemeldeten
+Nutzersitzung getestet**. Die konkreten
+GPU-Pixeltests verwenden absichtlich synthetische
+Weltgeometrie. Der neue Offscreen-Pfad rendert
+keine auf dem Viewerfenster sichtbare Welt.
+Terrain, Texturen, Materialien, Wasser, Avatare,
+UI und produktive Vulkan-In-World-
+Fensterübernahme stehen weiter aus.
+**P05 formal 2/20, Block 3 und die vollständige
+Weltengine noch offen.** Nächstes Gate:
+einen tatsächlichen eingeloggten Region-Mesh-/
+Kamera-GPU-Probe-Log aus isoliertem Live-
+Viewer nachweisen, dann sichere Vulkan-
+Fensterhoheit und Präsentation nach Login.
+Code-Commit: 525c09457ab7b369d761f7a6a54449c303ec2d41.
+
 ## P05/3–4 – 20 technische Schritte: fence-sichere echte OpenSim-Regionsbarriere (06.11.2026)
 
 **Implementiert:** Beim tatsächlichen OpenSim-Region-ID-Wechsel

@@ -455,6 +455,47 @@ Vulkan-Terrain-/Avatar-/Textur-/UI-
 Engine, kein produktiver Switch.
 P05 formal 2/20, Block 3/4 offen.
 
+**P05/3–4 private Vulkan-GPU-Weltbilder während GL-Fensterownership (06.11.2026, 525c0945):**
+20 technische Teilaufgaben. Echter Firestorm-
+Kamera-/Meshsnapshot ist im Host an eine
+Vulkan-GPU-World-Offscreen-ABI angebunden,
+nur mit OGL_VULKAN_LIVE_WORLD_OFFSCREEN=1
+und zusätzlichen vier Modul-Dev-Freigaben.
+Die bestehenden World-XYZ-SPIR-V-Shader,
+Depth-Test, 64-Byte-Kamera und VkVertex-/
+Index-Buffer rendern 32×32 echte GPU-Welt-
+Pixel in ein privates VkImage, das per
+VkCopyImageToBuffer nach max. 2s Fence-
+Wait ausgelesen wird. KEIN VkSurfaceKHR,
+keine VkSwapchainKHR, kein Vulkan-Present,
+keine GL-/SDL-Fensterübernahme. Host ruft
+nur nach exakt gepaarter Camera-/Mesh-
+Generation auf, max. erste 3 und dann
+alle 64 neue Meshgenerationen, ohne
+Spieler-/Regions-/Bilddaten im Log.
+Read-only ABI: completed GPU draws,
+0..1024 nicht-Hintergrund-Pixel.
+Native Vulkan: 3 echte World/Depth-
+GPU-Offscreen-Frames, erst sichtbare
+Dreiecke, danach off-view=0 Pixel,
+nach Region erneut 192 nichtleere
+Pixel, ohne X11-Swapchain. Native
+WSI-, Mesh-, Camera-, Fence- und
+Depth-Regressionen weiterhin grün.
+Linux-Vollviewer, 345 Python/41
+native Tests erfolgreich. 15/15
+reale isolierte Viewer-GUI-Starts,
+normaler GL-Login-Wait und Exit 0.
+**NICHT abgenommen:** tatsächlich
+eingeloggtes OpenSim-Live-Region-
+Bild oder produktiver Vulkan-
+Window-/World-Renderer. Die
+sichtbaren Probe-GPU-Szenen sind
+synthetisch; echte Datenanbindung
+ist nur kompiliert, Live-Login-Test
+steht aus. P05 formal 2/20,
+Block 3/4 weiter offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

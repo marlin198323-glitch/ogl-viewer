@@ -1572,6 +1572,37 @@ Vulkan-Weltrenderer, keine fertige
 Vulkan-Avatar-/Terrain-/UI-Engine.
 P05 formal 2/20, Block 3/4 offen.
 
+**P05/3–4 Vulkan-World-Offscreen-GPU-Bridge bei laufendem GL-Fenster (06.11.2026, 525c0945):**
+Vulkan rendert World-XYZ-Indexed-Meshes
+aus bestehendem OpenSim-Firestorm-Mesh-
+und Kamera-ABI in privates 32×32
+VkImage mit eigenem Depth-Test,
+VkDrawIndexed, GPU-Fence/Readback.
+KEINE VkSwapchainKHR/SDL-/Window-
+Übernahme; OpenGL bleibt Eigentümer
+des sichtbaren Viewerfensters.
+Eigener Entwickler-Opt-in für Host,
+Offscreen, Kamera und Meshupload;
+maximal drei frühe, danach jede
+64. Szene; read-only Counts
+abgeschlossener GPU-Frames und
+nichtleerer Pixel. Native Vulkan:
+3 GPU-World-/Depth-Frames,
+Kamera-Away=0 Pixel, neuer Region
+192/1024 nichtleere Pixel. 15/15
+isolierte GUI-Smokes, Linux-Vollbuild,
+345 Python-/41 native Tests grün.
+Der echte OpenSim-Capture-HOST ist
+gebaut, aber KEIN Login-Live-GPU-
+Rendering tatsächlich abgenommen.
+Produktive Vulkan-World-Ownership,
+Terrain, Texturen, Avatare, UI
+weiter offen. P05 2/20, Block 3/4
+offen. Nächstes Gate Live-Region-
+Snapshot nach authentifiziertem
+Login abnehmen und danach echte
+exklusive Vulkan-Fensterhoheit.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
