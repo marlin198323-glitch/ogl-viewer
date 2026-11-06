@@ -215,6 +215,8 @@ struct WorldGraphicsDevice {
     float world_camera_aspect = 0.f;
     uint64_t world_camera_accepts = 0; // CPU matrix updates, no GPU presents
     uint64_t mesh_uploads = 0; // accepted snapshots, never a draw counter
+    uint64_t offscreen_world_frames = 0; // completed VkDrawIndexed/readback
+    uint32_t offscreen_world_covered_pixels = 0; // 32x32 non-clear count
     // P05/3: bounded GPU queue submission diagnostic. These counters refer
     // to commands submitted BEFORE waiting on their completion fences,
     // NOT to simultaneous GPU execution or completed swapchain presents.
@@ -346,6 +348,8 @@ struct WorldGraphicsDevice {
         world_to_clip.fill(0.f);
         world_camera_accepts = 0;
         mesh_uploads = 0;
+        offscreen_world_frames = 0;
+        offscreen_world_covered_pixels = 0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
         region_barrier_accepts = region_barrier_failures = 0;
@@ -2039,10 +2043,27 @@ uint32_t submit_world_sync_probe() {
 // P05/3: verified Vulkan offscreen color frame, isolated from the GL window.
 // This is an actual GPU graphics render pass and CPU-verified image, not a
 // swapchain acquire/present or an OpenSim world renderer. Developer opt-in.
-uint32_t render_offscreen_color_frame() {
+uint32_t render_offscreen_color_frame(bool scene = false) {
     static bool disabled_after_timeout = false;
     if (disabled_after_timeout) return 0;
     const char* enabled = std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+    // A real Firestorm mesh may be submitted while OpenGL owns its
+    // window: this VkImage is PRIVATE and never uses VkSurfaceKHR,
+    // vkQueuePresentKHR, SDL or OpenGL's window/context.
+    if (scene) {
+        const char* allowed=std::getenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER");
+        const char* upload=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+        const char* camera=std::getenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
+        if (!allowed || std::strcmp(allowed,"1")!=0 ||
+            !upload || std::strcmp(upload,"1")!=0 ||
+            !camera || std::strcmp(camera,"1")!=0 ||
+            !world_device.world_camera_ready ||
+            world_device.camera_mesh_generation!=world_device.mesh_generation ||
+            !world_device.mesh_vertices || !world_device.mesh_indices ||
+            !world_device.mesh_triangle_count ||
+            world_device.mesh_triangle_count>OGL_RTX_MAX_SCENE_TRIANGLES)
+            return 0;
+    }
     if (!enabled || std::strcmp(enabled,"1")!=0 ||
         !world_device.device || !world_device.queue ||
         !world_device.physical_device || !world_device.device_proc ||
@@ -2087,6 +2108,17 @@ uint32_t render_offscreen_color_frame() {
     OGL_OFFSCREEN_FN(vkDestroyFence);
     OGL_OFFSCREEN_FN(vkQueueSubmit);
     OGL_OFFSCREEN_FN(vkWaitForFences);
+    OGL_OFFSCREEN_FN(vkCreateShaderModule);
+    OGL_OFFSCREEN_FN(vkDestroyShaderModule);
+    OGL_OFFSCREEN_FN(vkCreatePipelineLayout);
+    OGL_OFFSCREEN_FN(vkDestroyPipelineLayout);
+    OGL_OFFSCREEN_FN(vkCreateGraphicsPipelines);
+    OGL_OFFSCREEN_FN(vkDestroyPipeline);
+    OGL_OFFSCREEN_FN(vkCmdBindPipeline);
+    OGL_OFFSCREEN_FN(vkCmdBindVertexBuffers);
+    OGL_OFFSCREEN_FN(vkCmdBindIndexBuffer);
+    OGL_OFFSCREEN_FN(vkCmdPushConstants);
+    OGL_OFFSCREEN_FN(vkCmdDrawIndexed);
 #undef OGL_OFFSCREEN_FN
     auto get_memory_properties =
         reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(
@@ -2107,6 +2139,12 @@ uint32_t render_offscreen_color_frame() {
         !vkCmdCopyImageToBuffer || !vkCreateFence || !vkDestroyFence ||
         !vkQueueSubmit || !vkWaitForFences ||
         !get_memory_properties || !get_format_properties) return 0;
+    if (scene && (!vkCreateShaderModule || !vkDestroyShaderModule ||
+        !vkCreatePipelineLayout || !vkDestroyPipelineLayout ||
+        !vkCreateGraphicsPipelines || !vkDestroyPipeline ||
+        !vkCmdBindPipeline || !vkCmdBindVertexBuffers ||
+        !vkCmdBindIndexBuffer || !vkCmdPushConstants || !vkCmdDrawIndexed))
+        return 0;
 
     constexpr uint32_t size=32;
     constexpr VkDeviceSize readback_bytes=size*size*4;
@@ -2128,8 +2166,18 @@ uint32_t render_offscreen_color_frame() {
                 return i;
         return UINT32_MAX;
     };
-    VkImage color=VK_NULL_HANDLE;
-    VkDeviceMemory color_mem=VK_NULL_HANDLE, readback_mem=VK_NULL_HANDLE;
+    VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;
+    VkDeviceMemory color_mem=VK_NULL_HANDLE, depth_mem=VK_NULL_HANDLE,
+                   readback_mem=VK_NULL_HANDLE;
+    VkImageView depth_view=VK_NULL_HANDLE;
+    VkFormat depth_format=VK_FORMAT_UNDEFINED;
+    struct {
+        VkShaderModule vertex_shader=VK_NULL_HANDLE;
+        VkShaderModule fragment_shader=VK_NULL_HANDLE;
+        VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
+        VkPipeline pipeline=VK_NULL_HANDLE;
+        VkRenderPass pass=VK_NULL_HANDLE;
+    } pipeline_state;
     VkImageView view=VK_NULL_HANDLE;
     VkRenderPass render_pass=VK_NULL_HANDLE;
     VkFramebuffer framebuffer=VK_NULL_HANDLE;
@@ -2137,6 +2185,20 @@ uint32_t render_offscreen_color_frame() {
     VkCommandPool command_pool=VK_NULL_HANDLE;
     VkFence fence=VK_NULL_HANDLE;
     auto cleanup=[&]() {
+        if (pipeline_state.pipeline && vkDestroyPipeline)
+            vkDestroyPipeline(world_device.device,pipeline_state.pipeline,nullptr);
+        if (pipeline_state.pipeline_layout && vkDestroyPipelineLayout)
+            vkDestroyPipelineLayout(world_device.device,
+                pipeline_state.pipeline_layout,nullptr);
+        if (pipeline_state.vertex_shader && vkDestroyShaderModule)
+            vkDestroyShaderModule(world_device.device,
+                pipeline_state.vertex_shader,nullptr);
+        if (pipeline_state.fragment_shader && vkDestroyShaderModule)
+            vkDestroyShaderModule(world_device.device,
+                pipeline_state.fragment_shader,nullptr);
+        if (depth_view) vkDestroyImageView(world_device.device,depth_view,nullptr);
+        if (depth) vkDestroyImage(world_device.device,depth,nullptr);
+        if (depth_mem) vkFreeMemory(world_device.device,depth_mem,nullptr);
         if (fence) vkDestroyFence(world_device.device,fence,nullptr);
         if (command_pool)
             vkDestroyCommandPool(world_device.device,command_pool,nullptr);
@@ -2190,6 +2252,50 @@ uint32_t render_offscreen_color_frame() {
         if (vkCreateImageView(world_device.device,&iv,nullptr,&view)!=VK_SUCCESS ||
             !view) return 0;
 
+        if (scene) {
+            for (VkFormat candidate:{VK_FORMAT_D32_SFLOAT,
+                                     VK_FORMAT_D16_UNORM}) {
+                VkFormatProperties candidate_features{};
+                get_format_properties(world_device.physical_device,
+                    candidate,&candidate_features);
+                if (candidate_features.optimalTilingFeatures &
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                    depth_format=candidate;break;
+                }
+            }
+            if (depth_format==VK_FORMAT_UNDEFINED) return 0;
+            VkImageCreateInfo di{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+            di.imageType=VK_IMAGE_TYPE_2D;
+            di.format=depth_format;di.extent={size,size,1};
+            di.mipLevels=1;di.arrayLayers=1;
+            di.samples=VK_SAMPLE_COUNT_1_BIT;
+            di.tiling=VK_IMAGE_TILING_OPTIMAL;
+            di.usage=VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            di.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+            if (vkCreateImage(world_device.device,&di,nullptr,&depth)!=VK_SUCCESS
+                || !depth) return 0;
+            VkMemoryRequirements dr{};
+            vkGetImageMemoryRequirements(world_device.device,depth,&dr);
+            uint32_t type=choose_memory(dr.memoryTypeBits,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (type==UINT32_MAX) type=choose_memory(dr.memoryTypeBits,0);
+            if (type==UINT32_MAX) return 0;
+            VkMemoryAllocateInfo da{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+            da.allocationSize=dr.size;da.memoryTypeIndex=type;
+            if (vkAllocateMemory(world_device.device,&da,nullptr,
+                &depth_mem)!=VK_SUCCESS || !depth_mem ||
+                vkBindImageMemory(world_device.device,depth,depth_mem,0)!=VK_SUCCESS)
+                return 0;
+            VkImageViewCreateInfo dv{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+            dv.image=depth;dv.viewType=VK_IMAGE_VIEW_TYPE_2D;
+            dv.format=depth_format;
+            dv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_DEPTH_BIT;
+            dv.subresourceRange.levelCount=1;
+            dv.subresourceRange.layerCount=1;
+            if (vkCreateImageView(world_device.device,&dv,nullptr,
+                &depth_view)!=VK_SUCCESS || !depth_view) return 0;
+        }
+
         VkAttachmentDescription attachment{};
         attachment.format=format;
         attachment.samples=VK_SAMPLE_COUNT_1_BIT;
@@ -2200,13 +2306,26 @@ uint32_t render_offscreen_color_frame() {
         attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
         attachment.finalLayout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         VkAttachmentReference ref{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        VkAttachmentDescription depth_attachment{};
+        depth_attachment.format=depth_format;
+        depth_attachment.samples=VK_SAMPLE_COUNT_1_BIT;
+        depth_attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_attachment.storeOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depth_attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_attachment.finalLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference depth_ref{1,
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+        VkAttachmentDescription attachments[2]{attachment,depth_attachment};
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount=1;
         subpass.pColorAttachments=&ref;
+        subpass.pDepthStencilAttachment=scene ? &depth_ref : nullptr;
         VkRenderPassCreateInfo rp{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-        rp.attachmentCount=1;
-        rp.pAttachments=&attachment;
+        rp.attachmentCount=scene ? 2u : 1u;
+        rp.pAttachments=attachments;
         rp.subpassCount=1;
         rp.pSubpasses=&subpass;
         if (vkCreateRenderPass(world_device.device,&rp,nullptr,
@@ -2214,8 +2333,9 @@ uint32_t render_offscreen_color_frame() {
             return 0;
         VkFramebufferCreateInfo fb{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         fb.renderPass=render_pass;
-        fb.attachmentCount=1;
-        fb.pAttachments=&view;
+        const VkImageView views[2]{view,depth_view};
+        fb.attachmentCount=scene ? 2u : 1u;
+        fb.pAttachments=views;
         fb.width=size;
         fb.height=size;
         fb.layers=1;
@@ -2242,6 +2362,125 @@ uint32_t render_offscreen_color_frame() {
             vkBindBufferMemory(world_device.device,readback,
                                readback_mem,0)!=VK_SUCCESS)
             return 0;
+
+        pipeline_state.pass=render_pass;
+        // Optional genuine rasterization of indexed vertex data. The
+        // normal single/16-frame clear tests use no shaders/pipelines.
+        if (scene) {
+            VkShaderModuleCreateInfo vertex_info{
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            vertex_info.codeSize=true
+                ? sizeof(ogl_dev_world_vert_spv) : sizeof(ogl_dev_vert_spv);
+            vertex_info.pCode=true
+                ? ogl_dev_world_vert_spv : ogl_dev_vert_spv;
+            if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
+                                     &pipeline_state.vertex_shader)!=VK_SUCCESS || !pipeline_state.vertex_shader)
+                return false;
+            VkShaderModuleCreateInfo fragment_info{
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            fragment_info.codeSize=true
+                ? sizeof(ogl_dev_depth_frag_spv) : sizeof(ogl_dev_frag_spv);
+            fragment_info.pCode=true
+                ? ogl_dev_depth_frag_spv : ogl_dev_frag_spv;
+            if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
+                                     &pipeline_state.fragment_shader)!=VK_SUCCESS || !pipeline_state.fragment_shader)
+                return false;
+            VkPipelineShaderStageCreateInfo stages[2]{};
+            stages[0].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;
+            stages[0].module=pipeline_state.vertex_shader;
+            stages[0].pName="main";
+            stages[1].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;
+            stages[1].module=pipeline_state.fragment_shader;
+            stages[1].pName="main";
+            VkVertexInputBindingDescription vertex_binding{};
+            vertex_binding.binding=0;
+            vertex_binding.stride=sizeof(float)*3;
+            vertex_binding.inputRate=VK_VERTEX_INPUT_RATE_VERTEX;
+            VkVertexInputAttributeDescription vertex_attribute{};
+            vertex_attribute.location=0;
+            vertex_attribute.binding=0;
+            vertex_attribute.format=VK_FORMAT_R32G32B32_SFLOAT;
+            vertex_attribute.offset=0;
+            VkPipelineVertexInputStateCreateInfo vertex_input{
+                VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+            vertex_input.vertexBindingDescriptionCount=1;
+            vertex_input.pVertexBindingDescriptions=&vertex_binding;
+            vertex_input.vertexAttributeDescriptionCount=1;
+            vertex_input.pVertexAttributeDescriptions=&vertex_attribute;
+            VkPipelineInputAssemblyStateCreateInfo assembly{
+                VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+            assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            VkViewport viewport{};
+            viewport.width=static_cast<float>(size);
+            viewport.height=static_cast<float>(size);
+            viewport.minDepth=0.f;
+            viewport.maxDepth=1.f;
+            VkRect2D scissor{};
+            scissor.extent={size,size};
+            VkPipelineViewportStateCreateInfo viewport_state{
+                VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+            viewport_state.viewportCount=1;
+            viewport_state.pViewports=&viewport;
+            viewport_state.scissorCount=1;
+            viewport_state.pScissors=&scissor;
+            VkPipelineRasterizationStateCreateInfo raster_state{
+                VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+            raster_state.polygonMode=VK_POLYGON_MODE_FILL;
+            raster_state.cullMode=VK_CULL_MODE_NONE;
+            raster_state.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE;
+            raster_state.lineWidth=1.f;
+            VkPipelineMultisampleStateCreateInfo multisample{
+                VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+            multisample.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
+            VkPipelineDepthStencilStateCreateInfo depth_state{
+                VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+            depth_state.depthTestEnable=VK_TRUE;
+            depth_state.depthWriteEnable=VK_TRUE;
+            depth_state.depthCompareOp=VK_COMPARE_OP_LESS;
+            VkPipelineColorBlendAttachmentState color_attachment{};
+            color_attachment.colorWriteMask=VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT;
+            VkPipelineColorBlendStateCreateInfo blend{
+                VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+            blend.attachmentCount=1;
+            blend.pAttachments=&color_attachment;
+            VkPushConstantRange camera_range{};
+            camera_range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
+            camera_range.offset=0;
+            camera_range.size=sizeof(float)*16;
+            VkPipelineLayoutCreateInfo layout_info{
+                VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+            layout_info.pushConstantRangeCount=1u;
+            layout_info.pPushConstantRanges=true
+                ? &camera_range : nullptr;
+            if (vkCreatePipelineLayout(world_device.device,&layout_info,nullptr,
+                                       &pipeline_state.pipeline_layout)!=VK_SUCCESS ||
+                !pipeline_state.pipeline_layout)
+                return false;
+            VkGraphicsPipelineCreateInfo graphics_info{
+                VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+            graphics_info.stageCount=2;
+            graphics_info.pStages=stages;
+            graphics_info.pVertexInputState=&vertex_input;
+            graphics_info.pInputAssemblyState=&assembly;
+            graphics_info.pViewportState=&viewport_state;
+            graphics_info.pRasterizationState=&raster_state;
+            graphics_info.pMultisampleState=&multisample;
+            graphics_info.pDepthStencilState=&depth_state;
+            graphics_info.pColorBlendState=&blend;
+            graphics_info.layout=pipeline_state.pipeline_layout;
+            graphics_info.renderPass=pipeline_state.pass;
+            graphics_info.subpass=0;
+            if (vkCreateGraphicsPipelines(world_device.device,VK_NULL_HANDLE,
+                1,&graphics_info,nullptr,&pipeline_state.pipeline)!=VK_SUCCESS ||
+                !pipeline_state.pipeline)
+                return false;
+        }
+
+
 
         VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         pool.queueFamilyIndex=world_device.queue_family;
@@ -2271,9 +2510,24 @@ uint32_t render_offscreen_color_frame() {
         begin.renderPass=render_pass;
         begin.framebuffer=framebuffer;
         begin.renderArea.extent={size,size};
-        begin.clearValueCount=1;
-        begin.pClearValues=&clear;
+        VkClearValue clears[2]{clear,{}};
+        clears[1].depthStencil.depth=1.f;
+        begin.clearValueCount=scene ? 2u : 1u;
+        begin.pClearValues=clears;
         vkCmdBeginRenderPass(command,&begin,VK_SUBPASS_CONTENTS_INLINE);
+        if (scene) {
+            vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline_state.pipeline);
+            vkCmdPushConstants(command,pipeline_state.pipeline_layout,
+                VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(float)*16,
+                world_device.world_to_clip.data());
+            const VkDeviceSize offset=0;
+            vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset);
+            vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,
+                                 VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,
+                             1,0,0,0);
+        }
         vkCmdEndRenderPass(command);
         VkImageMemoryBarrier color_to_transfer{
             VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -2336,10 +2590,22 @@ uint32_t render_offscreen_color_frame() {
                    std::abs(int(rgba[offset+2])-153)<=1 &&
                    rgba[offset+3]==255;
         };
-        const bool correct=matches(0) && matches(4*(size*size/2)) &&
-                           matches(4*(size*size-1));
+        bool correct=matches(0) && matches(4*(size*size/2)) &&
+                     matches(4*(size*size-1));
+        if (scene) {
+            // The GPU actually drew indexed world geometry. Count every
+            // changed pixel without exposing image/region/player data.
+            // An all-clear frame is valid if the camera sees no geometry,
+            // but never label that as visible geometry.
+            uint32_t changed=0;
+            for (uint32_t pixel=0;pixel<size*size;++pixel)
+                if (!matches(size_t(pixel)*4)) ++changed;
+            world_device.offscreen_world_covered_pixels=changed;
+            ++world_device.offscreen_world_frames;
+            correct=true; // a completed GPU raster/readback, NOT visibility
+        }
         vkUnmapMemory(world_device.device,readback_mem);
-        if (logger && correct)
+        if (logger && correct && !scene)
             logger(1,"P05 real Vulkan offscreen render pass: 32x32 RGBA pixels validated after GPU fence; no swapchain present.");
         return correct ? 1u : 0u;
     };
@@ -3388,6 +3654,17 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_last_completed() {
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe() {
     return render_offscreen_color_frame();
+}
+// Render a genuine Vulkan 32x32 indexed world/depth frame to a private
+// VkImage while OpenGL retains exclusive ownership of the Viewer window.
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_scene() {
+    return render_offscreen_color_frame(true);
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames() {
+    return world_device.offscreen_world_frames;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels() {
+    return world_device.offscreen_world_covered_pixels;
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped() {
     return world_device.device != VK_NULL_HANDLE &&

@@ -266,7 +266,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("VK_ACCESS_TRANSFER_READ_BIT",module)
         self.assertIn("VK_ACCESS_TRANSFER_WRITE_BIT",module)
         self.assertIn("VK_ACCESS_HOST_READ_BIT",module)
-        self.assertIn("const bool correct=matches(0)",module)
+        self.assertIn("bool correct=matches(0)",module)
         self.assertIn("return correct ? 1u : 0u;",module)
         self.assertIn('unsetenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE")',native)
         self.assertIn("assert(offscreen_frame()==0);",native)
@@ -943,6 +943,65 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(sdl.index("region_barrier_verified=good &&"),
                         sdl.index("SDL_GL_CreateContext( mWindow );"))
         self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
+
+    def test_p05_real_world_vulkan_offscreen_gpu_raster_without_gl_window_ownership(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        for symbol in ("ogl_vulkan_world_render_offscreen_scene",
+                       "ogl_vulkan_world_offscreen_scene_frames",
+                       "ogl_vulkan_world_offscreen_scene_pixels"):
+            self.assertIn(symbol,module)
+            self.assertIn(symbol,api)
+            self.assertIn(symbol,native)
+            self.assertIn(symbol,host)
+        a=module.index("uint32_t render_offscreen_color_frame(")
+        b=module.index("// Independent opt-in camera projection",a)
+        f=module[a:b]
+        for flag in ("OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
+                     "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
+                     "OGL_VULKAN_WORLD_MESH_UPLOAD",
+                     "OGL_VULKAN_WORLD_CAMERA_PROBE"):
+            self.assertIn(flag,f)
+        self.assertIn("world_device.camera_mesh_generation!=world_device.mesh_generation",f)
+        self.assertIn("world_device.mesh_vertices",f)
+        self.assertIn("world_device.mesh_indices",f)
+        self.assertIn("VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;",f)
+        self.assertIn("VkDeviceMemory color_mem=VK_NULL_HANDLE, depth_mem=VK_NULL_HANDLE,",f)
+        self.assertIn("VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT",f)
+        self.assertIn("VK_IMAGE_ASPECT_DEPTH_BIT",f)
+        self.assertIn("subpass.pDepthStencilAttachment=scene ? &depth_ref : nullptr;",f)
+        self.assertIn("VK_COMPARE_OP_LESS",f)
+        self.assertIn("sizeof(ogl_dev_world_vert_spv)",f)
+        self.assertIn("sizeof(ogl_dev_depth_frag_spv)",f)
+        self.assertIn("vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,",f)
+        self.assertIn("vkCmdPushConstants(command,pipeline_state.pipeline_layout,",f)
+        self.assertIn("world_device.world_to_clip.data()",f)
+        self.assertIn("vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset)",f)
+        self.assertIn("vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,",f)
+        self.assertIn("vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",f)
+        self.assertIn("vkCmdCopyImageToBuffer(command,color,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,",f)
+        self.assertIn("vkWaitForFences(world_device.device,1,&fence,",f)
+        self.assertIn("2000000000ULL",f)
+        self.assertIn("world_device.offscreen_world_covered_pixels=changed;",f)
+        self.assertIn("++world_device.offscreen_world_frames;",f)
+        self.assertIn("return correct ? 1u : 0u;",f)
+        self.assertNotIn("vkQueuePresentKHR(",f)
+        self.assertNotIn("SDL_",f)
+        self.assertNotIn("vkCreateSwapchainKHR(",f)
+        self.assertIn("offscreen_world_frames()==offscreen_start+3",native)
+        self.assertIn("offscreen_world_pixels()==0",native)
+        self.assertIn("offscreen_world_pixels()>0",native)
+        self.assertIn("denied_no_mesh==0",native)
+        self.assertIn("OGL_VULKAN_LIVE_WORLD_OFFSCREEN",host)
+        self.assertIn("OGL_VULKAN_WORLD_OFFSCREEN_RASTER",host)
+        self.assertIn("OGL_VULKAN_OFFSCREEN_FRAME_PROBE",host)
+        self.assertIn("world_render_offscreen_scene()==1",host)
+        self.assertIn("live_world_rebinds<=3 || live_world_rebinds%64==0",host)
+        self.assertIn("32x32 private VkImage, NO Vulkan present",host)
+        self.assertNotIn("ogl_vulkan_world_attach_x11_window(",host)
+        self.assertNotIn("vkQueuePresentKHR(",host)
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

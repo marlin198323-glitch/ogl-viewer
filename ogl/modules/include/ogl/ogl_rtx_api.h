@@ -313,6 +313,24 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_sync_last_completed(void);
  * NOT a swapchain frame, scene draw, Vulkan world or active renderer.
  */
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
+/* P05 real world GPU bridge WITHOUT Vulkan window ownership.
+ * Independently gated by OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1,
+ * OGL_VULKAN_WORLD_OFFSCREEN_RASTER=1,
+ * OGL_VULKAN_WORLD_MESH_UPLOAD=1 and
+ * OGL_VULKAN_WORLD_CAMERA_PROBE=1. A successfully paired camera and
+ * vertex/index GPU mesh MUST already exist. Renders VkDrawIndexed with
+ * the validated world_to_clip matrix, depth attachment and shader into
+ * PRIVATE 32x32 VkImage and reads back RGBA after a 2-second GPU fence.
+ * 1 = Vulkan indexed draw/readback completed, 0 = not ready/failure.
+ * The pixel counter is the number of non-clear colors, 0..1024;
+ * zero does not mean failure (all geometry might be out of view).
+ * NO display, NO user/avatar/region image exported, NO VkQueuePresentKHR.
+ * This is NOT a finished Vulkan world renderer and must not be called
+ * every frame in the production/GL world-render loop.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_scene(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels(void);
 /* P05 developer-only Linux/X11 WSI probe on the ACTUAL viewer window.
  * Requires both OGL_VULKAN_WORLD_BOOTSTRAP=1 and
  * OGL_VULKAN_WINDOW_SURFACE=1. Creates real VkSurfaceKHR and VkSwapchainKHR

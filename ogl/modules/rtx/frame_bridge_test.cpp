@@ -67,6 +67,15 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_sync_last_completed"));
     const auto offscreen_frame = reinterpret_cast<uint32_t(*)()>(
         dlsym(library, "ogl_vulkan_world_render_offscreen_probe"));
+    const auto offscreen_world = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_render_offscreen_scene"));
+    const auto offscreen_world_frames = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_frames"));
+    const auto offscreen_world_pixels = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_pixels"));
+    assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels);
+    assert(offscreen_world()==0 && offscreen_world_frames()==0 &&
+           offscreen_world_pixels()==0);
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_upload_triangles"));
     const auto world_gpu_count = reinterpret_cast<uint32_t(*)()>(
@@ -1382,11 +1391,37 @@ int main(int argc, char** argv) {
             camera.near_clip_m=2.f;camera.far_clip_m=10.f;
             XResizeWindow(display,window,512,384);
             XSync(display,False);
+            setenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER","1",1);
+            const uint64_t offscreen_start=offscreen_world_frames();
+            const uint32_t denied_no_mesh=offscreen_world();
             const uint64_t gen0=mesh_generation();
             const uint64_t accepts0=region_barrier_accepts();
             const uint32_t retire0=mesh_retire_waits();
             const uint32_t idle0=persistent_idles();
-            barrier_ok=world_upload(&near,1)==1 &&
+            barrier_ok=denied_no_mesh==0 &&
+                world_upload(&near,1)==1 &&
+                world_camera(&camera)==1 &&
+                // Four explicit flags. No world GPU render on absent
+                // permission; no metrics increment on rejection.
+                (unsetenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER")==0) &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start &&
+                (setenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER","1",1)==0) &&
+                // Indexed 32x32 Vulkan World-XYZ draw + Z test BEFORE
+                // creating or attaching any native X11 VkSwapchain.
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+1 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_world_pixels()<1024 &&
+                // The camera moves completely away from scene: the GPU
+                // still renders, but observed visible pixels drop to ZERO.
+                ((camera.camera_position[1]=50.f),true) &&
+                world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+2 &&
+                offscreen_world_pixels()==0 &&
+                ((camera.camera_position[1]=20.f),true) &&
                 world_camera(&camera)==1 &&
                 window_attach(display,static_cast<uint64_t>(window),
                               512,384)==1 && live_inputs()==1 &&
@@ -1425,6 +1460,10 @@ int main(int argc, char** argv) {
                 world_gpu_count()==1 && live_inputs()==1;
             setenv("OGL_VULKAN_LIVE_REGION_BARRIER","1",1);
             barrier_ok=barrier_ok && region_barrier()==1 &&
+                // A cleared region must refuse an offscreen GPU draw,
+                // just as it refuses a visible VkQueuePresentKHR frame.
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+2 &&
                 region_barrier_accepts()==accepts0+1 &&
                 region_barrier_failures()==0 &&
                 mesh_generation()==gen0+2 &&
@@ -1446,6 +1485,9 @@ int main(int argc, char** argv) {
                 mesh_generation()==gen0+3 &&
                 camera_ready()==0 && live_inputs()==0 &&
                 world_camera(&camera)==1 && live_inputs()==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+3 &&
+                offscreen_world_pixels()>0 &&
                 persistent_clear(1)==1 &&
                 persistent_count()==3 &&
                 center_matches(20,199,41);
@@ -1458,11 +1500,15 @@ int main(int argc, char** argv) {
                 mesh_retire_waits()==retire0+2 &&
                 persistent_idles()==idle0 &&
                 region_barrier_failures()==0;
-            barrier_ok=barrier_ok && barrier_new_region;
+            barrier_ok=barrier_ok && barrier_new_region &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+3;
             window_detach();
             barrier_ok=barrier_ok && persistent_count()==0 &&
                 persistent_idles()==idle0+1;
             for (const char* flag:{
+                 "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
+                 "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
@@ -1472,6 +1518,11 @@ int main(int argc, char** argv) {
                  "OGL_VULKAN_WORLD_CAMERA_PROBE",
                  "OGL_VULKAN_WORLD_MESH_UPLOAD"})
                 unsetenv(flag);
+            std::fprintf(stdout,
+                "P05 private Vulkan WORLD offscreen indexed/depth: "
+                "frames=%llu visible_pixels=%u no_swapchain=1\n",
+                static_cast<unsigned long long>(offscreen_world_frames()),
+                offscreen_world_pixels());
             std::fprintf(stdout,
                 "P05 live region barrier GPU: valid=%d fenced=%d "
                 "new_region=%d accepts=%llu waits=%u failures=%llu\n",

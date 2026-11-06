@@ -72,6 +72,13 @@ ogl_world_generation_fn world_mesh_generation = nullptr;
 ogl_world_generation_fn world_camera_mesh_generation = nullptr;
 using ogl_world_region_barrier_fn = int (*)();
 ogl_world_region_barrier_fn world_invalidate_region = nullptr;
+using ogl_world_offscreen_fn = uint32_t (*)();
+ogl_world_offscreen_fn world_render_offscreen_scene = nullptr;
+using ogl_world_offscreen_count_fn = std::uint64_t (*)();
+ogl_world_offscreen_count_fn world_offscreen_scene_frames = nullptr;
+using ogl_world_offscreen_pixels_fn = uint32_t (*)();
+ogl_world_offscreen_pixels_fn world_offscreen_scene_pixels = nullptr;
+std::uint64_t world_offscreen_scene_failures = 0;
 // The real Firestorm camera is sampled BEFORE the deferred scene scan.
 // Retain it only after successful module validation, and invalidate it on
 // every real region change. It may be rebound after accepted geometry,
@@ -276,6 +283,13 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_camera_mesh_generation"));
     world_invalidate_region = reinterpret_cast<ogl_world_region_barrier_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_invalidate_region"));
+    world_render_offscreen_scene = reinterpret_cast<ogl_world_offscreen_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_render_offscreen_scene"));
+    world_offscreen_scene_frames = reinterpret_cast<ogl_world_offscreen_count_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_frames"));
+    world_offscreen_scene_pixels = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_pixels"));
+    world_offscreen_scene_failures=0;
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
@@ -444,6 +458,10 @@ void ogl_shutdown_rtx_module() {
     world_mesh_generation = nullptr;
     world_camera_mesh_generation = nullptr;
     world_invalidate_region = nullptr;
+    world_render_offscreen_scene = nullptr;
+    world_offscreen_scene_frames = nullptr;
+    world_offscreen_scene_pixels = nullptr;
+    world_offscreen_scene_failures=0;
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
@@ -641,6 +659,41 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                 world_input_ready()==1) {
                 ++live_world_rebinds;
                 world_inputs_live_logged=true;
+                // Explicit developer-only 32x32 GPU raster validation of
+                // the ACTUAL current Firestorm camera + OpenSim triangle
+                // capture while OpenGL owns its visible window. NEVER
+                // acquire/present a Vulkan swapchain or touch SDL here.
+                // One synchronous 2s-bounded GPU diagnostic at most
+                // 3 times initially, then once per 64 new scene snapshots.
+                // No per-frame recording, screenshots or player data.
+                static const bool gpu_offscreen_opt_in=[] {
+                    const char* live=std::getenv("OGL_VULKAN_LIVE_WORLD_OFFSCREEN");
+                    const char* base=std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+                    const char* raster=std::getenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER");
+                    return live && base && raster &&
+                        std::strcmp(live,"1")==0 &&
+                        std::strcmp(base,"1")==0 &&
+                        std::strcmp(raster,"1")==0;
+                }();
+                if (gpu_offscreen_opt_in && world_render_offscreen_scene &&
+                    world_offscreen_scene_frames &&
+                    world_offscreen_scene_pixels &&
+                    (live_world_rebinds<=3 || live_world_rebinds%64==0)) {
+                    const auto old_count=world_offscreen_scene_frames();
+                    const bool rendered=world_render_offscreen_scene()==1 &&
+                        world_offscreen_scene_frames()==old_count+1;
+                    if (!rendered) ++world_offscreen_scene_failures;
+                    LL_INFOS("OGLRenderer")
+                        << "P05 real Firestorm world Vulkan OFFSCREEN GPU draw: "
+                        << (rendered ? "completed" : "unavailable")
+                        << " frames=" << world_offscreen_scene_frames()
+                        << " nonclear_pixels=" << (rendered ?
+                            world_offscreen_scene_pixels() : 0)
+                        << " failures=" << world_offscreen_scene_failures
+                        << "; 32x32 private VkImage, NO Vulkan present, "
+                           "OpenGL owns viewer window."
+                        << LL_ENDL;
+                }
                 // Bounded diagnostics without region IDs, avatar positions,
                 // object names or unbounded per-frame logging.
                 if (live_world_rebinds<=3 || live_world_rebinds%64==0)
