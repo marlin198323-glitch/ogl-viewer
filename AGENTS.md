@@ -4,29 +4,44 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 07.11.2026 (Code 043efe22):
-20 zusätzliche tatsächlich ausgeführte technische Aufgaben
-für dynamische private Vulkan-GPU-World-Sonnenbeleuchtung.
-Sun_DIRECTION aus echtem Firestorm-Deferred-v3-Kameraframe:
-normiert, nur bei SUN_LIGHT_PROBE=1 plus LAMBERT_PROBE=1
-und existierenden unabhängigen GPU/Mesh/Camera/Offscreen-
-Freigaben. Vulkan 1.0 geprüfter Fragmentshader mit 80-Byte-
-PushConstant (Camera64 + Sun16). Drei Cache-Modi
-Depth-Debug/Fixed-Lambert/Dynamic-Sun, keine GPU-Pipeline-/
-Mesh-Neuanlage allein bei Lichtwechsel, Region-/Mesh-/
-WSI-/Camera-Invalidierung setzt Sonnenvektor zurück.
-120-Frame-Kamera-Tick bewertet Sonne nur bei dynamischem Opt-in.
-Native GPU: 22 private World-/Depth-Frames, 12 Builds,
-10 Reuses, 12 Releases, SunX/SunZ RGB-Mittel 70/349
-mit gleichem GPU-Mesh, negative Flag-/Nullsonne-Tests.
-Linux-Vollbuild: 372 Python/41 CTests/60 Grafik/45 Reporter. 33/33 isolierte echte SDL-Viewer-GUI-Starts grün.
-Vorige GitHub-CI grün; neue CI separat kontrollieren.
-KEIN authentifizierter OpenSim-Live-GPU-Welt-Nachweis.
-Keine sichtbare Vulkan-Terrain-/Textur-/Avatar-/UI-Engine,
-nur OpenGL produktiv. P05 weiter 2/20, Block3/4 offen.
-User-Prozesse/Profildaten/Cache/Secrets nicht anfassen,
-keine Projektdatei-Duplikate.
-Fortsetzung ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 07.11.2026 (Code 11529400):
+20 neue konkrete technische Schritte zur echten
+Firestorm-OpenSim-VolumeFace-RGB-Vulkan-Weltstaging-
+Pipeline. Additive FaceTint-v1-C-ABI mit opaker
+TextureEntry-Grundfarbe aus realem Deferred-Scanner.
+Normale XYZ-/RTX-ABI unverändert. FaceTint
+Vulkan Vertex-Binding1, 3 Farbvertices je
+World-XYZ-Triangle (Binding0). ShaderMode3
+nur bei OGL_VULKAN_WORLD_FACE_TINT_PROBE=1,
+WORLD_LAMBERT_PROBE=1, WORLD_SUN_LIGHT_PROBE=1,
+plus Device/Mesh/Camera/Offscreen. 2 neue
+Vulkan1.0-spirv-val-geprüfte GL450-Shader
+in bestehende Moduldatei eingebettet. Reale
+RGB-Vertexwerte werden mit normierter
+OpenSim-Sonnenrichtung/GPU-Normalen multipliziert.
+Strenge finite 0..1-Tint-Werte, exakte Trianglezahl,
+Meshgenerationskopplung; stale tint bei Region-/
+Meshclear oder fehlgeschlagenem Source-Upload
+invalidate. Opaque TextureEntry-Grundfarbe,
+KEINE Bildtextur/PBR-Map/Transparenz.
+Terrain/Anchors mit neutralem Fallback.
+Native GPU: 26 World-/Depth-Frames, Cache
+15 Builds/11 Reuses/15 Releases, Rot
+(R51/B0) vs Blau (R0/B51) auf gleichem Mesh,
+keine GPU-Mesh-Neuanlage bei Farbwechsel.
+38/38 isolierte SDL/X11-GUI-Starts grün.
+Voll-Linux 373 Python-/41 CTests,
+61 Grafik-/45 Berichtchecks grün.
+Vorige GitHub-CI erfolgreich, neue
+Commit-CI separat prüfen.
+KEIN echter authentifizierter Live-
+OpenSim-Vulkan-Farbframe, weiterhin
+OpenGL als produktiver Welt-Renderer,
+Vulkan-P05 formal 2/20 und Block3/4 offen.
+Keine neuen Repo-Quelldateien, keinen
+Nutzer-Viewer, Cache, Token, Secrets
+oder Logins berühren. Detaillierter
+Status: ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

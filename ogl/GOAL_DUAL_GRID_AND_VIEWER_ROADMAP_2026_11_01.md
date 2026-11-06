@@ -1758,6 +1758,23 @@ Linux: 372 Python, 41 CTests, 60 Grafik-, 45 Reporter-Tests.
 Kein authentifizierter Live-OpenSim-Worldframe,
 sichtbarer Vulkan-Renderer weiterhin offen; P05 formal 2/20.
 
+**P05/3–4 reale Face-TE-RGB-Materialtints in privaten Vulkan-World-GPU-Shaders (07.11.2026, Code 11529400):**
+Source-qualified Firestorm-Deferred-Snapshot kann optionale
+opake LLTextureEntry-RGB-Grundfarben parallel zu XYZ-Welttriangles
+über separate FaceTint-v1-ABI und Vulkan-Vertex-Binding1 senden.
+Neue Vulkan1.0-geprüfte Shader kombinieren Face-RGB mit
+realem validiertem OpenSim-Sonnenvektor. Strikte Meshgeneration,
+RGB-/Trianglemengen-Validierung, fail-closed bei Datenfehler,
+Region-/Scene-Clear. Neutrales RGB-Fallback für Terrain/
+Prepass/Transparenz; echte Image-/PBR-Texturen fehlen.
+Native echte GPU: 26 World-/Depth-Frames, 15 Builds/
+11 Reuses/15 Releases, rot R51/B0 und blau R0/B51
+bei identischem Mesh; Linux-Build 373 Python-/41
+native CTests, 61 Grafik- und 45 Reportchecks, 38/38 isolierte Viewer-GUI-Starts grün.
+Weiter kein authentifizierter OpenSim-Live-Farbframe
+oder sichtbare Vulkan-World-/Material-/UI-Engine.
+P05 formal 2/20, Block3/4 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

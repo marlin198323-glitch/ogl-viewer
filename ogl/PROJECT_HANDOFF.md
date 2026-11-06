@@ -704,6 +704,30 @@ Linux: 372 Python, 41 CTests, 60 Grafik-, 45 Reporter-Tests grün.
 Kein authentifizierter OpenSim-Live-Welt-GPU-Nachweis;
 sichtbar ausschließlich OpenGL; P05 2/20, Block3/4 offen.
 
+**P05/3–4 Face-RGB aus echten Texture-Entries zu Vulkan GPU (07.11.2026, Code 11529400):**
+20 technische Arbeitsschritte, siehe ogl/PROJECT_STATUS.md.
+Die tatsächliche Firestorm-Deferred-Szenen-VolumeFace-Quelle
+kann unter FACE_TINT_PROBE=1 und allen bisherigen Vulkan-
+World-Lambert-Sun-Mesh-Camera-Offscreen-Gates je opakem
+VolumeFace ein RGB-Tripel an ein separates Vulkan-Vertex-
+Binding 1 übergeben; Binding 0 mit XYZ/RTX unverändert.
+Terrain/Prepass/Transparenz nutzen neutrale Ersatzfarbe,
+keine echten Bildtexturen oder PBR-Materialien.
+Neue geprüfte Vulkan1.0-SPIR-V-Shader verwenden RGB
+mal GPU-Lambert/Sun. Farbsidecar ist streng auf
+aktuelle GPU-Meshgeneration und identische Triangle-
+Anzahl beschränkt; bei fehlerhaften RGB-Werten, Mesh-
+oder Regionswechsel keine Verwendung alter Farben.
+Native echte GPU: 26 private Weltframes, 15 Builds,
+11 Reuses, 15 Releases; rot R51/B0, blau R0/B51
+auf identischem Mesh und gleichem Sonnenvektor.
+38/38 isolierte SDL/X11-Viewerstarts und fünf neue Farb-Opt-in-/Fallback-Fälle grün.
+Linux-Vollbuild: 373 Python/41 CTests, 61
+Grafik-/45 Reportchecks grün.
+Kein authentifizierter OpenSim-Live-Vulkan-
+Farbframe; sichtbare Welt weiter OpenGL.
+P05 formal 2/20, Block3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

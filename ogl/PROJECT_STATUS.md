@@ -6,6 +6,115 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: OpenSim-Face-Farbwerte an Vulkan-World-Shader (07.11.2026)
+
+**Entwicklungsinhalt:** Der tatsächliche Firestorm-Deferred-Szenenscanner
+besitzt pro LLVOVolume-Oberfläche echte LLTextureEntry-Grundfarben.
+Bisher lud die Vulkan-World-Probe nur XYZ-Dreiecke und zeichnete sie
+mit einheitlicher Entwicklerfarbe. Jetzt kann der Scanner unter dem
+separaten Entwicklerflag OGL_VULKAN_WORLD_FACE_TINT_PROBE=1
+ein RGB-Tripel pro akzeptiertem Dreieck mitgeben. Der Shader
+kombiniert dieses Farb-Attribut mit der bereits vorhandenen
+GPU-Flächennormalen-/OpenSim-Sonnenbeleuchtung.
+
+**Quelltreue und Grenzen:** Die Positionen-/RTX-ABI wurde nicht
+verändert. Eine neue optionale ogl_rtx_face_tint-C-ABI bildet einen
+separaten GPU-Vertexbuffer mit dreifach wiederholten RGB-Attributen
+pro Dreieck. Nur vorhandene und valide opake Texture-Entry-RGB-Werte
+werden übernommen. Terrain-/exakte Kameraanker- und transparente
+Flächen erhalten eine neutrale Ersatzfarbe, da die aktuelle
+Sampling-/Transparenz-/Terrain-Materialpipeline noch kein
+vollständiges Abbild der echten Firestorm-Welt bereitstellt.
+**Es handelt sich ausdrücklich NICHT um das Laden/Rendern
+echter Diffuse- oder PBR-Texturen.**
+
+**Vulkan-Pipeline:** Ein neuer privater Shadermodus 3 bindet die
+vorhandenen World-XYZ-Vertexdaten an Binding 0 und neue Face-RGB-
+Daten an Binding 1. Zwei originale GLSL-450-SPIR-V-Shader wurden
+für Vulkan 1.0 kompiliert und mit spirv-val geprüft und in die
+bestehende C++-Quelldatei eingebettet. Die normierte OpenSim-
+Sonnenrichtung wird weiter als GPU-PushConstant übergeben.
+Die RGB-Werte werden bei jedem gültigen Frame mit dem
+richtungsabhängigen Diffuslicht multipliziert. Die bisherigen
+Depth-Debug-/Lambert-/Sun-Diagnosen bleiben unangetastet.
+
+**Sicherheitsgates:** FACE_TINT_PROBE=1 benötigt außerdem
+WORLD_LAMBERT_PROBE=1, WORLD_SUN_LIGHT_PROBE=1 sowie alle
+bestehenden unabhängigen Device-/Camera-/Mesh-/Offscreen-
+Freigaben. Der Modul-Upload überprüft jedes Farbtripel und
+verlangt identische Anzahl und aktuelle Meshgeneration.
+Bei Region-/Meshersatz wird die Farbbindung invalidiert;
+bei fehlgeschlagener Quellübertragung wird ein vorheriger
+Farbbuffer explizit verworfen, statt alte Materialfarben
+einer neuen Region zuzuordnen. Kein sichtbares Vulkan-
+Fenster oder OpenGL-Renderziel wird übernommen.
+
+**20 tatsächlich ausgeführte Implementierungs-/Testaufgaben:**
+
+01. Branch ogl-develop, sauberen Ausgangsstand, aktuelle Roadmap/Handoff/AGENTS und erfolgreichen vorherigen plattformübergreifenden GitHub-CI-Lauf geprüft.
+02. Bestehenden realen Firestorm-Deferred-Szenenscanner einschließlich LLVOVolume, LLVolumeFace und Texture-Entries auf verfügbare Farbattribute geprüft.
+03. Unveränderte historische OpenSim-/RTX-Triangle-ABI für dreimal drei Weltpositions-Floats als bindende Abwärtskompatibilität beibehalten.
+04. Additiven C-ABI-Datentyp ogl_rtx_face_tint mit einem streng gepackten RGB-Tripel pro tatsächlich akzeptiertem Dreieck ergänzt.
+05. Neuen separaten, nur nach Opt-in freigegebenen Vulkan-GPU-RGB-Vertexbuffer für exakt drei Farbvertices je World-Dreieck eingeführt.
+06. RGB-Eingaben vor jeder GPU-Allokation auf gültige Dreieckszahl, aktuelle GPU-Meshgeneration, endliche Zahlen und Wertebereich 0 bis 1 geprüft.
+07. GPU-Seitenbuffer via VkBuffer, Host-Visible- und Host-Coherent-VkDeviceMemory mit sicherem Rollback bei partiellen Allokationsfehlern eingerichtet.
+08. GPU-Farbressourcen bei Region-Clear, Meshersatz und Modul-Shutdown automatisch freigegeben und bei Farbenwechsel unabhängig vom Positionsmesh ersetzt.
+09. Separate Revision/Farb-Uploadzähler eingeführt, damit ohne neuen GPU-Positionsmeshupload eine aktualisierte Textur-Entry-Grundfarbe angenommen werden kann.
+10. Zwei GLSL-450-Shader für positionierte Welt-Vertices mit zusätzlicher RGB-Attribute-Location und Lambert-Sonnenbeleuchtung geschrieben und als Vulkan-1.0-SPIR-V geprüft.
+11. Beide validierten SPIR-V-Programme in die bestehende Vulkan-Modulquelle eingebettet; keine neuen Runtime-Shaderdateien und keine weiteren Viewer-Abhängigkeiten hinzugefügt.
+12. Vulkan-Vertex-Input-Binding 1 zusätzlich zu unverändertem Positions-Binding 0 eingerichtet und nur im neuen Entwickler-Shadermodus aktiviert.
+13. Vierten GPU-Shader-/Cache-Modus ergänzt, der Face-Tint-Farbe und aktuelle normierte OpenSim-Sonne kombiniert; alle drei bisherigen Shaderpfade funktionieren unverändert.
+14. Neuen Shadermodus an OGL_VULKAN_WORLD_FACE_TINT_PROBE=1 plus vorhandenes Lambert-/Sun-/Mesh-/Camera-/Offscreen-Opt-in gebunden; unvollständige Berechtigungen fail-closed.
+15. Firestorm-Deferred-Scanner auf echte opake Texture-Entry-RGB-Werte pro Volume-Face erweitert; Terrain/Ray-Anker/Transparenz ohne sicheren Farbwert bekommen neutrale Ersatzfarbe.
+16. Snapshot-Arrays bei Terrain-, Vorpass- und Volume-Dreiecksanfügen synchronisiert und Farb-/Positionsanzahl vor der Deferred-Quellübergabe auf Gleichheit überprüft.
+17. Firestorm-Host über neuen Source-qualified-Sidecar-Pfad verbunden, sodass Farb-Uploads vor Kamerarebind und Vulkan-Offscreen-Probe erfolgen; ungültiger Farbsource invalidiert alte Quittungen.
+18. Additive Read-only-Vulkan-C-ABI für aktive Farb-Meshgeneration, Farb-Uploadzähler und mittlere GPU-Rot-/Blaukanalwerte ergänzt.
+19. Native Vulkan-GPU mit gleichen World-Koordinaten und rotem beziehungsweise blauem Farbbuffer geprüft, Negativkontrollen für falsche Farben und Dreieckszahl, neue Region-/Meshrevision, 256x144-Resize und GPU-Cache-Lebenszyklus bestanden.
+20. Linux-Vollviewer mit 373 Python-Tests und 41 nativen CTests bestanden; Quellcodeprüfung 61 Grafikverträge und 45 Berichttests grün, isolierte SDL/X11-Viewerstart-Fallbacks mit neuen Farb-Flags ausgeführt.
+
+**Native echte Vulkan-GPU-Abnahme:** Die GPU rendert
+mit identischem World-Mesh, identischer Kamera und
+derselben gültigen Sonnenrichtung zwei verschiedene
+RGB-Farbbuffer: rot ergibt im tatsächlich gezeichneten
+Bild einen mittleren Rot-/Blaukanal von **51/0**,
+blau einen mittleren Rot-/Blaukanal von **0/51**.
+Ein reiner Farbwechsel lädt **kein neues GPU-Mesh**
+und baut die vorhandene Shader-Pipeline nicht neu.
+Die GPU-Abnahme umfasste **26 private World-/Depth-Frames,
+15 GPU-Cache-Aufbauten, 11 Wiederverwendungen und
+15 Freigaben**. Auch ein 256x144-Frame, ein ungültiger
+Farbwert, ein falscher Triangle-Count, ein ungültiges
+Entwicklerflag, eine echte neue GPU-Meshgeneration
+mit invalider alter Farbbindung und das Neuhochladen
+passender Farben wurden auf der GPU nachgewiesen.
+
+**38/38 isolierte SDL/X11-Viewer-GUI-Starts bestanden**, darunter fünf neue Farb-Opt-in- und Invalid-Flag-Tests, normale OpenGL-Logins und alle Vulkan-WSI-/Regions-/Treiber-Rückfälle.
+
+**Voll-Linux-Build:** 373/373 Python-Tests, 41/41
+native CTests und 61/61 gezielte Grafik-
+Quellcodekontrakte bestanden. Die bisherigen
+45/45 Report-/Herkunftstests blieben grün.
+Separate SDL/X11-GUI-Tests mit normalem
+OpenGL-Login, Farbentwicklerflags und
+Treiber-/Regionswechsel-Fallbacks laufen
+ausschließlich in isolierten Profilen.
+
+**Offenes P05-Gate:** Die Codeübergabe ist mit dem
+realen OpenSim-Deferred-Scanner verbunden,
+aber es wurde **keine authentifizierte Stadt-
+NexVerse-Live-Region mit tatsächlichen Vulkan-
+Face-Farb-GPU-Bildern abgenommen**.
+Die nachgemessenen roten/blauen GPU-Testpixel
+stammen aus kontrollierter synthetischer
+Entwicklergeometrie. Der echte Texture-/PBR-/
+Terrain-/Wasser-/Avatar-/UI-Renderer, Vulkan-
+Fensterhoheit, produktive Vulkan-Grafikauswahl
+und hardwareübergreifende Live-Abnahme fehlen.
+OpenGL bleibt der einzige sichtbare Welt-Renderer.
+P05 formal 2/20; Block 3 und vollständiger
+Block 4 weiterhin offen.
+Code-Commit: 115294005da019ff2f658a853d8f4c0e56c1a649.
+
 ## P05/3–4 – 20 technische Schritte: Sonnenrichtung aus Firestorm auf Vulkan-GPU (07.11.2026)
 
 **Neue Umsetzung:** Die privat gerenderte Vulkan-World-XYZ-Lambert-Pipeline
