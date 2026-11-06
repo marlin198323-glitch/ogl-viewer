@@ -1603,6 +1603,37 @@ Snapshot nach authentifiziertem
 Login abnehmen und danach echte
 exklusive Vulkan-Fensterhoheit.
 
+**P05/3–4 Vulkan-World-Offscreen-Cache und GPU-Lifecycle (06.11.2026, cb364549):**
+Ein privater 32×32-Vulkan-World-Renderer
+verwendet jetzt dauerhaft gebundene
+GPU-Images, Depth-/Readback-Buffer,
+Shader, VkPipeline und GPU-Fence
+pro Device statt pro Testframe.
+Frameweise neu: CommandBuffer-
+Aufzeichnung, aktuell gekoppelte
+World-Kamera und Vertex-/Indexdaten.
+GPU-Fence-geschützter Reset und
+automatischer Shutdown vor VkDevice-
+Zerstörung, kein QueueIdle je Frame.
+Read-only GPU-Build-/Reuse-/
+Release-Zähler in Host und ABI.
+Native Vulkan 4 Frames, 2 Builds,
+2 Reuses, 2 Releases, 192/1024
+sichtbare Weltpixel nach neuer
+Region; Kamera-Away 0 Pixel.
+Linux-Vollbuild 346 Python/
+41 native Tests und 15 reale
+isolierte GUI-Starts bestanden.
+Noch KEINE echte eingeloggte
+OpenSim-Welt im Vulkan-Viewer,
+nur private synthetische GPU-
+Testbilder ohne Fenster-Ownership.
+P05 formal 2/20, Blöcke 3/4 offen.
+Nächstes Gate authentifiziertes
+Live-Region-Capture im Offscreen-
+Frame nachweisen, dann Vulkan-
+Window-In-World-Ownership.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

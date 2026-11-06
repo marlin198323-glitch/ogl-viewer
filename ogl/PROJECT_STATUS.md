@@ -6,6 +6,116 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: wiederverwendbarer Vulkan-World-Offscreen-GPU-Cache (06.11.2026)
+
+**Implementiert:** Der private 32×32-Vulkan-World-/Depth-Renderer
+hat seine GPU-Zielimages, GPU-Memory, Depth-Attachments,
+SPIR-V-Shader, VkGraphicsPipeline, Framebuffer, VkCommandPool,
+VkCommandBuffer, Readback-Buffer und VkFence vorher **bei jedem
+Diagnoseframe neu angelegt**. Der neue Cache ist jetzt an die
+Lebensdauer genau eines VkDevice gebunden und wird auch nach
+Kameraänderungen und GPU-sicheren OpenSim-Regionswechseln
+wiederverwendet.
+
+**Frame-Sicherheit:** VkCommandBuffer und VkFence werden erst
+nach einer erfolgreich abgeschlossenen GPU-Submission
+zurückgesetzt. Der Draw benutzt trotzdem bei JEDEM Frame die
+aktuell validierte 64-Byte-World-to-Clip-Matrix und die jeweils
+gültigen GPU-Vertex-/Indexbuffer. Bei Timeout bleiben noch
+referenzierte Vulkan-Objekte quarantänisiert; die Freigabe
+benutzt einen maximal 2s begrenzten Fence-Wait, **keinen
+VkQueueWaitIdle im Frame-Loop**. Bei Modulende wird der
+private Cache vor Regionsmesh und VkDevice freigegeben.
+Der zuvor existierende Offscreen-CLEAR-Test bleibt weiterhin
+temporär, ohne den neuen Weltcache aufzubauen.
+
+**Diagnosen:** Additive read-only-C-ABI meldet, wie häufig
+GPU-Cache-Ressourcen aufgebaut, weitergenutzt und freigegeben
+wurden. Ein eigenes Opt-in erlaubt das vollständige,
+sichere Cache-Release mit anschließendem Neuaufbau.
+Die reale Firestorm-HOST-Anbindung protokolliert ausschließlich
+anonyme Frame-/Pixel-/Cache-Zähler, keine Bildinhalte,
+Regionsbezeichnungen, Benutzer- oder Positionsdaten.
+OpenGL bleibt alleiniger Eigentümer des sichtbaren
+Viewerfensters.
+
+**20 tatsächlich durchgeführte technische Teilaufgaben:**
+
+01. Ausgangsbranch ogl-develop, sauberen Git-Stand, AGENTS, Handoff, P05-Roadmap und plattformübergreifende Vor-CI kontrolliert.
+02. Den funktionierenden 32x32-Vulkan-World-/Depth-Offscreen-Pfad auf pro Diagnose wiederholte GPU-Allokationen untersucht.
+03. Eine gerätegebundene OglOffscreenWorldCache-Struktur in der vorhandenen Vulkan-Implementierung eingeführt, ohne neue Projektdateien.
+04. VkImage-Farbfläche und die zugehörigen GPU-Memory-/ImageView-Objekte über mehrere Offscreen-Weltframes wiederverwendet.
+05. Privates Vulkan-Depth-VkImage/Memory/View pro Cachelebenszyklus statt pro GPU-Diagnose verwendet.
+06. World-SPIR-V-Vertex-/Depth-Fragmentshader und VkGraphicsPipeline in den gerätegebundenen Cache aufgenommen.
+07. VkRenderPass, PipelineLayout und Vulkan-Framebuffer bei Folgeframes statt erneuter Allokation weiterverwendet.
+08. GPU-Readback-VkBuffer und host-kohärenten Speicher des 32x32-RGBA-Bilds wiederverwendet.
+09. Cache-eigenen VkCommandPool mit VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT und genau einem VkCommandBuffer aufgebaut.
+10. Vor einem Folgeframe den nach GPU-Fence-Abschluss nutzbaren Command-Buffer mit vkResetCommandBuffer neu aufgezeichnet.
+11. Die aktuelle 64-Byte-Kamera-Projektionsmatrix und die aktuellen GPU-Vertex-/Indexbuffer bei JEDEM neuen Weltframe erneut gebunden.
+12. Den vorigen GPU-Fence nach erfolgreichem Abschluss mit vkResetFences für die nächste VkQueueSubmit-Verwendung vorbereitet.
+13. Mit einem submitted-Flag die Freigabe bei ausstehender GPU-Submission gesperrt; maximal 2s begrenzter Fence-Wait statt QueueIdle.
+14. Automatische Cache-Freigabe vor dem GPU-Mesh-Clear und VkDevice-Destroy im vorhandenen Modul-Shutdown abgesichert.
+15. Den bisherigen einzelnen Offscreen-Clear-Probe-Pfad bewusst temporär gehalten und vom Weltcache getrennt.
+16. Read-only-C-ABI für GPU-Cache-Aufbauten, Wiederverwendungen und Freigaben sowie explizit abgesicherten Cache-Release ergänzt.
+17. Den echten Firestorm-Host mit anonymisierten Cache-Zählern verbunden; bestehende gedrosselte Offscreen-Diagnose bleibt unabhängig vom OpenGL-Fenster.
+18. Native echte Vulkan-GPU-Abnahme: vier indexed World-/Depth-Frames, Kamera außerhalb des Blickfelds, Regionswechsel, 2 GPU-Builds/2 Reuses/2 Releases und Geräte-Reset bestanden.
+19. Linux-Vollviewer-Build, 346/346 Python-Tests, 41/41 native CTests und 55/55 gezielte Grafikkontrakte erfolgreich.
+20. 15/15 isolierte echte SDL/X11-Viewer-GUI-Fälle bestanden, inklusive Standard-OpenGL, Vulkan-Welt/Regionswechsel, Offscreen-Flags, fehlender Treiber und Berechtigungs-Fallbacks.
+
+**Native echte Vulkan-GPU-Abnahme:** Vier GPU-World-/Depth-
+Offscreen-Frames wurden mit tatsächlichem VkDrawIndexed,
+GPU-Kameraprojektion und RGBA-Readback geprüft. Zuerst
+sichtbare GPU-Weltpixel, dann bei abgewendeter Kamera
+0 sichtbare Pixel, danach neue Regionsgeometrie und
+erneut **192 von 1024 nicht-Hintergrund-Pixeln**.
+Die GPU meldete **2 Cache-Aufbauten, 2 Wiederverwendungen
+und 2 Freigaben**. Ein expliziter Release erlaubte
+eine vollständige neue GPU-Ressourcenallokation; beim
+Modul-Stop wurden die Zähler auf 0 zurückgesetzt.
+Die vorherigen Vulkan-X11-Present-, Depth-, Kamera-,
+Mesh-Rotation-, Regionsbarrieren- und WSI-Resize-
+Regressionen blieben grün.
+
+**Linux-Vollviewer:** Erfolgreicher Build,
+**346/346 Python-Tests, 41/41 native CTests**,
+darunter **55/55 gezielte Grafik-/Quellcode-
+Vertragstests**. 15/15 isolierte echte
+SDL/X11-Viewer-GUI-Starts erfolgreich:
+Standard-OpenGL, Live-Offscreen-Opt-ins,
+persistente Vulkan-Welt-/Depth-Tests
+(20 GPU-Frames, 100 X11-Pixelproben),
+Mesh-Rotation, Regionsbarriere und
+fehlerfreie OpenGL-Fallbacks bei
+fehlendem Vulkan-Treiber oder
+fehlenden Freigaben. Alle Tests
+endeten nach Login-Wait mit Exit 0.
+Die eigentliche Benutzer-Session,
+Cache und Accounts wurden nicht
+gestartet, geändert oder beendet.
+
+**Grenzen:** Die GPU-Ressourcen werden für
+DEN PRIVATEN diagnostischen 32×32-Offscreen-
+Renderpfad wiederverwendet, **nicht**
+für einen produktiven, im sichtbaren
+Viewerfenster laufenden Vulkan-Renderer.
+Die dokumentierten GPU-Pixeltests
+verwenden synthetische Testmeshes. Der
+echte Firestorm-Capture-Hook ist im
+Viewer-Quellcode angebunden, aber
+es ist weiterhin **kein tatsächlicher
+authentifizierter OpenSim-Region-GPU-
+Vulkan-Frame unter realem Login geprüft**.
+Die Vulkan-Engine für Terrain, Materialien,
+Texturen, Avatare, Wasser, UI und sichere
+exklusive Fensterhoheit fehlt.
+**P05 formal unverändert 2/20;
+Block 3 und der vollständige Block 4 offen.**
+Nächstes Gate: echte eingeloggte Region-
+Eingangsdaten nachweisbar mit Offscreen-
+World-GPU-Diagnose koppeln und erst dann
+In-World-Vulkan-Fenster-Ownership aufbauen.
+Code-Commit: cb364549ca3764cc04e580db785da269e589b10e.
+
 ## P05/3–4 – 20 technische Schritte: echte OpenSim-GPU-World-Inputs ohne Vulkan-Fensterübernahme (06.11.2026)
 
 **Implementiert:** Ein zusätzlicher Vulkan-Welt-Renderpfad zeichnet die

@@ -496,6 +496,48 @@ ist nur kompiliert, Live-Login-Test
 steht aus. P05 formal 2/20,
 Block 3/4 weiter offen.
 
+**P05/3–4 wiederverwendbarer World-GPU-Offscreen-Cache (06.11.2026, Code cb364549):**
+20 technische Aufgaben. Der 32×32-
+Vulkan-World-/Depth-Developerpfad
+legt GPU-Farb-/Depth-VkImages,
+GPU-Memory/Views, Framebuffer,
+Shader/Pipeline, Readback-Buffer,
+CommandPool/Buffer und Fence jetzt
+EINMAL pro VkDevice-Cachelebensdauer
+an und nutzt sie für neu eingereichte
+Kamera-/Mesh-Generationen erneut.
+CommandBuffer und Fence erst NACH
+abgeschlossener GPU-Submission
+resetten; alte Buffer bei ausstehenden
+Fences niemals vorzeitig freigeben.
+Bei Modulende vor GPU-Mesh und
+VkDevice kontrolliert freigeben,
+kein QueueIdle pro Renderframe.
+Alter Offscreen-Clear-Test bleibt
+temporär, Weltcache nur unter
+bestehenden Developer-Flags.
+Additive ABI/Host-Logs: Builds,
+Reuses, Releases (ohne Positions-/
+Regions-/Bilddaten).
+Native Vulkan: vier World-GPU-Frames
+inkl. Kamera-off-view, Regionswechsel,
+2 Cache-Builds, 2 Reuses, 2 Releases
+und überprüfte 192/1024 Weltpixel.
+Voll-Linux-Build 346 Python/
+41 CTests erfolgreich, 55 gezielte
+Grafiktests. 15/15 isolierte reale
+GUI-Starts bis GL-Login und Exit 0;
+Vulkan-WSI-Regressionen grün.
+KEIN authentifiziertes Live-OpenSim-
+Vulkan-Weltbild abgenommen, sondern
+synthetische Testgeometrie.
+GL-Fenster weiterhin allein
+produktiver Renderer. P05 formal
+2/20, Blöcke 3/4 weiterhin offen.
+Code cb364549; nächste Arbeit:
+echte Login-Region-Capture-Probe
+und erst dann Vulkan-Window-Handoff.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

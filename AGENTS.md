@@ -4,55 +4,56 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 06.11.2026 (Code 525c0945):
-Vulkan kann nun echte aus der
-Firestorm-/OpenSim-Capture-ABI
-bereitgestellte, kameragepaarte
-World-XYZ-Meshes als indexed
-Dreiecke mit GPU-Depth-Test in
-ein privates 32×32 VkImage
-RENDERN – Vulkan-Offscreen statt
-sichtbarer Vulkan-World-Swapchain.
-Keine SDL-/OpenGL-Fensterübernahme,
-kein VkQueuePresentKHR. Nur
-OGL_VULKAN_LIVE_WORLD_OFFSCREEN=1
-im Host sowie zusätzliche
-Modul-Flags für 32×32-Offscreen,
-World-Raster, Mesh-Upload und
-Kamera; Throttle erste 3 und
-dann jede 64. neue Szene;
-max. 2s Fence-Wait. 3 native
-Vulkan-World-Offscreen-Draws:
-sichtbare Pixel, Kamera-Away
-=0 Pixel, neue Region erneut
-192/1024 nichtleere Pixel.
-Read-only-C-ABI für Frame-
-und Coverage-Counter.
-Linux-Vollbuild 345 Python/
+Aktueller P05-Stand 06.11.2026 (Code cb364549):
+Privater 32×32 GPU-Vulkan-World-
+Offscreen-Renderer nutzt jetzt
+gerätegebundenen Cache für
+VkColor-/DepthImages, Memories,
+Views, VkRenderPass, Framebuffer,
+SPIR-V-Shader/VkPipeline und
+GPU-Readback-/Command-/Fence-
+Ressourcen. Einmal aufgebaut,
+pro neuer Kamera und Meshrevision
+wiederverwendet. Kein QueueIdle
+pro Frame, VkResetCommandBuffer
+und VkResetFences erst nachdem
+vorige GPU-Submission beendet ist.
+GPU-Timeout quarantänisiert
+noch referenzierte Ressourcen.
+Freigabe vor VkDevice-Zerstörung,
+sicherer expliziter Cache-Release
+und Neuaufbau. Der bisherige
+offscreen CLEAR path bleibt
+temporär. Additive Vulkan-ABI/
+HOST-Diagnose: Builds/Reuses/
+Releases, keine Benutzer-/Region-
+IDs oder Bildinhalte exportiert.
+Native Vulkan: 4 echte GPU-Frames,
+2 Builds, 2 Reuses, 2 Releases,
+Kamera aus Sicht 0 Pixel,
+nach Region 192 von 1024 Pixeln.
+Linux-Vollbuild 346 Python/
 41 native CTests bestanden.
-15 isolierte echte Viewer-GUI-
-Starts samt GL-Login/Exit 0;
-20 Vulkan-WSI-Frames/100 X11-
-Pixel ebenfalls grün.
-Vorige plattformübergreifende
-GitHub-CI grün, aktuelle
-noch separat prüfen.
-KEINE authentifizierte echte
-OpenSim-Region wurde als
-GPU-Vulkan-Liveframe abgenommen,
-die GPU-Pixeltests verwenden
-synthetische Geometrie und
-es gibt NOCH KEINEN sichtbaren
-Vulkan-Weltrenderer mit Terrain,
-Avatar, Textur, UI und Backend-
-Switch. P05 formal 2/20,
-Block 3/4 offen. Nutzer-Viewer,
-Profile, Cache, Logins, Secrets
-nie ungefragt verändern.
-Nur bestehende Projektdateien
-gezielt bearbeiten, keine
-Duplikate. Projektfortsetzung
-in ogl/PROJECT_STATUS.md.
+55 Grafik-Quellcode-Tests,
+15 isolierte reale Viewer-
+GUI-Starts GL-Login/Exit 0
+alle grün. Vorige GitHub-CI
+vollständig erfolgreich;
+neue Commit-CI noch prüfen.
+KEIN authentifizierter echter
+OpenSim-Live-Vulkan-Frame im
+Userlogin; SYNTHETISCHE
+private Vulkan-GPU-Testmeshes.
+KEINE fertige produktive Vulkan-
+World-/Terrain-/Avatar-/Textur-
+/UI-Engine oder exklusive
+In-World-Fensterhoheit.
+P05 formal 2/20, Block 3/4
+offen. Nur bestehende Dateien
+bearbeiten, Nutzer-Viewer/
+Profile/Accounts/Cache/Secrets
+nicht ändern. Handoff in
+ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
