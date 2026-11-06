@@ -385,6 +385,42 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(result["status"],"capture_accepted_gpu_pending")
         self.assertEqual(result["rejected_receipt_events"],1)
 
+    def test_p05_lambert_legacy_gpu_receipt_defaults_to_no_light(self):
+        result=module.p05_live_gpu_evidence(self.p05_example())
+        self.assertEqual(result["status"],"deferred_source_gpu_completed")
+        self.assertEqual(result["last_lit_pixels"],0)
+        self.assertEqual(result["last_mean_luminance"],0)
+
+    def test_p05_lambert_aggregate_gpu_receipt_succeeds(self):
+        log=self.p05_example().replace(
+            "nonclear_pixels=144 status=completed",
+            "nonclear_pixels=144 width=32 height=32 "
+            "lit_pixels=133 mean_luminance=274 status=completed")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"deferred_source_gpu_completed")
+        self.assertEqual(result["last_lit_pixels"],133)
+        self.assertEqual(result["last_mean_luminance"],274)
+
+    def test_p05_lambert_invalid_aggregate_gpu_receipts_rejected(self):
+        for lit,mean in ((145,250),(1,0),(132,766)):
+            log=self.p05_example().replace(
+                "nonclear_pixels=144 status=completed",
+                f"nonclear_pixels=144 width=32 height=32 "
+                f"lit_pixels={lit} mean_luminance={mean} status=completed")
+            result=module.p05_live_gpu_evidence(log)
+            self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+            self.assertEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_lambert_large_gpu_target_aggregate(self):
+        log=self.p05_example().replace(
+            "nonclear_pixels=144 status=completed",
+            "nonclear_pixels=18000 width=256 height=144 "
+            "lit_pixels=17000 mean_luminance=327 status=completed")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["last_pixel_capacity"],256*144)
+        self.assertEqual(result["last_lit_pixels"],17000)
+        self.assertEqual(result["last_mean_luminance"],327)
+
     def test_p05_receipts_exclude_private_identity(self):
         log=self.p05_example() + (
             "user=PRIVATE-AVATAR grid=PRIVATE-REGION account=PRIVATE\n"
@@ -394,6 +430,7 @@ class RTXSceneLogTests(unittest.TestCase):
             "status","current_region_epoch","accepted_capture_events",
             "completed_gpu_frames","camera_gpu_frames",
             "last_nonclear_pixels","last_pixel_capacity",
+            "last_lit_pixels","last_mean_luminance",
             "rejected_receipt_events",
         })
         self.assertNotIn("PRIVATE",str(result))

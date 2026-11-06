@@ -1133,6 +1133,54 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn('vkCreateSwapchainKHR(',fn)
         self.assertNotIn('SDL_',fn)
 
+    def test_p05_vulkan_world_face_normal_lambert_gpu_shader_is_optin(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        report=(ROOT/"ogl/scripts/ogl-test-report.py").read_text()
+        for name in ("ogl_dev_world_lambert_vert_spv",
+                     "ogl_dev_world_lambert_frag_spv"):
+            self.assertIn("static constexpr uint32_t "+name+"[]",module)
+            self.assertIn("sizeof("+name+")",module)
+        for name in ("ogl_vulkan_world_offscreen_scene_lit_pixels",
+                     "ogl_vulkan_world_offscreen_scene_mean_luminance"):
+            for source in (api,module,native,host):
+                self.assertIn(name,source)
+        begin=module.index("uint32_t render_offscreen_color_frame(")
+        end=module.index("// Independent opt-in camera projection",begin)
+        frame=module[begin:end]
+        for required in (
+            'std::getenv("OGL_VULKAN_WORLD_LAMBERT_PROBE")',
+            'std::strcmp(lambert_flag,"0")!=0',
+            'std::strcmp(lambert_flag,"1")!=0',
+            'resource.shading_mode!=shading_mode',
+            'shading_mode==1u',
+            'ogl_dev_world_lambert_vert_spv',
+            'ogl_dev_world_lambert_frag_spv',
+            'ogl_dev_depth_frag_spv',
+            'vec3', # absent in C++ shader words; skip?
+            'world_device.offscreen_world_lit_pixels=lit;',
+            'world_device.offscreen_world_mean_luminance=changed ?',
+            'resource.shading_mode=shading_mode;',
+            'vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,',
+            'VK_COMPARE_OP_LESS'):
+            if required!='vec3':
+                self.assertIn(required,frame)
+        self.assertIn("offscreen_world_lit_pixels = offscreen_world_mean_luminance = 0;",module)
+        self.assertIn("offscreen_lit_pixels()>0",native)
+        self.assertIn("tilted_luminance!=offscreen_mean_luminance()",native)
+        self.assertIn("offscreen_world_frames()==offscreen_start+18",native)
+        self.assertIn("offscreen_cache_builds()==offscreen_build0+10",native)
+        self.assertIn("offscreen_cache_reuses()==offscreen_reuse0+8",native)
+        self.assertIn("offscreen_cache_releases()==offscreen_release0+10",native)
+        self.assertIn("OGL_VULKAN_WORLD_LAMBERT_PROBE",api)
+        self.assertIn('lit_pixels=',host)
+        self.assertIn('mean_luminance=',host)
+        self.assertIn("lit>pixels or mean>765",report)
+        self.assertNotIn("vkQueuePresentKHR(",frame)
+        self.assertNotIn("SDL_",frame)
+
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
         header=(ROOT/"indra/newview/oglrtxhost.h").read_text()

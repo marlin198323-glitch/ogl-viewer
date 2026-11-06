@@ -338,6 +338,17 @@ OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_width(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_height(void);
+/* Optional developer-only face-normal Lambert shading from GPU pixel-space
+ * derivatives of real XYZ interpolated positions. Enabled only when
+ * OGL_VULKAN_WORLD_LAMBERT_PROBE=1 on top of existing world/mesh/camera/
+ * offscreen permissions. Invalid flag strings fail closed.
+ * Default remains the original red/green depth-debug shader.
+ * Output NEVER enters the user window or user image cache.
+ * Counters are bounded aggregates from the last GPU completed PRIVATE
+ * target; mean_luminance is average (R+G+B) of non-clear pixels, 0..765.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_lit_pixels(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_luminance(void);
 /* Device-owned private bounded-resolution World/Depth cache (developer only).
  * Changing the allowlisted resolution safely releases old attachments,
  * shader pipeline and readback after the previous GPU fence and rebuilds

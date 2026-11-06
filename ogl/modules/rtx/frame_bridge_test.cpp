@@ -77,6 +77,10 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_scene_width"));
     const auto offscreen_world_height = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_height"));
+    const auto offscreen_lit_pixels = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_lit_pixels"));
+    const auto offscreen_mean_luminance = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_luminance"));
     const auto offscreen_cache_builds = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_cache_builds"));
     const auto offscreen_cache_reuses = reinterpret_cast<uint32_t(*)()>(
@@ -87,11 +91,13 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_cache_release"));
     assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
            offscreen_world_width && offscreen_world_height &&
+           offscreen_lit_pixels && offscreen_mean_luminance &&
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
     assert(offscreen_world()==0 && offscreen_world_frames()==0 &&
            offscreen_world_pixels()==0 && offscreen_world_width()==0 &&
            offscreen_world_height()==0 &&
+           offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0 &&
            offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0);
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
@@ -311,7 +317,8 @@ int main(int argc, char** argv) {
     assert(offscreen_frame()==0);
     assert(offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0 &&
-           offscreen_world_width()==0 && offscreen_world_height()==0);
+           offscreen_world_width()==0 && offscreen_world_height()==0 &&
+           offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
            aspect_matches()==0 &&
            camera_updates()==0 && mesh_uploads()==0);
@@ -1645,9 +1652,96 @@ int main(int argc, char** argv) {
                 offscreen_cache_release()==1 &&
                 offscreen_cache_releases()==offscreen_release0+6 &&
                 offscreen_cache_release()==0;
+            // P05 developer-only Lambert shaded REAL GPU world-XYZ output,
+            // not a fake CPU paint operation. Keep mesh/region immutable
+            // while switching fragment shader + pipeline on the SAME device.
+            setenv("OGL_VULKAN_WORLD_LAMBERT_PROBE","invalid",1);
+            barrier_ok=barrier_ok && offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+12 &&
+                offscreen_cache_builds()==offscreen_build0+6;
+            setenv("OGL_VULKAN_WORLD_LAMBERT_PROBE","1",1);
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+13 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_lit_pixels()<=offscreen_world_pixels() &&
+                offscreen_mean_luminance()>0 &&
+                offscreen_mean_luminance()<=765 &&
+                offscreen_cache_builds()==offscreen_build0+7 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+14 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_cache_reuses()==offscreen_reuse0+7;
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION","256x144",1);
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+15 &&
+                offscreen_world_width()==256 && offscreen_world_height()==144 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_cache_builds()==offscreen_build0+8 &&
+                offscreen_cache_releases()==offscreen_release0+7 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads;
+            // Same GPU world geometry now falls back to the ORIGINAL
+            // red/green depth-debug shader without a global renderer toggle.
+            unsetenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION");
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+16 &&
+                offscreen_world_width()==32 && offscreen_world_height()==32 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_lit_pixels()==0 &&
+                offscreen_mean_luminance()>0 &&
+                offscreen_cache_builds()==offscreen_build0+9 &&
+                offscreen_cache_releases()==offscreen_release0+8 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+9 &&
+                offscreen_cache_release()==0;
+            // A real geometric NORMAL test: tilt one source triangle
+            // relative to the directional light, upload it to Vulkan and
+            // compare the GPU-measured average Lambert RGB luminance.
+            // This tests derivatives of world-XYZ surfaces, not just a
+            // constant green fragment shader.
+            const ogl_rtx_triangle tilted{{
+                12.5f,18.f,28.4f,15.5f,22.f,28.4f,12.5f,20.f,31.6f
+            }};
+            setenv("OGL_VULKAN_WORLD_LAMBERT_PROBE","1",1);
+            barrier_ok=barrier_ok &&
+                world_upload(&tilted,1)==1 && world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+17 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_mean_luminance()>0 &&
+                offscreen_mean_luminance()<=765;
+            const uint32_t tilted_luminance=offscreen_mean_luminance();
+            barrier_ok=barrier_ok &&
+                world_upload(&near,1)==1 && world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+18 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_mean_luminance()>0 &&
+                offscreen_mean_luminance()<=765 &&
+                offscreen_mean_luminance()!=tilted_luminance &&
+                offscreen_cache_builds()==offscreen_build0+10 &&
+                offscreen_cache_reuses()==offscreen_reuse0+8 &&
+                offscreen_cache_releases()==offscreen_release0+9 &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+10;
+            unsetenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+            std::fprintf(stdout,
+                "P05 Vulkan Lambert world-face normals: tilted_mean=%u "
+                "front_mean=%u lit_pixels=%u distinct=%d\n",
+                tilted_luminance,offscreen_mean_luminance(),
+                offscreen_lit_pixels(),
+                tilted_luminance!=offscreen_mean_luminance()?1:0);
             for (const char* flag:{
                  "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION",
+                 "OGL_VULKAN_WORLD_LAMBERT_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

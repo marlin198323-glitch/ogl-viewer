@@ -80,6 +80,8 @@ using ogl_world_offscreen_pixels_fn = uint32_t (*)();
 ogl_world_offscreen_pixels_fn world_offscreen_scene_pixels = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_scene_width = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_scene_height = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_lit_pixels = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_mean_luminance = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_cache_builds = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_cache_reuses = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_cache_releases = nullptr;
@@ -316,6 +318,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_width"));
     world_offscreen_scene_height = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_height"));
+    world_offscreen_lit_pixels = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_lit_pixels"));
+    world_offscreen_mean_luminance = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_mean_luminance"));
     world_offscreen_cache_builds = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_cache_builds"));
     world_offscreen_cache_reuses = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
@@ -518,6 +524,8 @@ void ogl_shutdown_rtx_module() {
     world_offscreen_scene_pixels = nullptr;
     world_offscreen_scene_width = nullptr;
     world_offscreen_scene_height = nullptr;
+    world_offscreen_lit_pixels = nullptr;
+    world_offscreen_mean_luminance = nullptr;
     world_offscreen_cache_builds = nullptr;
     world_offscreen_cache_reuses = nullptr;
     world_offscreen_cache_releases = nullptr;
@@ -644,6 +652,10 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
                 world_offscreen_scene_width() : 32u)
             << " height=" << (world_offscreen_scene_height ?
                 world_offscreen_scene_height() : 32u)
+            << " lit_pixels=" << (world_offscreen_lit_pixels ?
+                world_offscreen_lit_pixels() : 0u)
+            << " mean_luminance=" << (world_offscreen_mean_luminance ?
+                world_offscreen_mean_luminance() : 0u)
             << " status=completed; PRIVATE Vulkan image, not displayed."
             << LL_ENDL;
     }
@@ -659,6 +671,10 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
             world_offscreen_scene_width() : 32u)
         << " height=" << (world_offscreen_scene_height ?
             world_offscreen_scene_height() : 32u)
+        << " lit_pixels=" << (world_offscreen_lit_pixels ?
+            world_offscreen_lit_pixels() : 0u)
+        << " mean_luminance=" << (world_offscreen_mean_luminance ?
+            world_offscreen_mean_luminance() : 0u)
         << " cache_builds=" << (world_offscreen_cache_builds ?
             world_offscreen_cache_builds() : 0)
         << " cache_reuses=" << (world_offscreen_cache_reuses ?

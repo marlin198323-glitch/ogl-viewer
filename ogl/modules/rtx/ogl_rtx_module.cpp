@@ -179,6 +179,7 @@ struct OglOffscreenWorldCache {
     VkPipeline pipeline=VK_NULL_HANDLE;
     VkRenderPass pass=VK_NULL_HANDLE;
     VkExtent2D extent{}; // private target, independent of SDL window
+    uint32_t shading_mode=0; // 0=Depth debug; 1=face-normal Lambert dev
     bool initialized=false;
     bool submitted=false; // fence owns possibly in-flight work
 };
@@ -246,6 +247,8 @@ struct WorldGraphicsDevice {
     uint64_t offscreen_world_frames = 0; // completed VkDrawIndexed/readback
     uint32_t offscreen_world_covered_pixels = 0; // non-clear count
     uint32_t offscreen_world_width = 0, offscreen_world_height = 0;
+    uint32_t offscreen_world_lit_pixels = 0;
+    uint32_t offscreen_world_mean_luminance = 0; // 0..765 RGB sum
     // P05/3: bounded GPU queue submission diagnostic. These counters refer
     // to commands submitted BEFORE waiting on their completion fences,
     // NOT to simultaneous GPU execution or completed swapchain presents.
@@ -447,6 +450,7 @@ struct WorldGraphicsDevice {
         offscreen_world_frames = 0;
         offscreen_world_covered_pixels = 0;
         offscreen_world_width = offscreen_world_height = 0;
+        offscreen_world_lit_pixels = offscreen_world_mean_luminance = 0;
         offscreen_world_builds=offscreen_world_reuses=offscreen_world_releases=0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
@@ -923,6 +927,120 @@ static constexpr uint32_t ogl_dev_world_vert_spv[] = {
     0x0000001bu, 0x00050091u, 0x00000007u, 0x00000020u, 0x00000016u, 0x0000001fu, 0x00050041u,
     0x00000021u, 0x00000022u, 0x0000000du, 0x0000000fu, 0x0003003eu, 0x00000022u, 0x00000020u,
     0x000100fdu, 0x00010038u,
+};
+
+// Vulkan 1.0 validated GLSL 450: private world-position / face-normal lighting.
+// Embedded immutable shader bytes; no runtime shader compiler or extra assets.
+static constexpr uint32_t ogl_dev_world_lambert_vert_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000026u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0008000fu, 0x00000000u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x00000009u, 0x0000000bu, 0x00000013u, 0x00030003u, 0x00000002u, 0x000001c2u, 0x00040005u,
+    0x00000004u, 0x6e69616du, 0x00000000u, 0x00060005u, 0x00000009u, 0x6c726f77u, 0x6f705f64u,
+    0x69746973u, 0x00006e6fu, 0x00050005u, 0x0000000bu, 0x69736f70u, 0x6e6f6974u, 0x00000000u,
+    0x00060005u, 0x00000011u, 0x505f6c67u, 0x65567265u, 0x78657472u, 0x00000000u, 0x00060006u,
+    0x00000011u, 0x00000000u, 0x505f6c67u, 0x7469736fu, 0x006e6f69u, 0x00070006u, 0x00000011u,
+    0x00000001u, 0x505f6c67u, 0x746e696fu, 0x657a6953u, 0x00000000u, 0x00070006u, 0x00000011u,
+    0x00000002u, 0x435f6c67u, 0x4470696cu, 0x61747369u, 0x0065636eu, 0x00070006u, 0x00000011u,
+    0x00000003u, 0x435f6c67u, 0x446c6c75u, 0x61747369u, 0x0065636eu, 0x00030005u, 0x00000013u,
+    0x00000000u, 0x00040005u, 0x00000017u, 0x656d6143u, 0x00006172u, 0x00070006u, 0x00000017u,
+    0x00000000u, 0x6c726f77u, 0x6f745f64u, 0x696c635fu, 0x00000070u, 0x00040005u, 0x00000019u,
+    0x656d6163u, 0x00006172u, 0x00040047u, 0x00000009u, 0x0000001eu, 0x00000000u, 0x00040047u,
+    0x0000000bu, 0x0000001eu, 0x00000000u, 0x00030047u, 0x00000011u, 0x00000002u, 0x00050048u,
+    0x00000011u, 0x00000000u, 0x0000000bu, 0x00000000u, 0x00050048u, 0x00000011u, 0x00000001u,
+    0x0000000bu, 0x00000001u, 0x00050048u, 0x00000011u, 0x00000002u, 0x0000000bu, 0x00000003u,
+    0x00050048u, 0x00000011u, 0x00000003u, 0x0000000bu, 0x00000004u, 0x00030047u, 0x00000017u,
+    0x00000002u, 0x00040048u, 0x00000017u, 0x00000000u, 0x00000005u, 0x00050048u, 0x00000017u,
+    0x00000000u, 0x00000007u, 0x00000010u, 0x00050048u, 0x00000017u, 0x00000000u, 0x00000023u,
+    0x00000000u, 0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u,
+    0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000003u, 0x00040020u,
+    0x00000008u, 0x00000003u, 0x00000007u, 0x0004003bu, 0x00000008u, 0x00000009u, 0x00000003u,
+    0x00040020u, 0x0000000au, 0x00000001u, 0x00000007u, 0x0004003bu, 0x0000000au, 0x0000000bu,
+    0x00000001u, 0x00040017u, 0x0000000du, 0x00000006u, 0x00000004u, 0x00040015u, 0x0000000eu,
+    0x00000020u, 0x00000000u, 0x0004002bu, 0x0000000eu, 0x0000000fu, 0x00000001u, 0x0004001cu,
+    0x00000010u, 0x00000006u, 0x0000000fu, 0x0006001eu, 0x00000011u, 0x0000000du, 0x00000006u,
+    0x00000010u, 0x00000010u, 0x00040020u, 0x00000012u, 0x00000003u, 0x00000011u, 0x0004003bu,
+    0x00000012u, 0x00000013u, 0x00000003u, 0x00040015u, 0x00000014u, 0x00000020u, 0x00000001u,
+    0x0004002bu, 0x00000014u, 0x00000015u, 0x00000000u, 0x00040018u, 0x00000016u, 0x0000000du,
+    0x00000004u, 0x0003001eu, 0x00000017u, 0x00000016u, 0x00040020u, 0x00000018u, 0x00000009u,
+    0x00000017u, 0x0004003bu, 0x00000018u, 0x00000019u, 0x00000009u, 0x00040020u, 0x0000001au,
+    0x00000009u, 0x00000016u, 0x0004002bu, 0x00000006u, 0x0000001eu, 0x3f800000u, 0x00040020u,
+    0x00000024u, 0x00000003u, 0x0000000du, 0x00050036u, 0x00000002u, 0x00000004u, 0x00000000u,
+    0x00000003u, 0x000200f8u, 0x00000005u, 0x0004003du, 0x00000007u, 0x0000000cu, 0x0000000bu,
+    0x0003003eu, 0x00000009u, 0x0000000cu, 0x00050041u, 0x0000001au, 0x0000001bu, 0x00000019u,
+    0x00000015u, 0x0004003du, 0x00000016u, 0x0000001cu, 0x0000001bu, 0x0004003du, 0x00000007u,
+    0x0000001du, 0x0000000bu, 0x00050051u, 0x00000006u, 0x0000001fu, 0x0000001du, 0x00000000u,
+    0x00050051u, 0x00000006u, 0x00000020u, 0x0000001du, 0x00000001u, 0x00050051u, 0x00000006u,
+    0x00000021u, 0x0000001du, 0x00000002u, 0x00070050u, 0x0000000du, 0x00000022u, 0x0000001fu,
+    0x00000020u, 0x00000021u, 0x0000001eu, 0x00050091u, 0x0000000du, 0x00000023u, 0x0000001cu,
+    0x00000022u, 0x00050041u, 0x00000024u, 0x00000025u, 0x00000013u, 0x00000015u, 0x0003003eu,
+    0x00000025u, 0x00000023u, 0x000100fdu, 0x00010038u,
+};
+
+// Vulkan 1.0 validated GLSL 450: private world-position / face-normal lighting.
+// Embedded immutable shader bytes; no runtime shader compiler or extra assets.
+static constexpr uint32_t ogl_dev_world_lambert_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000047u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0007000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000bu, 0x00000041u, 0x00030010u, 0x00000004u, 0x00000007u, 0x00030003u, 0x00000002u,
+    0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u, 0x00030005u, 0x00000009u,
+    0x00007864u, 0x00060005u, 0x0000000bu, 0x6c726f77u, 0x6f705f64u, 0x69746973u, 0x00006e6fu,
+    0x00030005u, 0x0000000eu, 0x00007964u, 0x00050005u, 0x00000011u, 0x5f776172u, 0x6d726f6eu,
+    0x00006c61u, 0x00040005u, 0x00000016u, 0x676e656cu, 0x00326874u, 0x00050005u, 0x0000001au,
+    0x65636166u, 0x726f6e5fu, 0x006c616du, 0x00040005u, 0x0000002bu, 0x6867696cu, 0x00000074u,
+    0x00040005u, 0x00000030u, 0x66666964u, 0x00657375u, 0x00060005u, 0x00000039u, 0x66666964u,
+    0x5f657375u, 0x6f6c6f63u, 0x00000072u, 0x00050005u, 0x00000041u, 0x5f74756fu, 0x6f6c6f63u,
+    0x00000072u, 0x00040047u, 0x0000000bu, 0x0000001eu, 0x00000000u, 0x00040047u, 0x00000041u,
+    0x0000001eu, 0x00000000u, 0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u,
+    0x00030016u, 0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000003u,
+    0x00040020u, 0x00000008u, 0x00000007u, 0x00000007u, 0x00040020u, 0x0000000au, 0x00000001u,
+    0x00000007u, 0x0004003bu, 0x0000000au, 0x0000000bu, 0x00000001u, 0x00040020u, 0x00000015u,
+    0x00000007u, 0x00000006u, 0x0004002bu, 0x00000006u, 0x0000001cu, 0x2b8cbcccu, 0x00020014u,
+    0x0000001du, 0x0004002bu, 0x00000006u, 0x00000027u, 0x00000000u, 0x0004002bu, 0x00000006u,
+    0x00000028u, 0x3f800000u, 0x0006002cu, 0x00000007u, 0x00000029u, 0x00000027u, 0x00000027u,
+    0x00000028u, 0x0004002bu, 0x00000006u, 0x0000002cu, 0x3f6bc40bu, 0x0004002bu, 0x00000006u,
+    0x0000002du, 0x3e1d2d5du, 0x0004002bu, 0x00000006u, 0x0000002eu, 0x3eb75f97u, 0x0006002cu,
+    0x00000007u, 0x0000002fu, 0x0000002cu, 0x0000002du, 0x0000002eu, 0x0004002bu, 0x00000006u,
+    0x00000031u, 0x3e4ccccdu, 0x0004002bu, 0x00000006u, 0x00000032u, 0x3f4ccccdu, 0x0004002bu,
+    0x00000006u, 0x0000003au, 0x3f47ae14u, 0x0004002bu, 0x00000006u, 0x0000003bu, 0x3ec7ae14u,
+    0x0006002cu, 0x00000007u, 0x0000003cu, 0x00000031u, 0x0000003au, 0x0000003bu, 0x00040017u,
+    0x0000003fu, 0x00000006u, 0x00000004u, 0x00040020u, 0x00000040u, 0x00000003u, 0x0000003fu,
+    0x0004003bu, 0x00000040u, 0x00000041u, 0x00000003u, 0x00050036u, 0x00000002u, 0x00000004u,
+    0x00000000u, 0x00000003u, 0x000200f8u, 0x00000005u, 0x0004003bu, 0x00000008u, 0x00000009u,
+    0x00000007u, 0x0004003bu, 0x00000008u, 0x0000000eu, 0x00000007u, 0x0004003bu, 0x00000008u,
+    0x00000011u, 0x00000007u, 0x0004003bu, 0x00000015u, 0x00000016u, 0x00000007u, 0x0004003bu,
+    0x00000008u, 0x0000001au, 0x00000007u, 0x0004003bu, 0x00000008u, 0x0000001fu, 0x00000007u,
+    0x0004003bu, 0x00000008u, 0x0000002bu, 0x00000007u, 0x0004003bu, 0x00000015u, 0x00000030u,
+    0x00000007u, 0x0004003bu, 0x00000008u, 0x00000039u, 0x00000007u, 0x0004003du, 0x00000007u,
+    0x0000000cu, 0x0000000bu, 0x000400cfu, 0x00000007u, 0x0000000du, 0x0000000cu, 0x0003003eu,
+    0x00000009u, 0x0000000du, 0x0004003du, 0x00000007u, 0x0000000fu, 0x0000000bu, 0x000400d0u,
+    0x00000007u, 0x00000010u, 0x0000000fu, 0x0003003eu, 0x0000000eu, 0x00000010u, 0x0004003du,
+    0x00000007u, 0x00000012u, 0x00000009u, 0x0004003du, 0x00000007u, 0x00000013u, 0x0000000eu,
+    0x0007000cu, 0x00000007u, 0x00000014u, 0x00000001u, 0x00000044u, 0x00000012u, 0x00000013u,
+    0x0003003eu, 0x00000011u, 0x00000014u, 0x0004003du, 0x00000007u, 0x00000017u, 0x00000011u,
+    0x0004003du, 0x00000007u, 0x00000018u, 0x00000011u, 0x00050094u, 0x00000006u, 0x00000019u,
+    0x00000017u, 0x00000018u, 0x0003003eu, 0x00000016u, 0x00000019u, 0x0004003du, 0x00000006u,
+    0x0000001bu, 0x00000016u, 0x000500bau, 0x0000001du, 0x0000001eu, 0x0000001bu, 0x0000001cu,
+    0x000300f7u, 0x00000021u, 0x00000000u, 0x000400fau, 0x0000001eu, 0x00000020u, 0x00000026u,
+    0x000200f8u, 0x00000020u, 0x0004003du, 0x00000007u, 0x00000022u, 0x00000011u, 0x0004003du,
+    0x00000006u, 0x00000023u, 0x00000016u, 0x0006000cu, 0x00000006u, 0x00000024u, 0x00000001u,
+    0x00000020u, 0x00000023u, 0x0005008eu, 0x00000007u, 0x00000025u, 0x00000022u, 0x00000024u,
+    0x0003003eu, 0x0000001fu, 0x00000025u, 0x000200f9u, 0x00000021u, 0x000200f8u, 0x00000026u,
+    0x0003003eu, 0x0000001fu, 0x00000029u, 0x000200f9u, 0x00000021u, 0x000200f8u, 0x00000021u,
+    0x0004003du, 0x00000007u, 0x0000002au, 0x0000001fu, 0x0003003eu, 0x0000001au, 0x0000002au,
+    0x0003003eu, 0x0000002bu, 0x0000002fu, 0x0004003du, 0x00000007u, 0x00000033u, 0x0000001au,
+    0x0004003du, 0x00000007u, 0x00000034u, 0x0000002bu, 0x00050094u, 0x00000006u, 0x00000035u,
+    0x00000033u, 0x00000034u, 0x0006000cu, 0x00000006u, 0x00000036u, 0x00000001u, 0x00000004u,
+    0x00000035u, 0x00050085u, 0x00000006u, 0x00000037u, 0x00000032u, 0x00000036u, 0x00050081u,
+    0x00000006u, 0x00000038u, 0x00000031u, 0x00000037u, 0x0003003eu, 0x00000030u, 0x00000038u,
+    0x0004003du, 0x00000006u, 0x0000003du, 0x00000030u, 0x0005008eu, 0x00000007u, 0x0000003eu,
+    0x0000003cu, 0x0000003du, 0x0003003eu, 0x00000039u, 0x0000003eu, 0x0004003du, 0x00000007u,
+    0x00000042u, 0x00000039u, 0x00050051u, 0x00000006u, 0x00000043u, 0x00000042u, 0x00000000u,
+    0x00050051u, 0x00000006u, 0x00000044u, 0x00000042u, 0x00000001u, 0x00050051u, 0x00000006u,
+    0x00000045u, 0x00000042u, 0x00000002u, 0x00070050u, 0x0000003fu, 0x00000046u, 0x00000043u,
+    0x00000044u, 0x00000045u, 0x00000028u, 0x0003003eu, 0x00000041u, 0x00000046u, 0x000100fdu,
+    0x00010038u,
 };
 
 // Depth QA shader: near red, far green (actual GPU gl_FragCoord.z).
@@ -2261,6 +2379,15 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
 
     const VkExtent2D extent=scene ?
         ogl_private_world_offscreen_extent() : VkExtent2D{32,32};
+    // Separate opt-in face-normal shading, never the public Vulkan option.
+    // Unknown mode fails closed and does not release the active GPU cache.
+    const char* lambert_flag=std::getenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+    if (scene && lambert_flag && *lambert_flag &&
+        std::strcmp(lambert_flag,"0")!=0 &&
+        std::strcmp(lambert_flag,"1")!=0)
+        return 0;
+    const uint32_t shading_mode=scene && lambert_flag &&
+        std::strcmp(lambert_flag,"1")==0 ? 1u : 0u;
     const uint32_t width=extent.width, height=extent.height;
     if (!width || !height || width>512 || height>288 ||
         uint64_t(width)*height>512u*288u) return 0;
@@ -2288,7 +2415,8 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
     OglOffscreenWorldCache transient;
     auto& resource=scene ? world_device.offscreen_world_cache : transient;
     if (scene && resource.initialized &&
-        (resource.extent.width!=width || resource.extent.height!=height)) {
+        (resource.extent.width!=width || resource.extent.height!=height ||
+         resource.shading_mode!=shading_mode)) {
         world_device.release_offscreen_world_cache();
         // A pending GPU submission is never destroyed or replaced.
         if (resource.initialized || resource.submitted) return 0;
@@ -2498,19 +2626,23 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         if (scene) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=true
-                ? sizeof(ogl_dev_world_vert_spv) : sizeof(ogl_dev_vert_spv);
-            vertex_info.pCode=true
-                ? ogl_dev_world_vert_spv : ogl_dev_vert_spv;
+            vertex_info.codeSize=shading_mode==1u
+                ? sizeof(ogl_dev_world_lambert_vert_spv)
+                : sizeof(ogl_dev_world_vert_spv);
+            vertex_info.pCode=shading_mode==1u
+                ? ogl_dev_world_lambert_vert_spv
+                : ogl_dev_world_vert_spv;
             if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
                                      &pipeline_state.vertex_shader)!=VK_SUCCESS || !pipeline_state.vertex_shader)
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=true
-                ? sizeof(ogl_dev_depth_frag_spv) : sizeof(ogl_dev_frag_spv);
-            fragment_info.pCode=true
-                ? ogl_dev_depth_frag_spv : ogl_dev_frag_spv;
+            fragment_info.codeSize=shading_mode==1u
+                ? sizeof(ogl_dev_world_lambert_frag_spv)
+                : sizeof(ogl_dev_depth_frag_spv);
+            fragment_info.pCode=shading_mode==1u
+                ? ogl_dev_world_lambert_frag_spv
+                : ogl_dev_depth_frag_spv;
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &pipeline_state.fragment_shader)!=VK_SUCCESS || !pipeline_state.fragment_shader)
                 return false;
@@ -2748,9 +2880,25 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             // changed pixel without exposing image/region/player data.
             // An all-clear frame is valid if the camera sees no geometry,
             // but never label that as visible geometry.
-            uint32_t changed=0;
-            for (uint32_t pixel=0;pixel<width*height;++pixel)
-                if (!matches(size_t(pixel)*4)) ++changed;
+            uint32_t changed=0, lit=0;
+            uint64_t luminance_sum=0;
+            for (uint32_t pixel=0;pixel<width*height;++pixel) {
+                const size_t offset=size_t(pixel)*4;
+                if (!matches(offset)) {
+                    ++changed;
+                    const uint32_t rgb_sum=uint32_t(rgba[offset])+
+                        uint32_t(rgba[offset+1])+uint32_t(rgba[offset+2]);
+                    luminance_sum+=rgb_sum;
+                    // Developer Lambert palette is green-dominant, while
+                    // depth debug red/green remains the default unchanged.
+                    if (shading_mode==1u && rgba[offset+1]>rgba[offset] &&
+                        rgba[offset+1]>rgba[offset+2])
+                        ++lit;
+                }
+            }
+            world_device.offscreen_world_lit_pixels=lit;
+            world_device.offscreen_world_mean_luminance=changed ?
+                uint32_t(luminance_sum/changed) : 0u;
             world_device.offscreen_world_covered_pixels=changed;
             world_device.offscreen_world_width=width;
             world_device.offscreen_world_height=height;
@@ -2762,6 +2910,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             if (reuse) ++world_device.offscreen_world_reuses;
             else {
                 resource.extent={width,height};
+                resource.shading_mode=shading_mode;
                 resource.initialized=true;
                 ++world_device.offscreen_world_builds;
             }
@@ -3833,6 +3982,12 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_width() {
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_height() {
     return world_device.offscreen_world_height;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_lit_pixels() {
+    return world_device.offscreen_world_lit_pixels;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_luminance() {
+    return world_device.offscreen_world_mean_luminance;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_builds() {
     return world_device.offscreen_world_builds;
