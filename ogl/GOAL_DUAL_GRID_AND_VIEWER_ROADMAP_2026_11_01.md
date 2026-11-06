@@ -1775,6 +1775,28 @@ Weiter kein authentifizierter OpenSim-Live-Farbframe
 oder sichtbare Vulkan-World-/Material-/UI-Engine.
 P05 formal 2/20, Block3/4 offen.
 
+**P05/3–4 OpenSim-UV-Binding2, 4x4-Vulkan-GPU-Diagnose (07.11.2026, Code ee2d7544):**
+Real-Deferred-Scanner extrahiert LLVolumeFace-UVs,
+angewendete einfache Firestorm-TextureEntry-
+Rotation/Skalierung/Offset. Separate FaceUV-v1-ABI,
+VkVertexBuffer Binding2, ShaderMode4 mit interpolierter
+UV-4x4-Prüfrastertextur (PROZEDURAL, kein VkSampler/
+keine echten Pixelasset-Texturen).
+Aktuelle Meshgeneration, 3 FaceUV-Paare pro Dreieck,
+dedizierter sicherer Buffer-Uploader,
+UV-/RGB-Uploads ohne XYZ-Neuladen.
+Gates UV_CHECKER/FACE_TINT/LAMBERT/SUN/
+Vulkan-GPU/World-Upload/Camera/Offscreen.
+Echte GPU 30 private World-/Depth-Frames,
+16 Cache-Builds/14 Reuses/16 Releases,
+UV-Farbfelder rot R48/G6, grün R6/G47.
+374 Python/41 native CTests, 62 Grafik-
+und 45 Reportchecks sowie 43/43
+isolierte echte Viewer-GUI-Starts grün. OpenGL sichtbar,
+kein authentifizierter Live-Vulkan-Weltframe.
+P05 formal 2/20; weiterer Schritt echte
+VkImage-/Sampler-/TextureAsset-Pipeline.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

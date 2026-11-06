@@ -728,6 +728,32 @@ Kein authentifizierter OpenSim-Live-Vulkan-
 Farbframe; sichtbare Welt weiter OpenGL.
 P05 formal 2/20, Block3/4 offen.
 
+**P05/3–4 echte OpenSim-UV-Quellen an Vulkan-GPU-Checker (07.11.2026, Code ee2d7544):**
+20 echte technische Aufgaben, siehe ogl/PROJECT_STATUS.md.
+Der reale Firestorm-Deferred-LLVolumeFace-Scanner kann
+optional Face-UVs (drei float2 pro XYZ-Dreieck) mit
+üblicher TE-Rotation/S/T-Skalierung/Offset an den
+quellqualifizierten GPU-Host übergeben.
+Planar/animierte Texturen und PBR bleiben offen,
+Terrain/Anker/ungültige UVs neutral.
+Getrennte UV-vs-FaceRGB-vs-XYZ-GPU-Vertexbuffer,
+Vulkan1.0-geprüfte ShaderMode4-Entwicklerpipeline
+mit echtem GPU-UV-4x4-Schachbrettmuster.
+Nur bei UV_CHECKER_PROBE=1 plus allen
+FaceTint/Lambert/Sun/World/Mesh/Camera/Offscreen-
+Freigaben. 1:1-Zuordnung, finite UVs,
+Meshgeneration, GPU-Speicher-Rollback.
+Kein echter Texturasset-/VkImage-Sampler.
+Native Vulkan-GPU 30 World-/Depth-Frames,
+16 Builds/14 Reuses/16 Releases, UV-Rot R48/G6,
+UV-Grün R6/G47, Wrapping/Invalid-Checks grün.
+Voll-Linux-Build 374 Python/41 CTests,
+62 Grafik-/45 Reporter-Tests und 43/43
+isolierte echte SDL/X11-Viewerstarts grün.
+Noch kein authentifizierter Live-OpenSim-
+Vulkan-Textur-/Weltframe, Welt bleibt OpenGL.
+P05 formal 2/20, Block3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

@@ -6,6 +6,107 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: echte OpenSim-UV-Daten im privaten Vulkan-Testshader (07.11.2026)
+
+**Umsetzung:** Als Folgeschritt auf echte OpenSim-Face-RGB-Farbwerte
+kann der Firestorm-Deferred-Szenenscanner jetzt auch die originalen
+LLVolumeFace-UV-Koordinaten der akzeptierten Volume-Dreiecke übergeben.
+Die TextureEntry-Transformation wird für unterstützte normale
+Flächen wie in Firestorm LLFace angewendet: Rotation um das
+UV-Zentrum (0,5/0,5), getrennte Skalierung und danach Offset.
+Nicht sicher zuordenbare Terrain-/Ray-Anker-, Planar- und ungültige
+Daten erhalten neutrale UVs. Die dynamische Texture-Animation
+und komplette PBR-Textur-/Planarprojektion sind nicht implementiert.
+
+**GPU-Pfad:** Der Vulkan-World-Meshbuffer (XYZ, Binding0) und der
+bestehende opake Face-RGB-Buffer (Binding1) bleiben unabhängig.
+Ein eigener Face-UV-Buffer (Binding2) enthält für jedes indexierte
+Dreieck drei UV-Paare. Alle Quellen müssen zur gleichen aktuell
+gültigen GPU-Meshgeneration und exakt gleicher Dreieckszahl gehören.
+Der Upload beider Materialsidecars verwendet jetzt einen gemeinsamen
+hostkohärenten GPU-Allokationspfad mit Rollback bei Fehlern.
+Änderungen der UV-Koordinaten erzeugen kein neues XYZ-Mesh und
+keinen Shader-Neuaufbau. Region-/Meshwechsel verwerfen alte UVs.
+
+**Shader:** Zwei GLSL-450-Shader wurden in Vulkan-1.0-SPIR-V
+übersetzt und mittels spirv-val validiert. Der neue ShaderMode4
+interpoliert die UV-Werte auf der GPU, wiederholt Koordinaten und
+zeigt ein kontrolliertes 4x4-rotes/grünes Raster, mit echter
+aktueller Sonnenrichtung und Face-RGB multipliziert.
+Dies ist ausdrücklich eine UV-Diagnose: Weder eine
+VkImage-Texture noch ein VkSampler mit realen JPEG2000-/
+OpenSim-Assetpixeln ist vorhanden. Der private Vulkan-Framebuffer
+wird nicht im echten Benutzerfenster angezeigt.
+
+**Sicherheitsgates:** OGL_VULKAN_WORLD_UV_CHECKER_PROBE=1
+erfordert die getrennten FACE_TINT-/LAMBERT-/SUN-Developerflags
+und vorhandene Vulkan-Device-/Mesh-/Camera-/Offscreen-
+Freigaben. Null-/NaN-/Infinity-/Außerbereich-UVs, fehlende
+RGB-/UV-Sidecars, nicht passende Generationen und ungültige
+Opt-in-Werte scheitern geschlossen. Normale OpenGL-Darstellung,
+ShaderModes0 bis 3, Alpha-/Sky-/Avatar-/UI-Pfade unverändert.
+
+**20 tatsächlich ausgeführte Entwicklungs-/Testaufgaben:**
+
+01. Git-Branch ogl-develop, sauberen vorherigen Stand, kanonische Roadmap und vollständig grüne vorherige Linux-/Windows-/macOS-CI geprüft.
+02. Firestorm-Deferred-Weltabtastung, reale LLVolumeFace.mTexCoords sowie OpenSim-TextureEntry-Daten als Quelle für gemeshte UV-Koordinaten verifiziert.
+03. Die originale Firestorm-LLFace-Texturtransformation geprüft: Drehung um 0,5, anschließend getrennte S/T-Skalierung und UV-Offset.
+04. Unveränderte bestehende XYZ-Dreiecks-ABI und getrennte RGB-Sidecar-ABI als Kompatibilitätsgrenze festgelegt.
+05. Neue additive C-ABI ogl_rtx_face_uv mit genau drei UV-Paaren pro akzeptiertem Dreieck definiert.
+06. Eigenen GPU-UV-Vertexbuffer an Vulkan-Binding 2 mit strikt zur XYZ-Meshgeneration passender Revision eingerichtet.
+07. UV-Werte vor jeder GPU-Speicheränderung auf endliche Koordinaten im erlaubten Bereich -4096 bis +4096 und exakte Mesh-/Face-Zuordnung geprüft.
+08. Bestehende RGB- und neue UV-Buffer-Allokationen in gemeinsamen sicheren, hostkohärenten VkBuffer-/VkDeviceMemory-Uploadpfad zusammengeführt.
+09. GPU-UV-Lebenszyklus abgesichert: eigenständige Freigabe, Rücksetzen bei Region-/Mesh-Clear sowie fehlgeschlagenem oder ungültigem UV-Upload.
+10. GLSL-450-Vulkan-Vertexshader für drei unabhängige Vertexdatenströme (XYZ, Face-RGB, Face-UV) und die bisherige Kameraprojektion entwickelt.
+11. GLSL-450-Vulkan-Fragmentshader mit echten interpolierten UV-Daten und einem viermal vier wiederholten roten/grünen Entwicklermuster entwickelt.
+12. Beide neuen Shader für Vulkan 1.0 kompiliert, mit Khronos spirv-val validiert und direkt in die bestehende Vulkan-Modul-Quelldatei eingebettet.
+13. Vulkan-ShaderMode 4 und drei GPU-Vertexbindings eingerichtet, ohne Shader-/Pipeline-Eingriffe in Depth-Debug, feste Lambert-, Sun- und Face-RGB-Modi.
+14. Neue unabhängige Entwicklerfreigabe OGL_VULKAN_WORLD_UV_CHECKER_PROBE=1 plus zwingende FaceTint-/Lambert-/Sun-/World-/Mesh-/Camera-/Offscreen-Freigaben eingeführt.
+15. GPU-Leseprobe um den gemessenen mittleren Grünkanal erweitert, um echte UV-gesteuerte Farbwechsel überprüfbar zu machen.
+16. Realen Firestorm-Deferred-Szenenscanner um indexgenaues Einsammeln von UVs jeder gültigen LLVolumeFace-Dreiecksfläche ergänzt.
+17. Übliche TextureEntry-Rotation/Skalierung/Offset gemäß Firestorm-LLFace-Konvention umgesetzt; Terrain, Ray-Anker, Planarprojektion und ungültige UVs verwenden vorsichtige neutrale UV-Daten.
+18. Der Firestorm-Host reicht XYZ, RGB und UV innerhalb eines einzigen synchronen, quellqualifizierten Scans weiter, prüft die aktuelle Meshgeneration und sperrt Live-Quittungen bei UV-Ausfall.
+19. Native echte Vulkan-GPU-Tests: UV-Rot- und Grünfeld, negative Koordinaten/Wrapping, unzulässige Anzahl, NaN, ungültige Freigabe und neue Meshgeneration mit Neuabgleich bestanden.
+20. Linux-Vollviewer gebaut und 374 Python-Tests, 41 native CTests, 62 Grafik- sowie 45 Report-Tests bestanden; zusätzliche isolierte SDL/X11-Viewerstart-Fälle für UV-Freigabe und Rückfallpfade vorbereitet und ausgeführt.
+
+**Gemessene native Vulkan-GPU-Abnahme:** 30 private
+VkDrawIndexed-World-/Depth-Frames, **16 GPU-Cache-Builds,
+14 Reuses, 16 Freigaben**. Bei identischem GPU-Mesh,
+RGB-Material und Kameraframe erzeugen unterschiedliche
+UV-Werte zwei unterschiedliche GPU-Texturprüffelder:
+**rot R48/G6, grün R6/G47**. Eine äquivalente negative
+UV-Wiederholung erzeugte denselben grünen Pixelwert.
+Der UV-Buffer wurde viermal ausgetauscht, ohne
+neuen GPU-XYZ-Meshupload; NaN, falsche Dreieckszahl
+und ungültiges Flag wurden abgelehnt. Nach
+Meshgenerationserhöhung war das alte UV-Material
+nicht darstellbar, bis neue UV- und RGB-Daten
+erneut passend bereitgestellt wurden. Vorige
+Vulkan-Depth-/Regions-/WSI-X11-Abnahmen weiter grün.
+
+**GUI-Abnahme:** 43/43 echte isolierte SDL/X11-Viewerstarts bestanden, einschließlich fünf neuer UV-Opt-in-/Missing-Source-/Invalid-Flag-Fälle, normalen OpenGL-Logins und sämtlicher vorigen Vulkan-X11-WSI-/Depth-/Region-/Treiber-Fallbacks. Keine Userprofile oder Userprozesse geändert.
+
+**Linux-Volltest:** 374/374 Python-Tests, 41/41 native
+CTests, 62 gezielte Grafik- und 45 Report-Tests grün.
+Vollständige isolierte SDL/X11-GUI-Abnahme mit
+bestehenden Fallbacks und fünf zusätzlichen
+UV-Flag-/Auflösungsfällen läuft unabhängig von
+Nutzerprofil, Nutzer-Viewer und Live-Logins.
+
+**Noch offen:** Der Firestorm-Datenpfad ist mit echten
+OpenSim-UV-Quellen verbunden, aber er wurde NICHT
+gegen einen authentifizierten Live-OpenSim-Vulkan-
+Weltframe abgenommen. Die gemessenen Prüfpixel
+stammen aus kontrollierter synthetischer Geometrie.
+Es gibt NOCH KEINE echte GPU-Texturpixelübernahme,
+keinen VkImage-Sampler aus OpenSim-Texture-Assets,
+keine vollständige Material-/PBR-/Terrain-/
+Wasser-/Avatar-/Animation-/UI-Darstellung
+und keine Vulkan-Fensterübernahme. Produktiv bleibt
+OpenGL. P05 formal weiterhin 2/20 operative
+Hauptblöcke; Block3/4 nicht komplett abgenommen.
+Code-Commit: ee2d7544d5cd9f31c74de68297a1f81c58312181.
+
 ## P05/3–4 – 20 technische Schritte: OpenSim-Face-Farbwerte an Vulkan-World-Shader (07.11.2026)
 
 **Entwicklungsinhalt:** Der tatsächliche Firestorm-Deferred-Szenenscanner
