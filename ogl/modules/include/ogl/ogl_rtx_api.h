@@ -343,6 +343,13 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_height(void);
  * OGL_VULKAN_WORLD_LAMBERT_PROBE=1 on top of existing world/mesh/camera/
  * offscreen permissions. Invalid flag strings fail closed.
  * Default remains the original red/green depth-debug shader.
+ * Optional second-level OGL_VULKAN_WORLD_SUN_LIGHT_PROBE=1 requires
+ * LAMBERT_PROBE=1 and a valid nonzero Firestorm frame sun_direction.
+ * The 3D direction is normalized, passed as a fifth vec4 via 80-byte
+ * Vulkan push constants (mat4 camera + vec4 sun), and updates lighting
+ * without recreating the GPU pipeline or re-uploading any world mesh.
+ * Invalid/zero/non-finite sun fails closed. Both flags OFF by default.
+ * This is still NOT live world material shading or visible Vulkan output.
  * Output NEVER enters the user window or user image cache.
  * Counters are bounded aggregates from the last GPU completed PRIVATE
  * target; mean_luminance is average (R+G+B) of non-clear pixels, 0..765.

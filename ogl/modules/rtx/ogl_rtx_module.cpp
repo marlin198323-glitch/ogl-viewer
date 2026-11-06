@@ -179,7 +179,7 @@ struct OglOffscreenWorldCache {
     VkPipeline pipeline=VK_NULL_HANDLE;
     VkRenderPass pass=VK_NULL_HANDLE;
     VkExtent2D extent{}; // private target, independent of SDL window
-    uint32_t shading_mode=0; // 0=Depth debug; 1=face-normal Lambert dev
+    uint32_t shading_mode=0; // 0=depth debug, 1=fixed light, 2=live sun
     bool initialized=false;
     bool submitted=false; // fence owns possibly in-flight work
 };
@@ -242,6 +242,10 @@ struct WorldGraphicsDevice {
     std::array<float,16> world_to_clip{};
     bool world_camera_ready = false;
     float world_camera_aspect = 0.f;
+    // Source: validated exact OpenSim/Firestorm v3 camera frame sun vector.
+    // Normalized for a private GPU lighting push constant, never logged.
+    std::array<float,4> world_sun_direction{};
+    bool world_sun_ready=false;
     uint64_t world_camera_accepts = 0; // CPU matrix updates, no GPU presents
     uint64_t mesh_uploads = 0; // accepted snapshots, never a draw counter
     uint64_t offscreen_world_frames = 0; // completed VkDrawIndexed/readback
@@ -443,6 +447,8 @@ struct WorldGraphicsDevice {
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
         world_camera_ready = false;
         world_camera_aspect = 0.f;
+        world_sun_direction.fill(0.f);
+        world_sun_ready=false;
         camera_mesh_generation = 0;
         world_to_clip.fill(0.f);
         world_camera_accepts = 0;
@@ -810,6 +816,8 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         std::fabs(world_device.world_camera_aspect-swap_aspect)>0.01f) {
         world_device.world_camera_ready=false;
         world_device.world_camera_aspect=0.f;
+        world_device.world_sun_ready=false;
+        world_device.world_sun_direction.fill(0.f);
         world_device.camera_mesh_generation=0;
         world_device.world_to_clip.fill(0.f);
     }
@@ -1041,6 +1049,78 @@ static constexpr uint32_t ogl_dev_world_lambert_frag_spv[] = {
     0x00000045u, 0x00000042u, 0x00000002u, 0x00070050u, 0x0000003fu, 0x00000046u, 0x00000043u,
     0x00000044u, 0x00000045u, 0x00000028u, 0x0003003eu, 0x00000041u, 0x00000046u, 0x000100fdu,
     0x00010038u,
+};
+
+// Vulkan 1.0 validated GLSL 450: private world Lambert lighting with
+// current validated/normalized Firestorm sun direction in 80-byte push data.
+// NOT a full world renderer; no user framebuffer or real material maps.
+static constexpr uint32_t ogl_dev_world_sunlight_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000049u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0007000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000bu, 0x0000003fu, 0x00030010u, 0x00000004u, 0x00000007u, 0x00030003u, 0x00000002u,
+    0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u, 0x00030005u, 0x00000009u,
+    0x00007864u, 0x00060005u, 0x0000000bu, 0x6c726f77u, 0x6f705f64u, 0x69746973u, 0x00006e6fu,
+    0x00030005u, 0x0000000eu, 0x00007964u, 0x00050005u, 0x00000011u, 0x63736e75u, 0x64656c61u,
+    0x00000000u, 0x00030005u, 0x00000016u, 0x0000326eu, 0x00040005u, 0x0000001au, 0x6d726f6eu,
+    0x00006c61u, 0x00040005u, 0x0000002bu, 0x66666964u, 0x00657375u, 0x00060005u, 0x00000031u,
+    0x656d6143u, 0x6e416172u, 0x6e755364u, 0x00000000u, 0x00070006u, 0x00000031u, 0x00000000u,
+    0x6c726f77u, 0x6f745f64u, 0x696c635fu, 0x00000070u, 0x00070006u, 0x00000031u, 0x00000001u,
+    0x5f6e7573u, 0x65726964u, 0x6f697463u, 0x0000006eu, 0x00040005u, 0x00000033u, 0x656d6163u,
+    0x00006172u, 0x00050005u, 0x0000003fu, 0x5f74756fu, 0x6f6c6f63u, 0x00000072u, 0x00040047u,
+    0x0000000bu, 0x0000001eu, 0x00000000u, 0x00030047u, 0x00000031u, 0x00000002u, 0x00040048u,
+    0x00000031u, 0x00000000u, 0x00000005u, 0x00050048u, 0x00000031u, 0x00000000u, 0x00000007u,
+    0x00000010u, 0x00050048u, 0x00000031u, 0x00000000u, 0x00000023u, 0x00000000u, 0x00050048u,
+    0x00000031u, 0x00000001u, 0x00000023u, 0x00000040u, 0x00040047u, 0x0000003fu, 0x0000001eu,
+    0x00000000u, 0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u,
+    0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000003u, 0x00040020u,
+    0x00000008u, 0x00000007u, 0x00000007u, 0x00040020u, 0x0000000au, 0x00000001u, 0x00000007u,
+    0x0004003bu, 0x0000000au, 0x0000000bu, 0x00000001u, 0x00040020u, 0x00000015u, 0x00000007u,
+    0x00000006u, 0x0004002bu, 0x00000006u, 0x0000001cu, 0x2b8cbcccu, 0x00020014u, 0x0000001du,
+    0x0004002bu, 0x00000006u, 0x00000027u, 0x00000000u, 0x0004002bu, 0x00000006u, 0x00000028u,
+    0x3f800000u, 0x0006002cu, 0x00000007u, 0x00000029u, 0x00000027u, 0x00000027u, 0x00000028u,
+    0x0004002bu, 0x00000006u, 0x0000002cu, 0x3e4ccccdu, 0x0004002bu, 0x00000006u, 0x0000002du,
+    0x3f4ccccdu, 0x00040017u, 0x0000002fu, 0x00000006u, 0x00000004u, 0x00040018u, 0x00000030u,
+    0x0000002fu, 0x00000004u, 0x0004001eu, 0x00000031u, 0x00000030u, 0x0000002fu, 0x00040020u,
+    0x00000032u, 0x00000009u, 0x00000031u, 0x0004003bu, 0x00000032u, 0x00000033u, 0x00000009u,
+    0x00040015u, 0x00000034u, 0x00000020u, 0x00000001u, 0x0004002bu, 0x00000034u, 0x00000035u,
+    0x00000001u, 0x00040020u, 0x00000036u, 0x00000009u, 0x0000002fu, 0x00040020u, 0x0000003eu,
+    0x00000003u, 0x0000002fu, 0x0004003bu, 0x0000003eu, 0x0000003fu, 0x00000003u, 0x0004002bu,
+    0x00000006u, 0x00000040u, 0x3f47ae14u, 0x0004002bu, 0x00000006u, 0x00000041u, 0x3ec7ae14u,
+    0x0006002cu, 0x00000007u, 0x00000042u, 0x0000002cu, 0x00000040u, 0x00000041u, 0x00050036u,
+    0x00000002u, 0x00000004u, 0x00000000u, 0x00000003u, 0x000200f8u, 0x00000005u, 0x0004003bu,
+    0x00000008u, 0x00000009u, 0x00000007u, 0x0004003bu, 0x00000008u, 0x0000000eu, 0x00000007u,
+    0x0004003bu, 0x00000008u, 0x00000011u, 0x00000007u, 0x0004003bu, 0x00000015u, 0x00000016u,
+    0x00000007u, 0x0004003bu, 0x00000008u, 0x0000001au, 0x00000007u, 0x0004003bu, 0x00000008u,
+    0x0000001fu, 0x00000007u, 0x0004003bu, 0x00000015u, 0x0000002bu, 0x00000007u, 0x0004003du,
+    0x00000007u, 0x0000000cu, 0x0000000bu, 0x000400cfu, 0x00000007u, 0x0000000du, 0x0000000cu,
+    0x0003003eu, 0x00000009u, 0x0000000du, 0x0004003du, 0x00000007u, 0x0000000fu, 0x0000000bu,
+    0x000400d0u, 0x00000007u, 0x00000010u, 0x0000000fu, 0x0003003eu, 0x0000000eu, 0x00000010u,
+    0x0004003du, 0x00000007u, 0x00000012u, 0x00000009u, 0x0004003du, 0x00000007u, 0x00000013u,
+    0x0000000eu, 0x0007000cu, 0x00000007u, 0x00000014u, 0x00000001u, 0x00000044u, 0x00000012u,
+    0x00000013u, 0x0003003eu, 0x00000011u, 0x00000014u, 0x0004003du, 0x00000007u, 0x00000017u,
+    0x00000011u, 0x0004003du, 0x00000007u, 0x00000018u, 0x00000011u, 0x00050094u, 0x00000006u,
+    0x00000019u, 0x00000017u, 0x00000018u, 0x0003003eu, 0x00000016u, 0x00000019u, 0x0004003du,
+    0x00000006u, 0x0000001bu, 0x00000016u, 0x000500bau, 0x0000001du, 0x0000001eu, 0x0000001bu,
+    0x0000001cu, 0x000300f7u, 0x00000021u, 0x00000000u, 0x000400fau, 0x0000001eu, 0x00000020u,
+    0x00000026u, 0x000200f8u, 0x00000020u, 0x0004003du, 0x00000007u, 0x00000022u, 0x00000011u,
+    0x0004003du, 0x00000006u, 0x00000023u, 0x00000016u, 0x0006000cu, 0x00000006u, 0x00000024u,
+    0x00000001u, 0x00000020u, 0x00000023u, 0x0005008eu, 0x00000007u, 0x00000025u, 0x00000022u,
+    0x00000024u, 0x0003003eu, 0x0000001fu, 0x00000025u, 0x000200f9u, 0x00000021u, 0x000200f8u,
+    0x00000026u, 0x0003003eu, 0x0000001fu, 0x00000029u, 0x000200f9u, 0x00000021u, 0x000200f8u,
+    0x00000021u, 0x0004003du, 0x00000007u, 0x0000002au, 0x0000001fu, 0x0003003eu, 0x0000001au,
+    0x0000002au, 0x0004003du, 0x00000007u, 0x0000002eu, 0x0000001au, 0x00050041u, 0x00000036u,
+    0x00000037u, 0x00000033u, 0x00000035u, 0x0004003du, 0x0000002fu, 0x00000038u, 0x00000037u,
+    0x0008004fu, 0x00000007u, 0x00000039u, 0x00000038u, 0x00000038u, 0x00000000u, 0x00000001u,
+    0x00000002u, 0x00050094u, 0x00000006u, 0x0000003au, 0x0000002eu, 0x00000039u, 0x0006000cu,
+    0x00000006u, 0x0000003bu, 0x00000001u, 0x00000004u, 0x0000003au, 0x00050085u, 0x00000006u,
+    0x0000003cu, 0x0000002du, 0x0000003bu, 0x00050081u, 0x00000006u, 0x0000003du, 0x0000002cu,
+    0x0000003cu, 0x0003003eu, 0x0000002bu, 0x0000003du, 0x0004003du, 0x00000006u, 0x00000043u,
+    0x0000002bu, 0x0005008eu, 0x00000007u, 0x00000044u, 0x00000042u, 0x00000043u, 0x00050051u,
+    0x00000006u, 0x00000045u, 0x00000044u, 0x00000000u, 0x00050051u, 0x00000006u, 0x00000046u,
+    0x00000044u, 0x00000001u, 0x00050051u, 0x00000006u, 0x00000047u, 0x00000044u, 0x00000002u,
+    0x00070050u, 0x0000002fu, 0x00000048u, 0x00000045u, 0x00000046u, 0x00000047u, 0x00000028u,
+    0x0003003eu, 0x0000003fu, 0x00000048u, 0x000100fdu, 0x00010038u,
 };
 
 // Depth QA shader: near red, far green (actual GPU gl_FragCoord.z).
@@ -2386,8 +2466,16 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         std::strcmp(lambert_flag,"0")!=0 &&
         std::strcmp(lambert_flag,"1")!=0)
         return 0;
-    const uint32_t shading_mode=scene && lambert_flag &&
-        std::strcmp(lambert_flag,"1")==0 ? 1u : 0u;
+    const bool lambert_enabled=scene && lambert_flag &&
+        std::strcmp(lambert_flag,"1")==0;
+    const char* sun_flag=std::getenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+    if (scene && sun_flag && *sun_flag &&
+        std::strcmp(sun_flag,"0")!=0 && std::strcmp(sun_flag,"1")!=0)
+        return 0;
+    const bool sun_enabled=sun_flag && std::strcmp(sun_flag,"1")==0;
+    if (scene && sun_enabled && (!lambert_enabled || !world_device.world_sun_ready))
+        return 0;
+    const uint32_t shading_mode=lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u;
     const uint32_t width=extent.width, height=extent.height;
     if (!width || !height || width>512 || height>288 ||
         uint64_t(width)*height>512u*288u) return 0;
@@ -2637,12 +2725,14 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=shading_mode==1u
-                ? sizeof(ogl_dev_world_lambert_frag_spv)
-                : sizeof(ogl_dev_depth_frag_spv);
-            fragment_info.pCode=shading_mode==1u
-                ? ogl_dev_world_lambert_frag_spv
-                : ogl_dev_depth_frag_spv;
+            fragment_info.codeSize=shading_mode==2u
+                ? sizeof(ogl_dev_world_sunlight_frag_spv)
+                : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_frag_spv)
+                                    : sizeof(ogl_dev_depth_frag_spv));
+            fragment_info.pCode=shading_mode==2u
+                ? ogl_dev_world_sunlight_frag_spv
+                : (shading_mode==1u ? ogl_dev_world_lambert_frag_spv
+                                    : ogl_dev_depth_frag_spv);
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &pipeline_state.fragment_shader)!=VK_SUCCESS || !pipeline_state.fragment_shader)
                 return false;
@@ -2709,9 +2799,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             blend.attachmentCount=1;
             blend.pAttachments=&color_attachment;
             VkPushConstantRange camera_range{};
-            camera_range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
+            camera_range.stageFlags=shading_mode==2u
+                ? VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT
+                : VK_SHADER_STAGE_VERTEX_BIT;
             camera_range.offset=0;
-            camera_range.size=sizeof(float)*16;
+            camera_range.size=shading_mode==2u ?
+                sizeof(float)*20 : sizeof(float)*16;
             VkPipelineLayoutCreateInfo layout_info{
                 VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
             layout_info.pushConstantRangeCount=1u;
@@ -2795,9 +2888,21 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 offscreen_projection[col*4]*=aspect_correction;
             vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipeline_state.pipeline);
+            // Dynamic sun light is a per-frame 80-byte Vulkan push
+            // constant; sun changes NEVER rebuild VkPipeline or VkMesh.
+            std::array<float,20> world_light_push{};
+            std::copy(offscreen_projection.begin(),offscreen_projection.end(),
+                      world_light_push.begin());
+            if (shading_mode==2u)
+                std::copy(world_device.world_sun_direction.begin(),
+                          world_device.world_sun_direction.end(),
+                          world_light_push.begin()+16);
             vkCmdPushConstants(command,pipeline_state.pipeline_layout,
-                VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(float)*16,
-                offscreen_projection.data());
+                shading_mode==2u
+                    ? VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT
+                    : VK_SHADER_STAGE_VERTEX_BIT,
+                0,shading_mode==2u ? sizeof(float)*20 : sizeof(float)*16,
+                world_light_push.data());
             const VkDeviceSize offset=0;
             vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset);
             vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,
@@ -2891,7 +2996,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                     luminance_sum+=rgb_sum;
                     // Developer Lambert palette is green-dominant, while
                     // depth debug red/green remains the default unchanged.
-                    if (shading_mode==1u && rgba[offset+1]>rgba[offset] &&
+                    if (shading_mode!=0u && rgba[offset+1]>rgba[offset] &&
                         rgba[offset+1]>rgba[offset+2])
                         ++lit;
                 }
@@ -2937,9 +3042,26 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
         return 0;
     world_device.world_camera_ready=false;
     world_device.world_camera_aspect=0.f;
+    world_device.world_sun_ready=false;
+    world_device.world_sun_direction.fill(0.f);
     world_device.camera_mesh_generation=0;
     world_device.world_to_clip.fill(0.f);
     if (!frame || !ogl::valid_camera_frame(*frame)) return 0;
+    // The optional dynamic-light path strictly validates a nonzero,
+    // bounded direction, including NaN/Inf and accidental zero vectors.
+    // Standard Depth/fixed Lambert remain backward compatible.
+    const char* dynamic_light=std::getenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+    const bool sun_requested=dynamic_light && std::strcmp(dynamic_light,"1")==0;
+    if (dynamic_light && *dynamic_light &&
+        std::strcmp(dynamic_light,"0")!=0 &&
+        std::strcmp(dynamic_light,"1")!=0) return 0;
+    double sun_length2=0.0;
+    for (unsigned axis=0;axis<3;++axis)
+        sun_length2+=double(frame->sun_direction[axis])*
+                     frame->sun_direction[axis];
+    if (!std::isfinite(sun_length2) ||
+        (sun_requested && (sun_length2<0.25 || sun_length2>4.0)))
+        return 0;
     const float actual_aspect=float(frame->width)/float(frame->height);
     if (std::fabs(actual_aspect-frame->aspect_ratio)>0.15f) return 0;
     if (world_device.swapchain_probe_ready &&
@@ -2996,6 +3118,12 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
     for (float v:matrix)
         if (!std::isfinite(v)) return 0;
     world_device.world_to_clip=matrix;
+    if (sun_length2>0.0) {
+        const float inv_sun=float(1.0/std::sqrt(sun_length2));
+        for (unsigned i=0;i<3;++i)
+            world_device.world_sun_direction[i]=frame->sun_direction[i]*inv_sun;
+        world_device.world_sun_ready=true;
+    }
     world_device.world_camera_aspect=frame->aspect_ratio;
     world_device.camera_mesh_generation=world_device.mesh_generation;
     world_device.world_camera_ready=true;
@@ -3018,6 +3146,8 @@ int invalidate_live_world_region() {
         return 0;
     world_device.world_camera_ready=false;
     world_device.world_camera_aspect=0.f;
+    world_device.world_sun_ready=false;
+    world_device.world_sun_direction.fill(0.f);
     world_device.camera_mesh_generation=0;
     world_device.world_to_clip.fill(0.f);
     auto& frames=world_device.persistent;
@@ -3142,6 +3272,8 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
         // Invalidate the old region's projection on teleport/region loss.
         world_device.world_camera_ready=false;
         world_device.world_camera_aspect=0.f;
+        world_device.world_sun_ready=false;
+        world_device.world_sun_direction.fill(0.f);
         world_device.camera_mesh_generation=0;
         world_device.world_to_clip.fill(0.f);
         ++world_device.mesh_generation; // explicit empty-region generation
@@ -3254,6 +3386,8 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     // submission. A new snapshot may correspond to a new region/camera.
     world_device.world_camera_ready=false;
     world_device.world_camera_aspect=0.f;
+    world_device.world_sun_ready=false;
+    world_device.world_sun_direction.fill(0.f);
     world_device.camera_mesh_generation=0;
     world_device.world_to_clip.fill(0.f);
     if (logger)

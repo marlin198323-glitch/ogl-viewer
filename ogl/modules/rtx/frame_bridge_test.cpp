@@ -1731,7 +1731,80 @@ int main(int argc, char** argv) {
                 offscreen_cache_releases()==offscreen_release0+9 &&
                 offscreen_cache_release()==1 &&
                 offscreen_cache_releases()==offscreen_release0+10;
+            // P05: validated dynamic real-Firestorm sun vector reaches
+            // Vulkan FRAGMENT shader in a 80B push constant. No GPU mesh
+            // reupload, image rebuild or pipeline rebuild for sun movement.
             unsetenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+            setenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE","1",1);
+            camera.sun_direction[0]=1.f;
+            camera.sun_direction[2]=0.f;
+            // Live-sun alone is NEVER permission to enable the
+            // experimental Lambert shader or world GPU rendering.
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+18 &&
+                offscreen_cache_builds()==offscreen_build0+10;
+            setenv("OGL_VULKAN_WORLD_LAMBERT_PROBE","1",1);
+            const uint64_t sun_mesh_generation=mesh_generation();
+            const uint64_t sun_mesh_uploads=mesh_uploads();
+            const uint32_t sun_mesh_retire_waits=mesh_retire_waits();
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+19 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_mean_luminance()>0 &&
+                offscreen_cache_builds()==offscreen_build0+11 &&
+                offscreen_cache_releases()==offscreen_release0+10 &&
+                mesh_generation()==sun_mesh_generation &&
+                mesh_uploads()==sun_mesh_uploads;
+            const uint32_t sun_facing_luminance=offscreen_mean_luminance();
+            camera.sun_direction[0]=0.f;
+            camera.sun_direction[2]=1.f;
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+20 &&
+                offscreen_cache_builds()==offscreen_build0+11 &&
+                offscreen_cache_reuses()==offscreen_reuse0+9 &&
+                offscreen_mean_luminance()>0 &&
+                offscreen_mean_luminance()!=sun_facing_luminance &&
+                mesh_generation()==sun_mesh_generation &&
+                mesh_uploads()==sun_mesh_uploads &&
+                mesh_retire_waits()==sun_mesh_retire_waits;
+            const uint32_t sun_side_luminance=offscreen_mean_luminance();
+            camera.sun_direction[2]=2.f; // normalized 2.0 sun direction
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+21 &&
+                offscreen_cache_builds()==offscreen_build0+11 &&
+                offscreen_cache_reuses()==offscreen_reuse0+10 &&
+                offscreen_mean_luminance()==sun_side_luminance;
+            camera.sun_direction[2]=0.f; // undefined sun must fail closed
+            barrier_ok=barrier_ok && world_camera(&camera)==0 &&
+                live_inputs()==0 && offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+21;
+            camera.sun_direction[2]=1.f;
+            setenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE","bad-value",1);
+            barrier_ok=barrier_ok && world_camera(&camera)==0 &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+21;
+            unsetenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+22 &&
+                offscreen_lit_pixels()>0 &&
+                offscreen_cache_builds()==offscreen_build0+12 &&
+                offscreen_cache_releases()==offscreen_release0+11 &&
+                mesh_generation()==sun_mesh_generation &&
+                mesh_uploads()==sun_mesh_uploads &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+12;
+            unsetenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+            std::fprintf(stdout,
+                "P05 Vulkan real-sun GPU Lambert: sun_x_mean=%u "
+                "sun_z_mean=%u change=%d frames=%llu no_mesh_upload=1\n",
+                sun_facing_luminance,sun_side_luminance,
+                sun_facing_luminance!=sun_side_luminance?1:0,
+                static_cast<unsigned long long>(offscreen_world_frames()));
             std::fprintf(stdout,
                 "P05 Vulkan Lambert world-face normals: tilted_mean=%u "
                 "front_mean=%u lit_pixels=%u distinct=%d\n",
@@ -1742,6 +1815,7 @@ int main(int argc, char** argv) {
                  "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION",
                  "OGL_VULKAN_WORLD_LAMBERT_PROBE",
+                 "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

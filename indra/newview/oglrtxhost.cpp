@@ -690,11 +690,22 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
 #endif
 }
 
-// The 32x32 GPU World shader consumes camera position/orientation/FOV,
-// NOT the sun vector. Ignore unrelated sunlight changes to avoid expensive
-// GPU diagnostics when the viewer camera has not actually moved.
+// The private GPU world shader consumes the validated position/orientation/FOV.
+// Fixed Lambert and depth-debug ignore sun-only updates. Dynamic Lambert may
+// redraw when sun changes, but still only at the existing 120-frame limit.
 bool ogl_same_world_camera_pose(const ogl_rtx_frame_state& a,
                                 const ogl_rtx_frame_state& b) {
+    static const bool dynamic_sun=[] {
+        const char* sunlight=std::getenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+        const char* lambert=std::getenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+        return sunlight && lambert &&
+            std::strcmp(sunlight,"1")==0 &&
+            std::strcmp(lambert,"1")==0;
+    }();
+    if (dynamic_sun &&
+        std::memcmp(a.sun_direction,b.sun_direction,
+                    sizeof(a.sun_direction))!=0)
+        return false;
     return a.width==b.width && a.height==b.height &&
         a.vertical_fov_radians==b.vertical_fov_radians &&
         a.aspect_ratio==b.aspect_ratio &&

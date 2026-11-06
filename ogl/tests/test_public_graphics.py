@@ -980,7 +980,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,",f)
         self.assertIn("vkCmdPushConstants(command,pipeline_state.pipeline_layout,",f)
         self.assertIn("auto offscreen_projection=world_device.world_to_clip;",f)
-        self.assertIn("offscreen_projection.data()",f)
+        self.assertIn("world_light_push.data()",f)
         self.assertIn("vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset)",f)
         self.assertIn("vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,",f)
         self.assertIn("vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",f)
@@ -1108,7 +1108,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             "world_device.world_camera_aspect /",
             "(float(width)/float(height))",
             "offscreen_projection[col*4]*=aspect_correction;",
-            "offscreen_projection.data()",
+            "world_light_push.data()",
             "world_device.offscreen_world_width=width;",
             "world_device.offscreen_world_height=height;",
             "resource.extent={width,height};",
@@ -1180,6 +1180,46 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("lit>pixels or mean>765",report)
         self.assertNotIn("vkQueuePresentKHR(",frame)
         self.assertNotIn("SDL_",frame)
+
+    def test_p05_world_sun_direction_gpu_push_80_bytes_and_dynamic_caching(self):
+        plugin=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        a=plugin.index("int set_world_projection_camera(")
+        b=plugin.index("// A genuine Firestorm region transition",a)
+        camera=plugin[a:b]
+        for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
+                       'sun_length2<0.25 || sun_length2>4.0',
+                       'world_device.world_sun_direction[i]=frame->sun_direction[i]*inv_sun;',
+                       'world_device.world_sun_ready=true;',
+                       'world_device.world_sun_ready=false;'):
+            self.assertIn(phrase,camera)
+        a=plugin.index("uint32_t render_offscreen_color_frame(")
+        b=plugin.index("// Independent opt-in camera projection",a)
+        draw=plugin[a:b]
+        for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
+                       'sun_enabled && (!lambert_enabled || !world_device.world_sun_ready)',
+                       'const uint32_t shading_mode=lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u;',
+                       'resource.shading_mode!=shading_mode',
+                       'ogl_dev_world_sunlight_frag_spv',
+                       'sizeof(float)*20',
+                       'VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT',
+                       'world_device.world_sun_direction.begin()',
+                       'world_light_push.data()',
+                       'vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,'):
+            self.assertIn(phrase,draw)
+        self.assertIn("static constexpr uint32_t ogl_dev_world_sunlight_frag_spv[]",plugin)
+        self.assertIn("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",host)
+        self.assertIn("std::memcmp(a.sun_direction,b.sun_direction,",host)
+        self.assertIn('P05 Vulkan real-sun GPU Lambert:',native)
+        self.assertIn("sun_facing_luminance!=sun_side_luminance",native)
+        self.assertIn("world_camera(&camera)==0",native)
+        self.assertIn("mesh_uploads()==sun_mesh_uploads",native)
+        self.assertIn("offscreen_cache_reuses()==offscreen_reuse0+10",native)
+        self.assertIn("offscreen_world_frames()==offscreen_start+22",native)
+        self.assertIn('"OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",',native)
+        self.assertNotIn("vkQueuePresentKHR(",draw)
+        self.assertNotIn("SDL_",draw)
 
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
@@ -1304,7 +1344,10 @@ class PublicGraphicsContracts(unittest.TestCase):
                      "a.camera_right,b.camera_right",
                      "a.camera_up,b.camera_up"):
             self.assertIn(part,comparator)
-        self.assertNotIn("sun_direction",comparator)
+        self.assertIn("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",comparator)
+        self.assertIn("if (dynamic_sun &&",comparator)
+        self.assertIn("std::memcmp(a.sun_direction,b.sun_direction,",comparator)
+        self.assertIn("sizeof(a.sun_direction))!=0)",comparator)
         region=host.index("bool ogl_rtx_on_region_transition()")
         self.assertIn("live_world_camera_tick_calls=0;",host[region:region+900])
         self.assertIn("live_world_last_offscreen_pose_valid=false;",host[region:region+900])
