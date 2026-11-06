@@ -641,6 +641,52 @@ KEIN Live-OpenSim-GPU-Weltbild nach Login
 abgenommen, keine Vulkan-Fenster-Ownership.
 P05 2/20, Block 3/4 weiterhin offen.
 
+**P05/3–4 GPU-Weltflächennormalen und Lambert-Entwicklerlicht (06.11.2026, Code 5938a395):**
+Weitere 20 tatsächliche technische
+Teilaufgaben. Separater Developer-Flag
+OGL_VULKAN_WORLD_LAMBERT_PROBE=1:
+2 neue GLSL-450-Shader (Vulkan 1.0
+SPIR-V mit glslang/spirv-val geprüft)
+sind direkt in bestehende Vulkan-C++
+Moduldatei eingebettet. GPU-Vertex-
+Weltposition, Fragment-dFdx/dFdy-
+Normalen, gerichtete Lambert- und
+Ambient-Beleuchtung mit Behandlung
+degenerierter Normale. Kein PBR,
+keine Texturen oder NVIDIA-
+Raytracing-Voraussetzung.
+Unbekannte Flagwerte fail-closed,
+rot/grüner Tiefen-Debugshader bleibt
+Standard. Cache differenziert die
+Shader-Modi und behandelt
+Fenced-Freigabe und wiederverwendete
+Shader-/Pipeline-Ressourcen sicher.
+Read-only-Vulkan-ABI für anonyme
+beleuchtete Pixel und mittlere
+RGB-Helligkeit je fertig gerendertem
+privaten Weltframe. Host-Deferred-
+GPU-Receipts und vorhandener
+lokaler Report ergänzt; alte Logs
+bleiben lesbar und ungültige
+Statistiken werden verworfen.
+Hardware-GPU: 18 Welt-/Depth-
+Frames, 10 Builds/8 Reuses/
+10 Releases; zwei echte
+orientierungsverschiedene
+GPU-Testdreiecke 274 vs 327
+mittlere RGB-Summe.
+Voll-Linux-Build 371 Python,
+41 CTests, 59 Grafik-, 45
+Reporter-Tests grün. **29/29 isolierte
+SDL/X11-GUI-Starts** einschließlich
+Lambert-Opt-in-/Fallback-Fällen.
+KEIN authentifizierter
+OpenSim-Live-Vulkan-GPU-Frame;
+Testmeshes synthetisch, sichtbare
+Welt ausschließlich OpenGL.
+P05 formal 2/20, Block 3/4 offen.
+Code 5938a395.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

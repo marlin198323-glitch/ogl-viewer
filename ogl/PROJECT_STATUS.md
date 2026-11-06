@@ -6,6 +6,156 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: GPU-Normalen und einfaches Vulkan-Weltlicht (06.11.2026)
+
+**Ziel dieser Runde:** Der private Vulkan-World-/Depth-GPU-
+Raster zeichnet bisher nur nahe rote und ferne grüne
+Debugflächen. Für die Weiterentwicklung zur Weltgrafik
+wurde eine **separate, opt-in 3D-Normalen-Lichtpipeline**
+implementiert. Sie rendert aktuell hochgeladene GPU-
+World-XYZ-Dreiecke tatsächlich mit richtungsabhängiger
+Lambert-Beleuchtung. Das ist ein UNTEXTURIERTER
+technischer Zwischenschritt, KEIN fertiger
+Material-/Textur-/PBR-/Raytracing-Renderer.
+
+**GPU-Implementierung:** Ein neuer GLSL-450-Vertexshader
+gibt pro Vertex die Weltposition weiter; der Fragment-
+shader berechnet per dFdx/dFdy und Kreuzprodukt
+eine eigene Flächennormale und beleuchtet sie
+mit einem festen gerichteten Licht plus
+Ambient-Anteil. Degenerierte Normale wird
+begrenzt behandelt. Zwei Shader wurden
+als Vulkan-1.0-SPIR-V kompiliert und mittels
+spirv-val überprüft; ihre 719 32-Bit-Wörter
+sind als unveränderliche Arrays direkt im
+bestehenden Modul eingebettet. Keine neuen
+Repository-Shaderdateien, kein Shader-Compiler
+oder zusätzliche GPU-Software beim Nutzer.
+
+**Opt-in und Shadercache:** Die neue Beleuchtung
+läuft ausschließlich unter dem getrennten
+Entwicklerflag OGL_VULKAN_WORLD_LAMBERT_PROBE=1
+und allen bisherigen GPU-World-/Mesh-/Kamera-/
+Offscreen-Freigaben. Unzulässiger Flagwert
+scheitert geschlossen. Standard ohne Flag:
+bisherige rot/grüne Tiefen-Debugdarstellung.
+Der Vulkan-Gerätecache unterscheidet
+Tiefen- und Lambert-Pipeline; nur bei
+Modus-/Auflösungsänderung wird nach
+erfolgreichem GPU-Fence Shader/Pipeline/
+Framebuffer neu aufgebaut, ansonsten
+weiterverwendet. Der sichtbare OpenGL-
+Renderer wird NIE ersetzt und kein
+VkQueuePresentKHR auf dem Nutzerfenster
+ausgeführt.
+
+**Numerische GPU-Nachweise:** Das Modul
+berechnet nach realem VkDrawIndexed und
+VkReadback nur die Anzahl beleuchteter
+GPU-Pixel und die mittlere RGB-Summe
+(0 bis 765) über nichtleere Pixel.
+Zwei additive C-ABI-Read-only-Funktionen
+melden diese Werte. Der echte Firestorm-
+Host führt sie in der anonymen, bereits
+quellqualifizierten Deferred-GPU-Receipt-
+Kette mit, ohne die eigentliche Bitmap,
+den User, eine Regionkennung, Kamera-
+positionen oder Assetdaten zu loggen.
+Der lokale Bericht verwirft unzulässige
+Licht-/Pixelwerte und akzeptiert alte
+Logs ohne die neuen Felder weiter.
+
+**20 tatsächlich umgesetzte oder getestete Arbeitsschritte:**
+
+01. Git-Branch ogl-develop, kanonische Dokumente, sauberen Ausgangsstand, reale Viewer-Prozesse und letzte vollständig grüne Linux-/Windows-/macOS-CI geprüft.
+02. Vulkan-World-XYZ-Pipeline, privaten Farb-/Depth-Framebuffer, World-Camera-PushConstant und gerätegebundenen Shader-Pipeline-Cache analysiert.
+03. Separate Vertex-Shader-Quelle für aktuelle World-XYZ-Position, Vulkan-Welt-Projektionsmatrix und 3D-Weltpositions-Interpolationskanal erstellt.
+04. Separate Fragment-Shader-Quelle für GPU-Fragmentableitungen dFdx/dFdy aus der tatsächlichen interpolierten 3D-Weltposition erstellt.
+05. Vektorprodukt der Weltkoordinaten-Ableitungen als geometrische Pixel-Flächennormale implementiert.
+06. Degenerierte Normale mit begrenzter Längenprüfung und Ersatznormalen behandelt, damit aus degenerierter Geometrie keine NaN-Lichtfarbe entsteht.
+07. Richtungsabhängiges zweiseitiges Lambert-Diffuslicht mit begrenztem Ambient-Anteil und kontrollierter untexturierter Entwicklerfarbpalette implementiert.
+08. Beide originalen GLSL-450-Shader als SPIR-V für Vulkan 1.0 kompiliert und mittels Khronos spirv-val erfolgreich validiert.
+09. Validierte SPIR-V-Arrays in die bereits bestehende Vulkan-Modulquelldatei eingebettet; keine neue Shader-Datei oder Laufzeit-Abhängigkeit im Repository angelegt.
+10. Explizites Developer-Flag OGL_VULKAN_WORLD_LAMBERT_PROBE eingeführt; nur Wert 1 aktiviert Beleuchtung, ungültige Werte werden ohne GPU-Frame fail-closed abgewiesen.
+11. Originalen roten/grünen Tiefen-Debugshader als Standard unverändert beibehalten, kein automatischer Wechsel im normalen Viewer oder Benutzer-Grafikmenü.
+12. Vulkan-GPU-Cache gegen den gewählten Shader-Modus abgesichert: bei Wechsel nach abgeschlossenem GPU-Fence neu aufbauen, sonst bestehende Bilder, Pipeline und Readback wiederverwenden.
+13. Das World-XYZ-VkDrawIndexed-Rendering, GPU-Tiefentest VK_COMPARE_OP_LESS und die vorhandene 64-Byte-Kamera-PushConstant für beide Shader-Modi beibehalten.
+14. GPU-Readback um zusammengefasste normalbeleuchtete Pixelzahl und Mittelwert der RGB-Helligkeit pro abgeschlossenem privaten Bild erweitert, ohne Bildexport.
+15. Zwei additive Read-only-C-ABI-Funktionen für die aggregierten beleuchteten Pixel und mittlere RGB-Helligkeit des letzten GPU-Weltframes ergänzt.
+16. Den echten Firestorm-Deferred-Host um optionale Vulkan-ABI-Auflösung und anonymisierte lit_pixels-/mean_luminance-Diagnose erweitert.
+17. Den vorhandenen lokalen GPU-Herkunftsreport für ältere und neue OpenSim-GPU-Quittungen kompatibel erweitert; Grenzen lit_pixels <= nonclear_pixels und mittlere RGB-Summe 0..765 geprüft.
+18. Vier neue Report-Tests und einen neuen Grafik-Quellcodevertrag für Shader, Opt-in, GPU-Cache, echte Draws und datensparsame Diagnose ergänzt.
+19. Native echte Vulkan-X11-GPU-Abnahme: 18 World-/Depth-Frames, Lambert bei 32x32 und 256x144, Rückkehr zum Depth-Debugshader, 10 Cache-Builds/8 Reuses/10 Releases, bei gekipptem vs. frontalem Dreieck RGB-Mittel 274 vs. 327.
+20. Kompletten Linux-Viewer mit 371 Python-Tests, 41 nativen CTests, 59 Grafikverträgen und 45 Report-Tests gebaut; isolierte echte Viewer-GUI-Starts einschließlich neuer Lambert-Freigaben und fehlender Vulkan-Treiber/Fallbacks durchgeführt.
+
+**Native GPU-Belege:** Die reale Vulkan-GPU
+hat 18 private, indexierte World-/Depth-
+GPU-Bilder erfolgreich gerendert:
+10 GPU-Pipeline-Cache-Aufbauten,
+8 Wiederverwendungen,
+10 kontrollierte Freigaben.
+Mit dem neuen Beleuchtungsshader
+lieferten zwei unterschiedlich orientierte,
+echte GPU-Mesh-Dreiecke bei identischer
+Kamera messbar verschiedene RGB-
+Mittelwerte **274 (geneigt) und
+327 (frontal)**. Dieser Unterschied
+ist aus GPU-Fragmentableitungen der
+Weltkoordinaten entstanden; eine
+konstante Einfärbung würde ihn nicht
+erklären. Bei gleicher Geometrie wurde
+erfolgreich auf die bisherige
+Depth-Debugpipeline zurückgeschaltet.
+Alle vorherigen X11-/Depth-/
+Window-/Regionswechseltests blieben grün.
+
+**Linux-Abnahme:** Vollviewer-Build
+und 371/371 Python-Tests,
+41/41 native CTests,
+59 gezielte Grafik-/Quellcode-Checks
+und 45 Report-Event-Tests grün.
+**29/29 isolierte reale SDL/X11-Viewer-GUI-Starts** grün,
+darunter drei neue Shader-/Invalid-Flag-Fälle,
+alle vorherigen Vulkan-WSI-/Region-/Treiber-Fallbacks.
+CLI-Logtests: alte GPU-Quittung
+ohne Lichtfelder akzeptiert;
+aktuelle Lichtstatistik 254/1024
+und 327, größerer 256x144-
+Frame mit 17500 beleuchteten
+von 18000 nichtleeren Pixeln
+und mittlerer RGB-Summe 274
+akzeptiert; unzulässige 18001
+beleuchtete Pixel und zu großer
+RGB-Wert 999 verworfen.
+Temporäre QA-Logs entfernt.
+
+**Noch nicht erreicht:** Es gibt in
+dieser Runde keinen authentifizierten
+OpenSim-Login mit tatsächlich gemessenem
+GPU-Lichtbild einer Live-Region.
+Die Pixel der GPU-Abnahme stammen
+aus synthetischen Testmeshes.
+Die normale 3D-Welt läuft weiter
+über OpenGL; Vulkan hat weder
+Materialtexturen, Terrain,
+Wasser, animierte Avatare,
+Realtime-Weltbeleuchtung,
+GPU-Textur-Upload noch die
+exklusive In-World-Fensterhoheit.
+Die neue Beleuchtung ist als
+Vulkan-1.0-Shader auch NICHT
+NVIDIA-RTX-spezifisch.
+**P05 formal weiterhin 2/20;
+Block 3 und vollständiger
+Block 4 bleiben offen.**
+Nächstes /goal-Gate: tatsächliche
+eingeloggte Region-Capture-/GPU-
+Quittung plus aussagekräftige
+Vulkan-World-/Depth-/Licht-
+GPU-Diagnose vor sichtbarer
+Window-Ownership.
+Code-Commit: 5938a39500bcfab6cba9cbba9ebf7ae0655847c6.
+
 ## P05/3–4 – 20 technische Schritte: private Vulkan-Welt-GPU-Rasterfläche mit vier Auflösungen (06.11.2026)
 
 **Technische Umsetzung:** Der vorher auf 32x32 Pixel begrenzte private

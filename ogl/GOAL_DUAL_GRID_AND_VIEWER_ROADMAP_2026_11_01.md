@@ -1713,6 +1713,39 @@ Live-GPU-Weltframe, Vulkan-World-Present/
 Terrain-/Avatar-/Textur-/UI-Engine offen.
 P05 formal 2/20, Block 3/4 offen.
 
+**P05/3–4 private GPU-World-Flächenlichtpipeline (06.11.2026, Code 5938a395):**
+Vulkan-1.0-Normalen-/Lambert-
+Entwicklerlichtshader per
+OGL_VULKAN_WORLD_LAMBERT_PROBE=1
+separat aktivierbar. Weltposition
+wird vom Shader interpoliert,
+Flächennormale aus Pixelableitungen
+ermittelt, zweiseitiges Diffuslicht
+mit Ambient berechnet. Gültiges
+Shader-SPIR-V direkt in
+bestehendem Modul; kein
+zusätzlicher Compiler beim Nutzer.
+Fenced-GPU-Cache erkennt
+Wechsel beleuchtet/Depth-Debug.
+Aggregierte beleuchtete GPU-
+Pixel und RGB-Mittelwert in
+Additive-C-ABI/Host/Report;
+alte GPU-Logs kompatibel.
+Native GPU 18 private Frames,
+10 Builds/8 Reuses/10 Releases,
+Gegenprobe geneigte/Front-
+Fläche 274 vs 327 RGB-
+Summe (GPU gemessen).
+Linux-Vollbuild 371 Python,
+41 native CTests, 59 Grafik-
+und 45 Report-Tests,
+29/29 echte isolierte GUI-Starts grün.
+OpenGL sichtbar; Live-OpenSim-
+Login, Materialien/Texturen/
+Terrain/Avatare/Window-Present
+noch NICHT abgenommen.
+P05 2/20, Blöcke 3/4 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
