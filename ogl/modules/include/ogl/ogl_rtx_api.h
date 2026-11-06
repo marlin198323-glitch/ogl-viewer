@@ -331,6 +331,19 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_scene(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels(void);
+/* Device-owned private 32x32 World/Depth pipeline cache (developer only).
+ * VkImages/VkDeviceMemory, shaders, pipeline, framebuffer, readback,
+ * command pool and GPU fence are allocated once and reused across accepted
+ * camera/mesh generations, with vkResetCommandBuffer/vkResetFences only
+ * AFTER each bounded GPU completion wait. This is NOT a world FPS metric.
+ * The original offscreen-CLEAR QA remains allocation-per-probe.
+ * Release is explicit or automatic at device stop BEFORE VkDevice teardown.
+ * All counters reset at device stop, never on region change.
+ */
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_builds(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_reuses(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_releases(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_release(void);
 /* P05 developer-only Linux/X11 WSI probe on the ACTUAL viewer window.
  * Requires both OGL_VULKAN_WORLD_BOOTSTRAP=1 and
  * OGL_VULKAN_WINDOW_SURFACE=1. Creates real VkSurfaceKHR and VkSwapchainKHR

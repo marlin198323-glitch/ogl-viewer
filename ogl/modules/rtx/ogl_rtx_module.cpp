@@ -159,6 +159,29 @@ struct OglPersistentClearFrames {
     bool initialized = false;
 };
 
+// Device-owned, private 32x32 indexed-world diagnostic targets. NO window,
+// VkSurfaceKHR or VkSwapchainKHR. All resources are destroyed before VkDevice.
+struct OglOffscreenWorldCache {
+    VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;
+    VkDeviceMemory color_mem=VK_NULL_HANDLE, depth_mem=VK_NULL_HANDLE,
+                   readback_mem=VK_NULL_HANDLE;
+    VkImageView view=VK_NULL_HANDLE, depth_view=VK_NULL_HANDLE;
+    VkFormat depth_format=VK_FORMAT_UNDEFINED;
+    VkRenderPass render_pass=VK_NULL_HANDLE;
+    VkFramebuffer framebuffer=VK_NULL_HANDLE;
+    VkBuffer readback=VK_NULL_HANDLE;
+    VkCommandPool command_pool=VK_NULL_HANDLE;
+    VkCommandBuffer command=VK_NULL_HANDLE;
+    VkFence fence=VK_NULL_HANDLE;
+    VkShaderModule vertex_shader=VK_NULL_HANDLE;
+    VkShaderModule fragment_shader=VK_NULL_HANDLE;
+    VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
+    VkPipeline pipeline=VK_NULL_HANDLE;
+    VkRenderPass pass=VK_NULL_HANDLE;
+    bool initialized=false;
+    bool submitted=false; // fence owns possibly in-flight work
+};
+
 // P05/1 developer-only Vulkan graphics device bootstrap. Its lifetime is
 // independent from the ray-query probe and is never a replacement for GL.
 // A future world engine still needs permanent SDL-surface ownership,
@@ -185,6 +208,10 @@ struct WorldGraphicsDevice {
     VkFormat swapchain_format = VK_FORMAT_UNDEFINED;
     VkExtent2D swapchain_extent{};
     OglPersistentClearFrames persistent;
+    OglOffscreenWorldCache offscreen_world_cache;
+    uint32_t offscreen_world_builds=0;
+    uint32_t offscreen_world_reuses=0;
+    uint32_t offscreen_world_releases=0;
     // Cumulative QA counters (survive window detach; reset on device stop).
     uint32_t persistent_builds = 0;
     uint32_t persistent_releases = 0;
@@ -225,6 +252,70 @@ struct WorldGraphicsDevice {
     uint32_t sync_last_completed = 0;
     PFN_vkDestroyBuffer destroy_buffer = nullptr;
     PFN_vkFreeMemory free_memory = nullptr;
+
+    void release_offscreen_world_cache() {
+        auto& c=offscreen_world_cache;
+        if (!device) { c={}; return; }
+        if (c.submitted) {
+            // Do not release resources still referenced by VkQueueSubmit.
+            // Prefer a bounded fence wait over vkQueueWaitIdle; a failure
+            // quarantines the resources until device destruction.
+            const auto wait=reinterpret_cast<PFN_vkWaitForFences>(
+                device_proc(device,"vkWaitForFences"));
+            if (!wait || !c.fence ||
+                wait(device,1,&c.fence,VK_TRUE,2000000000ULL)!=VK_SUCCESS)
+                return;
+            c.submitted=false;
+        }
+        const auto proc=[&](const char* name) {
+            return device_proc ? device_proc(device,name) : nullptr;
+        };
+#define OGL_OFFSCREEN_DESTROY(name) auto name=reinterpret_cast<PFN_##name>(proc(#name))
+        OGL_OFFSCREEN_DESTROY(vkDestroyPipeline);
+        OGL_OFFSCREEN_DESTROY(vkDestroyPipelineLayout);
+        OGL_OFFSCREEN_DESTROY(vkDestroyShaderModule);
+        OGL_OFFSCREEN_DESTROY(vkDestroyFence);
+        OGL_OFFSCREEN_DESTROY(vkDestroyCommandPool);
+        OGL_OFFSCREEN_DESTROY(vkDestroyFramebuffer);
+        OGL_OFFSCREEN_DESTROY(vkDestroyRenderPass);
+        OGL_OFFSCREEN_DESTROY(vkDestroyImageView);
+        OGL_OFFSCREEN_DESTROY(vkDestroyImage);
+        OGL_OFFSCREEN_DESTROY(vkDestroyBuffer);
+        OGL_OFFSCREEN_DESTROY(vkFreeMemory);
+#undef OGL_OFFSCREEN_DESTROY
+        if (vkDestroyPipeline && c.pipeline)
+            vkDestroyPipeline(device,c.pipeline,nullptr);
+        if (vkDestroyPipelineLayout && c.pipeline_layout)
+            vkDestroyPipelineLayout(device,c.pipeline_layout,nullptr);
+        if (vkDestroyShaderModule) {
+            if (c.vertex_shader) vkDestroyShaderModule(device,c.vertex_shader,nullptr);
+            if (c.fragment_shader) vkDestroyShaderModule(device,c.fragment_shader,nullptr);
+        }
+        if (vkDestroyFence && c.fence) vkDestroyFence(device,c.fence,nullptr);
+        if (vkDestroyCommandPool && c.command_pool)
+            vkDestroyCommandPool(device,c.command_pool,nullptr);
+        if (vkDestroyFramebuffer && c.framebuffer)
+            vkDestroyFramebuffer(device,c.framebuffer,nullptr);
+        if (vkDestroyRenderPass && c.render_pass)
+            vkDestroyRenderPass(device,c.render_pass,nullptr);
+        if (vkDestroyImageView) {
+            if (c.depth_view) vkDestroyImageView(device,c.depth_view,nullptr);
+            if (c.view) vkDestroyImageView(device,c.view,nullptr);
+        }
+        if (vkDestroyImage) {
+            if (c.depth) vkDestroyImage(device,c.depth,nullptr);
+            if (c.color) vkDestroyImage(device,c.color,nullptr);
+        }
+        if (vkDestroyBuffer && c.readback)
+            vkDestroyBuffer(device,c.readback,nullptr);
+        if (vkFreeMemory) {
+            if (c.depth_mem) vkFreeMemory(device,c.depth_mem,nullptr);
+            if (c.color_mem) vkFreeMemory(device,c.color_mem,nullptr);
+            if (c.readback_mem) vkFreeMemory(device,c.readback_mem,nullptr);
+        }
+        if (c.initialized) ++offscreen_world_releases;
+        c={};
+    }
 
     void clear_mesh() {
         if (device && destroy_buffer) {
@@ -341,6 +432,9 @@ struct WorldGraphicsDevice {
         surface = VK_NULL_HANDLE;
     }
     void close() {
+        // Complete and release the private GL-independent GPU target
+        // BEFORE freeing scene meshes or destroying VkDevice.
+        release_offscreen_world_cache();
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
         world_camera_ready = false;
         world_camera_aspect = 0.f;
@@ -350,6 +444,7 @@ struct WorldGraphicsDevice {
         mesh_uploads = 0;
         offscreen_world_frames = 0;
         offscreen_world_covered_pixels = 0;
+        offscreen_world_builds=offscreen_world_reuses=offscreen_world_releases=0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
         region_barrier_accepts = region_barrier_failures = 0;
@@ -2108,6 +2203,8 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
     OGL_OFFSCREEN_FN(vkDestroyFence);
     OGL_OFFSCREEN_FN(vkQueueSubmit);
     OGL_OFFSCREEN_FN(vkWaitForFences);
+    OGL_OFFSCREEN_FN(vkResetFences);
+    OGL_OFFSCREEN_FN(vkResetCommandBuffer);
     OGL_OFFSCREEN_FN(vkCreateShaderModule);
     OGL_OFFSCREEN_FN(vkDestroyShaderModule);
     OGL_OFFSCREEN_FN(vkCreatePipelineLayout);
@@ -2138,6 +2235,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         !vkCmdEndRenderPass || !vkCmdPipelineBarrier ||
         !vkCmdCopyImageToBuffer || !vkCreateFence || !vkDestroyFence ||
         !vkQueueSubmit || !vkWaitForFences ||
+        (scene && (!vkResetFences || !vkResetCommandBuffer)) ||
         !get_memory_properties || !get_format_properties) return 0;
     if (scene && (!vkCreateShaderModule || !vkDestroyShaderModule ||
         !vkCreatePipelineLayout || !vkDestroyPipelineLayout ||
@@ -2166,24 +2264,26 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 return i;
         return UINT32_MAX;
     };
-    VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;
-    VkDeviceMemory color_mem=VK_NULL_HANDLE, depth_mem=VK_NULL_HANDLE,
-                   readback_mem=VK_NULL_HANDLE;
-    VkImageView depth_view=VK_NULL_HANDLE;
-    VkFormat depth_format=VK_FORMAT_UNDEFINED;
-    struct {
-        VkShaderModule vertex_shader=VK_NULL_HANDLE;
-        VkShaderModule fragment_shader=VK_NULL_HANDLE;
-        VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
-        VkPipeline pipeline=VK_NULL_HANDLE;
-        VkRenderPass pass=VK_NULL_HANDLE;
-    } pipeline_state;
-    VkImageView view=VK_NULL_HANDLE;
-    VkRenderPass render_pass=VK_NULL_HANDLE;
-    VkFramebuffer framebuffer=VK_NULL_HANDLE;
-    VkBuffer readback=VK_NULL_HANDLE;
-    VkCommandPool command_pool=VK_NULL_HANDLE;
-    VkFence fence=VK_NULL_HANDLE;
+    // The legacy 32x32 clear probe remains transient; only the separate
+    // opt-in indexed WORLD raster owns a device-lifetime GPU cache.
+    OglOffscreenWorldCache transient;
+    auto& resource=scene ? world_device.offscreen_world_cache : transient;
+    const bool reuse=scene && resource.initialized;
+    auto& color=resource.color;
+    auto& depth=resource.depth;
+    auto& color_mem=resource.color_mem;
+    auto& depth_mem=resource.depth_mem;
+    auto& readback_mem=resource.readback_mem;
+    auto& depth_view=resource.depth_view;
+    auto& depth_format=resource.depth_format;
+    auto& pipeline_state=resource;
+    auto& view=resource.view;
+    auto& render_pass=resource.render_pass;
+    auto& framebuffer=resource.framebuffer;
+    auto& readback=resource.readback;
+    auto& command_pool=resource.command_pool;
+    auto& command=resource.command;
+    auto& fence=resource.fence;
     auto cleanup=[&]() {
         if (pipeline_state.pipeline && vkDestroyPipeline)
             vkDestroyPipeline(world_device.device,pipeline_state.pipeline,nullptr);
@@ -2211,8 +2311,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         if (readback) vkDestroyBuffer(world_device.device,readback,nullptr);
         if (color_mem) vkFreeMemory(world_device.device,color_mem,nullptr);
         if (readback_mem) vkFreeMemory(world_device.device,readback_mem,nullptr);
+        if (scene && resource.initialized)
+            ++world_device.offscreen_world_releases;
+        resource={};
     };
     auto frame=[&]() -> uint32_t {
+        if (!reuse) {
         VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         image.imageType=VK_IMAGE_TYPE_2D;
         image.format=format;
@@ -2484,11 +2588,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
 
         VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         pool.queueFamilyIndex=world_device.queue_family;
-        pool.flags=VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        pool.flags=scene ?
+            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT :
+            VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
         if (vkCreateCommandPool(world_device.device,&pool,nullptr,
                                 &command_pool)!=VK_SUCCESS || !command_pool)
             return 0;
-        VkCommandBuffer command=VK_NULL_HANDLE;
         VkCommandBufferAllocateInfo ca{
             VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
         ca.commandPool=command_pool;
@@ -2496,6 +2601,9 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         ca.commandBufferCount=1;
         if (vkAllocateCommandBuffers(world_device.device,&ca,
                                      &command)!=VK_SUCCESS || !command)
+            return 0;
+        } // Build VkImages, Depth, VkPipeline, Readback and Pool only once.
+        if (reuse && vkResetCommandBuffer(command,0)!=VK_SUCCESS)
             return 0;
         VkCommandBufferBeginInfo cb{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         cb.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -2563,14 +2671,19 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             0,nullptr);
         if (vkEndCommandBuffer(command)!=VK_SUCCESS) return 0;
 
-        VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        if (vkCreateFence(world_device.device,&fi,nullptr,&fence)!=VK_SUCCESS ||
-            !fence) return 0;
+        if (!reuse) {
+            VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+            if (vkCreateFence(world_device.device,&fi,nullptr,&fence)!=VK_SUCCESS ||
+                !fence) return 0;
+        } else if (vkResetFences(world_device.device,1,&fence)!=VK_SUCCESS) {
+            return 0;
+        }
         VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         submit.commandBufferCount=1;
         submit.pCommandBuffers=&command;
         if (vkQueueSubmit(world_device.queue,1,&submit,fence)!=VK_SUCCESS)
             return 0;
+        resource.submitted=true;
         const auto result=vkWaitForFences(world_device.device,1,&fence,
                                           VK_TRUE,2000000000ULL);
         if (result!=VK_SUCCESS) {
@@ -2579,6 +2692,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             disabled_after_timeout=true;
             return 2;
         }
+        resource.submitted=false; // VkQueueSubmit completed after fence
         void* pixels=nullptr;
         if (vkMapMemory(world_device.device,readback_mem,0,
                         readback_bytes,0,&pixels)!=VK_SUCCESS || !pixels)
@@ -2605,14 +2719,22 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             correct=true; // a completed GPU raster/readback, NOT visibility
         }
         vkUnmapMemory(world_device.device,readback_mem);
+        if (scene && correct) {
+            if (reuse) ++world_device.offscreen_world_reuses;
+            else {
+                resource.initialized=true;
+                ++world_device.offscreen_world_builds;
+            }
+        }
         if (logger && correct && !scene)
             logger(1,"P05 real Vulkan offscreen render pass: 32x32 RGBA pixels validated after GPU fence; no swapchain present.");
         return correct ? 1u : 0u;
     };
     uint32_t result=frame();
-    // 2 means a submitted command is still in flight: releasing any of its
-    // VkObjects would be invalid. Quarantine, never retry this dev probe.
-    if (result!=2) cleanup();
+    // Cached indexed-world objects survive NEW camera and mesh revisions.
+    // No GPU queue-wide idle. A submitted-but-unfinished command is
+    // quarantined for device shutdown instead of premature GPU release.
+    if (result!=2 && (!scene || result!=1)) cleanup();
     return result==1 ? 1u : 0u;
 }
 
@@ -3665,6 +3787,24 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames() 
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels() {
     return world_device.offscreen_world_covered_pixels;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_builds() {
+    return world_device.offscreen_world_builds;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_reuses() {
+    return world_device.offscreen_world_reuses;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_releases() {
+    return world_device.offscreen_world_releases;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_release() {
+    const char* flag=std::getenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER");
+    if (!flag || std::strcmp(flag,"1")!=0 || !world_device.device)
+        return 0;
+    auto& cache=world_device.offscreen_world_cache;
+    if (!cache.initialized || cache.submitted) return 0;
+    world_device.release_offscreen_world_cache();
+    return cache.initialized ? 0u : 1u;
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_device_bootstrapped() {
     return world_device.device != VK_NULL_HANDLE &&

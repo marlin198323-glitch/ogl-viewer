@@ -78,6 +78,9 @@ using ogl_world_offscreen_count_fn = std::uint64_t (*)();
 ogl_world_offscreen_count_fn world_offscreen_scene_frames = nullptr;
 using ogl_world_offscreen_pixels_fn = uint32_t (*)();
 ogl_world_offscreen_pixels_fn world_offscreen_scene_pixels = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_cache_builds = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_cache_reuses = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_cache_releases = nullptr;
 std::uint64_t world_offscreen_scene_failures = 0;
 // The real Firestorm camera is sampled BEFORE the deferred scene scan.
 // Retain it only after successful module validation, and invalidate it on
@@ -289,6 +292,12 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_frames"));
     world_offscreen_scene_pixels = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_pixels"));
+    world_offscreen_cache_builds = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_cache_builds"));
+    world_offscreen_cache_reuses = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_cache_reuses"));
+    world_offscreen_cache_releases = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_cache_releases"));
     world_offscreen_scene_failures=0;
     last_live_world_camera={};
     last_live_world_camera_valid=false;
@@ -461,6 +470,9 @@ void ogl_shutdown_rtx_module() {
     world_render_offscreen_scene = nullptr;
     world_offscreen_scene_frames = nullptr;
     world_offscreen_scene_pixels = nullptr;
+    world_offscreen_cache_builds = nullptr;
+    world_offscreen_cache_reuses = nullptr;
+    world_offscreen_cache_releases = nullptr;
     world_offscreen_scene_failures=0;
     last_live_world_camera={};
     last_live_world_camera_valid=false;
@@ -690,6 +702,12 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                         << " nonclear_pixels=" << (rendered ?
                             world_offscreen_scene_pixels() : 0)
                         << " failures=" << world_offscreen_scene_failures
+                        << " cache_builds=" << (world_offscreen_cache_builds ?
+                            world_offscreen_cache_builds() : 0)
+                        << " cache_reuses=" << (world_offscreen_cache_reuses ?
+                            world_offscreen_cache_reuses() : 0)
+                        << " cache_releases=" << (world_offscreen_cache_releases ?
+                            world_offscreen_cache_releases() : 0)
                         << "; 32x32 private VkImage, NO Vulkan present, "
                            "OpenGL owns viewer window."
                         << LL_ENDL;

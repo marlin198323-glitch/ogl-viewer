@@ -73,9 +73,21 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_scene_frames"));
     const auto offscreen_world_pixels = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_pixels"));
-    assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels);
+    const auto offscreen_cache_builds = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_cache_builds"));
+    const auto offscreen_cache_reuses = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_cache_reuses"));
+    const auto offscreen_cache_releases = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_cache_releases"));
+    const auto offscreen_cache_release = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_cache_release"));
+    assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
+           offscreen_cache_builds && offscreen_cache_reuses &&
+           offscreen_cache_releases && offscreen_cache_release);
     assert(offscreen_world()==0 && offscreen_world_frames()==0 &&
-           offscreen_world_pixels()==0);
+           offscreen_world_pixels()==0 &&
+           offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
+           offscreen_cache_releases()==0 && offscreen_cache_release()==0);
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
         dlsym(library, "ogl_vulkan_world_upload_triangles"));
     const auto world_gpu_count = reinterpret_cast<uint32_t(*)()>(
@@ -291,6 +303,8 @@ int main(int argc, char** argv) {
     assert(world_device() == 0);
     assert(window_ready()==0);
     assert(offscreen_frame()==0);
+    assert(offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
+           offscreen_cache_releases()==0 && offscreen_cache_release()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
            aspect_matches()==0 &&
            camera_updates()==0 && mesh_uploads()==0);
@@ -1394,6 +1408,9 @@ int main(int argc, char** argv) {
             setenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE","1",1);
             setenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER","1",1);
             const uint64_t offscreen_start=offscreen_world_frames();
+            const uint32_t offscreen_build0=offscreen_cache_builds();
+            const uint32_t offscreen_reuse0=offscreen_cache_reuses();
+            const uint32_t offscreen_release0=offscreen_cache_releases();
             const uint32_t denied_no_mesh=offscreen_world();
             const uint64_t gen0=mesh_generation();
             const uint64_t accepts0=region_barrier_accepts();
@@ -1412,6 +1429,9 @@ int main(int argc, char** argv) {
                 // creating or attaching any native X11 VkSwapchain.
                 offscreen_world()==1 &&
                 offscreen_world_frames()==offscreen_start+1 &&
+                offscreen_cache_builds()==offscreen_build0+1 &&
+                offscreen_cache_reuses()==offscreen_reuse0 &&
+                offscreen_cache_releases()==offscreen_release0 &&
                 offscreen_world_pixels()>0 &&
                 offscreen_world_pixels()<1024 &&
                 // The camera moves completely away from scene: the GPU
@@ -1420,6 +1440,8 @@ int main(int argc, char** argv) {
                 world_camera(&camera)==1 &&
                 offscreen_world()==1 &&
                 offscreen_world_frames()==offscreen_start+2 &&
+                offscreen_cache_builds()==offscreen_build0+1 &&
+                offscreen_cache_reuses()==offscreen_reuse0+1 &&
                 offscreen_world_pixels()==0 &&
                 ((camera.camera_position[1]=20.f),true) &&
                 world_camera(&camera)==1 &&
@@ -1487,6 +1509,9 @@ int main(int argc, char** argv) {
                 world_camera(&camera)==1 && live_inputs()==1 &&
                 offscreen_world()==1 &&
                 offscreen_world_frames()==offscreen_start+3 &&
+                offscreen_cache_builds()==offscreen_build0+1 &&
+                offscreen_cache_reuses()==offscreen_reuse0+2 &&
+                offscreen_cache_releases()==offscreen_release0 &&
                 offscreen_world_pixels()>0 &&
                 persistent_clear(1)==1 &&
                 persistent_count()==3 &&
@@ -1506,6 +1531,24 @@ int main(int argc, char** argv) {
             window_detach();
             barrier_ok=barrier_ok && persistent_count()==0 &&
                 persistent_idles()==idle0+1;
+            barrier_ok=barrier_ok &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+1 &&
+                offscreen_cache_release()==0 &&
+                offscreen_cache_builds()==offscreen_build0+1 &&
+                offscreen_cache_reuses()==offscreen_reuse0+2 &&
+                offscreen_world_frames()==offscreen_start+3;
+            // Rebuild after explicit release, using the newly valid
+            // scene/camera; no stale pipeline or stale GPU image survives.
+            barrier_ok=barrier_ok && world_upload(&near,1)==1 &&
+                world_camera(&camera)==1 && offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+4 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_cache_builds()==offscreen_build0+2 &&
+                offscreen_cache_reuses()==offscreen_reuse0+2 &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+2 &&
+                offscreen_cache_release()==0;
             for (const char* flag:{
                  "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
@@ -1520,9 +1563,12 @@ int main(int argc, char** argv) {
                 unsetenv(flag);
             std::fprintf(stdout,
                 "P05 private Vulkan WORLD offscreen indexed/depth: "
-                "frames=%llu visible_pixels=%u no_swapchain=1\n",
+                "frames=%llu visible_pixels=%u builds=%u reuses=%u releases=%u "
+                "no_swapchain=1\n",
                 static_cast<unsigned long long>(offscreen_world_frames()),
-                offscreen_world_pixels());
+                offscreen_world_pixels(),
+                offscreen_cache_builds(),offscreen_cache_reuses(),
+                offscreen_cache_releases());
             std::fprintf(stdout,
                 "P05 live region barrier GPU: valid=%d fenced=%d "
                 "new_region=%d accepts=%llu waits=%u failures=%llu\n",

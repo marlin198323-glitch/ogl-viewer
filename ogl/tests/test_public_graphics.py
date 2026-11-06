@@ -967,8 +967,10 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("world_device.camera_mesh_generation!=world_device.mesh_generation",f)
         self.assertIn("world_device.mesh_vertices",f)
         self.assertIn("world_device.mesh_indices",f)
-        self.assertIn("VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;",f)
-        self.assertIn("VkDeviceMemory color_mem=VK_NULL_HANDLE, depth_mem=VK_NULL_HANDLE,",f)
+        self.assertIn("OglOffscreenWorldCache transient;",f)
+        self.assertIn("auto& resource=scene ? world_device.offscreen_world_cache : transient;",f)
+        self.assertIn("auto& color=resource.color;",f)
+        self.assertIn("auto& depth_mem=resource.depth_mem;",f)
         self.assertIn("VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT",f)
         self.assertIn("VK_IMAGE_ASPECT_DEPTH_BIT",f)
         self.assertIn("subpass.pDepthStencilAttachment=scene ? &depth_ref : nullptr;",f)
@@ -1002,6 +1004,68 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("32x32 private VkImage, NO Vulkan present",host)
         self.assertNotIn("ogl_vulkan_world_attach_x11_window(",host)
         self.assertNotIn("vkQueuePresentKHR(",host)
+
+    def test_p05_offscreen_world_cache_reuses_gpu_objects_and_tears_down(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        begin=module.index("struct OglOffscreenWorldCache {")
+        end=module.index("// P05/1 developer-only Vulkan graphics device bootstrap",begin)
+        struct=module[begin:end]
+        for token in ("VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;",
+                      "VkDeviceMemory color_mem=VK_NULL_HANDLE, depth_mem=VK_NULL_HANDLE,",
+                      "VkRenderPass render_pass=VK_NULL_HANDLE;",
+                      "VkFramebuffer framebuffer=VK_NULL_HANDLE;",
+                      "VkBuffer readback=VK_NULL_HANDLE;",
+                      "VkCommandPool command_pool=VK_NULL_HANDLE;",
+                      "VkCommandBuffer command=VK_NULL_HANDLE;",
+                      "VkFence fence=VK_NULL_HANDLE;",
+                      "VkPipeline pipeline=VK_NULL_HANDLE;",
+                      "bool initialized=false;","bool submitted=false;"):
+            self.assertIn(token,struct)
+        close=module.index("void close() {")
+        self.assertLess(module.index("release_offscreen_world_cache();",close),
+                        module.index("clear_mesh();",close))
+        self.assertLess(module.index("clear_mesh();",close),
+                        module.index("destroy_device(device, nullptr)",close))
+        a=module.index("void release_offscreen_world_cache() {")
+        b=module.index("void clear_mesh() {",a)
+        rel=module[a:b]
+        self.assertIn("if (c.submitted)",rel)
+        self.assertIn("wait(device,1,&c.fence,VK_TRUE,2000000000ULL)",rel)
+        self.assertIn("vkDestroyPipeline(device,c.pipeline,nullptr);",rel)
+        self.assertIn("vkDestroyImage(device,c.depth,nullptr);",rel)
+        self.assertIn("vkDestroyImage(device,c.color,nullptr);",rel)
+        self.assertIn("vkDestroyBuffer(device,c.readback,nullptr);",rel)
+        self.assertIn("vkFreeMemory(device,c.readback_mem,nullptr);",rel)
+        self.assertNotIn("vkQueueWaitIdle(",rel)
+        a=module.index("uint32_t render_offscreen_color_frame(")
+        b=module.index("// Independent opt-in camera projection",a)
+        fn=module[a:b]
+        self.assertIn("const bool reuse=scene && resource.initialized;",fn)
+        self.assertIn("if (!reuse) {",fn)
+        self.assertIn("if (reuse && vkResetCommandBuffer(command,0)!=VK_SUCCESS)",fn)
+        self.assertIn("vkResetFences(world_device.device,1,&fence)",fn)
+        self.assertIn("VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT",fn)
+        self.assertIn("resource.submitted=true;",fn)
+        self.assertIn("resource.submitted=false;",fn)
+        self.assertIn("++world_device.offscreen_world_builds;",fn)
+        self.assertIn("++world_device.offscreen_world_reuses;",fn)
+        self.assertIn("if (result!=2 && (!scene || result!=1)) cleanup();",fn)
+        self.assertIn("if (scene && resource.initialized)",fn)
+        for name in ("ogl_vulkan_world_offscreen_cache_builds",
+                     "ogl_vulkan_world_offscreen_cache_reuses",
+                     "ogl_vulkan_world_offscreen_cache_releases",
+                     "ogl_vulkan_world_offscreen_cache_release"):
+            self.assertIn(name,module)
+            self.assertIn(name,api)
+            self.assertIn(name,native)
+        self.assertIn("offscreen_cache_builds()==offscreen_build0+1",native)
+        self.assertIn("offscreen_cache_reuses()==offscreen_reuse0+2",native)
+        self.assertIn("offscreen_cache_releases()==offscreen_release0+1",native)
+        self.assertIn("offscreen_cache_release()==0",native)
+        self.assertNotIn("vkQueuePresentKHR(",fn)
+        self.assertNotIn("vkCreateSwapchainKHR(",fn)
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
