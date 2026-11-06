@@ -391,6 +391,28 @@ OpenSim-Welt. Keine fertige Vulkan-Engine mit
 Terrain, Texturen, Avataren, UI oder Live-Window-
 Ownership. P05 weiter 2/20, Block 3/4 offen.
 
+**P05/3–4 echter Firestorm-Kamera-/Mesh-Handoff (06.11.2026, bf85bff5):**
+20 technische Teilaufgaben. Der real erfasste Deferred-Kameraframe
+steht bisher VOR dem späteren OpenSim-Regionsmesh-Upload und
+wird dadurch invalidiert. Nur unter separatem Entwicklerflag
+OGL_VULKAN_LIVE_CAMERA_REBIND=1 wird die im Modul zuvor
+validierte Kamera nach erfolgreichem Mesh-Upload erneut
+gebunden. Ein echter Regionswechsel invalidiert den Cache
+vor GPU-Clear. Kamera- und Mesh-Generationen müssen
+für GPU-World-Present und live_inputs_ready übereinstimmen.
+Read-only-ABI zur Kamerageneration ergänzt.
+OGL_VULKAN_WORLD_MESH_DEDUP=1 dedupliziert exakt
+gleiche Dreiecke ohne GPU-Wait, neue Buffer oder
+Kamerainvalidierung. CPU-Snapshot atomar publiziert.
+Native echte GPU mit dedup=1, Rotation und Depth grün;
+Linux-Vollbuild, 343 Python-/41 native Tests bestanden.
+7 isolierte GUI-Tests GL-Login/Exit 0; zwei wichtigste
+20-Frame-/100-Pixel-GPU-Fälle nach letztem Fix wiederholt.
+NOCH KEIN authentifizierter Live-OpenSim-Vulkan-Present:
+die sichtbaren GPU-GUI-Tests sind synthetische pre-GL-
+Testmeshes. Keine fertige Vulkan-Engine mit Terrain,
+Avataren, Texturen oder UI. P05 2/20; Block 3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

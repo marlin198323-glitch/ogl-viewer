@@ -1527,6 +1527,24 @@ P05 2/20, Block 3/4 offen. Nächstes Gate:
 tatsächliche eingeloggte Regionsmesh-/
 Camera-Übergabe und Vulkan-Fensterlebenszyklus.
 
+**P05/3–4 echte Capture-Generationen und Kamera-Rebind (06.11.2026, bf85bff5):**
+Der reale Firestorm-Deferred-Pfad erfasst Kamera
+vor späterem OpenSim-Meshsnapshot. Ein opt-in
+Host-Cache der validierten Kamera macht den
+Rebind NACH akzeptiertem GPU-Meshupload möglich,
+wird bei echter Region-ID-Änderung invalidiert.
+Vulkan-World-Presents verlangen passende Kamera-
+und Mesh-Generation. Optional bitgenaue Mesh-
+Deduplizierung ohne Buffer-/Fence-/Kamera-Neustart.
+Linux-Vollbuild 343 Python-/41 native Tests,
+native GPU-Tests und 7 reale isolierte GUI-
+Starts grün, davon 20 GPU-Presents/100 Pixel.
+Weiterhin KEIN eingeloggter OpenSim-Live-Present
+unter Vulkan, kein Terrain/Avatar/UI und kein
+produktiver Engine-Switch. P05 formal 2/20,
+Block 3/4 offen. Nächstes Gate echtes Live-
+Region-Snapshot und sichere Vulkan-Window-Ownership.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

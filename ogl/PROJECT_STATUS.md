@@ -1,10 +1,90 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 05.11.2026
+Stand: 06.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3–4 – 20 technische Schritte: echter Firestorm-Kamera-/Regionsmesh-Handoff (06.11.2026)
+
+Der echte Firestorm-Deferred-Pass erfasst die Kamera vor dem späteren
+OpenSim-Regionsmesh-Snapshot. Der nachgelagerte Vulkan-Meshupload
+invalidierte bisher die bereits eingereichte Kamera. Der Host
+speichert deshalb nur erfolgreich validierte Kameraframes und kann
+unter eigenem Entwicklerflag OGL_VULKAN_LIVE_CAMERA_REBIND=1 die
+Kamera nach akzeptiertem Mesh erneut zur aktuellen GPU-Generation
+binden. Ein echter Region-ID-Wechsel verwirft den Cache vor
+Region-Clear; leere Scanbatches sind keine Regionwechsel.
+
+World-Present und das GPU-Inputs-Ready-Gate akzeptieren ausschließlich
+zusammenpassende Kamera-/Mesh-Generationen. Eine neue read-only-C-ABI
+macht die Kamerageneration prüfbar.
+
+Mit OGL_VULKAN_WORLD_MESH_DEDUP=1 können identische Snapshots
+bytegenau verglichen werden, ohne neue VkBuffer, GPU-Fence-Waits
+oder Kamera-Invalidierung. Ein CPU-Snapshot wird vor der GPU-
+Veröffentlichung vollständig vorbereitet und ohne erneute
+Allokation übernommen. Der normale OpenGL-Modus wird nicht verändert.
+
+**20 durchgeführte und geprüfte technische Teilaufgaben:**
+
+01. Git, Branch ogl-develop, Arbeitsverzeichnis, AGENTS, Handoff und P05-Roadmap vor allen Änderungen geprüft.
+02. Vorherige GitHub-CI für Linux, Windows und macOS als vollständig grün bestätigt.
+03. Den echten Firestorm-Deferred-Kamera-Hook mit Kameraachsen, FOV und Clipping analysiert.
+04. Den tatsächlichen OpenSim-Region-Meshscanner und den nachgelagerten GPU-Upload untersucht.
+05. Den Reihenfolgefehler ermittelt: Kamera kommt vor Mesh, Mesh-Upload invalidiert die Kamera.
+06. Nur erfolgreich im Vulkan-Modul validierte Kameraframes im vorhandenen Firestorm-Host zwischengespeichert.
+07. Den realen Region-ID-Wechsel im Firestorm-Pipeline-Code als expliziten Cache-Invalidierungs-Hook angebunden.
+08. Vor Region-Clear den Kameracache und Live-Input-Status verworfen; leere Scanbatches nicht als Regionswechsel behandelt.
+09. Eigenes Entwicklerflag OGL_VULKAN_LIVE_CAMERA_REBIND zum gezielten Kamera-Rebind nach akzeptiertem Regionsmesh eingeführt.
+10. Kamera-Neubindung auf vorhandenes Vulkan-Device, gültigen Kameracache und erfolgreiche Mesh-Übergabe begrenzt.
+11. Bei jeder gültigen GPU-Kameraprojektion die aktuell akzeptierte Mesh-Generation mitgespeichert.
+12. Vulkan-World-Present und Live-Inputs-Ready lehnen unpassende Kamera-/Mesh-Generationen ausdrücklich ab.
+13. Kamerageneration bei ungültigem Kamera-Frame, Meshwechsel, Region-Clear und unpassendem Swapchain-Aspect zurückgesetzt.
+14. Read-only Vulkan-C-ABI für die Kamera-Mesh-Generation ergänzt und durch Firestorm-Host sowie Native-Test geprüft.
+15. Separates OGL_VULKAN_WORLD_MESH_DEDUP Entwicklerflag implementiert: voller bitgenauer CPU-Meshvergleich ohne Hash.
+16. Identische GPU-Meshes behalten Buffer, Kamera, Generation und Fences ohne unnötige Warteoperation.
+17. CPU-Meshsnapshot vollständig vor GPU-Publish alloziert und erst nach erfolgreicher GPU-Übergabe ohne neue Allokation getauscht.
+18. Native echte Vulkan-GPU: Kameragenerationsgates, dedup=1, Region-Clear, GPU-Meshrotation, Depth und X11-Pixel bestanden.
+19. Vollständiger Linux-Viewer-Build, 343/343 Python-Tests, 41/41 native CTests und 52 gezielte Vertragsprüfungen bestanden.
+20. Sieben isolierte reale Viewer-GUI-Fälle mit OpenGL-Login/Exit 0 bestanden; nach abschließendem Codefix beide 20-Frame-/100-Pixel-GPU-Hauptfälle erneut grün.
+
+**Native GPU-Abnahme:** Kamerageneration nach Meshwechsel/Region-Clear
+ungültig, nach neuer akzeptierter Kamera wieder passend.
+Byte-identische Szenen werden ohne GPU-Retirement-Wait übersprungen.
+Die GPU-Tests für persistente Vulkan-World-XYZ-Frames, Kamera,
+Depth, Resize und Rot/Grün/Leer/Rot/Grün-Meshwechsel bestanden;
+dedup=1, rotation=1 und no-frame-idle=1 durch echte GPU bestätigt.
+
+**Tatsächlicher SDL/X11-Viewer:** 7/7 isolierte Testfälle bestanden:
+normaler OpenGL-Start, neue Live-Capture-Flags ohne Vulkan-WSI,
+persistente Vulkan-World-Frames mit und ohne Capture-Flags,
+Meshrotation mit Capture-Flags, fehlender Vulkan-Treiber und
+unvollständige Developer-Freigaben. Die GPU-Erfolgsfälle
+präsentierten 20/20 synthetische Weltframes bei drei Auflösungen
+mit 100 echten X11-RGB-Samples; danach OpenGL-Login und Exit 0.
+Nach dem finalen CPU-Snapshot-Sicherheitsfix wurden beide
+20-Frame-/100-Pixel-Hauptfälle erneut erfolgreich gestartet.
+Keine laufende Usersitzung und kein persönlicher Cache berührt.
+
+**Abnahme:** Linux-Vollviewer-Build, 343/343 Python-Tests,
+41/41 native CTests und 52 gezielte Vertragstests erfolgreich.
+Vorige plattformübergreifende GitHub-CI vollständig grün;
+neue Commit-CI noch zu prüfen.
+
+**Grenze:** Der echte OpenSim-Capture-Handoff ist jetzt im
+Viewer-Code verbunden, aber KEINE authentifizierte Live-Region
+wurde mit dem Assistenten eingeloggt und unter Vulkan gerendert.
+Die sichtbaren Vulkan-GUI-GPU-Bilder verwenden weiter
+synthetische Entwickler-Meshes VOR dem OpenGL-Kontext.
+Terrain, Materialien, Texturen, Avatare, UI, ein produktiver
+Vulkan-In-World-Switch und dauerhafte Vulkan-Fenster-Ownership
+fehlen. **P05 formal weiter 2/20; Block 3 und der vollständige
+Block 4 bleiben offen.** Nächstes Gate: echte Live-Region-
+Eingangsdaten nach Login prüfen und sicheren Vulkan-Fenster-
+Handoff mit OpenGL-Fallback implementieren.
+Code-Commit: bf85bff580a529354fd203624324792944f5c337.
 
 ## P05/3–4 – 20 technische Aufgaben: GPU-Fence-gesicherte Mesh-Generationen und Regionsverlust (05.11.2026)
 

@@ -4,42 +4,37 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 05.11.2026 (Code fb53a9e9):
-GPU-Fence-gesicherte dynamische Mesh-
-Generationen jetzt im persistenten
-Vulkan-World-Depth-Entwicklerpfad.
-Alte Vertex/Index-VkBuffers erst nach
-bounded <=2s waitAll der ausstehenden
-GPU-Submit-Fences freigeben. Kein
-QueueIdle pro Frame oder Meshupdate.
-Separates Modul+SDL-Dev-Opt-in;
-Timeout blockiert weitere Probe,
-keine GPU-Buffer-Freigabe bei Fehler.
-Region-Clear inkrementiert Generation
-und sperrt Draw ohne neue Pose/Mesh.
-Ungültige Meshdaten ohne Fence-Wait
-verwerfen. Native GPU: zwei Slots
-vor Generationstausch; sichtbare
-Rot/Grün/Leer/Rot/Grün-Frames,
-3 Retirement-Waits, 0 Fehler.
-SDL/X11-Viewer VOR GL: 20 Frames,
-100 RGB-Pixel, drei Größen,
-GL-Login/Exit 0. 7 neue+31 alte
-GUI-Smokes erfolgreich. Linux-
-Vollbuild, 342 Python/41 CTests.
-Vorige GitHub-CI grün, neue
-nach Commits noch zu prüfen.
-Nur synthetische Meshes; KEINE
-authentifizierte OpenSim-Region
-per Vulkan, KEIN produktiver
-Vulkan-Window-/World-Backend-Switch.
-P05 formal 2/20, Block 3/4 offen.
-Nächster Fokus: echte In-World-
-Scene-/Camera-Eingänge und sichere
-Vulkan-Live-Window-Ownership.
-Bestehende Dateien bearbeiten;
-User-Viewer, Accounts, Cache,
-Logins und Secrets nicht anfassen.
+Aktueller P05-Stand 06.11.2026 (Code bf85bff5):
+Der echte Firestorm-Deferred-Pass sendet
+Kamera VOR dem OpenSim-Regionsmesh-Snapshot.
+Durch Opt-in OGL_VULKAN_LIVE_CAMERA_REBIND=1
+wird die zuvor im Modul validierte Kamera
+nach akzeptiertem Mesh erneut gebunden.
+Ein realer Regionswechsel invalidiert den
+Host-Cache vor dem GPU-Region-Clear.
+Vulkan-World-Present fordert passende
+Kamera- und Mesh-Generation, additive
+read-only-ABI ergänzt. Mit Opt-in
+OGL_VULKAN_WORLD_MESH_DEDUP=1 werden
+byte-identische Meshes ohne GPU-Waits,
+Kamerainvalidierung oder neue Buffer
+übersprungen; CPU-Snapshot vor GPU-Publish
+vollständig vorbereitet. Native Vulkan-
+X11-GPU-Tests, Linux-Vollbuild,
+343 Python-/41 native CTests grün.
+7 isolierte Viewer-GUI-Fälle bestehen,
+GL-Login/Exit 0, 20 GPU-Frames/100
+RGB-Pixel bei World-/Mesh-Proben;
+zwei Hauptfälle nach finalem Fix wiederholt.
+KEIN authentifizierter Live-OpenSim-
+Vulkan-Present oder produktiver Vulkan-
+Engine-Switch; nur synthetische
+Vor-OpenGL-GPU-Testwelt. P05 2/20;
+Block 3/4 weiterhin offen.
+Nächster Gate echte Login-Region-Daten
+und exklusive Vulkan-Weltfenster-Ownership.
+Nur bestehende Projektdateien bearbeiten,
+User-Viewer, Cache, Login/Secrets schützen.
 Historie: ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
