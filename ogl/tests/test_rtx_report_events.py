@@ -215,6 +215,158 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("exact_ray_anchors=",source)
         self.assertIn("prepass_triangles=",source)
 
+    # P05 real deferred-source GPU evidence, using anonymized sample log
+    # lines ONLY. These are parser fixtures, not real grid login evidence.
+    def p05_example(self):
+        return (
+            "P05 deferred evidence session: begin=1\n"
+            "STATE_STARTED\n"
+            "P05 deferred region boundary: epoch=1\n"
+            "P05 deferred capture receipt: epoch=1 capture=1 "
+            "triangles=400 mesh_generation=9\n"
+            "P05 deferred GPU receipt: epoch=1 capture=1 "
+            "mesh_generation=9 source=mesh-rebind frames=1 "
+            "camera_frames=0 nonclear_pixels=144 status=completed\n"
+        )
+
+    def test_p05_source_receipts_need_session_and_world(self):
+        self.assertEqual(module.p05_live_gpu_evidence("STATE_STARTED")["status"],
+                         "no_deferred_evidence_session")
+        self.assertEqual(module.p05_live_gpu_evidence(
+            self.p05_example().replace("STATE_STARTED\n","")
+        )["status"],"world_entry_not_observed")
+        self.assertEqual(module.p05_live_gpu_evidence(
+            "P05 deferred evidence session: begin=1\nSTATE_STARTED\n"
+        )["status"],"no_current_region_capture")
+
+    def test_p05_real_deferred_gpu_receipt_chain(self):
+        result=module.p05_live_gpu_evidence(self.p05_example())
+        self.assertEqual(result["status"],"deferred_source_gpu_completed")
+        self.assertEqual(result["current_region_epoch"],1)
+        self.assertEqual(result["accepted_capture_events"],1)
+        self.assertEqual(result["completed_gpu_frames"],1)
+        self.assertEqual(result["camera_gpu_frames"],0)
+        self.assertEqual(result["last_nonclear_pixels"],144)
+        self.assertEqual(result["rejected_receipt_events"],0)
+
+    def test_p05_missing_capture_never_uses_raw_gpu_result(self):
+        log=self.p05_example()
+        no_capture="\n".join(line for line in log.splitlines()
+                              if "deferred capture receipt:" not in line)
+        result=module.p05_live_gpu_evidence(no_capture)
+        self.assertEqual(result["status"],"no_current_region_capture")
+        self.assertEqual(result["completed_gpu_frames"],0)
+        self.assertEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_mismatched_gpu_mesh_generation_rejected(self):
+        log=self.p05_example().replace(
+            "mesh_generation=9 source=mesh-rebind",
+            "mesh_generation=8 source=mesh-rebind")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_mismatched_gpu_capture_id_rejected(self):
+        log=self.p05_example().replace(
+            "capture=1 mesh_generation=9 source=",
+            "capture=2 mesh_generation=9 source=")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_region_change_invalidates_old_gpu_evidence(self):
+        log=self.p05_example()+"P05 deferred region boundary: epoch=2\n"
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"no_current_region_capture")
+        self.assertEqual(result["current_region_epoch"],2)
+        self.assertEqual(result["completed_gpu_frames"],0)
+
+    def test_p05_new_capture_supersedes_old_gpu_evidence(self):
+        log=self.p05_example()+(
+            "P05 deferred capture receipt: epoch=1 capture=2 "
+            "triangles=300 mesh_generation=10\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["completed_gpu_frames"],0)
+        self.assertEqual(result["accepted_capture_events"],2)
+
+    def test_p05_camera_only_gpu_frames_use_latest_capture(self):
+        log=self.p05_example()+(
+            "P05 deferred GPU receipt: epoch=1 capture=1 "
+            "mesh_generation=9 source=camera-tick frames=2 "
+            "camera_frames=1 nonclear_pixels=0 status=completed\n"
+            "P05 deferred GPU receipt: epoch=1 capture=1 "
+            "mesh_generation=9 source=camera-tick frames=3 "
+            "camera_frames=2 nonclear_pixels=192 status=completed\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"deferred_source_gpu_completed")
+        self.assertEqual(result["completed_gpu_frames"],3)
+        self.assertEqual(result["camera_gpu_frames"],2)
+        self.assertEqual(result["last_nonclear_pixels"],192)
+
+    def test_p05_prelogin_gpu_test_or_old_session_not_proven(self):
+        log=self.p05_example()+(
+            "P05 deferred evidence session: begin=1\n"
+            "STATE_LOGIN_WAIT\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"world_entry_not_observed")
+        self.assertEqual(result["completed_gpu_frames"],0)
+
+    def test_p05_forget_stale_gpu_after_new_region_capture(self):
+        log=self.p05_example()+(
+            "P05 deferred region boundary: epoch=2\n"
+            "P05 deferred capture receipt: epoch=2 capture=2 "
+            "triangles=100 mesh_generation=11\n"
+            "P05 deferred GPU receipt: epoch=1 capture=1 "
+            "mesh_generation=9 source=camera-tick frames=2 "
+            "camera_frames=1 nonclear_pixels=200 status=completed\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["rejected_receipt_events"],1)
+        self.assertEqual(result["completed_gpu_frames"],0)
+
+    def test_p05_duplicate_out_of_order_and_bad_pixel_receipts(self):
+        log=self.p05_example()+(
+            "P05 deferred GPU receipt: epoch=1 capture=1 "
+            "mesh_generation=9 source=camera-tick frames=1 "
+            "camera_frames=1 nonclear_pixels=20 status=completed\n"
+            "P05 deferred GPU receipt: epoch=1 capture=1 "
+            "mesh_generation=9 source=camera-tick frames=2 "
+            "camera_frames=1 nonclear_pixels=1025 status=completed\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["completed_gpu_frames"],1)
+        self.assertEqual(result["rejected_receipt_events"],2)
+
+    def test_p05_capture_bounds_and_monotonic_id(self):
+        log=self.p05_example()+(
+            "P05 deferred capture receipt: epoch=1 capture=1 "
+            "triangles=12 mesh_generation=9\n"
+            "P05 deferred capture receipt: epoch=1 capture=2 "
+            "triangles=9000 mesh_generation=10\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["accepted_capture_events"],1)
+        self.assertEqual(result["rejected_receipt_events"],2)
+
+    def test_p05_receipts_exclude_private_identity(self):
+        log=self.p05_example() + (
+            "user=PRIVATE-AVATAR grid=PRIVATE-REGION account=PRIVATE\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(set(result),{
+            "status","current_region_epoch","accepted_capture_events",
+            "completed_gpu_frames","camera_gpu_frames",
+            "last_nonclear_pixels","rejected_receipt_events",
+        })
+        self.assertNotIn("PRIVATE",str(result))
+        self.assertIn("not independent proof of authenticated grid login",
+                      script.read_text())
+
     def test_no_account_names_in_extracted_information(self):
         result = module.latest_scene_event(
             "username=private\n"

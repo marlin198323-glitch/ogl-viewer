@@ -90,6 +90,16 @@ ogl_rtx_frame_state last_live_world_camera{};
 bool last_live_world_camera_valid = false;
 std::uint64_t live_world_region_epoch = 0;
 std::uint64_t live_world_rebinds = 0;
+// In-world deferred-source receipt. Never obtained from the generic
+// triangle ABI or a pre-login/synthetic GPU probe. Receipt IDs are local
+// monotonic numbers only (no region UUID, name, account or coordinates).
+bool live_deferred_capture_call = false;
+bool live_deferred_capture_valid = false;
+std::uint64_t live_deferred_receipts = 0;
+std::uint64_t live_deferred_receipt_epoch = 0;
+std::uint64_t live_deferred_mesh_generation = 0;
+std::uint64_t live_deferred_gpu_frames = 0;
+std::uint64_t live_deferred_camera_gpu_frames = 0;
 // Camera-only samples are separately opted-in and rate-limited.
 std::uint64_t live_world_camera_tick_calls = 0;
 std::uint64_t live_world_camera_tick_attempts = 0;
@@ -311,6 +321,13 @@ void ogl_init_rtx_module() {
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
     live_world_rebinds=0;
+    live_deferred_capture_call=false;
+    live_deferred_capture_valid=false;
+    live_deferred_receipts=0;
+    live_deferred_receipt_epoch=0;
+    live_deferred_mesh_generation=0;
+    live_deferred_gpu_frames=0;
+    live_deferred_camera_gpu_frames=0;
     live_world_camera_tick_calls=0;
     live_world_camera_tick_attempts=0;
     live_world_camera_tick_unchanged=0;
@@ -348,6 +365,14 @@ void ogl_init_rtx_module() {
         ogl_shutdown_rtx_module();
         return;
     }
+    // All provenance receipts are scoped to this module/Viewer lifecycle;
+    // the local log parser never merges them with previous sessions.
+    const char* evidence=std::getenv("OGL_VULKAN_LIVE_WORLD_OFFSCREEN");
+    if (evidence && std::strcmp(evidence,"1")==0)
+        LL_INFOS("OGLRenderer")
+            << "P05 deferred evidence session: begin=1; "
+               "source receipts require in-world Firestorm deferred scan."
+            << LL_ENDL;
     const ogl_rtx_status *status = get_status();
     if (status && status->struct_size >= sizeof(ogl_rtx_status) &&
         status->status_version == OGL_RTX_STATUS_VERSION) {
@@ -493,6 +518,13 @@ void ogl_shutdown_rtx_module() {
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
     live_world_rebinds=0;
+    live_deferred_capture_call=false;
+    live_deferred_capture_valid=false;
+    live_deferred_receipts=0;
+    live_deferred_receipt_epoch=0;
+    live_deferred_mesh_generation=0;
+    live_deferred_gpu_frames=0;
+    live_deferred_camera_gpu_frames=0;
     live_world_camera_tick_calls=0;
     live_world_camera_tick_attempts=0;
     live_world_camera_tick_unchanged=0;
@@ -571,6 +603,12 @@ bool ogl_live_offscreen_developer_enabled() {
 bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
 #if LL_LINUX || LL_WINDOWS
     if (!ogl_live_offscreen_developer_enabled() ||
+        // Only actual Firestorm deferred world captures, never a generic
+        // externally submitted or prelogin synthetic triangle batch.
+        !live_deferred_capture_valid ||
+        live_deferred_receipt_epoch!=live_world_region_epoch ||
+        !world_mesh_generation ||
+        live_deferred_mesh_generation!=world_mesh_generation() ||
         !world_input_ready || world_input_ready()!=1 ||
         !world_mesh_generation || !world_camera_mesh_generation ||
         world_mesh_generation()==0 ||
@@ -580,6 +618,23 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
     const bool rendered=world_render_offscreen_scene()==1 &&
         world_offscreen_scene_frames()==old_count+1;
     if (!rendered) ++world_offscreen_scene_failures;
+    else {
+        ++live_deferred_gpu_frames;
+        if (std::strcmp(source,"camera-tick")==0)
+            ++live_deferred_camera_gpu_frames;
+        // One receipt per completed GPU draw, not a claim of an
+        // authenticated login; downstream report must also see STATE_STARTED.
+        LL_INFOS("OGLRenderer")
+            << "P05 deferred GPU receipt: epoch=" << live_world_region_epoch
+            << " capture=" << live_deferred_receipts
+            << " mesh_generation=" << live_deferred_mesh_generation
+            << " source=" << source
+            << " frames=" << live_deferred_gpu_frames
+            << " camera_frames=" << live_deferred_camera_gpu_frames
+            << " nonclear_pixels=" << world_offscreen_scene_pixels()
+            << " status=completed; PRIVATE Vulkan image, not displayed."
+            << LL_ENDL;
+    }
     LL_INFOS("OGLRenderer")
         << "P05 real Firestorm world Vulkan OFFSCREEN GPU draw: "
         << (rendered ? "completed" : "unavailable")
@@ -680,6 +735,15 @@ bool ogl_rtx_on_region_transition() {
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     ++live_world_region_epoch;
+    live_deferred_capture_call=false;
+    live_deferred_capture_valid=false;
+    live_deferred_receipt_epoch=0;
+    live_deferred_mesh_generation=0;
+    const char* provenance=std::getenv("OGL_VULKAN_LIVE_WORLD_OFFSCREEN");
+    if (provenance && std::strcmp(provenance,"1")==0)
+        LL_INFOS("OGLRenderer")
+            << "P05 deferred region boundary: epoch=" << live_world_region_epoch
+            << "; previous capture and GPU evidence invalidated." << LL_ENDL;
     live_world_camera_tick_calls=0;
     live_world_last_offscreen_pose={};
     live_world_last_offscreen_pose_valid=false;
@@ -800,8 +864,38 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
         const bool uploaded=world_upload_geometry(triangles,count)==1;
         const bool changed=!world_mesh_generation ||
             before!=world_mesh_generation();
-        if (count==0) world_inputs_live_logged=false; // region lost
+        if (count==0) {
+            world_inputs_live_logged=false;
+            live_deferred_capture_valid=false;
+            live_deferred_receipt_epoch=0;
+            live_deferred_mesh_generation=0;
+        } // scene intentionally cleared; no GPU provenance survives
         if (uploaded && count>0) {
+            // A later generic/synthetic upload (including deduplicated
+            // content) cannot inherit evidence from the last real scan.
+            if (!live_deferred_capture_call) {
+                live_deferred_capture_valid=false;
+                live_deferred_receipt_epoch=0;
+                live_deferred_mesh_generation=0;
+            }
+            if (live_deferred_capture_call && world_mesh_generation &&
+                world_mesh_generation()>0) {
+                live_deferred_capture_valid=true;
+                live_deferred_receipt_epoch=live_world_region_epoch;
+                live_deferred_mesh_generation=world_mesh_generation();
+                ++live_deferred_receipts;
+                // The reporter parses only numeric source receipts.
+                // Never include region UUIDs, camera coordinates, names,
+                // asset IDs, URLs, tokens or user information.
+                LL_INFOS("OGLRenderer")
+                    << "P05 deferred capture receipt: epoch="
+                    << live_deferred_receipt_epoch
+                    << " capture=" << live_deferred_receipts
+                    << " triangles=" << count
+                    << " mesh_generation=" << live_deferred_mesh_generation
+                    << "; actual Firestorm deferred scan, not GPU proof."
+                    << LL_ENDL;
+            }
             // A byte-identical, opted-in mesh snapshot is already paired
             // with this pose and uses the same VkBuffers. Never generate
             // synthetic camera revisions or misleading upload logs.
@@ -858,6 +952,28 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 #endif
 }
 
+
+// The only permitted provenance marker for a real in-world OpenSim
+// scanner. Called only from LLPipeline after validating the active
+// LLViewerRegion and non-null region UUID. The generic developer
+// triangle ABI NEVER marks a batch as deferred-source evidence.
+void ogl_rtx_submit_deferred_world_triangles(
+    const float* triangle_xyz,unsigned count)
+{
+#if LL_LINUX || LL_WINDOWS
+    if (!triangle_xyz || count==0 ||
+        count>OGL_RTX_MAX_SCENE_TRIANGLES)
+        return;
+    // This C++ host runs on the viewer rendering thread. No callback
+    // persists the caller's borrowed triangle buffer.
+    live_deferred_capture_call=true;
+    ogl_rtx_submit_world_triangles(triangle_xyz,count);
+    live_deferred_capture_call=false;
+#else
+    (void)triangle_xyz;
+    (void)count;
+#endif
+}
 
 bool ogl_rtx_track_local_object(const std::uint8_t* uuid,
     const float* local_xyz,unsigned count,const float* pose)

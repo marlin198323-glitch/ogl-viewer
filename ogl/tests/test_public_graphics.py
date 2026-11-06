@@ -502,7 +502,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('if ((!gpu_camera && !rt_camera)',host)
         self.assertIn('if (rt_camera) rtx_submit_frame(&frame);',host)
         self.assertIn('if (uploaded && count>0)',host)
-        self.assertIn('if (count==0) world_inputs_live_logged=false;',host)
+        self.assertIn('if (count==0) {\n            world_inputs_live_logged=false;',host)
         self.assertIn('P05 live Firestorm camera accepted by Vulkan world-matrix ABI',host)
         self.assertIn('actual captured OpenSim mesh',host)
         self.assertLess(host.index('world_set_camera(&frame)==1'),
@@ -510,7 +510,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('camera->getOrigin().mV, camera->getAtAxis().mV',pipeline)
         self.assertIn('const LLVector3 right = -camera->getLeftAxis();',pipeline)
         self.assertIn('ogl_rtx_submit_camera_sun(viewport.getWidth()',pipeline)
-        self.assertIn('ogl_rtx_submit_world_triangles(\n                        triangles.front().position',pipeline)
+        self.assertIn('ogl_rtx_submit_deferred_world_triangles(\n                        triangles.front().position',pipeline)
         self.assertIn('ogl_rtx_submit_world_triangles(nullptr, 0);',pipeline)
         self.assertIn('ogl_vulkan_world_live_inputs_ready(void)',header)
         self.assertIn('ogl_vulkan_world_camera_updates(void)',header)
@@ -828,7 +828,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(i,pipeline.index("ogl_rtx_on_region_transition();",i))
         self.assertLess(pipeline.index("ogl_rtx_on_region_transition();",i),j)
         self.assertLess(pipeline.index("ogl_rtx_submit_camera_sun(viewport.getWidth()"),
-                        pipeline.index("ogl_rtx_submit_world_triangles(\n                        triangles.front().position"))
+                        pipeline.index("ogl_rtx_submit_deferred_world_triangles(\n                        triangles.front().position"))
         self.assertIn("ogl_rtx_frame_state last_live_world_camera{};",host)
         self.assertIn("last_live_world_camera=frame;",host)
         self.assertIn("last_live_world_camera_valid=true;",host)
@@ -873,7 +873,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("const bool changed=!world_mesh_generation ||",host)
         self.assertIn("if (changed) world_inputs_live_logged=false;",host)
         self.assertIn("if (enabled && !world_inputs_live_logged &&",host)
-        self.assertIn("if (count==0) world_inputs_live_logged=false;",host)
+        self.assertIn("if (count==0) {\n            world_inputs_live_logged=false;",host)
         self.assertIn("if (!rtx_submit_geometry || !rtx_hardware_ready) return;",host)
         # It remains GL-owned after actual Firestorm scene capture.
         self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
@@ -1067,6 +1067,61 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("vkQueuePresentKHR(",fn)
         self.assertNotIn("vkCreateSwapchainKHR(",fn)
 
+    def test_p05_deferred_source_provenance_receipts_fail_closed(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        report=(ROOT/"ogl/scripts/ogl-test-report.py").read_text()
+        self.assertIn("void ogl_rtx_submit_deferred_world_triangles(",header)
+        self.assertIn("void ogl_rtx_submit_deferred_world_triangles(",host)
+        self.assertIn("ogl_rtx_submit_deferred_world_triangles(",pipeline)
+        self.assertIn("if (publish_geometry && !triangles.empty() &&",pipeline)
+        self.assertIn("ogl_rtx_region && !current_region_id.isNull()",pipeline)
+        a=host.index("void ogl_rtx_submit_deferred_world_triangles(")
+        b=host.index("bool ogl_rtx_track_local_object(",a)
+        wrapper=host[a:b]
+        self.assertIn("live_deferred_capture_call=true;",wrapper)
+        self.assertIn("ogl_rtx_submit_world_triangles(triangle_xyz,count);",wrapper)
+        self.assertIn("live_deferred_capture_call=false;",wrapper)
+        self.assertIn("!triangle_xyz || count==0",wrapper)
+        a=host.index("bool ogl_firestorm_offscreen_gpu_sample(")
+        b=host.index("bool ogl_same_world_camera_pose(",a)
+        gpu=host[a:b]
+        for token in ("!live_deferred_capture_valid",
+                      "live_deferred_receipt_epoch!=live_world_region_epoch",
+                      "live_deferred_mesh_generation!=world_mesh_generation()",
+                      "world_input_ready()!=1",
+                      "world_camera_mesh_generation()!=world_mesh_generation()",
+                      '<< "P05 deferred GPU receipt: epoch="',
+                      "++live_deferred_gpu_frames;",
+                      "++live_deferred_camera_gpu_frames;"):
+            self.assertIn(token,gpu)
+        self.assertNotIn("SDL_",gpu)
+        self.assertNotIn("vkQueuePresentKHR(",gpu)
+        a=host.index("void ogl_rtx_submit_world_triangles(")
+        b=host.index("void ogl_rtx_submit_deferred_world_triangles(",a)
+        upload=host[a:b]
+        self.assertIn("if (live_deferred_capture_call && world_mesh_generation &&",upload)
+        self.assertIn("if (uploaded && count>0) {",upload)
+        self.assertIn("live_deferred_capture_valid=true;",upload)
+        self.assertIn("++live_deferred_receipts;",upload)
+        self.assertIn('"P05 deferred capture receipt: epoch="',upload)
+        self.assertIn("live_deferred_capture_valid=false;",upload)
+        a=host.index("bool ogl_rtx_on_region_transition()")
+        b=host.index("void ogl_rtx_submit_camera_sun(",a)
+        region=host[a:b]
+        self.assertIn("live_deferred_capture_valid=false;",region)
+        self.assertIn("live_deferred_receipt_epoch=0;",region)
+        self.assertIn("live_deferred_mesh_generation=0;",region)
+        self.assertIn('"P05 deferred region boundary: epoch="',region)
+        self.assertIn('"P05 deferred evidence session: begin=1;',host)
+        self.assertNotIn("user_id",gpu)
+        self.assertNotIn("region_uuid",gpu)
+        self.assertIn("def p05_live_gpu_evidence(log_text: str):",report)
+        self.assertIn("P05_CAPTURE = re.compile(",report)
+        self.assertIn("P05_GPU = re.compile(",report)
+        self.assertIn("P05 deferred Vulkan GPU evidence:",report)
+
     def test_p05_real_opensim_camera_only_gpu_ticks_after_region_validation(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
         pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
@@ -1093,7 +1148,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         a=pipeline.index("ogl_rtx_submit_camera_sun(viewport.getWidth()")
         b=pipeline.index("if (current_region_id != ogl_rtx_last_region_id)")
         c=pipeline.index("ogl_rtx_after_region_camera_tick();")
-        d=pipeline.index("ogl_rtx_submit_world_triangles(\n                        triangles.front().position")
+        d=pipeline.index("ogl_rtx_submit_deferred_world_triangles(\n                        triangles.front().position")
         self.assertLess(a,b)
         self.assertLess(b,c)
         self.assertLess(c,d)
@@ -1212,7 +1267,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
         self.assertIn("ogl_vulkan_world_mesh_staging_enabled()",pipeline)
         self.assertIn('std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD")',pipeline)
-        self.assertIn("if (publish_geometry && !triangles.empty())",pipeline)
+        self.assertIn("if (publish_geometry && !triangles.empty() &&",pipeline)
         self.assertIn("bool ogl_vulkan_world_mesh_staging_enabled()",host)
         self.assertNotIn("ogl_vulkan_world_present_exclusive_test_frame",
                          (ROOT/"indra/newview/oglrtxhost.cpp").read_text())

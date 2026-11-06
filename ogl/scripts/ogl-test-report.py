@@ -107,6 +107,117 @@ def scene_selection_at_revision(log_text: str, revision: int):
     return snapshots.get(revision)
 
 
+# P05 Firestorm deferred-source GPU receipts are distinct from synthetic
+# VkDrawIndexed test frames, RT ray probes, and a mere successful GL login.
+# These regexes intentionally accept ONLY bounded integer counters and a
+# fixed pair of source labels. Nothing resembling account/region names,
+# network addresses, camera coordinates or texture identifiers is parsed.
+P05_SESSION = re.compile(r"P05 deferred evidence session: begin=1")
+P05_REGION = re.compile(r"P05 deferred region boundary: epoch=(\d+)")
+P05_CAPTURE = re.compile(
+    r"P05 deferred capture receipt: epoch=(\d+) capture=(\d+) "
+    r"triangles=(\d+) mesh_generation=(\d+)"
+)
+P05_GPU = re.compile(
+    r"P05 deferred GPU receipt: epoch=(\d+) capture=(\d+) "
+    r"mesh_generation=(\d+) source=(mesh-rebind|camera-tick) "
+    r"frames=(\d+) camera_frames=(\d+) nonclear_pixels=(\d+) "
+    r"status=completed"
+)
+
+
+def p05_live_gpu_evidence(log_text: str):
+    """Last-session, last-region source chain; never an authentication proof.
+
+    A Vulkan offscreen GPU completion is attributed to a current-world
+    deferred snapshot ONLY when its region epoch + source receipt + exact
+    mesh generation match the latest scanner receipt. Region changes, module
+    restarts, mismatches and forged standalone GPU success never satisfy it.
+    """
+    seen_session = False
+    world_started = False
+    epoch = None
+    latest = None
+    accepted = 0
+    last_capture_id = 0
+    last_gpu_frame_id = 0
+    invalid_gpu = 0
+    completed = 0
+    camera_completed = 0
+    visible = 0
+    for line in log_text.splitlines():
+        if P05_SESSION.search(line):
+            seen_session, world_started, epoch, latest = True, False, None, None
+            accepted = invalid_gpu = completed = camera_completed = visible = 0
+            last_capture_id = last_gpu_frame_id = 0
+            continue
+        if not seen_session:
+            continue
+        if "STATE_STARTED" in line:
+            world_started = True
+        region = P05_REGION.search(line)
+        if region:
+            new_epoch = int(region.group(1))
+            epoch = new_epoch if new_epoch>0 else None
+            latest = None
+            accepted = invalid_gpu = completed = camera_completed = visible = 0
+            continue
+        capture = P05_CAPTURE.search(line)
+        if capture:
+            cap_epoch, cap_id, triangles, generation = map(int,capture.groups())
+            if (epoch is not None and cap_epoch==epoch and
+                cap_id>0 and triangles>0 and triangles<=8192 and
+                generation>0 and cap_id>last_capture_id):
+                latest = (cap_id,generation,triangles)
+                last_capture_id=cap_id
+                # A newer scanner receipt supersedes even a successful
+                # older GPU result. Never report stale meshes as current.
+                completed = camera_completed = visible = 0
+                accepted += 1
+            else:
+                invalid_gpu += 1
+            continue
+        gpu = P05_GPU.search(line)
+        if gpu:
+            cap_epoch=int(gpu.group(1))
+            cap_id=int(gpu.group(2))
+            generation=int(gpu.group(3))
+            source=gpu.group(4)
+            frames=int(gpu.group(5))
+            cameras=int(gpu.group(6))
+            pixels=int(gpu.group(7))
+            if (epoch is None or cap_epoch!=epoch or latest is None or
+                cap_id!=latest[0] or generation!=latest[1] or
+                frames<=0 or frames<=last_gpu_frame_id or
+                cameras>frames or pixels>1024):
+                invalid_gpu += 1
+                continue
+            last_gpu_frame_id=frames
+            completed+=1
+            if source=="camera-tick":
+                camera_completed+=1
+            visible=pixels
+    if not seen_session:
+        status="no_deferred_evidence_session"
+    elif not world_started:
+        status="world_entry_not_observed"
+    elif latest is None:
+        status="no_current_region_capture"
+    elif completed==0:
+        status="capture_accepted_gpu_pending"
+    else:
+        status="deferred_source_gpu_completed"
+    return {
+        "status":status,
+        "current_region_epoch":epoch,
+        "accepted_capture_events":accepted,
+        "completed_gpu_frames":completed,
+        "camera_gpu_frames":camera_completed,
+        "last_nonclear_pixels":visible,
+        "rejected_receipt_events":invalid_gpu,
+    }
+
+
 def report():
     print("OGL Viewer – local Linux Mint test")
     print("Binary:", "present" if BINARY.is_file() else "missing")
@@ -144,6 +255,20 @@ def report():
         print("Login screen ready:", "STATE_LOGIN_WAIT" in text)
         world_started = "STATE_STARTED" in text
         print("3D world entered in this log:", world_started)
+        evidence = p05_live_gpu_evidence(text)
+        print("P05 deferred Vulkan GPU evidence:", evidence["status"])
+        print("P05 deferred source receipts:", evidence["accepted_capture_events"],
+              "accepted;",
+              evidence["rejected_receipt_events"], "rejected/stale")
+        print("P05 source-qualified private GPU frames:",
+              evidence["completed_gpu_frames"],
+              "of which camera-only:", evidence["camera_gpu_frames"])
+        if evidence["completed_gpu_frames"]:
+            print("P05 last private GPU non-clear pixels:",
+                  evidence["last_nonclear_pixels"], "of 1024")
+        print("P05 provenance limitation: deferred-source log evidence "
+              "is not independent proof of authenticated grid login "
+              "or a visible Vulkan world renderer.")
         print("Viewer stopped cleanly:", (
             "yes" if "cleanup : Goodbye!" in text
             else "not recorded (viewer may still be running)"))

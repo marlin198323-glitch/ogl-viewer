@@ -10159,10 +10159,11 @@ void LLPipeline::renderDeferredLighting()
                             std::chrono::steady_clock::now()-
                             ogl_scan_started).count()
                         << LL_ENDL;
-                if (publish_geometry && !triangles.empty()) {
-                    // Never dereference an empty capture on a non-RTX
-                    // Vulkan-only GPU: region loading can yield no triangles.
-                    ogl_rtx_submit_world_triangles(
+                if (publish_geometry && !triangles.empty() &&
+                    ogl_rtx_region && !current_region_id.isNull()) {
+                    // Genuine OpenSim region and completed deferred scene
+                    // scan: tag this source distinctly from synthetic tests.
+                    ogl_rtx_submit_deferred_world_triangles(
                         triangles.front().position,
                         static_cast<unsigned>(triangles.size()));
                     ogl_has_scene_snapshot=true;

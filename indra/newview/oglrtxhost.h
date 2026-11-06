@@ -138,6 +138,11 @@ static_assert(ogl_vulkan_camera_tick_due(241));
 // render a changed, validated camera using already-accepted GPU mesh.
 void ogl_rtx_after_region_camera_tick();
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
+// Source-qualified world scanner entrypoint. Only LLPipeline invokes
+// this after checking current OpenSim region ID; do not call it from
+// prelogin or standalone synthetic GPU test paths.
+void ogl_rtx_submit_deferred_world_triangles(
+    const float *triangle_xyz,unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.
 bool ogl_rtx_track_local_object(const std::uint8_t* uuid16,
