@@ -6,6 +6,124 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: echte Deferred-Capture-Herkunft gegen synthetische Vulkan-GPU-Tests abgrenzen (06.11.2026)
+
+**Kernänderung:** Das tatsächliche Firestorm-Deferred-Weltrendering
+kann weiterhin OpenSim-Dreiecke an die vorhandene Vulkan-GPU-
+Staging-ABI weitergeben. Zusätzlich erhält NUR der echte
+Deferred-Scanner eine eigene C++-Host-Entrypoint-Funktion.
+Ein erfolgreicher GPU-Mesh-Upload aus dieser Quelle erzeugt
+eine **numerische Capture-Quittung**: nur lokale monoton
+steigende Capture-Nummer, Regions-Epoche, Dreiecksanzahl und
+exakte Vulkan-Meshgeneration. Das generische Modul-/Test-
+Triangle-API kann eine solche Live-Capture-Quittung
+**weder erzeugen noch von einem alten Scan übernehmen**.
+Dafür bleiben OpenGL und alle bestehenden
+GPU-/Modul-Diagnostikpfade unverändert.
+
+**GPU-Herkunft:** Ein hostgesteuerter privater 32x32-
+Vulkan-World-/Depth-Offscreen-GPU-Frame darf erst dann
+als Deferred-GPU-Quittung gelten, wenn eine aktuelle
+Capture-Quittung existiert, Regions-Epoche und GPU-
+Meshgeneration exakt passen, die Kamera-Mesh-Kopplung
+bereit ist und ein echter Vulkan-GPU-Abschluss mit
+erhöhtem Framezähler bestätigt wurde. Als Herkunft
+wird **mesh-rebind** oder **camera-tick** geloggt.
+Der reine GPU-Modultest, ein Vorlogin-Vulkan-WSI-
+Present oder beliebige künstliche Dreiecke werden
+dadurch KEINE vermeintlichen echten OpenSim-World-
+Frames. Bei Regionwechsel, neuer generischer
+Meshquelle oder explizitem Scene-Clear werden
+die vorherigen Herkunftsmarker verworfen.
+
+**Vertraulichkeit und Diagnose:** Alle Quittungen
+enthalten AUSSCHLIESSLICH Zähler, Epochen,
+GPU-Meshgenerationen und 0–1024 Bildabdeckungs-
+Pixel. Keine OpenSim-Region-UUID, Avatar-Namen,
+Accountdaten, Grid-Adressen, Geokoordinaten,
+Kamerapositionen, Bild- oder Meshdateien werden
+geloggt. Die vorhandene Datei
+ogl/scripts/ogl-test-report.py analysiert diese
+Ereignisse jetzt in chronologischer Reihenfolge
+und trennt: keine Diagnose-Sitzung,
+kein beobachteter Weltstart, keine Capture-
+Quittung, akzeptierte Capture mit GPU noch
+offen, und source-qualified GPU-Abschluss.
+Auch eine solche Logkette ist KEIN
+unabhängiger kryptographischer Nachweis
+eines authentifizierten OpenSim-Logins
+und KEIN sichtbarer Vulkan-Weltrenderer.
+
+**20 tatsächlich ausgeführte technische Teilaufgaben:**
+
+01. Sauberen Ausgangsbranch ogl-develop sowie AGENTS, Projektstatus, Handoff, P05-Roadmap und vollständig erfolgreiche vorherige GitHub-CI überprüft.
+02. Firestorm-Deferred-Kamera-Hook und realen periodischen OpenSim-Regionsmesh-Scanner bis zur Vulkan-ABI-Nachverarbeitung verfolgt.
+03. Die fehlende Unterscheidung zwischen Entwickler-GPU-Proben und tatsächlich vom Deferred-Weltpass gelieferten Meshdaten identifiziert.
+04. Im bestehenden Host eine eigene Source-Provenienz für akzeptierte echte OpenSim-Deferred-Meshsnapshots eingeführt, getrennt von der generischen Triangle-Test-ABI.
+05. Den bestehenden LLPipeline-Mesh-Scan auf die neue explizite Deferred-Scanner-Host-Funktion umgestellt.
+06. Den Deferred-Scanner-Aufruf zusätzlich an eine existierende LLViewerRegion und nichtleere OpenSim-Region-UUID gebunden.
+07. Nur nach erfolgreich akzeptiertem Vulkan-GPU-Mesh-Upload eine anonymisierte Capture-Quittung mit lokaler monotoner Nummer erstellt.
+08. Jede Capture-Quittung mit der aktuellen Regions-Epoche und der exakt akzeptierten Vulkan-GPU-Meshgeneration verknüpft.
+09. Die generische Triangle-ABI weiterhin unterstützt, aber deren Aufrufe können niemals eine gültige Deferred-Quittung ausstellen oder übernehmen.
+10. Bei explizitem Regions-Clear eine bisherige Deferred-Quittung, deren Epochenbindung und Meshgeneration ungültig gemacht.
+11. Bei echtem OpenSim-Regionwechsel die bisherige Quittung sofort invalidiert und einen anonymisierten Region-Grenzmarker für die Diagnose geschrieben.
+12. Den Diagnose-Sessionbeginn gesondert markiert, sodass spätere Viewerstarts keine alten Herkunftsnachweise übernehmen.
+13. Den tatsächlichen privaten Vulkan-Offscreen-Draw im Host zusätzlich an eine aktuelle Deferred-Quittung und passende Regions-/Meshgeneration gebunden.
+14. Nur nach erfolgreich bestätigtem Vulkan-GPU-Fence und dem Fortschritt des GPU-Framezählers eine abgeschlossene GPU-Quittung mit Quelle mesh-rebind oder camera-tick protokolliert.
+15. Nur numerische Epochen, Capture-/GPU-Zähler, Meshgenerationen und 0–1024 Pixelwerte dokumentiert; keine Avatar-/Regions-IDs, Kamerakoordinaten, Bilddaten oder Accountinformationen.
+16. Den vorhandenen lokalen Viewer-Testreport um separate Parser für Session-, Regions-, Capture- und GPU-Quittungen erweitert, ohne neue Quelldateien anzulegen.
+17. Die Reporter-Auswertung auf die jüngste Sitzung, aktuelle Region und zuletzt akzeptierte Capture-/Meshgeneration begrenzt; jeder neuere Snapshot oder Regionswechsel verwirft alte GPU-Erfolge.
+18. 13 neue Unit-Tests für Sessionstart, Weltstart, fehlende Captures, Generation-/Quittungsmismatch, Regionswechsel, neue Meshe, Camera-only-Frames, ungültige Pixelwerte, Reihenfolge und Datenschutz ergänzt.
+19. Vier isolierte CLI-Reporter-Szenarien mit temporären anonymen Logs geprüft: synthetischer Login, Deferred-Snapshot mit GPU ausstehend, paariger GPU-Erfolg und Regionswechsel-Invalidierung.
+20. Linux-Vollviewer-Build 361/361 Python-Tests und 41/41 native CTests; 57/57 Grafik-Quellcode-Prüfungen, 21/21 isolierte GUI-Starts, drei Negativbeweise gegen falsche Live-Captures und alle nativen Vulkan-GPU-Regressionen erfolgreich.
+
+**Testnachweise:**
+- **361/361 Python-Tests**, davon **57/57 gezielte
+  Grafik-/Quellcode-Vertragstests** und **37/37
+  RTX-/Report-Event-Tests**.
+- **41/41 native CTests** und erfolgreicher
+  Linux-Vollviewer-Build.
+- **21/21 echte isolierte SDL/X11-GUI-Starts**,
+  darunter normale OpenGL-Anmeldung, 20 Vulkan-
+  WSI-GPU-Presents mit 100 X11-Pixelproben,
+  persistenten Vulkan-World-/Depth-Tests,
+  Meshrotation, Regionswechsel und Vulkan-ICD-
+  /Opt-in-Fallbacks. Drei neue Tests bestätigen
+  explizit **0 falsche Deferred-Capture-/GPU-
+  Quittungen vor dem Login**.
+- **Native Vulkan-GPU-Regressionen grün**:
+  sechs private World-/Depth-GPU-Frames,
+  Vulkan-Cache 2 Builds/4 Reuses/2 Releases,
+  erfolgreiche Regionsbarrieren und
+  weiterhin **192/1024 sichtbare Testwelt-Pixel**.
+- **Vier CLI-Reporter-End-to-End-Fälle**:
+  synthetischer Login = keine Deferred-Evidenz;
+  echter-Quelle-Fixture-Snapshot = GPU offen;
+  numerisch gepaarter GPU-Fixture-Erfolg =
+  Deferred-Source-GPU vorhanden; neuer
+  Region-Marker = alter GPU-Beweis verworfen.
+  Alle Fixtures wurden nach Test entfernt.
+
+**Grenze und nächstes Gate:** Der echte Firestorm-
+Weltpass kann jetzt quellqualifizierte Quittungen
+ausgeben, **aber diese Runde hat keinen
+authentifizierten Login in Stadt NexVerse
+durchgeführt und keine tatsächliche
+Live-Region-GPU-Quittung aus einem eingeloggten
+Viewer protokolliert**. Die aktiven GPU-Pixeltests
+nutzen weiterhin synthetische Entwicklergeometrie,
+und sichtbare Welt, Terrain, Wasser, Materialien,
+Texturen, Avatare und UI werden weiterhin
+über OpenGL dargestellt. Erst die manuelle
+Anmeldung in einer isolierten zulässigen
+NexVerse-Testsession und danach eine
+positiv korrelierte Deferred-Capture-
+und GPU-Quittung im lokalen Report
+würden das Live-Input-Gate schließen.
+**P05 formal weiterhin 2/20; Block 3
+und vollständiger Block 4 noch offen.**
+Code-Commit: 68f7ac39d5e1378bf448430020a31992d08274f0.
+
 ## P05/3–4 – 20 technische Schritte: Kamera-only Vulkan-GPU-World-Frames ohne Meshupload (06.11.2026)
 
 **Implementiert:** Der echte Firestorm-Deferred-Weltpass liefert regelmäßig

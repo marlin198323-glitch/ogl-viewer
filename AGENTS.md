@@ -4,57 +4,66 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 06.11.2026 (Code d527892b):
-Im echten Firestorm-Deferred-
-World-Pass erlaubt ein neuer
-Camera-only-Tick nach geprüftem
-OpenSim-Region-ID-Wechsel einen
-privaten Vulkan-GPU-World-/Depth-
-Frame ohne erneuten Meshupload.
-Nur explizites Entwicklerflag
-OGL_VULKAN_LIVE_CAMERA_TICK=1
-zusammen mit bestehenden GPU-/
-Mesh-/Kamera-/Offscreen-
-Berechtigungen. Maximal eine
-Diagnose pro 120 geeignete
-Deferred-Frames, identische Pose
-wird übersprungen. Sonne allein
-ändert die untexturierte Probe
-nicht. Kamera-/Meshgeneration
-müssen übereinstimmen.
-Bei Regionwechsel Cache-Pose/Tick
-ungültig; abgewiesene Kamera
-löscht die Input-Ready-Meldung.
-Der Host nutzt einen gemeinsamen
-GPU-Probe-Helper ohne neue
-Meshuploads, GPU-Fence-Waits oder
-OpenGL-/Vulkan-Fensterwechsel.
-Native Vulkan-GPU 6 Offscreen-
-World-/Depth-Frames, zwei reine
-Kamerabewegungen mit unveränderten
-GPU-Meshgenerationen/Upload-Zählern,
-0 und 192/1024 Weltpixeln.
-Cache 2 Builds, 4 Reuses,
-2 Releases. Linux-Vollbuild
-347 Python, 41 CTests,
-56 Grafik-Quellcode-Checks,
-18 isolierte Viewer-GUI-Starts
-bis GL-Login/Exit 0 grün.
-Vorherige GitHub-CI erfolgreich,
-neue Commit-CI separat prüfen.
-Noch KEIN authentifiziertes
-OpenSim-Live-Vulkan-World-Bild
-abgenommen; GPU-Pixeltests mit
-synthetischer Entwicklergeometrie.
-Kein produktiver Vulkan-Terrain-/
-Avatar-/Textur-/UI-Renderer,
-OpenGL bleibt aktiv.
-P05 formal 2/20, Block 3/4 offen.
-Nur bestehende Projektdateien
-bearbeiten, Nutzer-Viewer,
-Profile, Cache, Accounts, Secrets
-nicht anfassen.
-Fortsetzung: ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 06.11.2026 (Code 68f7ac39):
+Herkunft echter OpenSim-
+Regionmeshes ist im Viewer
+von synthetischen Vulkan-
+GPU-Tests getrennt. Nur
+ogl_rtx_submit_deferred_world_triangles
+aus dem echten LLPipeline-
+Deferred-Scanner nach gültiger
+Region/UUID darf nach
+akzeptiertem Vulkan-GPU-
+Meshupload nummerierte
+Capture-Quittung erzeugen.
+Generischer Triangle-Test-
+Upload erzeugt keine Quelle,
+invalidiert bei Erfolg sogar
+eine vorherige Real-Quittung.
+Jede Quittung bindet lokale
+Capture-ID, Region-Epoche
+und GPU-Meshgeneration.
+Hostseitiger 32x32 Vulkan-
+Offscreen-GPU-Abschluss
+benötigt exakt passende
+Quittung/Kamera/Generation
+und erhöhten GPU-Frame-
+Zähler; numerische Receipt-
+Logs mesh-rebind oder
+camera-tick. Keine privaten
+Bild-/Account-/Grid-/Region-
+/Kamera-/Avatar-Daten loggen.
+Vorhandener ogl-test-report.py
+prüft chronologisch nur
+letzte Session/Region/
+Snapshot; neuer Scan/Region
+macht alte GPU-Evidenz ungültig.
+13 neue Reporter-Unit-Tests,
+4 CLI-Log-Fixture-Szenarien,
+Linux-Vollbuild 361 Python/
+41 CTests, 57 Grafiktests,
+37 Eventparser-Tests,
+21 echte isolierte GUI-Starts
+und native Vulkan-GPU-Tests
+alle grün. Vorige GitHub-CI
+grün; neue Commit-CI
+gesondert prüfen.
+KEINE authentifizierte echte
+OpenSim-Live-Vulkan-Region
+wurde abgenommen; Vulkan-
+GPU-Pixeltests weiterhin
+synthetisch, OpenGL sichtbar.
+P05 formal 2/20,
+Block 3/4 offen. Als Nächstes
+echte Deferred-/GPU-Quittung
+nach isoliertem Stadt-NexVerse-
+Login prüfen; dann Vulkan-
+Fenster-Ownership. Keine
+User-Viewer/Cache/Login-
+Secretdaten verändern und
+keine neuen Projekt-Duplikate
+erzeugen. Fortsetzung:
+ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

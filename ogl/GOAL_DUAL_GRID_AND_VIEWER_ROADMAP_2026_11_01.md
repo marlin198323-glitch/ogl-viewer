@@ -1661,6 +1661,40 @@ Nur synthetischer privater
 GPU-Test; sichtbares GL bleibt.
 P05 formal 2/20, Blöcke 3/4 offen.
 
+**P05/3–4 Deferred-Input-Herkunftsnachweis für Live-GPU-Frames (06.11.2026, 68f7ac39):**
+Neuer Firestorm-Deferred-Scanner-
+Entrypoint für echte Regionmeshes,
+ohne die generische Synthetic-
+Test-Geometrie zu markieren.
+Source-Receipt nur nach gültiger
+LLViewerRegion und akzeptiertem
+Vulkan-GPU-Meshupload; bindet
+Capture-Nummer + Region-Epoche
++ Meshgeneration. GPU-Probe-
+Receipt verlangt exakt gleichen
+Scan und bestätigten Offscreen-
+GPU-Abschluss; Kamera-Tick
+wird numerisch ausgewiesen.
+Regionwechsel/Scene-Clear/
+fremder generischer GPU-
+Meshupload invalidieren Quittung.
+Berichtparser bewertet nur
+jüngste Sitzung/aktuelle Region/
+letzten Meshsnapshot und
+verwechselt synthetische
+Prelogin-GPU-Bilder nicht
+mit echtem OpenSim-Capture.
+361 Python-/41 native CTests,
+57 Grafiktests, 37 Eventtests,
+21 GUI-Regressionen, native
+Vulkan-World-/Depth-Tests grün.
+Noch KEIN authentifizierter
+echter OpenSim-Live-Region-
+Vulkan-GPU-Frame abgenommen.
+Vulkan-World/Window/Terrain/
+Avatar-/Textur-/UI-Engine fehlt.
+P05 formal 2/20; Block 3/4 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

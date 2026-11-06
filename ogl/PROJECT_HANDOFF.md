@@ -571,6 +571,51 @@ OpenSim-Live-Vulkan-World-Bild,
 GPU-Pixeltests sind synthetisch.
 P05 formal 2/20, Blöcke 3/4 offen.
 
+**P05/3–4 Quelle echter Firestorm-Deferred-Snapshots und GPU-Quittungen (06.11.2026, Code 68f7ac39):**
+20 konkrete Arbeitsschritte. Echte OpenSim-
+Meshsnapshots aus LLPipeline verwenden
+jetzt einen eigenen Deferred-Host-
+Aufruf (mit gültiger Region/UUID).
+Nur dessen erfolgreiches GPU-Meshupload
+darf nummerierte Source-Receipts erzeugen.
+Generisches Developer-Triangle-ABI
+erzeugt NIE gültige Real-Capture-
+Herkunft. Vulkan-Offscreen-GPU-
+Receipt nur bei current Session,
+Region-Epoche, Capture-Nummer,
+passender GPU-Meshgeneration und
+bestätigtem Fence/Framezähler.
+Der Weg mesh-rebind/camera-tick
+wird ausschließlich numerisch
+geloggt. Keine OpenSim-Region-IDs,
+Nutzer-/Grid-Daten, Kamera-XYZ,
+GPU-Bilder oder Meshdaten im Log.
+Neuer lokaler Report in vorhandener
+ogl/scripts/ogl-test-report.py:
+keine Session/Region/Quelle,
+GPU pending oder source-
+qualified GPU complete; strikt
+jüngste Session/Region/Snapshot,
+alte GPU-Ergebnisse invalidieren.
+13 weitere Eventparser-Unit-Tests,
+4 CLI-Fixture-End-to-End-Szenarien;
+361 Python, 41 native CTests,
+57 Grafik-Vertragstests erfolgreich.
+21/21 isolierte Viewer-GUI-Smokes
+und native Vulkan-GPU-Tests grün,
+drei zusätzliche Vorlogin-Prüfungen
+erzeugen KEINE Fake-Live-Quittungen.
+KEIN echter authentifizierter
+OpenSim-Login/Region-GPU-Frame
+abgenommen. OpenGL weiterhin
+sichtbarer Renderer, Vulkan-World
+nur Entwickler-Offscreen. P05
+formal 2/20, Block 3/4 offen.
+Nächstes Gate echte LIVE-Region-
+Source-/GPU-Receipts nach Login
+korrelieren, dann sichere Vulkan-
+In-World-Fensterhoheit.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
