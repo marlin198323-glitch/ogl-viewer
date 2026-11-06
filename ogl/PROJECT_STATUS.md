@@ -6,6 +6,93 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: private Vulkan-Welt-GPU-Rasterfläche mit vier Auflösungen (06.11.2026)
+
+**Technische Umsetzung:** Der vorher auf 32x32 Pixel begrenzte private
+Vulkan-World-/Depth-Renderer kann jetzt per ausdrücklich aktivierter
+Entwicklerauflösung vier feste GPU-Rendergrößen verwenden: 32x32
+(Standard), 128x96, 256x144 und 512x288. Das neue Flag heißt
+OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION; unbekannte und übergroße
+Werte werden vor GPU-Allokationen abgewiesen. Dieses Diagnostikbild
+gehört ausschließlich Vulkan und verändert kein SDL-Fenster,
+keine aktive OpenGL-Renderfläche und keine Logindaten.
+
+**GPU-Bilder:** VkImage, GPU-Memory, Views, Depth-Image,
+VkFramebuffer, Viewport, Scissor, Image-zu-Buffer-Kopie und
+RGBA-Readback werden in tatsächlicher Breite/Höhe erstellt.
+Echte indexierte World-XYZ-Triangles werden mit
+VK_COMPARE_OP_LESS im privaten GPU-Depth-Test gezeichnet.
+Vulkan-GPU-Cache-Ressourcen werden nur bei geänderter Größe
+nach gesichertem GPU-Fence neu erzeugt, nicht bei jedem
+Kameraframe. Der Shader bekommt eine Kopie der gültigen
+64-Byte-Firestorm-Weltkameramatrix mit angepasstem
+X-Projektionsmaßstab für das Zielseitenverhältnis.
+Originalkamera, Regions-/Meshgeneration und OpenGL-Fenster
+bleiben unverändert.
+
+**GPU-Schnittstelle und Bericht:** Zwei additive C-ABI-Funktionen
+liefern Breite und Höhe des zuletzt tatsächlich fertiggestellten
+privaten Weltframes. Die bestehende OpenSim-Deferred-Capture-
+Herkunftskette protokolliert anonym die GPU-Abmessungen.
+ogl/scripts/ogl-test-report.py akzeptiert alte 32x32-Quittungen,
+prüft aber neue Pixelzahlen gegen ihre tatsächliche
+allowlistierte Bildkapazität. Der Bericht verwirft
+ungültige Bildmaße und überzählige GPU-Pixel.
+
+**20 tatsächlich implementierte bzw. getestete Arbeitsschritte:**
+
+01. Vorherigen sauberen Git-Branch, AGENTS, Handoff, Roadmap, Prozesszustand und vollständig erfolgreiche letzte GitHub-CI geprüft.
+02. Bisherigen festen privaten 32x32-Vulkan-World-/Depth-Renderer und dessen gerätegebundene Ressourcen analysiert.
+03. Entwicklerflag OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION mit exakt vier erlaubten Werten 32x32/128x96/256x144/512x288 eingeführt.
+04. Ungültige oder übergroße Werte wie 8192x8192 vor GPU-Allokation fail-closed abgewiesen, ohne bisherigen Cache anzutasten.
+05. GPU-Pixelobergrenze 512x288 und VkDeviceSize-sichere RGBA-Readback-Byteberechnung eingesetzt.
+06. GPU-Farbimage, Speicher und ImageView auf tatsächliche Breite und Höhe ausgelegt.
+07. Privates Vulkan-Depth-Attachment D32/D16 und Framebuffer auf dieselben Bildmaße skaliert.
+08. VkRenderPass-RenderArea, Framebuffer-Extent und Raster-Viewport dynamisch angepasst.
+09. GPU-Scissor, Image-to-Buffer-Kopie und Transfer-to-Host-Synchronisation auf das private Bildformat angepasst.
+10. Vorhandenen World-XYZ-VkDrawIndexed-Mesh-Datenpfad und echten Vulkan-Depth-Test bei allen vier Bildgrößen verwendet.
+11. Gerätegebundenen Vulkan-GPU-Cache bei Auflösungswechsel kontrolliert nach beendetem Fence freigegeben und neu aufgebaut.
+12. Cache bei unveränderter Auflösung für Folgeframes samt CommandBuffer, Shader, Depth und Readback wiederverwendet.
+13. Kopie der 64-Byte-Firestorm-Kamera-PushConstant für jedes private Offscreen-Seitenverhältnis korrekt neu projiziert, ohne Originalkamera zu ändern.
+14. Read-only-C-ABI für Breite und Höhe des jeweils letzten fertig gerenderten Vulkan-GPU-Weltbilds ergänzt.
+15. Echte Deferred-Capture-GPU-Quittungen und anonyme Host-Diagnose um die privaten GPU-Bildabmessungen erweitert.
+16. Bestehenden lokalen Viewer-Testbericht auf allowlistierte GPU-Pixelkapazität statt feste 1024 Pixel erweitert und alte 32x32-Logs weiter unterstützt.
+17. Vier weitere Reporter-Unit-Tests für alle Bildgrößen, alte Logs, fehlerhafte Abmessungen und Pixelwerte über Kapazität implementiert.
+18. Native echte Vulkan-GPU-Tests auf drei größere Renderflächen sowie ungültiges Format, Rückwechsel zu 32x32 und unveränderte GPU-Meshgeneration erweitert.
+19. Hardware-Tests mit zwölf World-/Depth-GPU-Bildern, sechs Cache-Aufbauten, sechs Wiederverwendungen und sechs Freigaben bestanden; alte X11-/Depth-/Region-GPU-Tests grün.
+20. Linux-Vollviewer mit 366 Python-Tests, 41 nativen CTests, 58 Grafik-/Quellcodekontrakten und 41 Reporter-Tests bestanden; 26 isolierte Viewer-GUI-Regressionen einschließlich fünf Auflösungsfällen ausgeführt.
+
+**Hardware- und Testabnahme:** Native Vulkan-GPU:
+12 private World-/Depth-GPU-Bilder, 6 GPU-Cache-Aufbauten,
+6 Wiederverwendungen und 6 kontrollierte Freigaben.
+Vier Bildgrößen und ein ungültiges 8192x8192-Preset
+sind getestet. Die Rückkehr zur korrekt seitenverhältnis-
+projizierten 32x32-Kamera ergab 254/1024 nichtleere
+GPU-Testpixel (vor Aspect-Fix 192). X11-Presents,
+GPU-Fences, Depth, Meshwechsel und Regionsbarriere
+blieben grün. Vollständiger Linux-Viewer-Build:
+366/366 Python, 41/41 native CTests,
+58/58 gezielte Grafiktests, 41/41 Reporttests.
+Reporter-End-to-End-Fixtures: 18000/36864
+bei 256x144, 147455/147456 bei 512x288,
+überschüssige Pixel verworfen. GUI-Abnahme
+mit separaten Xvfb-Profilen und 26 Fällen
+einschließlich aller neuen Auflösungsflags.
+Alle Fixtures wurden bereinigt, keine aktive
+Nutzersitzung verändert.
+
+**Abgrenzung:** Vulkan zeichnet noch nicht die für den
+Benutzer sichtbare OpenSim-Welt. Die tatsächliche
+Welt inkl. Terrain, Wasser, Materialien, Meshtexturen,
+Avataren und UI wird weiter über OpenGL gerendert.
+Die neuen GPU-Pixeltests verwenden synthetische
+Entwicklergeometrie. Ein authentifizierter
+Stadt-NexVerse-Live-Login mit positiv korrelierten
+Capture-/GPU-Quittungen wurde noch nicht geprüft.
+P05 bleibt formal 2/20; Block 3 und der
+vollständige World-Renderer-Block 4 bleiben offen.
+Code-Commit: 0e86d6fdd0254f79ae03d628dc8c9c85ff54152f.
+
 ## P05/3–4 – 20 technische Schritte: echte Deferred-Capture-Herkunft gegen synthetische Vulkan-GPU-Tests abgrenzen (06.11.2026)
 
 **Kernänderung:** Das tatsächliche Firestorm-Deferred-Weltrendering

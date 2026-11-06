@@ -1695,6 +1695,24 @@ Vulkan-World/Window/Terrain/
 Avatar-/Textur-/UI-Engine fehlt.
 P05 formal 2/20; Block 3/4 offen.
 
+**P05/3–4 vier Vulkan-GPU-World-Offscreen-Auflösungen (06.11.2026, Code 0e86d6fd):**
+Private World-/Depth-GPU-Rasterfläche jetzt
+32x32/128x96/256x144/512x288 (Developer-Flag,
+max. 512x288, fail closed). Shader-World-Kamera
+wird für das Zielformat projiziert. GPU-Cache
+reallokiert Farb-/Depth-/Readback-Ressourcen
+nach Fence nur bei Größenwechsel.
+Host/Report kennt anonymisierte private
+Breite/Höhe und prüft die Pixelkapazität.
+Native GPU 12 Frames, 6 Builds/6 Reuses/
+6 Releases, X11-/Region-/Depth-GPU-Test grün.
+Linux-Vollviewer 366 Python-/41 CTests,
+58 Grafik-, 41 Report-Tests grün.
+Weiter KEIN echter eingeloggter OpenSim-
+Live-GPU-Weltframe, Vulkan-World-Present/
+Terrain-/Avatar-/Textur-/UI-Engine offen.
+P05 formal 2/20, Block 3/4 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

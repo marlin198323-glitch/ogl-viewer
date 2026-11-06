@@ -616,6 +616,31 @@ Source-/GPU-Receipts nach Login
 korrelieren, dann sichere Vulkan-
 In-World-Fensterhoheit.
 
+**P05/3–4 private GPU-Weltrendergrößen (06.11.2026, Code 0e86d6fd):**
+Weitere 20 technische Arbeitsschritte: Der private Vulkan-
+World-/Depth-Framebuffer kann jetzt vier allowlistierte
+Auflösungen 32x32 default, 128x96, 256x144, 512x288
+verwenden. Ungültige 8192x8192-Auflösung wird ohne
+GPU-Ressourcenänderung abgewiesen. VkColor-/Depth-
+Images, Framebuffer, RenderArea, Viewport, Scissor,
+Readback und Kamera-PushConstant-Seitenverhältnis
+werden für das private Zielformat skaliert.
+Sichere GPU-Fence-freigegebene Reallokation nur
+bei Größenwechsel; sonst bestehender Cache.
+Additive Breite-/Höhe-Vulkan-C-ABI und
+anonymisierte Host-Deferred-GPU-Größenlogs.
+Der Report prüft pixel coverage gegen Bildmaße
+und akzeptiert alte 32x32-GPU-Logs.
+Hardware-GPU 12 World-/Depth-Frames,
+6 Builds/6 Reuses/6 Releases, korrigierte
+32x32-Kamera 254/1024 Testpixel.
+Vollviewer 366 Python, 41 CTests, 58 Grafik-
+und 41 Reporter-Tests grün. Isolierte
+GUI-Starts/GL-Fallbacks mit neuen Flags geprüft.
+KEIN Live-OpenSim-GPU-Weltbild nach Login
+abgenommen, keine Vulkan-Fenster-Ownership.
+P05 2/20, Block 3/4 weiterhin offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
