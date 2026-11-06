@@ -63,6 +63,14 @@ ogl_rtx_submit_geometry_fn rtx_submit_geometry = nullptr;
 // staging ABI uses the same triangulated OpenSim scene format.
 using ogl_world_upload_fn = int (*)(const ogl_rtx_triangle*, uint32_t);
 ogl_world_upload_fn world_upload_geometry = nullptr;
+using ogl_world_tint_upload_fn = int (*)(const ogl_rtx_face_tint*,uint32_t);
+ogl_world_tint_upload_fn world_upload_face_tints = nullptr;
+using ogl_world_tint_generation_fn = std::uint64_t (*)();
+ogl_world_tint_generation_fn world_tint_mesh_generation = nullptr;
+// Borrowed, synchronous input from the real deferred volume-face scanner.
+// Never persists after ogl_rtx_submit_deferred_world_triangles returns.
+const ogl_rtx_face_tint* live_deferred_face_tints = nullptr;
+unsigned live_deferred_face_tint_count = 0;
 using ogl_world_camera_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_world_camera_fn world_set_camera = nullptr;
 using ogl_world_input_ready_fn = uint32_t (*)();
@@ -298,6 +306,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle, "ogl_rtx_submit_geometry"));
     world_upload_geometry = reinterpret_cast<ogl_world_upload_fn>(
         ogl_resolve_module(rtx_module_handle, "ogl_vulkan_world_upload_triangles"));
+    world_upload_face_tints = reinterpret_cast<ogl_world_tint_upload_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_upload_face_tints"));
+    world_tint_mesh_generation = reinterpret_cast<ogl_world_tint_generation_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_face_tint_mesh_generation"));
     world_set_camera = reinterpret_cast<ogl_world_camera_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_set_projection_camera"));
     world_input_ready = reinterpret_cast<ogl_world_input_ready_fn>(
@@ -514,6 +526,10 @@ void ogl_shutdown_rtx_module() {
     rtx_submit_frame = nullptr;
     rtx_submit_geometry = nullptr;
     world_upload_geometry = nullptr;
+    world_upload_face_tints = nullptr;
+    world_tint_mesh_generation = nullptr;
+    live_deferred_face_tints=nullptr;
+    live_deferred_face_tint_count=0;
     world_set_camera = nullptr;
     world_input_ready = nullptr;
     world_mesh_generation = nullptr;
@@ -913,6 +929,28 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
             live_deferred_receipt_epoch=0;
             live_deferred_mesh_generation=0;
         } // scene intentionally cleared; no GPU provenance survives
+        // Only the real source-qualified deferred scanner may pair
+        // LLTextureEntry diffuse tints with the just-accepted world mesh.
+        // A color failure must remove a previous tint sidecar rather than
+        // accidentally reusing colors from an old same-geometry capture.
+        const char* tint_flag=std::getenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
+        const bool tint_needed=tint_flag && std::strcmp(tint_flag,"1")==0;
+        bool tint_success=true;
+        if (uploaded && count>0 && tint_needed) {
+            tint_success=live_deferred_capture_call &&
+                live_deferred_face_tints &&
+                live_deferred_face_tint_count==count &&
+                world_upload_face_tints && world_tint_mesh_generation &&
+                world_mesh_generation &&
+                world_upload_face_tints(live_deferred_face_tints,count)==1 &&
+                world_tint_mesh_generation()==world_mesh_generation();
+            if (!tint_success) {
+                if (world_upload_face_tints) world_upload_face_tints(nullptr,0);
+                live_deferred_capture_valid=false;
+                live_deferred_receipt_epoch=0;
+                live_deferred_mesh_generation=0;
+            }
+        }
         if (uploaded && count>0) {
             // A later generic/synthetic upload (including deduplicated
             // content) cannot inherit evidence from the last real scan.
@@ -921,8 +959,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                 live_deferred_receipt_epoch=0;
                 live_deferred_mesh_generation=0;
             }
-            if (live_deferred_capture_call && world_mesh_generation &&
-                world_mesh_generation()>0) {
+            if (live_deferred_capture_call && tint_success &&
+                world_mesh_generation && world_mesh_generation()>0) {
                 live_deferred_capture_valid=true;
                 live_deferred_receipt_epoch=live_world_region_epoch;
                 live_deferred_mesh_generation=world_mesh_generation();
@@ -951,7 +989,7 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
             // matrix can be attached to a new-region mesh. Entirely opt-in.
             const char* rebind=std::getenv("OGL_VULKAN_LIVE_CAMERA_REBIND");
             const bool enabled=rebind && std::strcmp(rebind,"1")==0;
-            if (enabled && !world_inputs_live_logged &&
+            if (enabled && tint_success && !world_inputs_live_logged &&
                 last_live_world_camera_valid && world_set_camera &&
                 world_input_ready && world_mesh_generation &&
                 world_camera_mesh_generation && world_device_ready &&
@@ -1001,19 +1039,28 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 // LLViewerRegion and non-null region UUID. The generic developer
 // triangle ABI NEVER marks a batch as deferred-source evidence.
 void ogl_rtx_submit_deferred_world_triangles(
-    const float* triangle_xyz,unsigned count)
+    const float* triangle_xyz,const float* face_tints_rgb,unsigned count)
 {
 #if LL_LINUX || LL_WINDOWS
     if (!triangle_xyz || count==0 ||
         count>OGL_RTX_MAX_SCENE_TRIANGLES)
         return;
-    // This C++ host runs on the viewer rendering thread. No callback
-    // persists the caller's borrowed triangle buffer.
+    // Only the actual Firestorm deferred scanner may mark provenance.
+    // The face-tint array has exactly 3*count RGB floats, owned by the
+    // stack-local scan and consumed synchronously before any GPU frame.
+    static_assert(sizeof(ogl_rtx_face_tint)==sizeof(float)*3,
+                  "Face RGB ABI must be tightly packed");
     live_deferred_capture_call=true;
+    live_deferred_face_tints=face_tints_rgb ?
+        reinterpret_cast<const ogl_rtx_face_tint*>(face_tints_rgb) : nullptr;
+    live_deferred_face_tint_count=face_tints_rgb ? count : 0u;
     ogl_rtx_submit_world_triangles(triangle_xyz,count);
+    live_deferred_face_tints=nullptr;
+    live_deferred_face_tint_count=0;
     live_deferred_capture_call=false;
 #else
     (void)triangle_xyz;
+    (void)face_tints_rgb;
     (void)count;
 #endif
 }

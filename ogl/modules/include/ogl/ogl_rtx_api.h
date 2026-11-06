@@ -78,6 +78,28 @@ OGL_MODULE_EXPORT uint32_t ogl_rtx_received_triangles(void);
 OGL_MODULE_EXPORT int ogl_vulkan_world_upload_triangles(
     const ogl_rtx_triangle* triangles, uint32_t count);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_gpu_triangle_count(void);
+/* P05/4 optional developer-only OpenSim face tint sidecar.
+ * REAL per-face LLTextureEntry RGB diffuse tint from the deferred scanner,
+ * not texture pixels or a complete PBR/GLTF material. One RGB triple per
+ * triangle, exact order of the accepted ogl_rtx_triangle batch.
+ * Prepass/terrain triangles may use neutral fallback RGB.
+ * Explicit OGL_VULKAN_WORLD_FACE_TINT_PROBE=1, also requires the opt-in
+ * Vulkan World+Camera+Lambert+Sun GPU paths. Never user-visible.
+ * One VkBuffer bound as vertex binding 1, three copies of each face RGB,
+ * independently versioned and strictly coupled to the current GPU mesh
+ * generation. The legacy uncolored triangle ABI is unchanged.
+ */
+typedef struct ogl_rtx_face_tint {
+    float rgb[3]; /* finite, normalized 0.0 .. 1.0, opaque only */
+} ogl_rtx_face_tint;
+OGL_MODULE_EXPORT int ogl_vulkan_world_upload_face_tints(
+    const ogl_rtx_face_tint* tints, uint32_t triangle_count);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_tint_mesh_generation(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_tint_uploads(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_red(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_blue(void);
+
+
 
 /* P05 experimental independent Vulkan world-to-clip matrix from the same
  * v3 Firestorm frame ABI. Opt-in OGL_VULKAN_WORLD_CAMERA_PROBE=1 and a real

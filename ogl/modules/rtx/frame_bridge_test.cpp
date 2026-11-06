@@ -81,6 +81,16 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_scene_lit_pixels"));
     const auto offscreen_mean_luminance = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_luminance"));
+    const auto offscreen_mean_red = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_red"));
+    const auto offscreen_mean_blue = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_blue"));
+    const auto tint_upload = reinterpret_cast<int(*)(const ogl_rtx_face_tint*,uint32_t)>(
+        dlsym(library,"ogl_vulkan_world_upload_face_tints"));
+    const auto tint_mesh_generation = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_face_tint_mesh_generation"));
+    const auto tint_uploads = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_face_tint_uploads"));
     const auto offscreen_cache_builds = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_cache_builds"));
     const auto offscreen_cache_reuses = reinterpret_cast<uint32_t(*)()>(
@@ -92,12 +102,16 @@ int main(int argc, char** argv) {
     assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
            offscreen_world_width && offscreen_world_height &&
            offscreen_lit_pixels && offscreen_mean_luminance &&
+           offscreen_mean_red && offscreen_mean_blue &&
+           tint_upload && tint_mesh_generation && tint_uploads &&
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
     assert(offscreen_world()==0 && offscreen_world_frames()==0 &&
            offscreen_world_pixels()==0 && offscreen_world_width()==0 &&
            offscreen_world_height()==0 &&
            offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0 &&
+           offscreen_mean_red()==0 && offscreen_mean_blue()==0 &&
+           tint_mesh_generation()==0 && tint_uploads()==0 &&
            offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0);
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
@@ -1811,11 +1825,113 @@ int main(int argc, char** argv) {
                 tilted_luminance,offscreen_mean_luminance(),
                 offscreen_lit_pixels(),
                 tilted_luminance!=offscreen_mean_luminance()?1:0);
+            // Material FaceTint v1: source color is uploaded SEPARATELY
+            // from world position VkBuffer and remains paired to its mesh
+            // generation. Test real GPU RED then BLUE pixels on identical
+            // geometry/camera and reuse the same shader pipeline.
+            setenv("OGL_VULKAN_WORLD_LAMBERT_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE","1",1);
+            const ogl_rtx_face_tint red_tint{{1.f,0.f,0.f}};
+            const ogl_rtx_face_tint blue_tint{{0.f,0.f,1.f}};
+            const ogl_rtx_face_tint invalid_tint{{1.4f,0.f,0.f}};
+            const uint64_t tint_mesh_rev=mesh_generation();
+            const uint64_t tint_mesh_uploads=mesh_uploads();
+            barrier_ok=barrier_ok &&
+                offscreen_world()==0 && // no color sidecar yet
+                tint_mesh_generation()==0 &&
+                tint_upload(&invalid_tint,1)==0 &&
+                tint_upload(&red_tint,2)==0 &&
+                tint_upload(&red_tint,1)==1 &&
+                tint_mesh_generation()==tint_mesh_rev &&
+                tint_uploads()==1 &&
+                world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+23 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_mean_red()>offscreen_mean_blue() &&
+                offscreen_cache_builds()==offscreen_build0+13 &&
+                mesh_generation()==tint_mesh_rev &&
+                mesh_uploads()==tint_mesh_uploads;
+            const uint32_t red_mean=offscreen_mean_red();
+            const uint32_t red_blue_channel=offscreen_mean_blue();
+            barrier_ok=barrier_ok &&
+                tint_upload(&blue_tint,1)==1 &&
+                tint_uploads()==2 &&
+                tint_mesh_generation()==tint_mesh_rev &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+24 &&
+                offscreen_mean_blue()>offscreen_mean_red() &&
+                offscreen_cache_builds()==offscreen_build0+13 &&
+                offscreen_cache_reuses()==offscreen_reuse0+11 &&
+                mesh_generation()==tint_mesh_rev &&
+                mesh_uploads()==tint_mesh_uploads;
+            const uint32_t blue_mean=offscreen_mean_blue();
+            const uint32_t blue_red_channel=offscreen_mean_red();
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION","256x144",1);
+            barrier_ok=barrier_ok &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+25 &&
+                offscreen_world_width()==256 &&
+                offscreen_world_height()==144 &&
+                offscreen_mean_blue()>offscreen_mean_red() &&
+                offscreen_cache_builds()==offscreen_build0+14 &&
+                offscreen_cache_releases()==offscreen_release0+13;
+            unsetenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION");
+            setenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE","invalid",1);
+            barrier_ok=barrier_ok && offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+25;
+            setenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE","1",1);
+            const int material_reupload=world_upload(&near,1);
+            std::fprintf(stdout,"P05 face-tint reupload probe: return=%d old_gen=%llu new_gen=%llu old_uploads=%llu new_uploads=%llu tint_gen=%llu frames=%llu builds=%u releases=%u\n",
+                material_reupload,
+                static_cast<unsigned long long>(tint_mesh_rev),
+                static_cast<unsigned long long>(mesh_generation()),
+                static_cast<unsigned long long>(tint_mesh_uploads),
+                static_cast<unsigned long long>(mesh_uploads()),
+                static_cast<unsigned long long>(tint_mesh_generation()),
+                static_cast<unsigned long long>(offscreen_world_frames()),
+                offscreen_cache_builds(),offscreen_cache_releases());
+            const uint32_t stale_material_frame=offscreen_world();
+            const int material_color_reupload=tint_upload(&red_tint,1);
+            const int material_camera_rebind=world_camera(&camera);
+            const uint32_t material_fresh_frame=offscreen_world();
+            std::fprintf(stdout,
+                "P05 tint rebind checkpoint: stale_frame=%u color_upload=%d camera=%d new_frame=%u frames=%llu build=%u release=%u tint_gen=%llu mean_r=%u mean_b=%u\n",
+                stale_material_frame,material_color_reupload,
+                material_camera_rebind,material_fresh_frame,
+                static_cast<unsigned long long>(offscreen_world_frames()),
+                offscreen_cache_builds(),offscreen_cache_releases(),
+                static_cast<unsigned long long>(tint_mesh_generation()),
+                offscreen_mean_red(),offscreen_mean_blue());
+            barrier_ok=barrier_ok &&
+                material_reupload==1 &&
+                stale_material_frame==0 &&
+                material_color_reupload==1 &&
+                material_camera_rebind==1 &&
+                material_fresh_frame==1 &&
+                offscreen_world_frames()==offscreen_start+26 &&
+                offscreen_mean_red()>offscreen_mean_blue() &&
+                mesh_generation()!=tint_mesh_rev &&
+                offscreen_cache_builds()==offscreen_build0+15 &&
+                tint_uploads()==3 &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+15;
+            unsetenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+            std::fprintf(stdout,
+                "P05 Vulkan face tint GPU: red=(R%u B%u) "
+                "blue=(R%u B%u) uploads=%llu independent_mesh=1 valid=%d\n",
+                red_mean,red_blue_channel,blue_red_channel,blue_mean,
+                static_cast<unsigned long long>(tint_uploads()),
+                barrier_ok?1:0);
             for (const char* flag:{
                  "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION",
                  "OGL_VULKAN_WORLD_LAMBERT_PROBE",
                  "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
+                 "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

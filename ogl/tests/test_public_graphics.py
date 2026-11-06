@@ -872,7 +872,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("camera_mesh_generation()==mesh_generation()",native)
         self.assertIn("const bool changed=!world_mesh_generation ||",host)
         self.assertIn("if (changed) world_inputs_live_logged=false;",host)
-        self.assertIn("if (enabled && !world_inputs_live_logged &&",host)
+        self.assertIn("if (enabled && tint_success && !world_inputs_live_logged &&",host)
         self.assertIn("if (count==0) {\n            world_inputs_live_logged=false;",host)
         self.assertIn("if (!rtx_submit_geometry || !rtx_hardware_ready) return;",host)
         # It remains GL-owned after actual Firestorm scene capture.
@@ -981,7 +981,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("vkCmdPushConstants(command,pipeline_state.pipeline_layout,",f)
         self.assertIn("auto offscreen_projection=world_device.world_to_clip;",f)
         self.assertIn("world_light_push.data()",f)
-        self.assertIn("vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset)",f)
+        self.assertIn("vkCmdBindVertexBuffers(command,0,2,buffers,offsets)",f)
         self.assertIn("vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,",f)
         self.assertIn("vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",f)
         self.assertIn("vkCmdCopyImageToBuffer(command,color,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,",f)
@@ -1199,7 +1199,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=plugin[a:b]
         for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
                        'sun_enabled && (!lambert_enabled || !world_device.world_sun_ready)',
-                       'const uint32_t shading_mode=lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u;',
+                       'const uint32_t shading_mode=tinted ? 3u :',
                        'resource.shading_mode!=shading_mode',
                        'ogl_dev_world_sunlight_frag_spv',
                        'sizeof(float)*20',
@@ -1220,6 +1220,78 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('"OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",',native)
         self.assertNotIn("vkQueuePresentKHR(",draw)
         self.assertNotIn("SDL_",draw)
+
+    def test_p05_real_opensim_face_tint_shader_gpu_and_generation(self):
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        gpu=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        for symbol in ("ogl_rtx_face_tint",
+                       "ogl_vulkan_world_upload_face_tints",
+                       "ogl_vulkan_world_face_tint_mesh_generation",
+                       "ogl_vulkan_world_offscreen_scene_mean_red",
+                       "ogl_vulkan_world_offscreen_scene_mean_blue"):
+            self.assertIn(symbol,api)
+            self.assertIn(symbol,module)
+        for marker in ('OGL_VULKAN_WORLD_FACE_TINT_PROBE',
+                       'face_tints.resize(triangles.size(),neutral_tint)',
+                       'volume_object->getTE(f)',
+                       'te->getColor()',
+                       'rgba.mV[3]>=0.999f',
+                       'if (tint_scan) face_tints.push_back(face_tint)',
+                       '(!tint_scan || face_tints.size()==triangles.size())',
+                       'tint_scan ? face_tints.front().rgb : nullptr'):
+            self.assertIn(marker,pipeline)
+        self.assertIn("const float *face_tints_rgb,unsigned count",header)
+        for marker in ("live_deferred_face_tints=face_tints_rgb ?",
+                       "world_upload_face_tints(live_deferred_face_tints,count)==1",
+                       "world_tint_mesh_generation()==world_mesh_generation()",
+                       "world_upload_face_tints(nullptr,0)",
+                       "if (live_deferred_capture_call && tint_success &&"):
+            self.assertIn(marker,host)
+        start=module.index("int upload_world_face_tints(")
+        end=module.index("void gpu_probe_cleanup()",start)
+        tinted=module[start:end]
+        for marker in ('OGL_VULKAN_WORLD_FACE_TINT_PROBE',
+                       'OGL_VULKAN_WORLD_LAMBERT_PROBE',
+                       'OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
+                       'count!=world_device.mesh_triangle_count',
+                       'world_device.offscreen_world_cache.submitted',
+                       'world_device.clear_face_tints()',
+                       'std::isfinite(rgb)',
+                       'std::vector<float> expanded(size_t(count)*9u)',
+                       'VK_BUFFER_USAGE_VERTEX_BUFFER_BIT',
+                       'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT',
+                       'world_device.tint_mesh_generation=world_device.mesh_generation',
+                       '++world_device.tint_uploads'):
+            self.assertIn(marker,tinted)
+        start=module.index("uint32_t render_offscreen_color_frame(")
+        end=module.index("// Independent opt-in camera projection",start)
+        draw=module[start:end]
+        for marker in ('shading_mode=tinted ? 3u',
+                       'ogl_dev_world_face_tint_vert_spv',
+                       'ogl_dev_world_face_tint_frag_spv',
+                       'resource.shading_mode!=shading_mode',
+                       'world_device.tint_mesh_generation!=world_device.mesh_generation',
+                       'world_device.tint_vertex_count!=world_device.mesh_triangle_count*3u',
+                       'vkCmdBindVertexBuffers(command,0,2,buffers,offsets)',
+                       'world_device.offscreen_world_mean_red=changed ?',
+                       'world_device.offscreen_world_mean_blue=changed ?'):
+            self.assertIn(marker,draw)
+        self.assertIn("static constexpr uint32_t ogl_dev_world_face_tint_vert_spv[]",module)
+        self.assertIn("static constexpr uint32_t ogl_dev_world_face_tint_frag_spv[]",module)
+        for marker in ('P05 Vulkan face tint GPU:',
+                       'tint_upload(&invalid_tint,1)==0',
+                       'tint_upload(&red_tint,2)==0',
+                       'tint_upload(&red_tint,1)==1',
+                       'tint_upload(&blue_tint,1)==1',
+                       'tint_mesh_generation()==0',
+                       'offscreen_world_frames()==offscreen_start+26'):
+            self.assertIn(marker,gpu)
+        self.assertNotIn('vkQueuePresentKHR(',draw)
+        self.assertNotIn('SDL_',draw)
 
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
@@ -1255,7 +1327,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         a=host.index("void ogl_rtx_submit_world_triangles(")
         b=host.index("void ogl_rtx_submit_deferred_world_triangles(",a)
         upload=host[a:b]
-        self.assertIn("if (live_deferred_capture_call && world_mesh_generation &&",upload)
+        self.assertIn("if (live_deferred_capture_call && tint_success &&",upload)
         self.assertIn("if (uploaded && count>0) {",upload)
         self.assertIn("live_deferred_capture_valid=true;",upload)
         self.assertIn("++live_deferred_receipts;",upload)

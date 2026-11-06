@@ -179,7 +179,7 @@ struct OglOffscreenWorldCache {
     VkPipeline pipeline=VK_NULL_HANDLE;
     VkRenderPass pass=VK_NULL_HANDLE;
     VkExtent2D extent{}; // private target, independent of SDL window
-    uint32_t shading_mode=0; // 0=depth debug, 1=fixed light, 2=live sun
+    uint32_t shading_mode=0; // 0=depth, 1=fixed, 2=sun, 3=face tint+sun
     bool initialized=false;
     bool submitted=false; // fence owns possibly in-flight work
 };
@@ -230,6 +230,13 @@ struct WorldGraphicsDevice {
     VkDeviceMemory mesh_vertex_memory = VK_NULL_HANDLE;
     VkBuffer mesh_indices = VK_NULL_HANDLE;
     VkDeviceMemory mesh_index_memory = VK_NULL_HANDLE;
+    // Optional face RGB sidecar: exact vertex ordering of the current mesh.
+    // This buffer is not used by the historical WSI/Depth GPU draw paths.
+    VkBuffer mesh_tint_vertices = VK_NULL_HANDLE;
+    VkDeviceMemory mesh_tint_memory = VK_NULL_HANDLE;
+    uint64_t tint_mesh_generation = 0;
+    uint64_t tint_uploads = 0;
+    uint32_t tint_vertex_count = 0;
     uint32_t mesh_triangle_count = 0;
     // Optional exact byte-for-byte dedup for live captured scene snapshots.
     // Never suppress a real scene change based on a hash collision.
@@ -253,6 +260,8 @@ struct WorldGraphicsDevice {
     uint32_t offscreen_world_width = 0, offscreen_world_height = 0;
     uint32_t offscreen_world_lit_pixels = 0;
     uint32_t offscreen_world_mean_luminance = 0; // 0..765 RGB sum
+    uint32_t offscreen_world_mean_red = 0;
+    uint32_t offscreen_world_mean_blue = 0;
     // P05/3: bounded GPU queue submission diagnostic. These counters refer
     // to commands submitted BEFORE waiting on their completion fences,
     // NOT to simultaneous GPU execution or completed swapchain presents.
@@ -326,7 +335,19 @@ struct WorldGraphicsDevice {
         c={};
     }
 
+    void clear_face_tints() {
+        if (device && destroy_buffer && mesh_tint_vertices)
+            destroy_buffer(device,mesh_tint_vertices,nullptr);
+        if (device && free_memory && mesh_tint_memory)
+            free_memory(device,mesh_tint_memory,nullptr);
+        mesh_tint_vertices=VK_NULL_HANDLE;
+        mesh_tint_memory=VK_NULL_HANDLE;
+        tint_mesh_generation=0;
+        tint_vertex_count=0;
+    }
+
     void clear_mesh() {
+        clear_face_tints();
         if (device && destroy_buffer) {
             if (mesh_vertices) destroy_buffer(device,mesh_vertices,nullptr);
             if (mesh_indices) destroy_buffer(device,mesh_indices,nullptr);
@@ -457,6 +478,8 @@ struct WorldGraphicsDevice {
         offscreen_world_covered_pixels = 0;
         offscreen_world_width = offscreen_world_height = 0;
         offscreen_world_lit_pixels = offscreen_world_mean_luminance = 0;
+        offscreen_world_mean_red = offscreen_world_mean_blue = 0;
+        tint_uploads = 0;
         offscreen_world_builds=offscreen_world_reuses=offscreen_world_releases=0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
@@ -1121,6 +1144,132 @@ static constexpr uint32_t ogl_dev_world_sunlight_frag_spv[] = {
     0x00000044u, 0x00000001u, 0x00050051u, 0x00000006u, 0x00000047u, 0x00000044u, 0x00000002u,
     0x00070050u, 0x0000002fu, 0x00000048u, 0x00000045u, 0x00000046u, 0x00000047u, 0x00000028u,
     0x0003003eu, 0x0000003fu, 0x00000048u, 0x000100fdu, 0x00010038u,
+};
+
+// Vulkan 1.0 validated OpenSim Face RGB tint shader, private GPU.
+static constexpr uint32_t ogl_dev_world_face_tint_vert_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000029u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x000a000fu, 0x00000000u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000du, 0x00000019u, 0x00000024u, 0x00000026u, 0x00000027u, 0x00030003u, 0x00000002u,
+    0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u, 0x00060005u, 0x0000000bu,
+    0x505f6c67u, 0x65567265u, 0x78657472u, 0x00000000u, 0x00060006u, 0x0000000bu, 0x00000000u,
+    0x505f6c67u, 0x7469736fu, 0x006e6f69u, 0x00070006u, 0x0000000bu, 0x00000001u, 0x505f6c67u,
+    0x746e696fu, 0x657a6953u, 0x00000000u, 0x00070006u, 0x0000000bu, 0x00000002u, 0x435f6c67u,
+    0x4470696cu, 0x61747369u, 0x0065636eu, 0x00070006u, 0x0000000bu, 0x00000003u, 0x435f6c67u,
+    0x446c6c75u, 0x61747369u, 0x0065636eu, 0x00030005u, 0x0000000du, 0x00000000u, 0x00040005u,
+    0x00000011u, 0x656d6143u, 0x00006172u, 0x00070006u, 0x00000011u, 0x00000000u, 0x6c726f77u,
+    0x6f745f64u, 0x696c635fu, 0x00000070u, 0x00070006u, 0x00000011u, 0x00000001u, 0x5f6e7573u,
+    0x65726964u, 0x6f697463u, 0x0000006eu, 0x00040005u, 0x00000013u, 0x656d6163u, 0x00006172u,
+    0x00080005u, 0x00000019u, 0x6c726f77u, 0x6f705f64u, 0x69746973u, 0x695f6e6fu, 0x7475706eu,
+    0x00000000u, 0x00060005u, 0x00000024u, 0x6c726f77u, 0x6f705f64u, 0x69746973u, 0x00006e6fu,
+    0x00050005u, 0x00000026u, 0x65636166u, 0x6267725fu, 0x00000000u, 0x00060005u, 0x00000027u,
+    0x65636166u, 0x6267725fu, 0x706e695fu, 0x00007475u, 0x00030047u, 0x0000000bu, 0x00000002u,
+    0x00050048u, 0x0000000bu, 0x00000000u, 0x0000000bu, 0x00000000u, 0x00050048u, 0x0000000bu,
+    0x00000001u, 0x0000000bu, 0x00000001u, 0x00050048u, 0x0000000bu, 0x00000002u, 0x0000000bu,
+    0x00000003u, 0x00050048u, 0x0000000bu, 0x00000003u, 0x0000000bu, 0x00000004u, 0x00030047u,
+    0x00000011u, 0x00000002u, 0x00040048u, 0x00000011u, 0x00000000u, 0x00000005u, 0x00050048u,
+    0x00000011u, 0x00000000u, 0x00000007u, 0x00000010u, 0x00050048u, 0x00000011u, 0x00000000u,
+    0x00000023u, 0x00000000u, 0x00050048u, 0x00000011u, 0x00000001u, 0x00000023u, 0x00000040u,
+    0x00040047u, 0x00000019u, 0x0000001eu, 0x00000000u, 0x00040047u, 0x00000024u, 0x0000001eu,
+    0x00000000u, 0x00040047u, 0x00000026u, 0x0000001eu, 0x00000001u, 0x00040047u, 0x00000027u,
+    0x0000001eu, 0x00000001u, 0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u,
+    0x00030016u, 0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000004u,
+    0x00040015u, 0x00000008u, 0x00000020u, 0x00000000u, 0x0004002bu, 0x00000008u, 0x00000009u,
+    0x00000001u, 0x0004001cu, 0x0000000au, 0x00000006u, 0x00000009u, 0x0006001eu, 0x0000000bu,
+    0x00000007u, 0x00000006u, 0x0000000au, 0x0000000au, 0x00040020u, 0x0000000cu, 0x00000003u,
+    0x0000000bu, 0x0004003bu, 0x0000000cu, 0x0000000du, 0x00000003u, 0x00040015u, 0x0000000eu,
+    0x00000020u, 0x00000001u, 0x0004002bu, 0x0000000eu, 0x0000000fu, 0x00000000u, 0x00040018u,
+    0x00000010u, 0x00000007u, 0x00000004u, 0x0004001eu, 0x00000011u, 0x00000010u, 0x00000007u,
+    0x00040020u, 0x00000012u, 0x00000009u, 0x00000011u, 0x0004003bu, 0x00000012u, 0x00000013u,
+    0x00000009u, 0x00040020u, 0x00000014u, 0x00000009u, 0x00000010u, 0x00040017u, 0x00000017u,
+    0x00000006u, 0x00000003u, 0x00040020u, 0x00000018u, 0x00000001u, 0x00000017u, 0x0004003bu,
+    0x00000018u, 0x00000019u, 0x00000001u, 0x0004002bu, 0x00000006u, 0x0000001bu, 0x3f800000u,
+    0x00040020u, 0x00000021u, 0x00000003u, 0x00000007u, 0x00040020u, 0x00000023u, 0x00000003u,
+    0x00000017u, 0x0004003bu, 0x00000023u, 0x00000024u, 0x00000003u, 0x0004003bu, 0x00000023u,
+    0x00000026u, 0x00000003u, 0x0004003bu, 0x00000018u, 0x00000027u, 0x00000001u, 0x00050036u,
+    0x00000002u, 0x00000004u, 0x00000000u, 0x00000003u, 0x000200f8u, 0x00000005u, 0x00050041u,
+    0x00000014u, 0x00000015u, 0x00000013u, 0x0000000fu, 0x0004003du, 0x00000010u, 0x00000016u,
+    0x00000015u, 0x0004003du, 0x00000017u, 0x0000001au, 0x00000019u, 0x00050051u, 0x00000006u,
+    0x0000001cu, 0x0000001au, 0x00000000u, 0x00050051u, 0x00000006u, 0x0000001du, 0x0000001au,
+    0x00000001u, 0x00050051u, 0x00000006u, 0x0000001eu, 0x0000001au, 0x00000002u, 0x00070050u,
+    0x00000007u, 0x0000001fu, 0x0000001cu, 0x0000001du, 0x0000001eu, 0x0000001bu, 0x00050091u,
+    0x00000007u, 0x00000020u, 0x00000016u, 0x0000001fu, 0x00050041u, 0x00000021u, 0x00000022u,
+    0x0000000du, 0x0000000fu, 0x0003003eu, 0x00000022u, 0x00000020u, 0x0004003du, 0x00000017u,
+    0x00000025u, 0x00000019u, 0x0003003eu, 0x00000024u, 0x00000025u, 0x0004003du, 0x00000017u,
+    0x00000028u, 0x00000027u, 0x0003003eu, 0x00000026u, 0x00000028u, 0x000100fdu, 0x00010038u,
+};
+
+// Vulkan 1.0 validated OpenSim Face RGB tint shader, private GPU.
+static constexpr uint32_t ogl_dev_world_face_tint_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x0000004au, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0008000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000bu, 0x0000003eu, 0x0000003fu, 0x00030010u, 0x00000004u, 0x00000007u, 0x00030003u,
+    0x00000002u, 0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u, 0x00030005u,
+    0x00000009u, 0x00007864u, 0x00060005u, 0x0000000bu, 0x6c726f77u, 0x6f705f64u, 0x69746973u,
+    0x00006e6fu, 0x00030005u, 0x0000000eu, 0x00007964u, 0x00030005u, 0x00000011u, 0x0000006eu,
+    0x00030005u, 0x00000016u, 0x0000326eu, 0x00040005u, 0x0000002au, 0x6867696cu, 0x00000074u,
+    0x00040005u, 0x00000030u, 0x656d6143u, 0x00006172u, 0x00070006u, 0x00000030u, 0x00000000u,
+    0x6c726f77u, 0x6f745f64u, 0x696c635fu, 0x00000070u, 0x00070006u, 0x00000030u, 0x00000001u,
+    0x5f6e7573u, 0x65726964u, 0x6f697463u, 0x0000006eu, 0x00040005u, 0x00000032u, 0x656d6163u,
+    0x00006172u, 0x00060005u, 0x0000003eu, 0x7074756fu, 0x635f7475u, 0x726f6c6fu, 0x00000000u,
+    0x00050005u, 0x0000003fu, 0x65636166u, 0x6267725fu, 0x00000000u, 0x00040047u, 0x0000000bu,
+    0x0000001eu, 0x00000000u, 0x00030047u, 0x00000030u, 0x00000002u, 0x00040048u, 0x00000030u,
+    0x00000000u, 0x00000005u, 0x00050048u, 0x00000030u, 0x00000000u, 0x00000007u, 0x00000010u,
+    0x00050048u, 0x00000030u, 0x00000000u, 0x00000023u, 0x00000000u, 0x00050048u, 0x00000030u,
+    0x00000001u, 0x00000023u, 0x00000040u, 0x00040047u, 0x0000003eu, 0x0000001eu, 0x00000000u,
+    0x00040047u, 0x0000003fu, 0x0000001eu, 0x00000001u, 0x00020013u, 0x00000002u, 0x00030021u,
+    0x00000003u, 0x00000002u, 0x00030016u, 0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u,
+    0x00000006u, 0x00000003u, 0x00040020u, 0x00000008u, 0x00000007u, 0x00000007u, 0x00040020u,
+    0x0000000au, 0x00000001u, 0x00000007u, 0x0004003bu, 0x0000000au, 0x0000000bu, 0x00000001u,
+    0x00040020u, 0x00000015u, 0x00000007u, 0x00000006u, 0x0004002bu, 0x00000006u, 0x0000001bu,
+    0x2b8cbcccu, 0x00020014u, 0x0000001cu, 0x0004002bu, 0x00000006u, 0x00000026u, 0x00000000u,
+    0x0004002bu, 0x00000006u, 0x00000027u, 0x3f800000u, 0x0006002cu, 0x00000007u, 0x00000028u,
+    0x00000026u, 0x00000026u, 0x00000027u, 0x0004002bu, 0x00000006u, 0x0000002bu, 0x3e4ccccdu,
+    0x0004002bu, 0x00000006u, 0x0000002cu, 0x3f4ccccdu, 0x00040017u, 0x0000002eu, 0x00000006u,
+    0x00000004u, 0x00040018u, 0x0000002fu, 0x0000002eu, 0x00000004u, 0x0004001eu, 0x00000030u,
+    0x0000002fu, 0x0000002eu, 0x00040020u, 0x00000031u, 0x00000009u, 0x00000030u, 0x0004003bu,
+    0x00000031u, 0x00000032u, 0x00000009u, 0x00040015u, 0x00000033u, 0x00000020u, 0x00000001u,
+    0x0004002bu, 0x00000033u, 0x00000034u, 0x00000001u, 0x00040020u, 0x00000035u, 0x00000009u,
+    0x0000002eu, 0x00040020u, 0x0000003du, 0x00000003u, 0x0000002eu, 0x0004003bu, 0x0000003du,
+    0x0000003eu, 0x00000003u, 0x0004003bu, 0x0000000au, 0x0000003fu, 0x00000001u, 0x0006002cu,
+    0x00000007u, 0x00000041u, 0x00000026u, 0x00000026u, 0x00000026u, 0x0006002cu, 0x00000007u,
+    0x00000042u, 0x00000027u, 0x00000027u, 0x00000027u, 0x00050036u, 0x00000002u, 0x00000004u,
+    0x00000000u, 0x00000003u, 0x000200f8u, 0x00000005u, 0x0004003bu, 0x00000008u, 0x00000009u,
+    0x00000007u, 0x0004003bu, 0x00000008u, 0x0000000eu, 0x00000007u, 0x0004003bu, 0x00000008u,
+    0x00000011u, 0x00000007u, 0x0004003bu, 0x00000015u, 0x00000016u, 0x00000007u, 0x0004003bu,
+    0x00000008u, 0x0000001eu, 0x00000007u, 0x0004003bu, 0x00000015u, 0x0000002au, 0x00000007u,
+    0x0004003du, 0x00000007u, 0x0000000cu, 0x0000000bu, 0x000400cfu, 0x00000007u, 0x0000000du,
+    0x0000000cu, 0x0003003eu, 0x00000009u, 0x0000000du, 0x0004003du, 0x00000007u, 0x0000000fu,
+    0x0000000bu, 0x000400d0u, 0x00000007u, 0x00000010u, 0x0000000fu, 0x0003003eu, 0x0000000eu,
+    0x00000010u, 0x0004003du, 0x00000007u, 0x00000012u, 0x00000009u, 0x0004003du, 0x00000007u,
+    0x00000013u, 0x0000000eu, 0x0007000cu, 0x00000007u, 0x00000014u, 0x00000001u, 0x00000044u,
+    0x00000012u, 0x00000013u, 0x0003003eu, 0x00000011u, 0x00000014u, 0x0004003du, 0x00000007u,
+    0x00000017u, 0x00000011u, 0x0004003du, 0x00000007u, 0x00000018u, 0x00000011u, 0x00050094u,
+    0x00000006u, 0x00000019u, 0x00000017u, 0x00000018u, 0x0003003eu, 0x00000016u, 0x00000019u,
+    0x0004003du, 0x00000006u, 0x0000001au, 0x00000016u, 0x000500bau, 0x0000001cu, 0x0000001du,
+    0x0000001au, 0x0000001bu, 0x000300f7u, 0x00000020u, 0x00000000u, 0x000400fau, 0x0000001du,
+    0x0000001fu, 0x00000025u, 0x000200f8u, 0x0000001fu, 0x0004003du, 0x00000007u, 0x00000021u,
+    0x00000011u, 0x0004003du, 0x00000006u, 0x00000022u, 0x00000016u, 0x0006000cu, 0x00000006u,
+    0x00000023u, 0x00000001u, 0x00000020u, 0x00000022u, 0x0005008eu, 0x00000007u, 0x00000024u,
+    0x00000021u, 0x00000023u, 0x0003003eu, 0x0000001eu, 0x00000024u, 0x000200f9u, 0x00000020u,
+    0x000200f8u, 0x00000025u, 0x0003003eu, 0x0000001eu, 0x00000028u, 0x000200f9u, 0x00000020u,
+    0x000200f8u, 0x00000020u, 0x0004003du, 0x00000007u, 0x00000029u, 0x0000001eu, 0x0003003eu,
+    0x00000011u, 0x00000029u, 0x0004003du, 0x00000007u, 0x0000002du, 0x00000011u, 0x00050041u,
+    0x00000035u, 0x00000036u, 0x00000032u, 0x00000034u, 0x0004003du, 0x0000002eu, 0x00000037u,
+    0x00000036u, 0x0008004fu, 0x00000007u, 0x00000038u, 0x00000037u, 0x00000037u, 0x00000000u,
+    0x00000001u, 0x00000002u, 0x00050094u, 0x00000006u, 0x00000039u, 0x0000002du, 0x00000038u,
+    0x0006000cu, 0x00000006u, 0x0000003au, 0x00000001u, 0x00000004u, 0x00000039u, 0x00050085u,
+    0x00000006u, 0x0000003bu, 0x0000002cu, 0x0000003au, 0x00050081u, 0x00000006u, 0x0000003cu,
+    0x0000002bu, 0x0000003bu, 0x0003003eu, 0x0000002au, 0x0000003cu, 0x0004003du, 0x00000007u,
+    0x00000040u, 0x0000003fu, 0x0008000cu, 0x00000007u, 0x00000043u, 0x00000001u, 0x0000002bu,
+    0x00000040u, 0x00000041u, 0x00000042u, 0x0004003du, 0x00000006u, 0x00000044u, 0x0000002au,
+    0x0005008eu, 0x00000007u, 0x00000045u, 0x00000043u, 0x00000044u, 0x00050051u, 0x00000006u,
+    0x00000046u, 0x00000045u, 0x00000000u, 0x00050051u, 0x00000006u, 0x00000047u, 0x00000045u,
+    0x00000001u, 0x00050051u, 0x00000006u, 0x00000048u, 0x00000045u, 0x00000002u, 0x00070050u,
+    0x0000002eu, 0x00000049u, 0x00000046u, 0x00000047u, 0x00000048u, 0x00000027u, 0x0003003eu,
+    0x0000003eu, 0x00000049u, 0x000100fdu, 0x00010038u,
 };
 
 // Depth QA shader: near red, far green (actual GPU gl_FragCoord.z).
@@ -2475,7 +2624,19 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
     const bool sun_enabled=sun_flag && std::strcmp(sun_flag,"1")==0;
     if (scene && sun_enabled && (!lambert_enabled || !world_device.world_sun_ready))
         return 0;
-    const uint32_t shading_mode=lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u;
+    const char* tint_flag=std::getenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
+    if (scene && tint_flag && *tint_flag &&
+        std::strcmp(tint_flag,"0")!=0 && std::strcmp(tint_flag,"1")!=0)
+        return 0;
+    const bool tinted=scene && tint_flag &&
+        std::strcmp(tint_flag,"1")==0;
+    if (tinted && (!lambert_enabled || !sun_enabled ||
+        !world_device.mesh_tint_vertices ||
+        world_device.tint_mesh_generation!=world_device.mesh_generation ||
+        world_device.tint_vertex_count!=world_device.mesh_triangle_count*3u))
+        return 0;
+    const uint32_t shading_mode=tinted ? 3u :
+        (lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u);
     const uint32_t width=extent.width, height=extent.height;
     if (!width || !height || width>512 || height>288 ||
         uint64_t(width)*height>512u*288u) return 0;
@@ -2714,25 +2875,29 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         if (scene) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=shading_mode==1u
-                ? sizeof(ogl_dev_world_lambert_vert_spv)
-                : sizeof(ogl_dev_world_vert_spv);
-            vertex_info.pCode=shading_mode==1u
-                ? ogl_dev_world_lambert_vert_spv
-                : ogl_dev_world_vert_spv;
+            vertex_info.codeSize=shading_mode==3u
+                ? sizeof(ogl_dev_world_face_tint_vert_spv)
+                : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_vert_spv)
+                                    : sizeof(ogl_dev_world_vert_spv));
+            vertex_info.pCode=shading_mode==3u
+                ? ogl_dev_world_face_tint_vert_spv
+                : (shading_mode==1u ? ogl_dev_world_lambert_vert_spv
+                                    : ogl_dev_world_vert_spv);
             if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
                                      &pipeline_state.vertex_shader)!=VK_SUCCESS || !pipeline_state.vertex_shader)
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=shading_mode==2u
-                ? sizeof(ogl_dev_world_sunlight_frag_spv)
-                : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_frag_spv)
-                                    : sizeof(ogl_dev_depth_frag_spv));
-            fragment_info.pCode=shading_mode==2u
-                ? ogl_dev_world_sunlight_frag_spv
-                : (shading_mode==1u ? ogl_dev_world_lambert_frag_spv
-                                    : ogl_dev_depth_frag_spv);
+            fragment_info.codeSize=shading_mode==3u
+                ? sizeof(ogl_dev_world_face_tint_frag_spv)
+                : (shading_mode==2u ? sizeof(ogl_dev_world_sunlight_frag_spv)
+                  : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_frag_spv)
+                                      : sizeof(ogl_dev_depth_frag_spv)));
+            fragment_info.pCode=shading_mode==3u
+                ? ogl_dev_world_face_tint_frag_spv
+                : (shading_mode==2u ? ogl_dev_world_sunlight_frag_spv
+                  : (shading_mode==1u ? ogl_dev_world_lambert_frag_spv
+                                      : ogl_dev_depth_frag_spv));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &pipeline_state.fragment_shader)!=VK_SUCCESS || !pipeline_state.fragment_shader)
                 return false;
@@ -2749,17 +2914,23 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             vertex_binding.binding=0;
             vertex_binding.stride=sizeof(float)*3;
             vertex_binding.inputRate=VK_VERTEX_INPUT_RATE_VERTEX;
+            VkVertexInputBindingDescription bindings[2]{vertex_binding,vertex_binding};
+            bindings[1].binding=1;
             VkVertexInputAttributeDescription vertex_attribute{};
             vertex_attribute.location=0;
             vertex_attribute.binding=0;
             vertex_attribute.format=VK_FORMAT_R32G32B32_SFLOAT;
             vertex_attribute.offset=0;
+            VkVertexInputAttributeDescription attributes[2]{vertex_attribute,
+                                                             vertex_attribute};
+            attributes[1].location=1;
+            attributes[1].binding=1;
             VkPipelineVertexInputStateCreateInfo vertex_input{
                 VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-            vertex_input.vertexBindingDescriptionCount=1;
-            vertex_input.pVertexBindingDescriptions=&vertex_binding;
-            vertex_input.vertexAttributeDescriptionCount=1;
-            vertex_input.pVertexAttributeDescriptions=&vertex_attribute;
+            vertex_input.vertexBindingDescriptionCount=shading_mode==3u ? 2u : 1u;
+            vertex_input.pVertexBindingDescriptions=bindings;
+            vertex_input.vertexAttributeDescriptionCount=shading_mode==3u ? 2u : 1u;
+            vertex_input.pVertexAttributeDescriptions=attributes;
             VkPipelineInputAssemblyStateCreateInfo assembly{
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
             assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -2799,11 +2970,11 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             blend.attachmentCount=1;
             blend.pAttachments=&color_attachment;
             VkPushConstantRange camera_range{};
-            camera_range.stageFlags=shading_mode==2u
+            camera_range.stageFlags=shading_mode>=2u
                 ? VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT
                 : VK_SHADER_STAGE_VERTEX_BIT;
             camera_range.offset=0;
-            camera_range.size=shading_mode==2u ?
+            camera_range.size=shading_mode>=2u ?
                 sizeof(float)*20 : sizeof(float)*16;
             VkPipelineLayoutCreateInfo layout_info{
                 VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -2893,18 +3064,26 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             std::array<float,20> world_light_push{};
             std::copy(offscreen_projection.begin(),offscreen_projection.end(),
                       world_light_push.begin());
-            if (shading_mode==2u)
+            if (shading_mode>=2u)
                 std::copy(world_device.world_sun_direction.begin(),
                           world_device.world_sun_direction.end(),
                           world_light_push.begin()+16);
             vkCmdPushConstants(command,pipeline_state.pipeline_layout,
-                shading_mode==2u
+                shading_mode>=2u
                     ? VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT
                     : VK_SHADER_STAGE_VERTEX_BIT,
-                0,shading_mode==2u ? sizeof(float)*20 : sizeof(float)*16,
+                0,shading_mode>=2u ? sizeof(float)*20 : sizeof(float)*16,
                 world_light_push.data());
             const VkDeviceSize offset=0;
-            vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset);
+            if (shading_mode==3u) {
+                const VkBuffer buffers[2]{world_device.mesh_vertices,
+                                          world_device.mesh_tint_vertices};
+                const VkDeviceSize offsets[2]{0,0};
+                vkCmdBindVertexBuffers(command,0,2,buffers,offsets);
+            } else {
+                vkCmdBindVertexBuffers(command,0,1,
+                                       &world_device.mesh_vertices,&offset);
+            }
             vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,
                                  VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,
@@ -2986,7 +3165,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             // An all-clear frame is valid if the camera sees no geometry,
             // but never label that as visible geometry.
             uint32_t changed=0, lit=0;
-            uint64_t luminance_sum=0;
+            uint64_t luminance_sum=0, red_sum=0, blue_sum=0;
             for (uint32_t pixel=0;pixel<width*height;++pixel) {
                 const size_t offset=size_t(pixel)*4;
                 if (!matches(offset)) {
@@ -2994,6 +3173,8 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                     const uint32_t rgb_sum=uint32_t(rgba[offset])+
                         uint32_t(rgba[offset+1])+uint32_t(rgba[offset+2]);
                     luminance_sum+=rgb_sum;
+                    red_sum+=rgba[offset];
+                    blue_sum+=rgba[offset+2];
                     // Developer Lambert palette is green-dominant, while
                     // depth debug red/green remains the default unchanged.
                     if (shading_mode!=0u && rgba[offset+1]>rgba[offset] &&
@@ -3004,6 +3185,10 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             world_device.offscreen_world_lit_pixels=lit;
             world_device.offscreen_world_mean_luminance=changed ?
                 uint32_t(luminance_sum/changed) : 0u;
+            world_device.offscreen_world_mean_red=changed ?
+                uint32_t(red_sum/changed) : 0u;
+            world_device.offscreen_world_mean_blue=changed ?
+                uint32_t(blue_sum/changed) : 0u;
             world_device.offscreen_world_covered_pixels=changed;
             world_device.offscreen_world_width=width;
             world_device.offscreen_world_height=height;
@@ -3395,6 +3580,122 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
                   std::to_string(count)+" vertices="+
                   std::to_string(vertex_count)+
                   "; GPU buffers ready, no world draw.").c_str());
+    return 1;
+}
+
+// Optional additive material-TINT sidecar for real Firestorm volume faces.
+// NOT an image/texture streamer. Exactly one finite opaque RGB triple per
+// accepted triangle, replicated into three vertex inputs at binding 1.
+// No mesh generation change; tint is coupled to the CURRENT GPU mesh.
+// Strict source-generation validation prevents stale colors after teleport.
+int upload_world_face_tints(const ogl_rtx_face_tint* tints,uint32_t count) {
+    const char* enabled=std::getenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
+    const char* lambert=std::getenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+    const char* sun=std::getenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+    if (!enabled || std::strcmp(enabled,"1")!=0 ||
+        !lambert || std::strcmp(lambert,"1")!=0 ||
+        !sun || std::strcmp(sun,"1")!=0 ||
+        !world_device.device || !world_device.device_proc ||
+        !world_device.physical_device || !world_device.instance_proc ||
+        !world_device.destroy_buffer || !world_device.free_memory ||
+        world_device.offscreen_world_cache.submitted)
+        return 0;
+    // Explicitly withdraw a rejected/missing face-color source without
+    // dropping valid geometry. This invalidates a previous tint revision.
+    if (count==0) {
+        world_device.clear_face_tints();
+        return 1;
+    }
+    if (!world_device.mesh_vertices || !world_device.mesh_indices ||
+        world_device.mesh_triangle_count==0 ||
+        count>OGL_RTX_MAX_SCENE_TRIANGLES ||
+        count!=world_device.mesh_triangle_count || !tints)
+        return 0;
+    static_assert(sizeof(ogl_rtx_face_tint)==3*sizeof(float),
+                  "Face-tint ABI must have no padding");
+    for (uint32_t t=0;t<count;++t)
+        for (float rgb:tints[t].rgb)
+            if (!std::isfinite(rgb) || rgb<0.f || rgb>1.f)
+                return 0; // invalid data cannot mutate previous GPU tint
+    // One color per triangle becomes three vertex attributes, aligned with
+    // the existing 3*count indexed positions without modifying their ABI.
+    std::vector<float> expanded(size_t(count)*9u);
+    for (uint32_t t=0;t<count;++t)
+        for (unsigned vertex=0;vertex<3;++vertex)
+            std::copy(tints[t].rgb,tints[t].rgb+3,
+                      expanded.begin()+size_t(t)*9u+vertex*3u);
+    const VkDeviceSize bytes=VkDeviceSize(expanded.size())*sizeof(float);
+    const auto proc=[&](const char* name) {
+        return world_device.device_proc(world_device.device,name);
+    };
+    const auto create=reinterpret_cast<PFN_vkCreateBuffer>(proc("vkCreateBuffer"));
+    const auto requirements=reinterpret_cast<PFN_vkGetBufferMemoryRequirements>(
+        proc("vkGetBufferMemoryRequirements"));
+    const auto alloc=reinterpret_cast<PFN_vkAllocateMemory>(proc("vkAllocateMemory"));
+    const auto bind=reinterpret_cast<PFN_vkBindBufferMemory>(proc("vkBindBufferMemory"));
+    const auto map=reinterpret_cast<PFN_vkMapMemory>(proc("vkMapMemory"));
+    const auto unmap=reinterpret_cast<PFN_vkUnmapMemory>(proc("vkUnmapMemory"));
+    const auto props=reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(
+        world_device.instance_proc(world_device.instance,
+                                   "vkGetPhysicalDeviceMemoryProperties"));
+    if (!create || !requirements || !alloc || !bind ||
+        !map || !unmap || !props) return 0;
+    VkBuffer buffer=VK_NULL_HANDLE;
+    VkDeviceMemory memory=VK_NULL_HANDLE;
+    const auto rollback=[&]() {
+        if (buffer) world_device.destroy_buffer(world_device.device,buffer,nullptr);
+        if (memory) world_device.free_memory(world_device.device,memory,nullptr);
+    };
+    VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    info.size=bytes;
+    info.usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    info.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+    if (create(world_device.device,&info,nullptr,&buffer)!=VK_SUCCESS ||
+        !buffer) return 0;
+    VkMemoryRequirements req{};
+    requirements(world_device.device,buffer,&req);
+    VkPhysicalDeviceMemoryProperties memory_props{};
+    props(world_device.physical_device,&memory_props);
+    uint32_t index=UINT32_MAX;
+    for (uint32_t i=0;i<memory_props.memoryTypeCount && i<32;++i) {
+        const VkMemoryPropertyFlags flags=memory_props.memoryTypes[i].propertyFlags;
+        if ((req.memoryTypeBits&(1u<<i)) &&
+            (flags&(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) ==
+                   (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            index=i;
+            break;
+        }
+    }
+    if (index==UINT32_MAX || req.size<bytes) {
+        rollback();
+        return 0;
+    }
+    VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocation.allocationSize=req.size;
+    allocation.memoryTypeIndex=index;
+    if (alloc(world_device.device,&allocation,nullptr,&memory)!=VK_SUCCESS ||
+        !memory || bind(world_device.device,buffer,memory,0)!=VK_SUCCESS) {
+        rollback();
+        return 0;
+    }
+    void* target=nullptr;
+    if (map(world_device.device,memory,0,bytes,0,&target)!=VK_SUCCESS ||
+        !target) {
+        rollback();
+        return 0;
+    }
+    std::memcpy(target,expanded.data(),size_t(bytes));
+    unmap(world_device.device,memory);
+    // Existing private GPU frame has already completed its own fence;
+    // no other rendering mode references binding 1. Commit atomically.
+    world_device.clear_face_tints();
+    world_device.mesh_tint_vertices=buffer;
+    world_device.mesh_tint_memory=memory;
+    world_device.tint_mesh_generation=world_device.mesh_generation;
+    world_device.tint_vertex_count=count*3u;
+    ++world_device.tint_uploads;
     return 1;
 }
 
@@ -4019,6 +4320,17 @@ extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_upload_triangles(
 {
     return upload_world_geometry(triangles,count);
 }
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_upload_face_tints(
+    const ogl_rtx_face_tint* tints,uint32_t count)
+{
+    return upload_world_face_tints(tints,count);
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_tint_mesh_generation() {
+    return world_device.tint_mesh_generation;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_tint_uploads() {
+    return world_device.tint_uploads;
+}
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
     const ogl_rtx_frame_state* frame) {
     return set_world_projection_camera(frame);
@@ -4122,6 +4434,12 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_lit_pixel
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_luminance() {
     return world_device.offscreen_world_mean_luminance;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_red() {
+    return world_device.offscreen_world_mean_red;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_blue() {
+    return world_device.offscreen_world_mean_blue;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_builds() {
     return world_device.offscreen_world_builds;
