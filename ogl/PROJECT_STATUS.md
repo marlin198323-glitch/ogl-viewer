@@ -6,6 +6,113 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: fence-sichere echte OpenSim-Regionsbarriere (06.11.2026)
+
+**Implementiert:** Beim tatsächlichen OpenSim-Region-ID-Wechsel
+war die vorherige generische Vulkan-Regionslöschung unter
+ausstehenden GPU-Frames ohne allgemeine Mesh-Rotationsfreigabe
+nicht zuverlässig möglich. Nun gibt es eine eigene
+**OGL_VULKAN_LIVE_REGION_BARRIER=1** Developer-Operation:
+Sie invalidiert die alte Vulkan-Kamera SOFORT, wartet danach
+höchstens zwei Sekunden auf die Submit-Fences der bisherigen
+Mesh-Generation in beiden Frame-Slots und gibt die alten
+VkVertex-/Indexbuffer nur bei erfolgreich abgeschlossener
+GPU-Arbeit frei. Bei Fehler/Timeout wird der persistente
+Vulkan-Pfad blockiert und der alte GPU-Speicher nicht vorzeitig
+freigegeben. Es gibt keinen vkQueueWaitIdle pro Frame oder
+Regionswechsel.
+
+Der vorhandene Firestorm-Regionwechsel-Callback meldet den
+erfolgreichen GPU-Barriereschritt als boolesches Ergebnis.
+Nur dann entfällt der zweite, generische GPU-Clear. OpenGL
+bleibt unabhängig vom Vulkan-Ergebnis der laufende
+Welt-Renderer. Das erste Mesh einer neuen Region kann
+nach erfolgreich freigegebenen alten Buffern übernommen
+werden, **ohne** dadurch die allgemeine Erlaubnis zu
+beliebigen Meshwechseln während GPU-Frames zu erteilen.
+Drei read-only C-ABI-Funktionen machen Barrier-Erfolg und
+Fehler zählbar.
+
+**20 tatsächlich erledigte und geprüfte Teilaufgaben:**
+
+01. Git-Branch ogl-develop, sauberer Ausgangsstand, AGENTS, Handoff, P05-Roadmap und GitHub-CI geprüft; vorherige CI vollständig erfolgreich.
+02. Den tatsächlichen OpenSim-Region-ID-Wechsel im bestehenden Firestorm-Deferred-Pfad und den bisherigen Vulkan-Region-Clear verfolgt.
+03. Sicherheitslücke reproduzierbar eingegrenzt: Ein GPU-Regions-Clear konnte wegen noch ausstehender Vulkan-Frame-Submissions ohne Mesh-Rotationsfreigabe abgewiesen werden.
+04. Eine eigenständige C-ABI für echten GPU-Regionswechsel mit OGL_VULKAN_LIVE_REGION_BARRIER als separater Entwicklerfreigabe ergänzt.
+05. Zusätzlich OGL_VULKAN_WORLD_MESH_UPLOAD=1 und ein existierendes Vulkan-Device für jede GPU-Regionsbarriere vorgeschrieben.
+06. Vor jedem GPU-Fence-Wait die alte Vulkan-Kamera, deren Mesh-Generation und die Projektionsmatrix invalidiert.
+07. Nur die noch ausstehenden Submit-Fences der alten Mesh-Generation aus beiden Frame-Slots identifiziert.
+08. Diese Fences mit maximal zwei Sekunden waitAll abgewartet, ohne vkQueueWaitIdle pro Frame oder GPU-Regionswechsel.
+09. Bei fehlgeschlagenem Fence-Wait den persistenten Vulkan-Pfad blockiert und noch referenzierte GPU-Buffer im Speicher belassen.
+10. Nach erfolgreichem Fence-Retirement Vertex-/Indexbuffer und CPU-Snapshot der vorherigen Region freigegeben und Mesh-Generation erhöht.
+11. Additive read-only-C-ABI für akzeptierte Regionsbarrieren und GPU-Retirement-Fehler implementiert.
+12. Die GPU-Mesh-Upload-Regel angepasst: Erstes Mesh nach erfolgreichem Regions-Clear benötigt keine allgemeine Live-Mesh-Rotationsfreigabe.
+13. Das bestehende strikte Upload-Verbot bei laufenden alten GPU-Mesh-Referenzen und gesperrtem GPU-Pfad beibehalten.
+14. Das Vulkan-Regionsbarrier-Symbol im Firestorm-Host geladen und beim Shutdown zurückgesetzt.
+15. Den echten Firestorm-Regionwechsel-Callback um booleschen GPU-Barriere-Erfolg ergänzt und die alte zwischengespeicherte Kamera dort weiterhin invalidiert.
+16. Bei erfolgreich durchgeführter GPU-Regionsbarriere den doppelten generischen Regions-Clear im Firestorm-Pipeline-Code übersprungen; OpenGL bleibt immer aktiv.
+17. Native Vulkan-X11-Abnahme: zwei ausstehende Frame-Slot-Submissions, Regionsbarriere ohne allgemeine Rotation, Kamerasperre und neues Regionsmesh mit grünem GPU-Pixel bestanden.
+18. Zweite native Regionsbarriere, zwei akzeptierte Barrieren, null Fehler, kein zusätzlicher Frame-QueueIdle und vollständige GPU-Welt-/Depth-Regression bestanden.
+19. Reale SDL/X11-Vorlogin-Regionstestsequenz unter zwei separaten Dev-Freigaben implementiert: 20 World-Frames, 100 RGB-Samples und drei Fenstergrößen; fehlende Freigaben oder ICD fallen sauber auf OpenGL zurück.
+20. Linux-Vollviewer-Build, 344/344 Python-Tests, 41/41 native CTests, 53 gezielte Quellcode-Tests und 12/12 isolierte GUI-Regressionen bestanden; keine Nutzersitzung oder Nutzerdateien verändert.
+
+**Native echte Vulkan-X11-GPU-Abnahme:** Vor einem echten
+Regionswechsel werden beide persistenten GPU-Frame-Slots
+benutzt. Ohne separates Regions-Opt-in bleiben alte
+Meshdaten unangetastet; mit aktivierter Barriere werden
+beide alten Frames über Submit-Fences sicher abgeschlossen.
+Die alte Kamera wird ungültig und ohne Mesh ist jeder
+Vulkan-World-Present gesperrt. Das erste Mesh der
+neuen Region (ohne allgemeines Mesh-Rotationsflag)
+wird erfolgreich geladen und der Depth-Renderer zeigt
+ein überprüftes grünes X11-GPU-Pixel. Nach einer
+zweiten Barriere: **2 akzeptiert, 0 Fehler**,
+GPU-Retirement-Waits seit dem gesamten Testbeginn
+von 3 auf 5 gestiegen, QueueIdle-Zähler im laufenden
+Frame-Pfad unverändert. Alle vorherigen GPU-Raster-,
+Depth-, Kamera-, Resize- und Meshrotations-Gates
+erneut bestanden.
+
+**Tatsächlicher SDL/X11-Viewer VOR GL-Kontext:** Eine
+neue, nur über ZWEI Entwicklerfreigaben erreichbare
+Regionswechsel-Entwicklerprobe führt zwei Region-Clears
+und erneute Mesh-/Kamera-Übergaben im selben
+Vulkan-Swapchain-Lebenszyklus aus. 20/20 echte
+Vulkan-Presents, 100 validierte X11-RGB-Pixel,
+drei Fenstergrößen und anschließend normaler
+OpenGL-Login/Exit 0. Fehlende Freigaben,
+unzulässige Kombination mit Meshrotation und
+ungültiger Vulkan-Treiber führen sicher auf
+OpenGL zurück. **5 neue und 7 bestehende
+GUI-Fälle: 12/12 bestanden**, alle mit
+GL-Login-Wait und Prozess-Exit 0.
+Die Tests liefen in separaten Xvfb-Sitzungen mit
+isolierten Profilen; kein User-Viewer,
+Login, Cache oder Secret wurde angerührt.
+
+**Linux-Vollviewer-Build 344/344 Python-Tests,
+41/41 native CTests**, einschließlich
+**53/53 gezielter Grafik-/Quellcode-Tests**
+erfolgreich. Vorherige plattformübergreifende
+GitHub-CI war grün; die neue Commit-CI
+muss gesondert bestätigt werden.
+
+**Noch offen:** Kein tatsächlicher Login in eine
+OpenSim-Region wurde automatisiert oder mit
+Vulkan als Weltbackend abgenommen. Der
+GPU-Regionsbarriere-Test verwendet SYNTHETISCHE
+Weltmeshes vor dem GL-Kontext. Dauerhafte
+Vulkan-Fensterhoheit nach Login, Terrain,
+Wasser, Texturen/Materialien, Mesh-Streaming,
+Avatare und UI unter Vulkan fehlen weiterhin.
+**P05 formal 2/20; Block 3 und der vollständige
+Block 4 bleiben offen.** Nächstes technisches
+Gate: nachgewiesene authentifizierte
+Firestorm-Regionsdaten im Live-Vulkan-Input
+und danach sichere exklusive Vulkan-In-World-
+Fensterübernahme mit OpenGL-Fallback.
+Code-Commit: 4520ce33864bc23feeab066d4c522150633835d7.
+
 ## P05/3–4 – 20 technische Schritte: echter Firestorm-Kamera-/Regionsmesh-Handoff (06.11.2026)
 
 Der echte Firestorm-Deferred-Pass erfasst die Kamera vor dem späteren

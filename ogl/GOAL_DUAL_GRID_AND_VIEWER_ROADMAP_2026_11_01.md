@@ -1545,6 +1545,33 @@ produktiver Engine-Switch. P05 formal 2/20,
 Block 3/4 offen. Nächstes Gate echtes Live-
 Region-Snapshot und sichere Vulkan-Window-Ownership.
 
+**P05/3–4 echte GPU-Fence-Regionsbarriere (06.11.2026, Code 4520ce33):**
+Getrennter opt-in Regionenwechsel
+OGL_VULKAN_LIVE_REGION_BARRIER=1
+invalidiert Kamera SOFORT, wartet
+ausschließlich auf ausstehende
+GPU-Submit-Fences der alten
+Meshgeneration (max. 2 s) und
+gibt danach alte VkBuffer frei.
+Bei Fehlern fail-closed; nie QueueIdle
+pro Frame. Erster neuer Regionsmesh
+darf ohne allgemeine Meshrotation
+geladen werden. Firestorm überspringt
+doppelten GPU-Clear nur bei
+erfolgreicher Barriere, sonst
+bleibt GL-Fallback erhalten.
+Native X11-GPU: 2 Regionsbarrieren,
+keine Fehler, grüner neuer Region-
+GPU-Frame. SDL-GUI mit doppeltem
+Dev-Opt-in, 20 Presents, 100 Pixel,
+3 Größen; 12/12 isolierte GUI-Smokes.
+Linux-Vollviewer, 344 Python und
+41 native CTests erfolgreich.
+Noch KEIN eingeloggter OpenSim-
+Vulkan-Weltrenderer, keine fertige
+Vulkan-Avatar-/Terrain-/UI-Engine.
+P05 formal 2/20, Block 3/4 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

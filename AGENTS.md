@@ -4,38 +4,51 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 06.11.2026 (Code bf85bff5):
-Der echte Firestorm-Deferred-Pass sendet
-Kamera VOR dem OpenSim-Regionsmesh-Snapshot.
-Durch Opt-in OGL_VULKAN_LIVE_CAMERA_REBIND=1
-wird die zuvor im Modul validierte Kamera
-nach akzeptiertem Mesh erneut gebunden.
-Ein realer Regionswechsel invalidiert den
-Host-Cache vor dem GPU-Region-Clear.
-Vulkan-World-Present fordert passende
-Kamera- und Mesh-Generation, additive
-read-only-ABI ergänzt. Mit Opt-in
-OGL_VULKAN_WORLD_MESH_DEDUP=1 werden
-byte-identische Meshes ohne GPU-Waits,
-Kamerainvalidierung oder neue Buffer
-übersprungen; CPU-Snapshot vor GPU-Publish
-vollständig vorbereitet. Native Vulkan-
-X11-GPU-Tests, Linux-Vollbuild,
-343 Python-/41 native CTests grün.
-7 isolierte Viewer-GUI-Fälle bestehen,
-GL-Login/Exit 0, 20 GPU-Frames/100
-RGB-Pixel bei World-/Mesh-Proben;
-zwei Hauptfälle nach finalem Fix wiederholt.
-KEIN authentifizierter Live-OpenSim-
-Vulkan-Present oder produktiver Vulkan-
-Engine-Switch; nur synthetische
-Vor-OpenGL-GPU-Testwelt. P05 2/20;
-Block 3/4 weiterhin offen.
-Nächster Gate echte Login-Region-Daten
-und exklusive Vulkan-Weltfenster-Ownership.
-Nur bestehende Projektdateien bearbeiten,
-User-Viewer, Cache, Login/Secrets schützen.
-Historie: ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 06.11.2026 (Code 4520ce33):
+Echter Firestorm/OpenSim-Region-ID-
+Wechsel ist mit eigenständiger
+fence-sicherer Vulkan-Regionsbarriere
+verknüpft: opt-in
+OGL_VULKAN_LIVE_REGION_BARRIER=1
+plus vorhandene Meshupload-Freigabe.
+Alte Kamera SOFORT invalidieren,
+danach maximal 2s VkWaitForFences
+auf tatsächlich ausstehenden
+Submit-Fences beider GPU-Slots,
+alte VkVertex/IndexBuffer nur
+nach erfolgreichem Wait freigeben.
+Auf Fehler persistentes Vulkan-WSI
+blockieren und alte GPU-Speicher
+nicht vorzeitig freigeben.
+Kein QueueIdle pro Frame/Region.
+Firestorm boolescher Callback
+verhindert doppelten GPU-Clear.
+Erste neue Regionsgeometrie
+darf nach erfolgreicher Barriere
+ohne allgemeine Rotation in
+die laufende Swapchain.
+Native Vulkan-GPU: 2 accepted,
+0 failed regions; echte X11-Pixel
+inkl. grünem neuen Regionsmesh.
+Real SDL-Vorlogin-GPU:
+20 Frames/100 Pixel/3 Extents;
+5 neue+7 vorhandene GUI-Fälle
+12/12 grün, normaler GL-Login
+und Exit 0. Voll-Linux-Build,
+344 Python/41 native CTests,
+53 gezielte Quellcodeprüfungen.
+Vorige GitHub-CI grün; neue prüfen.
+Noch KEINE tatsächlich eingeloggte
+OpenSim-Region unter Vulkan
+gerendert, nur synthetische
+GPU-Vor-GL-Entwicklerprobe.
+Produktiver Vulkan-Backend-Switch
+und Terrain/Avatar/UI fehlen.
+P05 formal 2/20, Blöcke 3/4
+offen. Bestehende Dateien bearbeiten,
+kein User-Viewer-/Cache-/Login-/
+Secrets-Eingriff. Projektfortsetzung
+aus ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

@@ -413,6 +413,48 @@ die sichtbaren GPU-GUI-Tests sind synthetische pre-GL-
 Testmeshes. Keine fertige Vulkan-Engine mit Terrain,
 Avataren, Texturen oder UI. P05 2/20; Block 3/4 offen.
 
+**P05/3–4 GPU-Fence-Regionsbarriere (06.11.2026, Code 4520ce33):**
+20 konkrete technische Teilaufgaben.
+Bei echtem Firestorm-Region-ID-Wechsel kann
+eine separate Opt-in-Operation mit Flag
+OGL_VULKAN_LIVE_REGION_BARRIER=1
+die alte GPU-Kamera SOFORT sperren,
+danach bis maximal 2s die ausstehenden
+Submit-Fences beider GPU-Frame-Slots
+für die alte Meshgeneration abwarten
+und erst dann alte Vulkan-Vertex/
+Indexbuffer freigeben. Kein QueueIdle
+pro Frame/Region. Bei GPU-Wait-Fehlern
+bleiben Buffer erhalten und weitere
+Vulkan-Presents sind gesperrt.
+Firestorm-Regionwechsel-Callback gibt
+booleschen Barriere-Erfolg zurück:
+nur bei Erfolg generischen GPU-Clear
+überspringen, GL bleibt aktiv.
+Erstes NEW-region Mesh darf nach
+Barriere ohne allgemeines Live-Mesh-
+Rotationsflag hochgeladen werden.
+Native echte X11-Vulkan-GPU:
+2 Regionsbarrieren, 0 Fehler,
+2 weitere GPU-Fence-Waits,
+stale-camera reject, neue grüne
+Depth-Weltfläche korrekt präsentiert.
+SDL-Vor-GL-Probe unter zwei separaten
+Opt-ins: 20 Frames/100 RGB-Pixel,
+3 Extents, danach GL-Login/Exit 0.
+5 neue +7 vorhandene isolierte
+GUI-Smokes = 12/12 grün.
+Linux-Vollbuild, 344 Python/41 native
+CTests und 53 gezielte Tests grün.
+VORIGE GitHub-CI grün, neue prüfen.
+KEINE echte eingeloggte OpenSim-
+Live-Vulkan-Welt gerendert, nur
+synthetische Entwicklergeometrie
+vor dem OpenGL-Kontext. Keine
+Vulkan-Terrain-/Avatar-/Textur-/UI-
+Engine, kein produktiver Switch.
+P05 formal 2/20, Block 3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**
