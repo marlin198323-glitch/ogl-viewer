@@ -1634,6 +1634,33 @@ Live-Region-Capture im Offscreen-
 Frame nachweisen, dann Vulkan-
 Window-In-World-Ownership.
 
+**P05/3–4 Kamera-only-GPU-Weltframes ohne Meshrevision (06.11.2026, d527892b):**
+Separate Entwicklerfreigabe für
+Vulkan-Camera-only-World-Offscreen-
+Probes nach echtem Firestorm-Region-
+ID-Check: bisherige GPU-Meshdaten,
+aktuelle validierte Kamera und
+exakte Mesh-Generation nötig.
+Maximal 1/120 geeignete Kamera-
+Frames, identische Pose/Sonne
+werden übersprungen.
+Regionwechsel invalidiert Pose,
+ungültige Kamera löscht Ready.
+Reine Kamera-GPU-Frames erfordern
+keine GPU-Meshuploads/-Fences,
+kein Vulkan-Fenster-Present.
+Native Vulkan: 6 Offscreen-Frames,
+0/192 Pixel nach Kamerabewegung,
+Cache 2 Builds/4 Reuses/2 Releases.
+Linux-Build 347 Python-/41 native
+Tests, 56 gezielte und 18 GUI-
+Regressionsfälle grün.
+Noch kein eingeloggter echter
+OpenSim-Live-Vulkan-Weltframe.
+Nur synthetischer privater
+GPU-Test; sichtbares GL bleibt.
+P05 formal 2/20, Blöcke 3/4 offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

@@ -538,6 +538,39 @@ Code cb364549; nächste Arbeit:
 echte Login-Region-Capture-Probe
 und erst dann Vulkan-Window-Handoff.
 
+**P05/3–4 Kamera-only-GPU-Tick nach echter Regionsprüfung (06.11.2026, Code d527892b):**
+20 technische Arbeitsschritte. Echt erfasste
+Firestorm-Deferred-Kamera kann nun ohne neue
+Regionsmesh-Uploads private Vulkan-World-/Depth-
+GPU-Bilder erzeugen, sobald die Real-Region-UUID
+geprüft und die Kamera-Mesh-Generation gültig ist.
+Separates Developer-Flag
+OGL_VULKAN_LIVE_CAMERA_TICK=1 plus die
+bisherigen GPU-/Mesh-/Offscreen-Freigaben.
+Maximal 1/120 geeignete Deferred-Frames,
+unveränderte Kamera und reine Sonnenbewegung
+lösen KEINE neue GPU-Probe aus.
+Regionwechsel invalidiert Tick und Pose,
+ungültige Vulkan-Kamera löscht Ready-Status.
+Mesh-Rebind und Camera-Tick nutzen
+denselben Host-GPU-Helper und Cache,
+ohne OpenGL/SDL-Fensterübernahme.
+Native Vulkan-GPU 6 Offscreen-Frames,
+2 Camera-only mit gleichbleibender
+Meshgeneration/Uploads/Fence-Waits,
+0 und 192/1024 sichtbare Pixel,
+Cache 2 Builds/4 Reuses/2 Releases.
+Linux-Vollbuild 347 Python, 41 CTests,
+56 gezielte Grafiktests bestanden.
+18 isolierte GUI-Fälle bis normalem
+GL-Login/Exit 0 bestanden.
+Vorige GitHub-CI erfolgreich,
+neue Commit-CI separat prüfen.
+KEIN echtes authentifiziertes
+OpenSim-Live-Vulkan-World-Bild,
+GPU-Pixeltests sind synthetisch.
+P05 formal 2/20, Blöcke 3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

@@ -6,6 +6,97 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: Kamera-only Vulkan-GPU-World-Frames ohne Meshupload (06.11.2026)
+
+**Implementiert:** Der echte Firestorm-Deferred-Weltpass liefert regelmäßig
+Kameraframes, während OpenSim-Regionsmesh-Snapshots nur periodisch
+erneuert werden. Bisher lief die private Vulkan-Offscreen-World-GPU-
+Diagnose nur direkt nach einem Mesh-Rebind. Nun wird der neue
+Camera-only-Hook **NACH der echten OpenSim-Region-UUID-Prüfung**
+aufgerufen. Er kann ein aktuelles Kamerabild mit **den bereits
+hochgeladenen, gültigen GPU-Meshdaten** in den bestehenden
+32×32-Vulkan-World-/Depth-Offscreen-Framebuffer zeichnen, ohne
+GPU-Meshupload, neue Fence-Retirement-Waits oder Vulkan-Fenster-
+Übernahme. OpenGL rendert unverändert das sichtbare Viewerfenster.
+
+**Sicherheit und CPU/GPU-Last:** Separates Developer-Flag
+OGL_VULKAN_LIVE_CAMERA_TICK=1 sowie bisherige Device-, Mesh-,
+Camera-, Offscreen-, Raster- und Host-Freigaben erforderlich.
+Die aktuelle Kamera-/Meshgeneration muss gültig sein.
+Maximal **ein Tick je 120 geeignete Deferred-Frames**;
+bei identischer Kamerapose erfolgt gar kein GPU-Draw.
+Sonnenrichtung allein verändert den untexturierten
+World-Depth-GPU-Test nicht und wird ignoriert. Regionwechsel
+verwirft Pose, Generation und Tick-Zähler; eine abgewiesene
+Kamera kann nicht weiterhin als gekoppelt/ready gelten.
+Keine User-/Regions-/Positionsdaten oder GPU-Bilder im Log.
+Gemeinsamer Host-Helper für alte Mesh-Rebind-Probe und
+neuen Camera-only-Tick.
+
+**20 tatsächlich implementierte oder überprüfte Teilaufgaben:**
+
+01. Branch ogl-develop, sauberen Git-Ausgangsstand, AGENTS, Handoff, Roadmap und zuletzt vollständig erfolgreiche GitHub-CI kontrolliert.
+02. Die Kameradatenquelle im echten Firestorm-Deferred-Pass und deren validierte Vulkan-Kamera-Mesh-ABI überprüft.
+03. Den periodischen OpenSim-Regionsmesh-Scanner und die wesentlich häufigeren Kameraframes im selben Weltpass verglichen.
+04. Fehlende Vulkan-GPU-Aktualisierung bei reiner Kamerabewegung ohne neuen Meshsnapshot als Ausgangsfehler lokalisiert.
+05. Separate Host-Funktion ogl_rtx_after_region_camera_tick im bestehenden Viewer ergänzt.
+06. Den Kamera-Tick NACH der realen Region-UUID-Prüfung und VOR dem periodischen Meshscan in LLPipeline eingebunden.
+07. Ungültige/fehlende Region-ID vom Camera-Tick ausgeschlossen, um neue Kameras nicht mit alter Regionsgeometrie zu mischen.
+08. Neues explizites Entwicklerflag OGL_VULKAN_LIVE_CAMERA_TICK mit den bisherigen GPU-, Mesh-, Kamera- und Offscreen-Berechtigungen kombiniert.
+09. Nur vom Vulkan-Modul validierte Kameraframes und zur aktuellen GPU-Mesh-Generation passende Inputs akzeptiert.
+10. Rate-Limit höchstens ein GPU-Kamera-Tick pro 120 geeignete Deferred-Frames in einer plattformneutralen constexpr-Policy eingebaut.
+11. Die Frame-Grenzen 0, 1, 2, 120, 121, 240 und 241 durch sieben Compile-Time-C++-Asserts überprüft.
+12. Semantische Kamera-Pose-Prüfung für Position, Achsen, Viewport, FOV, Aspect und Near/Far-Distanzen eingeführt.
+13. Unveränderte Kameraposen übersprungen; reine Änderung der Sonnenrichtung löst keine World-Depth-GPU-Diagnose aus.
+14. Bei echtem Regionswechsel den Kamera-Tick-Zähler, vorherige GPU-Probe-Pose und Generation/Epoche invalidiert.
+15. Nach Ablehnung eines Vulkan-Kameraframes die vorherige Live-Inputs-Ready-Kopplung als ungültig markiert.
+16. Mesh-Rebind und neue Camera-only-Probe auf einen gemeinsamen, anonym protokollierenden GPU-Offscreen-Helper umgestellt.
+17. Den bestehenden Vulkan-Offscreen-GPU-Cache ohne neuen Mesh-Upload, GPU-Bufferwechsel, Queue-Idle oder SDL/OpenGL-Fensterzugriff weiterverwendet.
+18. Native echte Vulkan-GPU: 2 zusätzliche Kamerabewegungen bei identischen VkBuffer, Meshgeneration, Upload- und Fence-Wait-Zählern geprüft; zuerst 0, dann wieder sichtbare Weltpixel.
+19. Native GPU insgesamt 6 World-/Depth-Offscreen-Frames mit 2 Cache-Aufbauten/4 Reuses/2 Releases; Linux-Vollbuild 347 Python-/41 native Tests und 56 Grafik-Kontrakte bestanden.
+20. 18 isolierte echte SDL/X11-Viewer-GUI-Fälle inkl. 3 neuer Kamera-Tick-Tests, OpenGL-Login, Vulkan-WSI-Frames, Meshrotation, Region-Clear und Treiber-Fallback bestanden.
+
+**GPU-Abnahme:** Native echte Vulkan-GPU:
+insgesamt **6 Offscreen-World-/Depth-GPU-Frames**,
+darunter **2 Kamera-only-Frames mit unveränderter
+Meshgeneration, unveränderten GPU-Meshuploads
+und GPU-Retirement-Waits**. Weggedrehte Kamera:
+**0 nichtleere Pixel**; zurückgedreht:
+**192/1024 nichtleere Pixel**. Wiederverwendbarer
+Vulkan-Cache: 2 Builds, 4 Reuses, 2 Releases.
+Auch die bisherigen GPU-Tests für X11-Present,
+Depth, Regionsbarriere, Mesh-Rotation und WSI-
+Resize waren erfolgreich.
+
+**Build und Viewer-Abnahme:** Linux-Vollviewer
+**347/347 Python-Tests**, **41/41 native CTests**,
+**56/56 gezielte Quellcode-/Grafikprüfungen**.
+**18/18 isolierte SDL/X11-GUI-Starts** bestanden,
+darunter die 3 neuen Tick-Opt-in-/Fallback-Fälle,
+normaler OpenGL-Login/Exit 0, 20 X11-GPU-
+Presents mit 100 RGB-Pixelproben sowie die
+bestehenden Regionen-, Mesh- und Vulkan-ICD-
+Rückfalltests. Kein Nutzer-Viewer, Cache oder
+bestehendes Loginprofil wurde berührt.
+
+**Wichtig:** Der Host ist an den echten
+Firestorm-/OpenSim-Scene-Capture-Code gebunden.
+Es wurde aber **kein authentifizierter OpenSim-
+Login mit echten Vulkan-GPU-Regionbildern**
+abgenommen. Die konkret nachgemessenen GPU-
+Pixel stammen aus synthetischen Entwickler-
+Meshdaten; die Vulkan-Bilder sind privat und
+NICHT im Viewer sichtbar. Produktive Vulkan-
+Fensterhoheit und Renderer für Terrain,
+Texturen, Materialien, Wasser, Avatare und
+UI stehen aus. **P05 formal weiter 2/20;
+Block 3 und der vollständige Block 4 offen.**
+Nächstes Gate: authentifizierte Live-Region
+mit echtem Scene-Capture und nachweisbarer
+Kamerabewegung in der Offscreen-GPU-Probe,
+danach exklusive Vulkan-Welt-Fensterübernahme.
+Code-Commit: d527892b5abed3396fa44297b71095438fd75048.
+
 ## P05/3–4 – 20 technische Schritte: wiederverwendbarer Vulkan-World-Offscreen-GPU-Cache (06.11.2026)
 
 **Implementiert:** Der private 32×32-Vulkan-World-/Depth-Renderer
