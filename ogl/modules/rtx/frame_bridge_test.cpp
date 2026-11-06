@@ -73,6 +73,10 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_scene_frames"));
     const auto offscreen_world_pixels = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_pixels"));
+    const auto offscreen_world_width = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_width"));
+    const auto offscreen_world_height = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_height"));
     const auto offscreen_cache_builds = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_cache_builds"));
     const auto offscreen_cache_reuses = reinterpret_cast<uint32_t(*)()>(
@@ -82,10 +86,12 @@ int main(int argc, char** argv) {
     const auto offscreen_cache_release = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_cache_release"));
     assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
+           offscreen_world_width && offscreen_world_height &&
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
     assert(offscreen_world()==0 && offscreen_world_frames()==0 &&
-           offscreen_world_pixels()==0 &&
+           offscreen_world_pixels()==0 && offscreen_world_width()==0 &&
+           offscreen_world_height()==0 &&
            offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0);
     const auto world_upload = reinterpret_cast<int(*)(const ogl_rtx_triangle*,uint32_t)>(
@@ -304,7 +310,8 @@ int main(int argc, char** argv) {
     assert(window_ready()==0);
     assert(offscreen_frame()==0);
     assert(offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
-           offscreen_cache_releases()==0 && offscreen_cache_release()==0);
+           offscreen_cache_releases()==0 && offscreen_cache_release()==0 &&
+           offscreen_world_width()==0 && offscreen_world_height()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
            aspect_matches()==0 &&
            camera_updates()==0 && mesh_uploads()==0);
@@ -1429,6 +1436,7 @@ int main(int argc, char** argv) {
                 // creating or attaching any native X11 VkSwapchain.
                 offscreen_world()==1 &&
                 offscreen_world_frames()==offscreen_start+1 &&
+                offscreen_world_width()==32 && offscreen_world_height()==32 &&
                 offscreen_cache_builds()==offscreen_build0+1 &&
                 offscreen_cache_reuses()==offscreen_reuse0 &&
                 offscreen_cache_releases()==offscreen_release0 &&
@@ -1571,12 +1579,75 @@ int main(int argc, char** argv) {
                 mesh_uploads()==static_mesh_uploads &&
                 mesh_retire_waits()==static_mesh_waits &&
                 offscreen_cache_builds()==offscreen_build0+2 &&
-                offscreen_cache_reuses()==offscreen_reuse0+4 &&
-                offscreen_cache_release()==1 &&
+                offscreen_cache_reuses()==offscreen_reuse0+4;
+            // A typo/oversized target fails closed; current GPU cache
+            // and the completed-frame dimensions must remain untouched.
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION","8192x8192",1);
+            barrier_ok=barrier_ok && offscreen_world()==0 &&
+                offscreen_world_width()==32 && offscreen_world_height()==32 &&
+                offscreen_world_frames()==offscreen_start+6 &&
+                offscreen_cache_builds()==offscreen_build0+2 &&
+                offscreen_cache_releases()==offscreen_release0+1;
+            // Three successive private VkImage/VkDepth/VkReadback targets.
+            // Rebuild ONLY when preset changes, never on every camera frame
+            // or when the OpenGL viewer window changes its own dimensions.
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION","128x96",1);
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_width()==128 && offscreen_world_height()==96 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_world_pixels()<128u*96u &&
+                offscreen_world_frames()==offscreen_start+7 &&
+                offscreen_cache_builds()==offscreen_build0+3 &&
                 offscreen_cache_releases()==offscreen_release0+2 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+8 &&
+                offscreen_cache_builds()==offscreen_build0+3 &&
+                offscreen_cache_reuses()==offscreen_reuse0+5 &&
+                offscreen_cache_releases()==offscreen_release0+2;
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION","256x144",1);
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_width()==256 && offscreen_world_height()==144 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_world_pixels()<256u*144u &&
+                offscreen_world_frames()==offscreen_start+9 &&
+                offscreen_cache_builds()==offscreen_build0+4 &&
+                offscreen_cache_releases()==offscreen_release0+3 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads;
+            setenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION","512x288",1);
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_width()==512 && offscreen_world_height()==288 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_world_pixels()<512u*288u &&
+                offscreen_world_frames()==offscreen_start+10 &&
+                offscreen_cache_builds()==offscreen_build0+5 &&
+                offscreen_cache_releases()==offscreen_release0+4 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+11 &&
+                offscreen_cache_reuses()==offscreen_reuse0+6 &&
+                offscreen_cache_builds()==offscreen_build0+5 &&
+                offscreen_cache_releases()==offscreen_release0+4;
+            unsetenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION");
+            barrier_ok=barrier_ok && offscreen_world()==1 &&
+                offscreen_world_width()==32 && offscreen_world_height()==32 &&
+                offscreen_world_pixels()>0 &&
+                offscreen_world_pixels()<1024 &&
+                offscreen_world_frames()==offscreen_start+12 &&
+                offscreen_cache_builds()==offscreen_build0+6 &&
+                offscreen_cache_releases()==offscreen_release0+5 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                mesh_retire_waits()==static_mesh_waits &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+6 &&
                 offscreen_cache_release()==0;
             for (const char* flag:{
                  "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
+                 "OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

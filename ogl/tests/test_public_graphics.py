@@ -979,7 +979,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("sizeof(ogl_dev_depth_frag_spv)",f)
         self.assertIn("vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,",f)
         self.assertIn("vkCmdPushConstants(command,pipeline_state.pipeline_layout,",f)
-        self.assertIn("world_device.world_to_clip.data()",f)
+        self.assertIn("auto offscreen_projection=world_device.world_to_clip;",f)
+        self.assertIn("offscreen_projection.data()",f)
         self.assertIn("vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset)",f)
         self.assertIn("vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,",f)
         self.assertIn("vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",f)
@@ -1001,7 +1002,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("OGL_VULKAN_OFFSCREEN_FRAME_PROBE",host)
         self.assertIn("world_render_offscreen_scene()==1",host)
         self.assertIn("live_world_rebinds<=3 || live_world_rebinds%64==0",host)
-        self.assertIn("32x32 private VkImage, NO Vulkan present",host)
+        self.assertIn("bounded private VkImage, NO Vulkan present",host)
         self.assertNotIn("ogl_vulkan_world_attach_x11_window(",host)
         self.assertNotIn("vkQueuePresentKHR(",host)
 
@@ -1066,6 +1067,71 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("offscreen_cache_release()==0",native)
         self.assertNotIn("vkQueuePresentKHR(",fn)
         self.assertNotIn("vkCreateSwapchainKHR(",fn)
+
+    def test_p05_vulkan_private_world_render_dimensions_resize_and_aspect(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        report=(ROOT/"ogl/scripts/ogl-test-report.py").read_text()
+        a=module.index("VkExtent2D ogl_private_world_offscreen_extent()")
+        b=module.index("// P05/3: verified Vulkan offscreen color frame",a)
+        select=module[a:b]
+        for size in ("32x32","128x96","256x144","512x288"):
+            self.assertIn(size,select)
+            self.assertIn(size,api)
+            w,h=size.split("x")
+            self.assertIn(f"({w},{h})",report)
+            self.assertIn(size,native)
+        self.assertIn('return {0,0};',select)
+        a=module.index("uint32_t render_offscreen_color_frame(")
+        b=module.index("// Independent opt-in camera projection",a)
+        fn=module[a:b]
+        for contract in (
+            "ogl_private_world_offscreen_extent()",
+            "width>512 || height>288",
+            "uint64_t(width)*height>512u*288u",
+            "VkDeviceSize(width)*height*4",
+            "resource.extent.width!=width",
+            "resource.extent.height!=height",
+            "world_device.release_offscreen_world_cache();",
+            "if (resource.initialized || resource.submitted) return 0;",
+            "image.extent={width,height,1};",
+            "di.format=depth_format;di.extent={width,height,1};",
+            "fb.width=width;",
+            "fb.height=height;",
+            "viewport.width=static_cast<float>(width);",
+            "viewport.height=static_cast<float>(height);",
+            "scissor.extent={width,height};",
+            "copy.imageExtent={width,height,1};",
+            "offscreen_projection=world_device.world_to_clip;",
+            "world_device.world_camera_aspect /",
+            "(float(width)/float(height))",
+            "offscreen_projection[col*4]*=aspect_correction;",
+            "offscreen_projection.data()",
+            "world_device.offscreen_world_width=width;",
+            "world_device.offscreen_world_height=height;",
+            "resource.extent={width,height};",
+        ):
+            self.assertIn(contract,fn)
+        for symbol in ("ogl_vulkan_world_offscreen_scene_width",
+                       "ogl_vulkan_world_offscreen_scene_height"):
+            self.assertIn(symbol,api)
+            self.assertIn(symbol,module)
+            self.assertIn(symbol,host)
+            self.assertIn(symbol,native)
+        self.assertIn('" width=" << (world_offscreen_scene_width ?',host)
+        self.assertIn('" height=" << (world_offscreen_scene_height ?',host)
+        self.assertIn("pixel<width*height;",fn)
+        self.assertIn('"8192x8192"',native)
+        self.assertIn('offscreen_world_frames()==offscreen_start+12',native)
+        self.assertIn('offscreen_cache_reuses()==offscreen_reuse0+6',native)
+        self.assertIn('offscreen_cache_builds()==offscreen_build0+6',native)
+        self.assertIn('offscreen_cache_releases()==offscreen_release0+6',native)
+        self.assertIn('mesh_uploads()==static_mesh_uploads',native)
+        self.assertNotIn('vkQueuePresentKHR(',fn)
+        self.assertNotIn('vkCreateSwapchainKHR(',fn)
+        self.assertNotIn('SDL_',fn)
 
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

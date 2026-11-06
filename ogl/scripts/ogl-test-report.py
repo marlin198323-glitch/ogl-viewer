@@ -121,8 +121,8 @@ P05_CAPTURE = re.compile(
 P05_GPU = re.compile(
     r"P05 deferred GPU receipt: epoch=(\d+) capture=(\d+) "
     r"mesh_generation=(\d+) source=(mesh-rebind|camera-tick) "
-    r"frames=(\d+) camera_frames=(\d+) nonclear_pixels=(\d+) "
-    r"status=completed"
+    r"frames=(\d+) camera_frames=(\d+) nonclear_pixels=(\d+)"
+    r"(?: width=(\d+) height=(\d+))? status=completed"
 )
 
 
@@ -145,10 +145,12 @@ def p05_live_gpu_evidence(log_text: str):
     completed = 0
     camera_completed = 0
     visible = 0
+    capacity = 0
     for line in log_text.splitlines():
         if P05_SESSION.search(line):
             seen_session, world_started, epoch, latest = True, False, None, None
             accepted = invalid_gpu = completed = camera_completed = visible = 0
+            capacity = 0
             last_capture_id = last_gpu_frame_id = 0
             continue
         if not seen_session:
@@ -161,6 +163,7 @@ def p05_live_gpu_evidence(log_text: str):
             epoch = new_epoch if new_epoch>0 else None
             latest = None
             accepted = invalid_gpu = completed = camera_completed = visible = 0
+            capacity = 0
             continue
         capture = P05_CAPTURE.search(line)
         if capture:
@@ -173,6 +176,7 @@ def p05_live_gpu_evidence(log_text: str):
                 # A newer scanner receipt supersedes even a successful
                 # older GPU result. Never report stale meshes as current.
                 completed = camera_completed = visible = 0
+                capacity = 0
                 accepted += 1
             else:
                 invalid_gpu += 1
@@ -186,10 +190,15 @@ def p05_live_gpu_evidence(log_text: str):
             frames=int(gpu.group(5))
             cameras=int(gpu.group(6))
             pixels=int(gpu.group(7))
+            # Historic GPU receipts before the size ABI use 32x32.
+            width=int(gpu.group(8)) if gpu.group(8) else 32
+            height=int(gpu.group(9)) if gpu.group(9) else 32
+            permitted={(32,32),(128,96),(256,144),(512,288)}
             if (epoch is None or cap_epoch!=epoch or latest is None or
                 cap_id!=latest[0] or generation!=latest[1] or
                 frames<=0 or frames<=last_gpu_frame_id or
-                cameras>frames or pixels>1024):
+                cameras>frames or (width,height) not in permitted or
+                pixels>width*height):
                 invalid_gpu += 1
                 continue
             last_gpu_frame_id=frames
@@ -197,6 +206,7 @@ def p05_live_gpu_evidence(log_text: str):
             if source=="camera-tick":
                 camera_completed+=1
             visible=pixels
+            capacity=width*height
     if not seen_session:
         status="no_deferred_evidence_session"
     elif not world_started:
@@ -214,6 +224,7 @@ def p05_live_gpu_evidence(log_text: str):
         "completed_gpu_frames":completed,
         "camera_gpu_frames":camera_completed,
         "last_nonclear_pixels":visible,
+        "last_pixel_capacity":capacity,
         "rejected_receipt_events":invalid_gpu,
     }
 
@@ -265,7 +276,8 @@ def report():
               "of which camera-only:", evidence["camera_gpu_frames"])
         if evidence["completed_gpu_frames"]:
             print("P05 last private GPU non-clear pixels:",
-                  evidence["last_nonclear_pixels"], "of 1024")
+                  evidence["last_nonclear_pixels"], "of",
+                  evidence["last_pixel_capacity"])
         print("P05 provenance limitation: deferred-source log evidence "
               "is not independent proof of authenticated grid login "
               "or a visible Vulkan world renderer.")

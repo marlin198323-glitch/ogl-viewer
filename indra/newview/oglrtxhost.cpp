@@ -78,6 +78,8 @@ using ogl_world_offscreen_count_fn = std::uint64_t (*)();
 ogl_world_offscreen_count_fn world_offscreen_scene_frames = nullptr;
 using ogl_world_offscreen_pixels_fn = uint32_t (*)();
 ogl_world_offscreen_pixels_fn world_offscreen_scene_pixels = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_scene_width = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_scene_height = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_cache_builds = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_cache_reuses = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_cache_releases = nullptr;
@@ -310,6 +312,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_frames"));
     world_offscreen_scene_pixels = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_pixels"));
+    world_offscreen_scene_width = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_width"));
+    world_offscreen_scene_height = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_height"));
     world_offscreen_cache_builds = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_cache_builds"));
     world_offscreen_cache_reuses = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
@@ -510,6 +516,8 @@ void ogl_shutdown_rtx_module() {
     world_render_offscreen_scene = nullptr;
     world_offscreen_scene_frames = nullptr;
     world_offscreen_scene_pixels = nullptr;
+    world_offscreen_scene_width = nullptr;
+    world_offscreen_scene_height = nullptr;
     world_offscreen_cache_builds = nullptr;
     world_offscreen_cache_reuses = nullptr;
     world_offscreen_cache_releases = nullptr;
@@ -632,6 +640,10 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
             << " frames=" << live_deferred_gpu_frames
             << " camera_frames=" << live_deferred_camera_gpu_frames
             << " nonclear_pixels=" << world_offscreen_scene_pixels()
+            << " width=" << (world_offscreen_scene_width ?
+                world_offscreen_scene_width() : 32u)
+            << " height=" << (world_offscreen_scene_height ?
+                world_offscreen_scene_height() : 32u)
             << " status=completed; PRIVATE Vulkan image, not displayed."
             << LL_ENDL;
     }
@@ -643,13 +655,17 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
         << " nonclear_pixels=" << (rendered ?
             world_offscreen_scene_pixels() : 0)
         << " failures=" << world_offscreen_scene_failures
+        << " width=" << (world_offscreen_scene_width ?
+            world_offscreen_scene_width() : 32u)
+        << " height=" << (world_offscreen_scene_height ?
+            world_offscreen_scene_height() : 32u)
         << " cache_builds=" << (world_offscreen_cache_builds ?
             world_offscreen_cache_builds() : 0)
         << " cache_reuses=" << (world_offscreen_cache_reuses ?
             world_offscreen_cache_reuses() : 0)
         << " cache_releases=" << (world_offscreen_cache_releases ?
             world_offscreen_cache_releases() : 0)
-        << "; 32x32 private VkImage, NO Vulkan present, "
+        << "; bounded private VkImage, NO Vulkan present, "
            "OpenGL owns viewer window."
         << LL_ENDL;
     return rendered;

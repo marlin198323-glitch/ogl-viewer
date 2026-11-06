@@ -353,6 +353,38 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(result["accepted_capture_events"],1)
         self.assertEqual(result["rejected_receipt_events"],2)
 
+    def test_p05_resolution_legacy_32x32_receipt(self):
+        result=module.p05_live_gpu_evidence(self.p05_example())
+        self.assertEqual(result["last_pixel_capacity"],1024)
+        self.assertEqual(result["last_nonclear_pixels"],144)
+
+    def test_p05_resolution_128x96_256x144_and_512x288(self):
+        for w,h in ((128,96),(256,144),(512,288)):
+            log=self.p05_example().replace(
+                "nonclear_pixels=144 status=completed",
+                f"nonclear_pixels={w*h-1} width={w} height={h} status=completed")
+            result=module.p05_live_gpu_evidence(log)
+            self.assertEqual(result["status"],"deferred_source_gpu_completed")
+            self.assertEqual(result["last_pixel_capacity"],w*h)
+            self.assertEqual(result["last_nonclear_pixels"],w*h-1)
+
+    def test_p05_resolution_invalid_or_oversized_rejected(self):
+        for w,h in ((0,0),(640,480),(8192,8192),(512,512),(128,144)):
+            log=self.p05_example().replace(
+                "nonclear_pixels=144 status=completed",
+                f"nonclear_pixels=100 width={w} height={h} status=completed")
+            result=module.p05_live_gpu_evidence(log)
+            self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+            self.assertEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_resolution_coverage_exceeding_capacity_rejected(self):
+        log=self.p05_example().replace(
+            "nonclear_pixels=144 status=completed",
+            "nonclear_pixels=36865 width=256 height=144 status=completed")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["rejected_receipt_events"],1)
+
     def test_p05_receipts_exclude_private_identity(self):
         log=self.p05_example() + (
             "user=PRIVATE-AVATAR grid=PRIVATE-REGION account=PRIVATE\n"
@@ -361,7 +393,8 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(set(result),{
             "status","current_region_epoch","accepted_capture_events",
             "completed_gpu_frames","camera_gpu_frames",
-            "last_nonclear_pixels","rejected_receipt_events",
+            "last_nonclear_pixels","last_pixel_capacity",
+            "rejected_receipt_events",
         })
         self.assertNotIn("PRIVATE",str(result))
         self.assertIn("not independent proof of authenticated grid login",

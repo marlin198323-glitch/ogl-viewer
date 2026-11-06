@@ -320,10 +320,15 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
  * OGL_VULKAN_WORLD_CAMERA_PROBE=1. A successfully paired camera and
  * vertex/index GPU mesh MUST already exist. Renders VkDrawIndexed with
  * the validated world_to_clip matrix, depth attachment and shader into
- * PRIVATE 32x32 VkImage and reads back RGBA after a 2-second GPU fence.
+ * PRIVATE bounded-resolution VkImage (default 32x32; explicit
+ * OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION accepts only 32x32, 128x96,
+ * 256x144 or 512x288). No SDL window or visible framebuffer change.
+ * Reads back RGBA after a 2-second GPU fence.
  * 1 = Vulkan indexed draw/readback completed, 0 = not ready/failure.
- * The pixel counter is the number of non-clear colors, 0..1024;
- * zero does not mean failure (all geometry might be out of view).
+ * The pixel counter is the number of non-clear pixels,
+ * 0..(offscreen_scene_width*offscreen_scene_height). The two width/height
+ * accessors report the dimensions of the LAST COMPLETED GPU frame;
+ * zero does not mean failure (geometry may be outside the camera).
  * NO display, NO user/avatar/region image exported, NO VkQueuePresentKHR.
  * This is NOT a finished Vulkan world renderer and must not be called
  * every frame in the production/GL world-render loop.
@@ -331,7 +336,12 @@ OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_probe(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_render_offscreen_scene(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels(void);
-/* Device-owned private 32x32 World/Depth pipeline cache (developer only).
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_width(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_height(void);
+/* Device-owned private bounded-resolution World/Depth cache (developer only).
+ * Changing the allowlisted resolution safely releases old attachments,
+ * shader pipeline and readback after the previous GPU fence and rebuilds
+ * once at the new size; never owns a VkSurfaceKHR or VkSwapchainKHR.
  * VkImages/VkDeviceMemory, shaders, pipeline, framebuffer, readback,
  * command pool and GPU fence are allocated once and reused across accepted
  * camera/mesh generations, with vkResetCommandBuffer/vkResetFences only

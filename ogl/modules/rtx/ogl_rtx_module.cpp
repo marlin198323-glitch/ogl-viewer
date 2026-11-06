@@ -159,7 +159,7 @@ struct OglPersistentClearFrames {
     bool initialized = false;
 };
 
-// Device-owned, private 32x32 indexed-world diagnostic targets. NO window,
+// Device-owned, private bounded-resolution world GPU targets. NO window,
 // VkSurfaceKHR or VkSwapchainKHR. All resources are destroyed before VkDevice.
 struct OglOffscreenWorldCache {
     VkImage color=VK_NULL_HANDLE, depth=VK_NULL_HANDLE;
@@ -178,6 +178,7 @@ struct OglOffscreenWorldCache {
     VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
     VkPipeline pipeline=VK_NULL_HANDLE;
     VkRenderPass pass=VK_NULL_HANDLE;
+    VkExtent2D extent{}; // private target, independent of SDL window
     bool initialized=false;
     bool submitted=false; // fence owns possibly in-flight work
 };
@@ -243,7 +244,8 @@ struct WorldGraphicsDevice {
     uint64_t world_camera_accepts = 0; // CPU matrix updates, no GPU presents
     uint64_t mesh_uploads = 0; // accepted snapshots, never a draw counter
     uint64_t offscreen_world_frames = 0; // completed VkDrawIndexed/readback
-    uint32_t offscreen_world_covered_pixels = 0; // 32x32 non-clear count
+    uint32_t offscreen_world_covered_pixels = 0; // non-clear count
+    uint32_t offscreen_world_width = 0, offscreen_world_height = 0;
     // P05/3: bounded GPU queue submission diagnostic. These counters refer
     // to commands submitted BEFORE waiting on their completion fences,
     // NOT to simultaneous GPU execution or completed swapchain presents.
@@ -444,6 +446,7 @@ struct WorldGraphicsDevice {
         mesh_uploads = 0;
         offscreen_world_frames = 0;
         offscreen_world_covered_pixels = 0;
+        offscreen_world_width = offscreen_world_height = 0;
         offscreen_world_builds=offscreen_world_reuses=offscreen_world_releases=0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
@@ -2135,6 +2138,18 @@ uint32_t submit_world_sync_probe() {
     return submitted==commands.size() ? submitted : 0u;
 }
 
+// A developer diagnostic, not a screen capture. The fixed allowlist keeps
+// memory and compute bounded (max RGBA 512*288*4 + one depth attachment).
+// Typos FAIL CLOSED; SDL and the visible GL viewport are never changed.
+VkExtent2D ogl_private_world_offscreen_extent() {
+    const char* value=std::getenv("OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION");
+    if (!value || !*value || std::strcmp(value,"32x32")==0) return {32,32};
+    if (std::strcmp(value,"128x96")==0) return {128,96};
+    if (std::strcmp(value,"256x144")==0) return {256,144};
+    if (std::strcmp(value,"512x288")==0) return {512,288};
+    return {0,0};
+}
+
 // P05/3: verified Vulkan offscreen color frame, isolated from the GL window.
 // This is an actual GPU graphics render pass and CPU-verified image, not a
 // swapchain acquire/present or an OpenSim world renderer. Developer opt-in.
@@ -2244,8 +2259,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         !vkCmdBindIndexBuffer || !vkCmdPushConstants || !vkCmdDrawIndexed))
         return 0;
 
-    constexpr uint32_t size=32;
-    constexpr VkDeviceSize readback_bytes=size*size*4;
+    const VkExtent2D extent=scene ?
+        ogl_private_world_offscreen_extent() : VkExtent2D{32,32};
+    const uint32_t width=extent.width, height=extent.height;
+    if (!width || !height || width>512 || height>288 ||
+        uint64_t(width)*height>512u*288u) return 0;
+    const VkDeviceSize readback_bytes=VkDeviceSize(width)*height*4;
     constexpr VkFormat format=VK_FORMAT_R8G8B8A8_UNORM;
     VkFormatProperties fmt{};
     get_format_properties(world_device.physical_device,format,&fmt);
@@ -2268,6 +2287,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
     // opt-in indexed WORLD raster owns a device-lifetime GPU cache.
     OglOffscreenWorldCache transient;
     auto& resource=scene ? world_device.offscreen_world_cache : transient;
+    if (scene && resource.initialized &&
+        (resource.extent.width!=width || resource.extent.height!=height)) {
+        world_device.release_offscreen_world_cache();
+        // A pending GPU submission is never destroyed or replaced.
+        if (resource.initialized || resource.submitted) return 0;
+    }
     const bool reuse=scene && resource.initialized;
     auto& color=resource.color;
     auto& depth=resource.depth;
@@ -2320,7 +2345,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         image.imageType=VK_IMAGE_TYPE_2D;
         image.format=format;
-        image.extent={size,size,1};
+        image.extent={width,height,1};
         image.mipLevels=1;
         image.arrayLayers=1;
         image.samples=VK_SAMPLE_COUNT_1_BIT;
@@ -2370,7 +2395,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             if (depth_format==VK_FORMAT_UNDEFINED) return 0;
             VkImageCreateInfo di{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
             di.imageType=VK_IMAGE_TYPE_2D;
-            di.format=depth_format;di.extent={size,size,1};
+            di.format=depth_format;di.extent={width,height,1};
             di.mipLevels=1;di.arrayLayers=1;
             di.samples=VK_SAMPLE_COUNT_1_BIT;
             di.tiling=VK_IMAGE_TILING_OPTIMAL;
@@ -2440,8 +2465,8 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         const VkImageView views[2]{view,depth_view};
         fb.attachmentCount=scene ? 2u : 1u;
         fb.pAttachments=views;
-        fb.width=size;
-        fb.height=size;
+        fb.width=width;
+        fb.height=height;
         fb.layers=1;
         if (vkCreateFramebuffer(world_device.device,&fb,nullptr,
                                 &framebuffer)!=VK_SUCCESS || !framebuffer)
@@ -2517,12 +2542,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
             assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             VkViewport viewport{};
-            viewport.width=static_cast<float>(size);
-            viewport.height=static_cast<float>(size);
+            viewport.width=static_cast<float>(width);
+            viewport.height=static_cast<float>(height);
             viewport.minDepth=0.f;
             viewport.maxDepth=1.f;
             VkRect2D scissor{};
-            scissor.extent={size,size};
+            scissor.extent={width,height};
             VkPipelineViewportStateCreateInfo viewport_state{
                 VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
             viewport_state.viewportCount=1;
@@ -2617,18 +2642,30 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         VkRenderPassBeginInfo begin{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         begin.renderPass=render_pass;
         begin.framebuffer=framebuffer;
-        begin.renderArea.extent={size,size};
+        begin.renderArea.extent={width,height};
         VkClearValue clears[2]{clear,{}};
         clears[1].depthStencil.depth=1.f;
         begin.clearValueCount=scene ? 2u : 1u;
         begin.pClearValues=clears;
         vkCmdBeginRenderPass(command,&begin,VK_SUBPASS_CONTENTS_INLINE);
         if (scene) {
+            // Reproject the real validated Firestorm camera from its native
+            // viewport aspect to the PRIVATE diagnostic target's aspect.
+            // Column-major mat4: indices [0,4,8,12] are projected X.
+            // This does not mutate the real viewer camera or GPU mesh.
+            auto offscreen_projection=world_device.world_to_clip;
+            const float aspect_correction=
+                world_device.world_camera_aspect /
+                (float(width)/float(height));
+            if (!std::isfinite(aspect_correction) || aspect_correction<=0.f)
+                return 0;
+            for (unsigned col=0;col<4;++col)
+                offscreen_projection[col*4]*=aspect_correction;
             vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipeline_state.pipeline);
             vkCmdPushConstants(command,pipeline_state.pipeline_layout,
                 VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(float)*16,
-                world_device.world_to_clip.data());
+                offscreen_projection.data());
             const VkDeviceSize offset=0;
             vkCmdBindVertexBuffers(command,0,1,&world_device.mesh_vertices,&offset);
             vkCmdBindIndexBuffer(command,world_device.mesh_indices,0,
@@ -2655,7 +2692,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         VkBufferImageCopy copy{};
         copy.imageSubresource.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
         copy.imageSubresource.layerCount=1;
-        copy.imageExtent={size,size,1};
+        copy.imageExtent={width,height,1};
         vkCmdCopyImageToBuffer(command,color,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                readback,1,&copy);
         VkBufferMemoryBarrier transfer_to_host{
@@ -2704,17 +2741,19 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                    std::abs(int(rgba[offset+2])-153)<=1 &&
                    rgba[offset+3]==255;
         };
-        bool correct=matches(0) && matches(4*(size*size/2)) &&
-                     matches(4*(size*size-1));
+        bool correct=matches(0) && matches(4*(size_t(width)*height/2)) &&
+                     matches(4*(size_t(width)*height-1));
         if (scene) {
             // The GPU actually drew indexed world geometry. Count every
             // changed pixel without exposing image/region/player data.
             // An all-clear frame is valid if the camera sees no geometry,
             // but never label that as visible geometry.
             uint32_t changed=0;
-            for (uint32_t pixel=0;pixel<size*size;++pixel)
+            for (uint32_t pixel=0;pixel<width*height;++pixel)
                 if (!matches(size_t(pixel)*4)) ++changed;
             world_device.offscreen_world_covered_pixels=changed;
+            world_device.offscreen_world_width=width;
+            world_device.offscreen_world_height=height;
             ++world_device.offscreen_world_frames;
             correct=true; // a completed GPU raster/readback, NOT visibility
         }
@@ -2722,6 +2761,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         if (scene && correct) {
             if (reuse) ++world_device.offscreen_world_reuses;
             else {
+                resource.extent={width,height};
                 resource.initialized=true;
                 ++world_device.offscreen_world_builds;
             }
@@ -3787,6 +3827,12 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames() 
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels() {
     return world_device.offscreen_world_covered_pixels;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_width() {
+    return world_device.offscreen_world_width;
+}
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_height() {
+    return world_device.offscreen_world_height;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_cache_builds() {
     return world_device.offscreen_world_builds;
