@@ -9522,6 +9522,10 @@ void LLPipeline::renderDeferredLighting()
                 ogl_tracked_ids.clear();
                 ogl_rtx_last_region_id = current_region_id;
             }
+            // Region identity is current: no camera-only Vulkan sample
+            // can combine a new teleport destination with old geometry.
+            if (ogl_rtx_region && !current_region_id.isNull())
+                ogl_rtx_after_region_camera_tick();
 
             // Capture a strictly limited subset of actual local volume/mesh
             // triangles from the loaded OpenSim scene every 180 frames.

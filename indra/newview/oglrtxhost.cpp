@@ -90,6 +90,14 @@ ogl_rtx_frame_state last_live_world_camera{};
 bool last_live_world_camera_valid = false;
 std::uint64_t live_world_region_epoch = 0;
 std::uint64_t live_world_rebinds = 0;
+// Camera-only samples are separately opted-in and rate-limited.
+std::uint64_t live_world_camera_tick_calls = 0;
+std::uint64_t live_world_camera_tick_attempts = 0;
+std::uint64_t live_world_camera_tick_unchanged = 0;
+ogl_rtx_frame_state live_world_last_offscreen_pose{};
+bool live_world_last_offscreen_pose_valid = false;
+std::uint64_t live_world_last_offscreen_mesh_generation = 0;
+std::uint64_t live_world_last_offscreen_region_epoch = 0;
 bool world_camera_live_logged = false;
 bool world_inputs_live_logged = false;
 using ogl_world_device_ready_fn = int (*)();
@@ -303,6 +311,13 @@ void ogl_init_rtx_module() {
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
     live_world_rebinds=0;
+    live_world_camera_tick_calls=0;
+    live_world_camera_tick_attempts=0;
+    live_world_camera_tick_unchanged=0;
+    live_world_last_offscreen_pose={};
+    live_world_last_offscreen_pose_valid=false;
+    live_world_last_offscreen_mesh_generation=0;
+    live_world_last_offscreen_region_epoch=0;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     world_device_ready = reinterpret_cast<ogl_world_device_ready_fn>(
@@ -478,6 +493,13 @@ void ogl_shutdown_rtx_module() {
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
     live_world_rebinds=0;
+    live_world_camera_tick_calls=0;
+    live_world_camera_tick_attempts=0;
+    live_world_camera_tick_unchanged=0;
+    live_world_last_offscreen_pose={};
+    live_world_last_offscreen_pose_valid=false;
+    live_world_last_offscreen_mesh_generation=0;
+    live_world_last_offscreen_region_epoch=0;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     world_device_ready = nullptr;
@@ -526,6 +548,129 @@ bool ogl_vulkan_world_mesh_staging_enabled() {
 #endif
 }
 
+// Private Vulkan OFFSCREEN GPU diagnostic while OpenGL owns the live
+// window. Every external permission is opt-in; no GL framebuffer read
+// and never a VkQueuePresentKHR or user/avatar/region image export.
+bool ogl_live_offscreen_developer_enabled() {
+#if LL_LINUX || LL_WINDOWS
+    static const bool opted_in=[] {
+        const char* live=std::getenv("OGL_VULKAN_LIVE_WORLD_OFFSCREEN");
+        const char* base=std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
+        const char* raster=std::getenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER");
+        return live && base && raster &&
+            std::strcmp(live,"1")==0 && std::strcmp(base,"1")==0 &&
+            std::strcmp(raster,"1")==0;
+    }();
+    return opted_in && world_render_offscreen_scene &&
+        world_offscreen_scene_frames && world_offscreen_scene_pixels;
+#else
+    return false;
+#endif
+}
+
+bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
+#if LL_LINUX || LL_WINDOWS
+    if (!ogl_live_offscreen_developer_enabled() ||
+        !world_input_ready || world_input_ready()!=1 ||
+        !world_mesh_generation || !world_camera_mesh_generation ||
+        world_mesh_generation()==0 ||
+        world_camera_mesh_generation()!=world_mesh_generation())
+        return false;
+    const auto old_count=world_offscreen_scene_frames();
+    const bool rendered=world_render_offscreen_scene()==1 &&
+        world_offscreen_scene_frames()==old_count+1;
+    if (!rendered) ++world_offscreen_scene_failures;
+    LL_INFOS("OGLRenderer")
+        << "P05 real Firestorm world Vulkan OFFSCREEN GPU draw: "
+        << (rendered ? "completed" : "unavailable")
+        << " source=" << source
+        << " frames=" << world_offscreen_scene_frames()
+        << " nonclear_pixels=" << (rendered ?
+            world_offscreen_scene_pixels() : 0)
+        << " failures=" << world_offscreen_scene_failures
+        << " cache_builds=" << (world_offscreen_cache_builds ?
+            world_offscreen_cache_builds() : 0)
+        << " cache_reuses=" << (world_offscreen_cache_reuses ?
+            world_offscreen_cache_reuses() : 0)
+        << " cache_releases=" << (world_offscreen_cache_releases ?
+            world_offscreen_cache_releases() : 0)
+        << "; 32x32 private VkImage, NO Vulkan present, "
+           "OpenGL owns viewer window."
+        << LL_ENDL;
+    return rendered;
+#else
+    return false;
+#endif
+}
+
+// The 32x32 GPU World shader consumes camera position/orientation/FOV,
+// NOT the sun vector. Ignore unrelated sunlight changes to avoid expensive
+// GPU diagnostics when the viewer camera has not actually moved.
+bool ogl_same_world_camera_pose(const ogl_rtx_frame_state& a,
+                                const ogl_rtx_frame_state& b) {
+    return a.width==b.width && a.height==b.height &&
+        a.vertical_fov_radians==b.vertical_fov_radians &&
+        a.aspect_ratio==b.aspect_ratio &&
+        a.near_clip_m==b.near_clip_m &&
+        a.far_clip_m==b.far_clip_m &&
+        std::memcmp(a.camera_position,b.camera_position,
+                    sizeof(a.camera_position))==0 &&
+        std::memcmp(a.camera_forward,b.camera_forward,
+                    sizeof(a.camera_forward))==0 &&
+        std::memcmp(a.camera_right,b.camera_right,
+                    sizeof(a.camera_right))==0 &&
+        std::memcmp(a.camera_up,b.camera_up,
+                    sizeof(a.camera_up))==0;
+}
+
+// Must run AFTER the actual pipeline has checked the current region UUID.
+// Does not upload a mesh, create a swapchain or own the OpenGL window.
+// Every 120 eligible deferred frames, only when the validated pose CHANGED.
+void ogl_rtx_after_region_camera_tick() {
+#if LL_LINUX || LL_WINDOWS
+    static const bool opted_in=[] {
+        const char* tick=std::getenv("OGL_VULKAN_LIVE_CAMERA_TICK");
+        return tick && std::strcmp(tick,"1")==0;
+    }();
+    if (!opted_in || !ogl_live_offscreen_developer_enabled() ||
+        !last_live_world_camera_valid || !world_input_ready ||
+        !world_mesh_generation || !world_camera_mesh_generation)
+        return;
+    ++live_world_camera_tick_calls;
+    constexpr std::uint64_t camera_interval=120;
+    if (!ogl_vulkan_camera_tick_due(live_world_camera_tick_calls))
+        return;
+    if (!world_input_ready() || world_mesh_generation()==0 ||
+        world_camera_mesh_generation()!=world_mesh_generation())
+        return;
+    const auto revision=world_mesh_generation();
+    if (live_world_last_offscreen_pose_valid &&
+        live_world_last_offscreen_mesh_generation==revision &&
+        live_world_last_offscreen_region_epoch==live_world_region_epoch &&
+        ogl_same_world_camera_pose(live_world_last_offscreen_pose,
+                                   last_live_world_camera)) {
+        ++live_world_camera_tick_unchanged;
+        return;
+    }
+    ++live_world_camera_tick_attempts;
+    if (ogl_firestorm_offscreen_gpu_sample("camera-tick")) {
+        live_world_last_offscreen_pose=last_live_world_camera;
+        live_world_last_offscreen_pose_valid=true;
+        live_world_last_offscreen_mesh_generation=revision;
+        live_world_last_offscreen_region_epoch=live_world_region_epoch;
+        if (live_world_camera_tick_attempts<=3 ||
+            live_world_camera_tick_attempts%64==0)
+            LL_INFOS("OGLRenderer")
+                << "P05 live Vulkan camera-only GPU tick: "
+                << "attempts=" << live_world_camera_tick_attempts
+                << " unchanged=" << live_world_camera_tick_unchanged
+                << " camera_interval=" << camera_interval
+                << "; same mesh generation, OpenGL remains active."
+                << LL_ENDL;
+    }
+#endif
+}
+
 // The region UUID is compared by the actual Firestorm pipeline. No UUID
 // or position is exported to diagnostics; only invalidate the cached pose.
 // Called AFTER the pipeline has detected a genuine OpenSim region change,
@@ -535,6 +680,11 @@ bool ogl_rtx_on_region_transition() {
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     ++live_world_region_epoch;
+    live_world_camera_tick_calls=0;
+    live_world_last_offscreen_pose={};
+    live_world_last_offscreen_pose_valid=false;
+    live_world_last_offscreen_mesh_generation=0;
+    live_world_last_offscreen_region_epoch=0;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     // New region may arrive while old Vulkan frames still reference
@@ -603,7 +753,11 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
         // callback invalidates the copy independently of GPU state.
         last_live_world_camera_valid=false;
     }
-    if (gpu_camera && world_set_camera(&frame)==1) {
+    const bool accepted_gpu_camera=gpu_camera &&
+        world_set_camera(&frame)==1;
+    if (gpu_camera && !accepted_gpu_camera)
+        world_inputs_live_logged=false; // stale camera cannot remain "ready"
+    if (accepted_gpu_camera) {
         last_live_world_camera=frame;
         last_live_world_camera_valid=true;
         // First real viewer-camera input, NOT a displayed Vulkan frame.
@@ -671,46 +825,17 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                 world_input_ready()==1) {
                 ++live_world_rebinds;
                 world_inputs_live_logged=true;
-                // Explicit developer-only 32x32 GPU raster validation of
-                // the ACTUAL current Firestorm camera + OpenSim triangle
-                // capture while OpenGL owns its visible window. NEVER
-                // acquire/present a Vulkan swapchain or touch SDL here.
-                // One synchronous 2s-bounded GPU diagnostic at most
-                // 3 times initially, then once per 64 new scene snapshots.
-                // No per-frame recording, screenshots or player data.
-                static const bool gpu_offscreen_opt_in=[] {
-                    const char* live=std::getenv("OGL_VULKAN_LIVE_WORLD_OFFSCREEN");
-                    const char* base=std::getenv("OGL_VULKAN_OFFSCREEN_FRAME_PROBE");
-                    const char* raster=std::getenv("OGL_VULKAN_WORLD_OFFSCREEN_RASTER");
-                    return live && base && raster &&
-                        std::strcmp(live,"1")==0 &&
-                        std::strcmp(base,"1")==0 &&
-                        std::strcmp(raster,"1")==0;
-                }();
-                if (gpu_offscreen_opt_in && world_render_offscreen_scene &&
-                    world_offscreen_scene_frames &&
-                    world_offscreen_scene_pixels &&
-                    (live_world_rebinds<=3 || live_world_rebinds%64==0)) {
-                    const auto old_count=world_offscreen_scene_frames();
-                    const bool rendered=world_render_offscreen_scene()==1 &&
-                        world_offscreen_scene_frames()==old_count+1;
-                    if (!rendered) ++world_offscreen_scene_failures;
-                    LL_INFOS("OGLRenderer")
-                        << "P05 real Firestorm world Vulkan OFFSCREEN GPU draw: "
-                        << (rendered ? "completed" : "unavailable")
-                        << " frames=" << world_offscreen_scene_frames()
-                        << " nonclear_pixels=" << (rendered ?
-                            world_offscreen_scene_pixels() : 0)
-                        << " failures=" << world_offscreen_scene_failures
-                        << " cache_builds=" << (world_offscreen_cache_builds ?
-                            world_offscreen_cache_builds() : 0)
-                        << " cache_reuses=" << (world_offscreen_cache_reuses ?
-                            world_offscreen_cache_reuses() : 0)
-                        << " cache_releases=" << (world_offscreen_cache_releases ?
-                            world_offscreen_cache_releases() : 0)
-                        << "; 32x32 private VkImage, NO Vulkan present, "
-                           "OpenGL owns viewer window."
-                        << LL_ENDL;
+                // Newly published region meshes get a bounded validation.
+                // Camera-only redraws have a separate, slower tick AFTER
+                // the real OpenSim region-ID comparison in pipeline.cpp.
+                if ((live_world_rebinds<=3 || live_world_rebinds%64==0) &&
+                    ogl_firestorm_offscreen_gpu_sample("mesh-rebind")) {
+                    live_world_last_offscreen_pose=last_live_world_camera;
+                    live_world_last_offscreen_pose_valid=true;
+                    live_world_last_offscreen_mesh_generation=
+                        world_mesh_generation();
+                    live_world_last_offscreen_region_epoch=
+                        live_world_region_epoch;
                 }
                 // Bounded diagnostics without region IDs, avatar positions,
                 // object names or unbounded per-frame logging.

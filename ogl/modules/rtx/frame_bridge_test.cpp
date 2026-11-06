@@ -1545,7 +1545,33 @@ int main(int argc, char** argv) {
                 offscreen_world_frames()==offscreen_start+4 &&
                 offscreen_world_pixels()>0 &&
                 offscreen_cache_builds()==offscreen_build0+2 &&
-                offscreen_cache_reuses()==offscreen_reuse0+2 &&
+                offscreen_cache_reuses()==offscreen_reuse0+2;
+            // P05 camera-only GPU redraws: EXACT SAME uploaded VkBuffers
+            // and mesh generation, no new scene upload or GPU retirement.
+            // First camera moves completely out of the scene, then back
+            // into view. Offscreen cached pipeline must be used both times.
+            const uint64_t static_mesh_generation=mesh_generation();
+            const uint64_t static_mesh_uploads=mesh_uploads();
+            const uint32_t static_mesh_waits=mesh_retire_waits();
+            camera.camera_position[1]=50.f;
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                live_inputs()==1 && offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+5 &&
+                offscreen_world_pixels()==0 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                mesh_retire_waits()==static_mesh_waits &&
+                offscreen_cache_reuses()==offscreen_reuse0+3;
+            camera.camera_position[1]=20.f;
+            barrier_ok=barrier_ok && world_camera(&camera)==1 &&
+                live_inputs()==1 && offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+6 &&
+                offscreen_world_pixels()>0 &&
+                mesh_generation()==static_mesh_generation &&
+                mesh_uploads()==static_mesh_uploads &&
+                mesh_retire_waits()==static_mesh_waits &&
+                offscreen_cache_builds()==offscreen_build0+2 &&
+                offscreen_cache_reuses()==offscreen_reuse0+4 &&
                 offscreen_cache_release()==1 &&
                 offscreen_cache_releases()==offscreen_release0+2 &&
                 offscreen_cache_release()==0;

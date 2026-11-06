@@ -1067,6 +1067,90 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("vkQueuePresentKHR(",fn)
         self.assertNotIn("vkCreateSwapchainKHR(",fn)
 
+    def test_p05_real_opensim_camera_only_gpu_ticks_after_region_validation(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn("void ogl_rtx_after_region_camera_tick();",header)
+        self.assertIn("constexpr bool ogl_vulkan_camera_tick_due(std::uint64_t frame)",header)
+        for boundary in ("!ogl_vulkan_camera_tick_due(0)",
+                         "ogl_vulkan_camera_tick_due(1)",
+                         "!ogl_vulkan_camera_tick_due(2)",
+                         "!ogl_vulkan_camera_tick_due(120)",
+                         "ogl_vulkan_camera_tick_due(121)",
+                         "!ogl_vulkan_camera_tick_due(240)",
+                         "ogl_vulkan_camera_tick_due(241)"):
+            self.assertIn(boundary,header)
+        self.assertIn("void ogl_rtx_after_region_camera_tick() {",host)
+        self.assertIn("OGL_VULKAN_LIVE_CAMERA_TICK",host)
+        self.assertIn("OGL_VULKAN_LIVE_WORLD_OFFSCREEN",host)
+        self.assertIn("OGL_VULKAN_WORLD_OFFSCREEN_RASTER",host)
+        self.assertIn("OGL_VULKAN_OFFSCREEN_FRAME_PROBE",host)
+        self.assertIn("const bool accepted_gpu_camera=gpu_camera &&",host)
+        self.assertIn("if (gpu_camera && !accepted_gpu_camera)",host)
+        self.assertIn("world_inputs_live_logged=false; // stale camera",host)
+        a=pipeline.index("ogl_rtx_submit_camera_sun(viewport.getWidth()")
+        b=pipeline.index("if (current_region_id != ogl_rtx_last_region_id)")
+        c=pipeline.index("ogl_rtx_after_region_camera_tick();")
+        d=pipeline.index("ogl_rtx_submit_world_triangles(\n                        triangles.front().position")
+        self.assertLess(a,b)
+        self.assertLess(b,c)
+        self.assertLess(c,d)
+        self.assertLess(pipeline.index("ogl_rtx_on_region_transition();",b),c)
+        self.assertIn("if (ogl_rtx_region && !current_region_id.isNull())",pipeline)
+        start=host.index("void ogl_rtx_after_region_camera_tick() {")
+        end=host.index("// The region UUID is compared",start)
+        fn=host[start:end]
+        for token in ("std::getenv(\"OGL_VULKAN_LIVE_CAMERA_TICK\")",
+                      "ogl_live_offscreen_developer_enabled()",
+                      "last_live_world_camera_valid",
+                      "++live_world_camera_tick_calls;",
+                      "constexpr std::uint64_t camera_interval=120;",
+                      "ogl_vulkan_camera_tick_due(live_world_camera_tick_calls)",
+                      "world_input_ready()",
+                      "world_mesh_generation()==0",
+                      "world_camera_mesh_generation()!=world_mesh_generation()",
+                      "live_world_last_offscreen_mesh_generation==revision",
+                      "live_world_last_offscreen_region_epoch==live_world_region_epoch",
+                      "ogl_same_world_camera_pose(",
+                      "++live_world_camera_tick_unchanged;",
+                      "++live_world_camera_tick_attempts;",
+                      'ogl_firestorm_offscreen_gpu_sample("camera-tick")',
+                      "live_world_last_offscreen_pose=last_live_world_camera;"):
+            self.assertIn(token,fn)
+        self.assertNotIn("world_upload_geometry(",fn)
+        self.assertNotIn("vkQueuePresentKHR(",fn)
+        self.assertNotIn("SDL_",fn)
+        cstart=host.index("bool ogl_same_world_camera_pose(")
+        cend=host.index("// Must run AFTER",cstart)
+        comparator=host[cstart:cend]
+        for part in ("a.width==b.width","a.height==b.height",
+                     "a.vertical_fov_radians==b.vertical_fov_radians",
+                     "a.aspect_ratio==b.aspect_ratio",
+                     "a.near_clip_m==b.near_clip_m",
+                     "a.far_clip_m==b.far_clip_m",
+                     "a.camera_position,b.camera_position",
+                     "a.camera_forward,b.camera_forward",
+                     "a.camera_right,b.camera_right",
+                     "a.camera_up,b.camera_up"):
+            self.assertIn(part,comparator)
+        self.assertNotIn("sun_direction",comparator)
+        region=host.index("bool ogl_rtx_on_region_transition()")
+        self.assertIn("live_world_camera_tick_calls=0;",host[region:region+900])
+        self.assertIn("live_world_last_offscreen_pose_valid=false;",host[region:region+900])
+        self.assertIn('ogl_firestorm_offscreen_gpu_sample("mesh-rebind")',host)
+        self.assertIn("world_render_offscreen_scene()==1",host)
+        self.assertIn("world_offscreen_scene_frames()==old_count+1",host)
+        self.assertIn("camera.camera_position[1]=50.f;",native)
+        self.assertIn("camera.camera_position[1]=20.f;",native)
+        self.assertIn("static_mesh_generation=mesh_generation()",native)
+        self.assertIn("mesh_uploads()==static_mesh_uploads",native)
+        self.assertIn("mesh_retire_waits()==static_mesh_waits",native)
+        self.assertIn("offscreen_cache_reuses()==offscreen_reuse0+4",native)
+        # Inactive Vulkan never selects the product backend.
+        self.assertIn("caps.vulkan_world_pipeline_complete = false;",host)
+
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

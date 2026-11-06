@@ -122,6 +122,21 @@ bool ogl_vulkan_world_mesh_staging_enabled();
 // false means the existing generic clear path remains responsible. The real
 // OpenGL region transition proceeds regardless of Vulkan availability.
 bool ogl_rtx_on_region_transition();
+// Portable, side-effect-free developer sampling policy: first eligible
+// deferred camera frame, then one every 120. OpenGL remains the backend.
+constexpr bool ogl_vulkan_camera_tick_due(std::uint64_t frame) noexcept {
+    return frame>0 && (frame-1u)%120u==0;
+}
+static_assert(!ogl_vulkan_camera_tick_due(0));
+static_assert(ogl_vulkan_camera_tick_due(1));
+static_assert(!ogl_vulkan_camera_tick_due(2));
+static_assert(!ogl_vulkan_camera_tick_due(120));
+static_assert(ogl_vulkan_camera_tick_due(121));
+static_assert(!ogl_vulkan_camera_tick_due(240));
+static_assert(ogl_vulkan_camera_tick_due(241));
+// Only after the actual Firestorm region-UUID comparison: optionally
+// render a changed, validated camera using already-accepted GPU mesh.
+void ogl_rtx_after_region_camera_tick();
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.
