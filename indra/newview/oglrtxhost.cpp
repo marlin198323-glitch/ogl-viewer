@@ -70,6 +70,8 @@ ogl_world_input_ready_fn world_input_ready = nullptr;
 using ogl_world_generation_fn = std::uint64_t (*)();
 ogl_world_generation_fn world_mesh_generation = nullptr;
 ogl_world_generation_fn world_camera_mesh_generation = nullptr;
+using ogl_world_region_barrier_fn = int (*)();
+ogl_world_region_barrier_fn world_invalidate_region = nullptr;
 // The real Firestorm camera is sampled BEFORE the deferred scene scan.
 // Retain it only after successful module validation, and invalidate it on
 // every real region change. It may be rebound after accepted geometry,
@@ -272,6 +274,8 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_mesh_generation"));
     world_camera_mesh_generation = reinterpret_cast<ogl_world_generation_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_camera_mesh_generation"));
+    world_invalidate_region = reinterpret_cast<ogl_world_region_barrier_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_invalidate_region"));
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
@@ -439,6 +443,7 @@ void ogl_shutdown_rtx_module() {
     world_input_ready = nullptr;
     world_mesh_generation = nullptr;
     world_camera_mesh_generation = nullptr;
+    world_invalidate_region = nullptr;
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     live_world_region_epoch=0;
@@ -495,14 +500,31 @@ bool ogl_vulkan_world_mesh_staging_enabled() {
 // or position is exported to diagnostics; only invalidate the cached pose.
 // Called AFTER the pipeline has detected a genuine OpenSim region change,
 // NOT when a partial geometry scan returns zero candidates.
-void ogl_rtx_on_region_transition() {
+bool ogl_rtx_on_region_transition() {
 #if LL_LINUX || LL_WINDOWS
     last_live_world_camera={};
     last_live_world_camera_valid=false;
     ++live_world_region_epoch;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
+    // New region may arrive while old Vulkan frames still reference
+    // their VkBuffers. A dedicated opt-in barrier invalidates GPU camera
+    // first, waits only pending submit fences, then releases old geometry.
+    // No Vulkan present and no SDL window access in this callback.
+    const char* enabled=std::getenv("OGL_VULKAN_LIVE_REGION_BARRIER");
+    if (enabled && std::strcmp(enabled,"1")==0 &&
+        world_invalidate_region && world_device_ready &&
+        world_device_ready()==1) {
+        const bool done=world_invalidate_region()==1;
+        if (!done)
+            LL_WARNS("OGLRenderer")
+                << "P05 region transition GPU barrier unavailable; "
+                   "Vulkan world input remains invalid, OpenGL continues."
+                << LL_ENDL;
+        return done;
+    }
 #endif
+    return false;
 }
 
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,

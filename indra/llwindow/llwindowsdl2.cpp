@@ -202,6 +202,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool dual_sync_verified=false;
     bool persistent_verified=false;
     bool mesh_rotation_verified=false;
+    bool region_barrier_verified=false;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -271,7 +272,16 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_MESH_ROTATION_PROBE");
     const bool mesh_rotation=mesh_rotation_requested &&
         mesh_rotation_permission && persistent_world && sequence;
-    if (mesh_rotation_requested!=mesh_rotation_permission ||
+    const bool region_barrier_requested=
+        ogl_pre_gl_flag("OGL_VULKAN_LIVE_REGION_BARRIER");
+    const bool region_barrier_permission=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_REGION_BARRIER_PROBE");
+    const bool region_barrier=region_barrier_requested &&
+        region_barrier_permission && persistent_world && sequence &&
+        !mesh_rotation;
+    if (region_barrier_requested!=region_barrier_permission ||
+        (region_barrier_requested && !region_barrier) ||
+        mesh_rotation_requested!=mesh_rotation_permission ||
         (mesh_rotation_requested && !mesh_rotation) ||
         persistent_requested!=persistent_permission ||
         persistent_world_requested!=persistent_world_permission ||
@@ -316,12 +326,22 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     SDL_LoadFunction(library,"ogl_vulkan_world_mesh_retire_waits"));
                 const auto mesh_retire_failures=reinterpret_cast<Count>(
                     SDL_LoadFunction(library,"ogl_vulkan_world_mesh_retire_failures"));
+                const auto invalidate_region=reinterpret_cast<int (*)()>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_invalidate_region"));
+                const auto region_accepts=reinterpret_cast<uint64_t (*)()>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_region_barrier_accepts"));
+                const auto region_failures=reinterpret_cast<uint64_t (*)()>(
+                    SDL_LoadFunction(library,"ogl_vulkan_world_region_barrier_failures"));
                 // Before the multi-extent acceptance, stage the synthetic
                 // camera-projected test mesh ONCE. It is immutable while GPU
                 // submissions may still refer to its VkBuffers.
                 bool persistent_world_uploaded=true;
                 if (mesh_rotation && (!mesh_generation ||
                     !mesh_retire_waits || !mesh_retire_failures))
+                    persistent_world_uploaded=false;
+                if (region_barrier && (!invalidate_region || !region_accepts ||
+                    !region_failures || !mesh_retire_waits ||
+                    !mesh_retire_failures))
                     persistent_world_uploaded=false;
                 if (persistent_world && sequence) {
                     const ogl_rtx_triangle mesh[2]{
@@ -362,8 +382,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         const int blue=channel(image->blue_mask);
                         XDestroyImage(image);
                         const bool triangle=raster && sample==0;
-                        const bool far_triangle=mesh_rotation &&
-                            attempted_groups==1 && (frame==1 || frame==3);
+                        const bool far_triangle=attempted_groups==1 &&
+                            ((mesh_rotation && (frame==1 || frame==3)) ||
+                             (region_barrier && frame==1));
                         const bool warm=(frame%2)==1;
                         const int wanted_red=triangle ? (far_triangle?20:237)
                             : (warm?166:20);
@@ -434,7 +455,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         camera.near_clip_m=2.f;camera.far_clip_m=10.f;
                         good=persistent_world_uploaded &&
                             set_camera(&camera)==1 && camera_ready()==1 &&
-                            mesh_count()==(mesh_rotation && group>1 ? 1u : 2u);
+                            mesh_count()==((mesh_rotation || region_barrier) &&
+                                group>1 ? 1u : 2u);
                     }
                     attached|=good;
                     if (good) {
@@ -449,6 +471,31 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     << group_name << LL_ENDL;
                                 good=false;
                                 break;
+                            }
+                            if (good && region_barrier && group==1 &&
+                                (frame==1 || frame==2)) {
+                                const ogl_rtx_triangle near{{
+                                    12.5f,18.f,28.4f,
+                                    12.5f,22.f,28.4f,
+                                    12.5f,20.f,31.6f}};
+                                const ogl_rtx_triangle far{{
+                                    15.f,16.f,26.8f,
+                                    15.f,24.f,26.8f,
+                                    15.f,20.f,33.2f}};
+                                // Separate real OpenSim REGION barrier:
+                                // do not grant general mesh rotation.
+                                // No old mesh/camera can be presented after
+                                // this call; the new region needs both.
+                                good=invalidate_region()==1 &&
+                                    mesh_count()==0 &&
+                                    camera_ready()==0 &&
+                                    selected_present(1)==0;
+                                const auto& new_region=frame==1 ? far : near;
+                                good=good && upload(&new_region,1)==1 &&
+                                    mesh_count()==1 &&
+                                    camera_ready()==0 &&
+                                    set_camera(&camera)==1 &&
+                                    camera_ready()==1;
                             }
                             if (good && mesh_rotation && group==1 &&
                                 (frame==1 || frame==2 ||
@@ -489,6 +536,14 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     // across resize; release before SDL_SetWindowSize.
                     detach();
                     if (count && count()!=0) good=false;
+                    if (region_barrier && group==1) {
+                        region_barrier_verified=good &&
+                            region_accepts()==2 &&
+                            region_failures()==0 &&
+                            mesh_retire_waits()>=2 &&
+                            mesh_retire_failures()==0;
+                        good=good && region_barrier_verified;
+                    }
                     if (mesh_rotation && group==1) {
                         mesh_rotation_verified=good &&
                             mesh_retire_waits()!=0 &&
@@ -665,6 +720,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             : "not-requested") <<
         ", mesh-rotation=" << (mesh_rotation
             ? (mesh_rotation_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", region-barrier=" << (region_barrier
+            ? (region_barrier_verified ? "verified" : "failed")
             : "not-requested") <<
         ", resize=" << (sequence ? (sequence_verified ? "verified" : "failed")
                                  : "not-requested") <<

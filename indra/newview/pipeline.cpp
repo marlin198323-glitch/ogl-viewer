@@ -9516,8 +9516,8 @@ void LLPipeline::renderDeferredLighting()
                 // The camera at the top of this deferred pass might still
                 // belong to the previous region. Invalidate its host cache
                 // BEFORE clearing the GPU scene and accepting new meshes.
-                ogl_rtx_on_region_transition();
-                if (!ogl_rtx_last_region_id.isNull())
+                const bool gpu_region_retired=ogl_rtx_on_region_transition();
+                if (!ogl_rtx_last_region_id.isNull() && !gpu_region_retired)
                     ogl_rtx_submit_world_triangles(nullptr, 0);
                 ogl_tracked_ids.clear();
                 ogl_rtx_last_region_id = current_region_id;

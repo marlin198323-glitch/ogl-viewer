@@ -779,7 +779,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         b=module.index("int ",a+10) if "int " in module[a+10:] else len(module)
         fn=module[a:b]
         self.assertIn("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",fn)
-        self.assertIn("if (frames.initialized && frames.submitted_any)",fn)
+        self.assertIn("if (frames.initialized && frames.submitted_any &&",fn)
         self.assertIn("frames.submitted_mesh_generations[i]==world_device.mesh_generation",fn)
         self.assertIn("VkFence unfinished[2]",fn)
         self.assertIn("2000000000ULL",fn)
@@ -802,7 +802,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("persistent_world && sequence",win)
         self.assertIn("mesh_rotation_requested!=mesh_rotation_permission",win)
         self.assertIn("mesh_rotation_verified=good &&",win)
-        self.assertIn("far_triangle=mesh_rotation",win)
+        self.assertIn("far_triangle=attempted_groups==1",win)
         self.assertIn("mesh-rotation=",win)
         self.assertLess(win.index("mesh_rotation_verified=good &&"),
                         win.index("SDL_GL_CreateContext( mWindow );"))
@@ -818,8 +818,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
         # The camera is submitted before a sometimes-later deferred scene
         # capture. The region callback MUST invalidate stale cached poses.
-        self.assertIn("void ogl_rtx_on_region_transition()",header)
-        self.assertIn("void ogl_rtx_on_region_transition() {",host)
+        self.assertIn("bool ogl_rtx_on_region_transition()",header)
+        self.assertIn("bool ogl_rtx_on_region_transition() {",host)
         self.assertIn("last_live_world_camera_valid=false;",host)
         self.assertIn("++live_world_region_epoch;",host)
         self.assertIn("ogl_rtx_on_region_transition();",pipeline)
@@ -876,6 +876,72 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("if (count==0) world_inputs_live_logged=false;",host)
         self.assertIn("if (!rtx_submit_geometry || !rtx_hardware_ready) return;",host)
         # It remains GL-owned after actual Firestorm scene capture.
+        self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
+
+    def test_p05_genuine_region_barrier_two_frame_slots_and_opengl_fallback(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        sdl=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        symbols=("ogl_vulkan_world_invalidate_region",
+                 "ogl_vulkan_world_region_barrier_accepts",
+                 "ogl_vulkan_world_region_barrier_failures")
+        for symbol in symbols:
+            self.assertIn(symbol,module)
+            self.assertIn(symbol,api)
+            self.assertIn(symbol,native)
+        a=module.index("int invalidate_live_world_region()")
+        b=module.index("// P05/4 Vulkan vertex/index buffer staging",a)
+        fun=module[a:b]
+        for token in ("OGL_VULKAN_LIVE_REGION_BARRIER",
+                      "OGL_VULKAN_WORLD_MESH_UPLOAD",
+                      "world_device.world_camera_ready=false;",
+                      "world_device.camera_mesh_generation=0;",
+                      "frames.submit_pending[i]",
+                      "frames.submitted_mesh_generations[i]==world_device.mesh_generation",
+                      "2000000000ULL","VK_TRUE","frames.blocked=true;",
+                      "++world_device.region_barrier_failures;",
+                      "++world_device.mesh_retire_waits;",
+                      "world_device.clear_mesh();",
+                      "++world_device.mesh_generation;",
+                      "++world_device.region_barrier_accepts;"):
+            self.assertIn(token,fun)
+        self.assertNotIn("vkQueueWaitIdle",fun)
+        self.assertLess(fun.index("world_device.world_camera_ready=false;"),
+                        fun.index("wait(world_device.device,pending,unfinished"))
+        self.assertLess(fun.index("wait(world_device.device,pending,unfinished"),
+                        fun.index("world_device.clear_mesh();"))
+        a=module.index("int upload_world_geometry(")
+        b=module.index("int ",a+10)
+        upload=module[a:b]
+        self.assertIn("if (frames.blocked) return 0;",upload)
+        self.assertIn("(world_device.mesh_vertices || world_device.mesh_indices)",upload)
+        self.assertIn("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",upload)
+        self.assertIn("OGL_VULKAN_LIVE_REGION_BARRIER_TEST_X11",native)
+        self.assertIn("region_barrier_accepts()==accepts0+2",native)
+        self.assertIn("world_upload(&far,1)==1",native)
+        self.assertIn("world_upload(&far,1)==0",native)
+        self.assertIn("persistent_idles()==idle0",native)
+        self.assertIn("bool ogl_rtx_on_region_transition()",header)
+        self.assertIn("bool ogl_rtx_on_region_transition() {",host)
+        self.assertIn("world_invalidate_region()==1",host)
+        self.assertIn("OGL_VULKAN_LIVE_REGION_BARRIER",host)
+        self.assertIn("return done;",host)
+        self.assertIn("const bool gpu_region_retired=ogl_rtx_on_region_transition();",pipeline)
+        self.assertIn("if (!ogl_rtx_last_region_id.isNull() && !gpu_region_retired)",pipeline)
+        self.assertLess(pipeline.index("const bool gpu_region_retired=ogl_rtx_on_region_transition();"),
+                        pipeline.index("ogl_rtx_submit_world_triangles(nullptr, 0);"))
+        self.assertIn("OGL_VULKAN_SDL_PREGL_REGION_BARRIER_PROBE",sdl)
+        self.assertIn("region_barrier_requested!=region_barrier_permission",sdl)
+        self.assertIn("!mesh_rotation;",sdl)
+        self.assertIn("good=invalidate_region()==1",sdl)
+        self.assertIn("region_barrier_verified=good &&",sdl)
+        self.assertIn("region-barrier=",sdl)
+        self.assertLess(sdl.index("region_barrier_verified=good &&"),
+                        sdl.index("SDL_GL_CreateContext( mWindow );"))
         self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
 
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
@@ -1256,7 +1322,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         test = (ROOT / "ogl/modules/rtx/ogl_live_gpu_probe_test.cpp").read_text()
         self.assertIn("ogl_rtx_last_region_id", pipeline)
         self.assertIn("ogl_rtx_region->getRegionID()", pipeline)
-        self.assertIn("if (!ogl_rtx_last_region_id.isNull())", pipeline)
+        self.assertIn("if (!ogl_rtx_last_region_id.isNull() && !gpu_region_retired)", pipeline)
         self.assertNotIn("else\n                    ogl_rtx_submit_world_triangles(nullptr, 0);",pipeline)
         self.assertIn("(!probe_depth_enabled && outcome.geometry_revision != geometry_revision)",plugin)
         self.assertIn("if (!probe_depth_enabled) {",plugin)

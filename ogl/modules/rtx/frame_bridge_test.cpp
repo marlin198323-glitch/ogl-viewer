@@ -85,6 +85,12 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_mesh_uploads"));
     const auto mesh_generation = reinterpret_cast<uint64_t(*)()>(
         dlsym(library,"ogl_vulkan_world_mesh_generation"));
+    const auto region_barrier = reinterpret_cast<int(*)()>(
+        dlsym(library,"ogl_vulkan_world_invalidate_region"));
+    const auto region_barrier_accepts = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_region_barrier_accepts"));
+    const auto region_barrier_failures = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_region_barrier_failures"));
     const auto mesh_dedup_skips = reinterpret_cast<uint64_t(*)()>(
         dlsym(library,"ogl_vulkan_world_mesh_dedup_skips"));
     const auto camera_mesh_generation = reinterpret_cast<uint64_t(*)()>(
@@ -102,7 +108,10 @@ int main(int argc, char** argv) {
     assert(world_camera && camera_ready && aspect_matches && live_inputs &&
            camera_updates && mesh_uploads && mesh_generation &&
            camera_mesh_generation && mesh_dedup_skips &&
-           mesh_retire_waits && mesh_retire_failures);
+           mesh_retire_waits && mesh_retire_failures &&
+           region_barrier && region_barrier_accepts && region_barrier_failures);
+    assert(region_barrier()==0 && region_barrier_accepts()==0 &&
+           region_barrier_failures()==0);
     assert(mesh_dedup_skips()==0 && camera_mesh_generation()==0);
     assert(mesh_generation()==0 && mesh_retire_waits()==0 &&
            mesh_retire_failures()==0);
@@ -1331,6 +1340,147 @@ int main(int argc, char** argv) {
                 static_cast<unsigned long long>(mesh_generation()),
                 mesh_retire_waits());
         }
+        // P05: a GENUINE region change is distinct from a generic mesh
+        // rotation. It must invalidate the old camera before retiring
+        // submissions from BOTH frame slots, even when rotation permission
+        // is absent. First new-region mesh may upload without that permission.
+        const char* barrier_env=std::getenv(
+            "OGL_VULKAN_LIVE_REGION_BARRIER_TEST_X11");
+        const bool test_region_barrier=barrier_env &&
+            std::strcmp(barrier_env,"1")==0;
+        bool barrier_ok=true,barrier_fenced=true,barrier_new_region=true;
+        if (test_region_barrier) {
+            for (const char* flag:{
+                 "OGL_VULKAN_WORLD_MESH_UPLOAD",
+                 "OGL_VULKAN_WORLD_CAMERA_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_RASTER_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_WORLD_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE"})
+                setenv(flag,"1",1);
+            unsetenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
+            const ogl_rtx_triangle near{{
+                12.5f,18.f,28.4f,12.5f,22.f,28.4f,12.5f,20.f,31.6f
+            }};
+            const ogl_rtx_triangle far{{
+                15.f,16.f,26.8f,15.f,24.f,26.8f,15.f,20.f,33.2f
+            }};
+            ogl_rtx_frame_state camera{};
+            camera.struct_size=sizeof(camera);
+            camera.frame_version=OGL_RTX_FRAME_VERSION;
+            camera.width=512;camera.height=384;
+            camera.camera_position[0]=10.f;
+            camera.camera_position[1]=20.f;
+            camera.camera_position[2]=30.f;
+            camera.camera_forward[0]=1.f;
+            camera.camera_right[1]=1.f;
+            camera.camera_up[2]=1.f;
+            camera.sun_direction[2]=1.f;
+            camera.vertical_fov_radians=1.57079632679f;
+            camera.aspect_ratio=4.f/3.f;
+            camera.near_clip_m=2.f;camera.far_clip_m=10.f;
+            XResizeWindow(display,window,512,384);
+            XSync(display,False);
+            const uint64_t gen0=mesh_generation();
+            const uint64_t accepts0=region_barrier_accepts();
+            const uint32_t retire0=mesh_retire_waits();
+            const uint32_t idle0=persistent_idles();
+            barrier_ok=world_upload(&near,1)==1 &&
+                world_camera(&camera)==1 &&
+                window_attach(display,static_cast<uint64_t>(window),
+                              512,384)==1 && live_inputs()==1 &&
+                persistent_clear(1)==1 &&
+                persistent_clear(1)==1 && persistent_count()==2;
+            auto center_matches=[&](int red,int green,int blue) {
+                for (unsigned attempt=0;attempt<120;++attempt) {
+                    XSync(display,False);
+                    XImage* img=XGetImage(display,window,256,192,
+                        1,1,AllPlanes,ZPixmap);
+                    if (img) {
+                        const unsigned long pixel=XGetPixel(img,0,0);
+                        auto channel=[pixel](unsigned long mask) {
+                            if (!mask) return -1;
+                            unsigned shift=0;
+                            while (!(mask&1UL)) {mask>>=1;++shift;}
+                            return static_cast<int>(
+                                (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                        };
+                        const bool match=
+                            std::abs(channel(img->red_mask)-red)<=5 &&
+                            std::abs(channel(img->green_mask)-green)<=5 &&
+                            std::abs(channel(img->blue_mask)-blue)<=5;
+                        XDestroyImage(img);
+                        if (match) return true;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+                }
+                return false;
+            };
+            barrier_ok=barrier_ok && center_matches(237,48,38) &&
+                // Without opt-in there is NO region barrier and the
+                // strict default running-mesh guard still applies.
+                region_barrier()==0 &&
+                world_upload(&far,1)==0 &&
+                world_gpu_count()==1 && live_inputs()==1;
+            setenv("OGL_VULKAN_LIVE_REGION_BARRIER","1",1);
+            barrier_ok=barrier_ok && region_barrier()==1 &&
+                region_barrier_accepts()==accepts0+1 &&
+                region_barrier_failures()==0 &&
+                mesh_generation()==gen0+2 &&
+                world_gpu_count()==0 &&
+                camera_ready()==0 && live_inputs()==0 &&
+                camera_mesh_generation()==0 &&
+                persistent_clear(1)==0 &&
+                persistent_count()==2;
+            barrier_fenced=mesh_retire_waits()==retire0+1 &&
+                persistent_idles()==idle0 &&
+                mesh_retire_failures()==0;
+            barrier_ok=barrier_ok && barrier_fenced;
+            // A new camera ALONE cannot make an empty region renderable.
+            barrier_new_region=world_camera(&camera)==1 &&
+                live_inputs()==0 && persistent_clear(1)==0 &&
+                // New REGION mesh may upload even without general
+                // in-flight MESH ROTATION permission.
+                world_upload(&far,1)==1 &&
+                mesh_generation()==gen0+3 &&
+                camera_ready()==0 && live_inputs()==0 &&
+                world_camera(&camera)==1 && live_inputs()==1 &&
+                persistent_clear(1)==1 &&
+                persistent_count()==3 &&
+                center_matches(20,199,41);
+            barrier_new_region=barrier_new_region &&
+                region_barrier()==1 &&
+                region_barrier_accepts()==accepts0+2 &&
+                mesh_generation()==gen0+4 &&
+                world_gpu_count()==0 && live_inputs()==0 &&
+                persistent_clear(1)==0 &&
+                mesh_retire_waits()==retire0+2 &&
+                persistent_idles()==idle0 &&
+                region_barrier_failures()==0;
+            barrier_ok=barrier_ok && barrier_new_region;
+            window_detach();
+            barrier_ok=barrier_ok && persistent_count()==0 &&
+                persistent_idles()==idle0+1;
+            for (const char* flag:{
+                 "OGL_VULKAN_LIVE_REGION_BARRIER",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_WORLD_PROBE",
+                 "OGL_VULKAN_EXCLUSIVE_RASTER_PROBE",
+                 "OGL_VULKAN_WORLD_CAMERA_PROBE",
+                 "OGL_VULKAN_WORLD_MESH_UPLOAD"})
+                unsetenv(flag);
+            std::fprintf(stdout,
+                "P05 live region barrier GPU: valid=%d fenced=%d "
+                "new_region=%d accepts=%llu waits=%u failures=%llu\n",
+                barrier_ok?1:0,barrier_fenced?1:0,
+                barrier_new_region?1:0,
+                static_cast<unsigned long long>(region_barrier_accepts()),
+                mesh_retire_waits(),
+                static_cast<unsigned long long>(region_barrier_failures()));
+        }
         stop();
         const uint32_t stopped_count=exclusive_count();
         if (test_world && camera_ready()!=0) world_bad=false;
@@ -1350,6 +1500,8 @@ int main(int argc, char** argv) {
             restored_frame!=1 || restored_repeat!=0 ||
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
+            (test_region_barrier && (!barrier_ok || !barrier_fenced ||
+                !barrier_new_region)) ||
             (test_rotation && (!rotation_ok || !rotation_invalid ||
                 !rotation_dedup || !rotation_clear || !rotation_no_idle)) ||
             (test_persistent_world && (!persistent_world_ok ||
@@ -1399,6 +1551,8 @@ int main(int argc, char** argv) {
             std::puts("P05 persistent Vulkan WORLD depth: 16 indexed GPU frames, camera motion, immutable mesh, resize/recreate PASS");
         if (test_rotation)
             std::puts("P05 GPU mesh-generation transitions: red/green/empty/red/green, bounded GPU fences, no per-frame queue idle PASS");
+        if (test_region_barrier)
+            std::puts("P05 real region barrier: two-slot GPU retirement, stale-camera rejection, new region mesh and Depth GPU present PASS");
     }
 #else
     // Portable CI may omit X11 headers. Strict X11 acceptance mode must

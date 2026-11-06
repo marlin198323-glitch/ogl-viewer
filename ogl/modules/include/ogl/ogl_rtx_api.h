@@ -120,6 +120,18 @@ OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads(void);
  * A successful mesh/empty-region clear advances the scene generation,
  * invalidates the old camera and requires a fresh camera before drawing.
  */
+/* Explicit real OpenSim region-transition safety barrier. Requires BOTH
+ * OGL_VULKAN_WORLD_MESH_UPLOAD=1 and OGL_VULKAN_LIVE_REGION_BARRIER=1.
+ * Invalidates the previous region camera BEFORE bounded waits and only
+ * frees old VkBuffers after the in-flight mesh-generation submit fences.
+ * No queue idle, no SDL/OpenGL window action. On GPU timeout it blocks
+ * further persistent Vulkan presents and leaves the old GPU memory alive.
+ * 1 = barrier accepted and old mesh retired; 0 = no permission/device,
+ * or failed wait. A failure NEVER authorizes a new Vulkan world frame.
+ */
+OGL_MODULE_EXPORT int ogl_vulkan_world_invalidate_region(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_region_barrier_accepts(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_region_barrier_failures(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_generation(void);
 /* Optional bit-exact unchanged-geometry coalescing:
  * OGL_VULKAN_WORLD_MESH_DEDUP=1. Returns success for byte-identical

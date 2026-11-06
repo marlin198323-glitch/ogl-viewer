@@ -206,6 +206,8 @@ struct WorldGraphicsDevice {
     // Never suppress a real scene change based on a hash collision.
     std::vector<ogl_rtx_triangle> mesh_cpu_snapshot;
     uint64_t mesh_dedup_skips = 0;
+    uint64_t region_barrier_accepts = 0;
+    uint64_t region_barrier_failures = 0;
     // CPU-generated Vulkan clip projection from a validated Firestorm
     // camera. Exactly 16 column-major floats for the 64-byte push constant.
     std::array<float,16> world_to_clip{};
@@ -346,6 +348,7 @@ struct WorldGraphicsDevice {
         mesh_uploads = 0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
+        region_barrier_accepts = region_barrier_failures = 0;
         mesh_retire_waits = mesh_retire_failures = 0;
         sync_max_outstanding = 0;
         sync_last_submitted = 0;
@@ -2423,6 +2426,63 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
     return 1;
 }
 
+// A genuine Firestorm region transition must invalidate the OLD world
+// immediately, even if GPU work from the old region is still in flight.
+// This is a separate, opt-in barrier, NOT a generic mesh upload/clear and
+// never touches the current OpenGL window. The scene is made non-presentable
+// BEFORE any bounded GPU waits, so failures cannot display stale geometry.
+int invalidate_live_world_region() {
+    const char* permitted=std::getenv("OGL_VULKAN_LIVE_REGION_BARRIER");
+    const char* upload=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
+    if (!permitted || std::strcmp(permitted,"1")!=0 ||
+        !upload || std::strcmp(upload,"1")!=0 ||
+        !world_device.device || !world_device.destroy_buffer ||
+        !world_device.free_memory)
+        return 0;
+    world_device.world_camera_ready=false;
+    world_device.world_camera_aspect=0.f;
+    world_device.camera_mesh_generation=0;
+    world_device.world_to_clip.fill(0.f);
+    auto& frames=world_device.persistent;
+    if (frames.blocked) {
+        ++world_device.region_barrier_failures;
+        return 0;
+    }
+    if (frames.initialized && frames.submitted_any) {
+        auto wait=reinterpret_cast<PFN_vkWaitForFences>(
+            world_device.device_proc(world_device.device,"vkWaitForFences"));
+        if (!wait) {
+            frames.blocked=true;
+            ++world_device.region_barrier_failures;
+            return 0;
+        }
+        VkFence unfinished[2]{VK_NULL_HANDLE,VK_NULL_HANDLE};
+        uint32_t pending=0;
+        for (size_t i=0;i<frames.submit_pending.size();++i)
+            if (frames.submit_pending[i] &&
+                frames.submitted_mesh_generations[i]==world_device.mesh_generation)
+                unfinished[pending++]=frames.submit_fences[i];
+        if (pending) {
+            if (wait(world_device.device,pending,unfinished,VK_TRUE,
+                     2000000000ULL)!=VK_SUCCESS) {
+                frames.blocked=true;
+                ++world_device.mesh_retire_failures;
+                ++world_device.region_barrier_failures;
+                return 0; // old GPU buffers stay alive on timeout
+            }
+            ++world_device.mesh_retire_waits;
+            for (size_t i=0;i<frames.submit_pending.size();++i)
+                if (frames.submitted_mesh_generations[i]==world_device.mesh_generation)
+                    frames.submit_pending[i]=false;
+        }
+    }
+    // Successful retirement: old region geometry cannot be used again.
+    world_device.clear_mesh();
+    ++world_device.mesh_generation;
+    ++world_device.region_barrier_accepts;
+    return 1;
+}
+
 // P05/4 Vulkan vertex/index buffer staging from the existing real OpenSim
 // triangle ABI. Not tied to NVIDIA/RTX/ray queries or to GL rendering.
 // Opt-in until a complete Vulkan render pass + shader pipeline exists.
@@ -2462,7 +2522,13 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     // GPU-fence handshake, WITHOUT vkQueueWaitIdle or swapping the window.
     // Present only references swapchain images/semaphores, not VkMeshBuffers.
     auto& frames=world_device.persistent;
-    if (frames.initialized && frames.submitted_any) {
+    if (frames.blocked) return 0;
+    // After a SUCCESSFUL region barrier the previous mesh is gone and
+    // all its GPU references are retired. The FIRST mesh of the new region
+    // may therefore be uploaded without a general rotation permission.
+    // If OLD VkBuffers still exist, retain the original strict opt-in.
+    if (frames.initialized && frames.submitted_any &&
+        (world_device.mesh_vertices || world_device.mesh_indices)) {
         const char* rotation=std::getenv(
             "OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
         if (!rotation || std::strcmp(rotation,"1")!=0 ||
@@ -3277,6 +3343,15 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads() {
 }
 // Scene generations distinguish accepted mesh snapshots and region-clear.
 // These are CPU/queue lifetime diagnostics, NOT live OpenSim region versions.
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_invalidate_region() {
+    return invalidate_live_world_region();
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_region_barrier_accepts() {
+    return world_device.region_barrier_accepts;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_region_barrier_failures() {
+    return world_device.region_barrier_failures;
+}
 extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_generation() {
     return world_device.mesh_generation;
 }

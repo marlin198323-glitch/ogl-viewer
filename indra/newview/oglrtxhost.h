@@ -118,7 +118,10 @@ bool ogl_vulkan_world_mesh_staging_enabled();
 // Real OpenSim region transitions invalidate the cached Vulkan camera.
 // The pipeline detects the UUID change; zero-triangle samples are NOT
 // region transitions. This does not change the active OpenGL engine.
-void ogl_rtx_on_region_transition();
+// True iff explicit Vulkan region barrier already retired old GPU geometry;
+// false means the existing generic clear path remains responsible. The real
+// OpenGL region transition proceeds regardless of Vulkan availability.
+bool ogl_rtx_on_region_transition();
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.
