@@ -142,7 +142,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // this after checking current OpenSim region ID; do not call it from
 // prelogin or standalone synthetic GPU test paths.
 void ogl_rtx_submit_deferred_world_triangles(
-    const float *triangle_xyz,const float *face_tints_rgb,unsigned count);
+    const float *triangle_xyz,const float *face_tints_rgb,
+    const float *face_uvs,unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.
 bool ogl_rtx_track_local_object(const std::uint8_t* uuid16,

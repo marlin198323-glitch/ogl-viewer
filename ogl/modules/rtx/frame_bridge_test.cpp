@@ -81,6 +81,14 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_scene_lit_pixels"));
     const auto offscreen_mean_luminance = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_luminance"));
+    const auto offscreen_mean_green = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_green"));
+    const auto uv_upload = reinterpret_cast<int(*)(const ogl_rtx_face_uv*,uint32_t)>(
+        dlsym(library,"ogl_vulkan_world_upload_face_uvs"));
+    const auto uv_mesh_generation = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_face_uv_mesh_generation"));
+    const auto uv_uploads = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_face_uv_uploads"));
     const auto offscreen_mean_red = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_red"));
     const auto offscreen_mean_blue = reinterpret_cast<uint32_t(*)()>(
@@ -102,7 +110,8 @@ int main(int argc, char** argv) {
     assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
            offscreen_world_width && offscreen_world_height &&
            offscreen_lit_pixels && offscreen_mean_luminance &&
-           offscreen_mean_red && offscreen_mean_blue &&
+           offscreen_mean_red && offscreen_mean_blue && offscreen_mean_green &&
+           uv_upload && uv_mesh_generation && uv_uploads &&
            tint_upload && tint_mesh_generation && tint_uploads &&
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
@@ -111,6 +120,8 @@ int main(int argc, char** argv) {
            offscreen_world_height()==0 &&
            offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0 &&
            offscreen_mean_red()==0 && offscreen_mean_blue()==0 &&
+           offscreen_mean_green()==0 && uv_mesh_generation()==0 &&
+           uv_uploads()==0 &&
            tint_mesh_generation()==0 && tint_uploads()==0 &&
            offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0);
@@ -332,7 +343,9 @@ int main(int argc, char** argv) {
     assert(offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0 &&
            offscreen_world_width()==0 && offscreen_world_height()==0 &&
-           offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0);
+           offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0 &&
+           offscreen_mean_green()==0 && uv_uploads()==0 &&
+           uv_mesh_generation()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
            aspect_matches()==0 &&
            camera_updates()==0 && mesh_uploads()==0);
@@ -1926,12 +1939,99 @@ int main(int argc, char** argv) {
                 red_mean,red_blue_channel,blue_red_channel,blue_mean,
                 static_cast<unsigned long long>(tint_uploads()),
                 barrier_ok?1:0);
+            // UV binding2 is an independent, current-mesh sidecar with
+            // REAL Vulkan shader interpolation and deterministic 4x4
+            // procedural texel colors. Does NOT represent uploaded
+            // OpenSim pixel assets or VkImage texture sampling.
+            setenv("OGL_VULKAN_WORLD_LAMBERT_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE","1",1);
+            const ogl_rtx_face_tint white_tint{{1.f,1.f,1.f}};
+            const ogl_rtx_face_uv checker_red{{
+                .125f,.125f,.125f,.125f,.125f,.125f}};
+            const ogl_rtx_face_uv checker_green{{
+                .375f,.125f,.375f,.125f,.375f,.125f}};
+            const ogl_rtx_face_uv checker_wrapped{{
+                -.625f,.125f,-.625f,.125f,-.625f,.125f}};
+            ogl_rtx_face_uv checker_invalid=checker_red;
+            checker_invalid.uv[4]=std::numeric_limits<float>::quiet_NaN();
+            const uint64_t uv_same_mesh=mesh_generation();
+            const uint64_t uv_same_mesh_uploads=mesh_uploads();
+            barrier_ok=barrier_ok &&
+                offscreen_world()==0 &&
+                uv_upload(&checker_invalid,1)==0 &&
+                uv_upload(&checker_red,2)==0 &&
+                uv_mesh_generation()==0 &&
+                tint_upload(&white_tint,1)==1 &&
+                uv_upload(&checker_red,1)==1 &&
+                uv_uploads()==1 &&
+                uv_mesh_generation()==uv_same_mesh &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+27 &&
+                offscreen_mean_red()>offscreen_mean_green() &&
+                offscreen_cache_builds()==offscreen_build0+16 &&
+                mesh_generation()==uv_same_mesh &&
+                mesh_uploads()==uv_same_mesh_uploads;
+            const uint32_t uv_red_mean=offscreen_mean_red();
+            const uint32_t uv_red_green=offscreen_mean_green();
+            barrier_ok=barrier_ok &&
+                uv_upload(&checker_green,1)==1 &&
+                uv_uploads()==2 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+28 &&
+                offscreen_mean_green()>offscreen_mean_red() &&
+                offscreen_cache_builds()==offscreen_build0+16 &&
+                offscreen_cache_reuses()==offscreen_reuse0+12 &&
+                mesh_generation()==uv_same_mesh &&
+                mesh_uploads()==uv_same_mesh_uploads;
+            const uint32_t uv_green_mean=offscreen_mean_green();
+            const uint32_t uv_green_red=offscreen_mean_red();
+            barrier_ok=barrier_ok &&
+                uv_upload(&checker_wrapped,1)==1 &&
+                uv_uploads()==3 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+29 &&
+                offscreen_mean_green()==uv_green_mean &&
+                offscreen_mean_red()==uv_green_red &&
+                offscreen_cache_reuses()==offscreen_reuse0+13;
+            setenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE","wrong",1);
+            barrier_ok=barrier_ok && offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+29;
+            setenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE","1",1);
+            barrier_ok=barrier_ok && world_upload(&near,1)==1 &&
+                uv_mesh_generation()==0 &&
+                tint_mesh_generation()==0 &&
+                offscreen_world()==0 &&
+                tint_upload(&white_tint,1)==1 &&
+                uv_upload(&checker_red,1)==1 &&
+                world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+30 &&
+                offscreen_mean_red()>offscreen_mean_green() &&
+                uv_mesh_generation()==mesh_generation() &&
+                uv_uploads()==4 &&
+                offscreen_cache_builds()==offscreen_build0+16 &&
+                offscreen_cache_reuses()==offscreen_reuse0+14 &&
+                offscreen_cache_release()==1 &&
+                offscreen_cache_releases()==offscreen_release0+16;
+            std::fprintf(stdout,
+                "P05 Vulkan UV checker GPU: red=(R%u G%u) "
+                "green=(R%u G%u) wraps=1 uploads=%llu paired=1 valid=%d\n",
+                uv_red_mean,uv_red_green,uv_green_red,uv_green_mean,
+                static_cast<unsigned long long>(uv_uploads()),
+                barrier_ok?1:0);
+            unsetenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
             for (const char* flag:{
                  "OGL_VULKAN_OFFSCREEN_FRAME_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RESOLUTION",
                  "OGL_VULKAN_WORLD_LAMBERT_PROBE",
                  "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
                  "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
+                 "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

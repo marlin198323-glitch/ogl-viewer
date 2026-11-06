@@ -9638,11 +9638,19 @@ void LLPipeline::renderDeferredLighting()
                     "OGL_VULKAN_WORLD_FACE_TINT_PROBE");
                 const bool tint_scan=tint_pref &&
                     std::strcmp(tint_pref,"1")==0;
+                const char* uv_pref=std::getenv(
+                    "OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
+                // The UV diagnostic depends on the same mesh and real
+                // TextureEntry-RGB source. No cost in regular OpenGL.
+                const bool uv_scan=tint_scan && uv_pref &&
+                    std::strcmp(uv_pref,"1")==0;
                 // Opaque per-face LLTextureEntry diffuse RGB only; no
                 // pixels, images, texture IDs or other avatar/asset data.
                 // Never create the tint vector in normal OpenGL mode.
                 std::vector<ogl_rtx_face_tint> face_tints;
                 if (tint_scan) face_tints.reserve(ogl_triangle_budget);
+                std::vector<ogl_rtx_face_uv> face_uvs;
+                if (uv_scan) face_uvs.reserve(ogl_triangle_budget);
                 const LLVector3 eye = camera->getOrigin();
                 size_t near_terrain_triangles=0;
                 size_t mid_terrain_triangles=0;
@@ -9986,11 +9994,17 @@ void LLPipeline::renderDeferredLighting()
                 const size_t max_per_object =
                     ogl_triangle_budget > 1024 ? 128u : 512u;
                 const ogl_rtx_face_tint neutral_tint{{0.65f,0.65f,0.65f}};
+                const ogl_rtx_face_uv neutral_uv{{0.f,0.f,0.f,0.f,0.f,0.f}};
                 if (tint_scan) {
                     // Terrain and exact-ray/prepass anchors precede
                     // volume faces and have no trustworthy matching
                     // LLTextureEntry in this bounded scanner.
                     face_tints.resize(triangles.size(),neutral_tint);
+                }
+                if (uv_scan) {
+                    // Terrain and exact-ray anchors have no reliable
+                    // volume-face TextureEntry. Use unmapped neutral UV.
+                    face_uvs.resize(triangles.size(),neutral_uv);
                 }
                 for (const auto& candidate : candidates)
                 {
@@ -10018,6 +10032,32 @@ void LLPipeline::renderDeferredLighting()
                             face.mNumIndices <= 0 || face.mNumVertices <= 0)
                             continue;
                         ogl_rtx_face_tint face_tint=neutral_tint;
+                        bool face_uv_transform_valid=false;
+                        F32 uv_scale_s=1.f,uv_scale_t=1.f;
+                        F32 uv_offset_s=0.f,uv_offset_t=0.f,uv_angle=0.f;
+                        if (uv_scan && face.mTexCoords) {
+                            // Match LLFace::xform's rotation-then-scale-
+                            // then-offset around texture center 0.5.
+                            // Planar texgen and animated texture matrices
+                            // require actual LLFace geometry and are NOT
+                            // claimed by this prototype.
+                            const LLTextureEntry* te=volume_object->getTE(f);
+                            if (te && te->getTexGen()==0) {
+                                te->getScale(&uv_scale_s,&uv_scale_t);
+                                te->getOffset(&uv_offset_s,&uv_offset_t);
+                                te->getRotation(&uv_angle);
+                                face_uv_transform_valid=
+                                    std::isfinite(uv_scale_s) &&
+                                    std::isfinite(uv_scale_t) &&
+                                    std::isfinite(uv_offset_s) &&
+                                    std::isfinite(uv_offset_t) &&
+                                    std::isfinite(uv_angle) &&
+                                    std::fabs(uv_scale_s)<=256.f &&
+                                    std::fabs(uv_scale_t)<=256.f &&
+                                    std::fabs(uv_offset_s)<=1024.f &&
+                                    std::fabs(uv_offset_t)<=1024.f;
+                            }
+                        }
                         if (tint_scan) {
                             // This is real per-face texture-entry diffuse
                             // tint, NOT a sampled diffuse/albedo texture.
@@ -10054,6 +10094,12 @@ void LLPipeline::renderDeferredLighting()
                                 static_cast<uint32_t>(t);
                             ogl_rtx_triangle triangle{};
                             ogl_rtx_triangle local_triangle{};
+                            ogl_rtx_face_uv face_uv=neutral_uv;
+                            bool uv_triangle_valid=face_uv_transform_valid;
+                            const F32 uv_cos=uv_triangle_valid ?
+                                std::cos(uv_angle) : 1.f;
+                            const F32 uv_sin=uv_triangle_valid ?
+                                std::sin(uv_angle) : 0.f;
                             bool valid = true;
                             for (S32 v = 0; v < 3; ++v)
                             {
@@ -10063,6 +10109,24 @@ void LLPipeline::renderDeferredLighting()
                                 {
                                     valid = false;
                                     break;
+                                }
+                                if (uv_triangle_valid) {
+                                    const LLVector2 tc(face.mTexCoords[index]);
+                                    const F32 tex_u=tc.mV[0]-0.5f;
+                                    const F32 tex_v=tc.mV[1]-0.5f;
+                                    const F32 uu=(tex_u*uv_cos+tex_v*uv_sin)*
+                                        uv_scale_s+uv_offset_s+0.5f;
+                                    const F32 vv=(-tex_u*uv_sin+tex_v*uv_cos)*
+                                        uv_scale_t+uv_offset_t+0.5f;
+                                    if (!std::isfinite(uu) ||
+                                        !std::isfinite(vv) ||
+                                        std::fabs(uu)>4096.f ||
+                                        std::fabs(vv)>4096.f)
+                                        uv_triangle_valid=false;
+                                    else {
+                                        face_uv.uv[v*2]=uu;
+                                        face_uv.uv[v*2+1]=vv;
+                                    }
                                 }
                                 LLVector3 vertex(face.mPositions[index].getF32ptr());
                                 for (S32 axis=0;axis<3;++axis)
@@ -10074,6 +10138,9 @@ void LLPipeline::renderDeferredLighting()
                             if (valid && ogl::is_valid_triangle(triangle)) {
                                 triangles.emplace_back(triangle);
                                 if (tint_scan) face_tints.push_back(face_tint);
+                                if (uv_scan)
+                                    face_uvs.push_back(uv_triangle_valid ?
+                                        face_uv : neutral_uv);
                                 ++object_triangles;
                                 if (ogl_triangle_budget>1024 &&
                                     ogl::is_valid_triangle(local_triangle))
@@ -10199,13 +10266,14 @@ void LLPipeline::renderDeferredLighting()
                         << LL_ENDL;
                 if (publish_geometry && !triangles.empty() &&
                     ogl_rtx_region && !current_region_id.isNull() &&
-                    (!tint_scan || face_tints.size()==triangles.size())) {
-                    // Source-qualified OpenSim volume-face RGB tints are
-                    // paired 1:1 with the accepted XYZ GPU mesh; terrain
-                    // and ray-anchor triangles use neutral fallback.
+                    (!tint_scan || face_tints.size()==triangles.size()) &&
+                    (!uv_scan || face_uvs.size()==triangles.size())) {
+                    // A 1:1 XYZ/RGB/UV triple from the qualified live
+                    // region. No texture pixels or private asset IDs used.
                     ogl_rtx_submit_deferred_world_triangles(
                         triangles.front().position,
                         tint_scan ? face_tints.front().rgb : nullptr,
+                        uv_scan ? face_uvs.front().uv : nullptr,
                         static_cast<unsigned>(triangles.size()));
                     ogl_has_scene_snapshot=true;
                 }

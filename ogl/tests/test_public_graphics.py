@@ -1199,7 +1199,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=plugin[a:b]
         for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
                        'sun_enabled && (!lambert_enabled || !world_device.world_sun_ready)',
-                       'const uint32_t shading_mode=tinted ? 3u :',
+                       'const uint32_t shading_mode=uv_checker ? 4u : (tinted ? 3u :',
                        'resource.shading_mode!=shading_mode',
                        'ogl_dev_world_sunlight_frag_spv',
                        'sizeof(float)*20',
@@ -1244,7 +1244,8 @@ class PublicGraphicsContracts(unittest.TestCase):
                        '(!tint_scan || face_tints.size()==triangles.size())',
                        'tint_scan ? face_tints.front().rgb : nullptr'):
             self.assertIn(marker,pipeline)
-        self.assertIn("const float *face_tints_rgb,unsigned count",header)
+        self.assertIn("const float *face_tints_rgb,",header)
+        self.assertIn("const float *face_uvs,unsigned count",header)
         for marker in ("live_deferred_face_tints=face_tints_rgb ?",
                        "world_upload_face_tints(live_deferred_face_tints,count)==1",
                        "world_tint_mesh_generation()==world_mesh_generation()",
@@ -1262,15 +1263,18 @@ class PublicGraphicsContracts(unittest.TestCase):
                        'world_device.clear_face_tints()',
                        'std::isfinite(rgb)',
                        'std::vector<float> expanded(size_t(count)*9u)',
-                       'VK_BUFFER_USAGE_VERTEX_BUFFER_BIT',
-                       'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT',
+                       'upload_world_attribute_bytes(expanded.data(),bytes,',
                        'world_device.tint_mesh_generation=world_device.mesh_generation',
                        '++world_device.tint_uploads'):
             self.assertIn(marker,tinted)
+        for marker in ('VK_BUFFER_USAGE_VERTEX_BUFFER_BIT',
+                       'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT',
+                       'VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};'):
+            self.assertIn(marker,module)
         start=module.index("uint32_t render_offscreen_color_frame(")
         end=module.index("// Independent opt-in camera projection",start)
         draw=module[start:end]
-        for marker in ('shading_mode=tinted ? 3u',
+        for marker in ('(tinted ? 3u :',
                        'ogl_dev_world_face_tint_vert_spv',
                        'ogl_dev_world_face_tint_frag_spv',
                        'resource.shading_mode!=shading_mode',
@@ -1292,6 +1296,98 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(marker,gpu)
         self.assertNotIn('vkQueuePresentKHR(',draw)
         self.assertNotIn('SDL_',draw)
+
+    def test_p05_live_opensim_face_uv_provenance_gpu_and_checker(self):
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        for name in ("ogl_rtx_face_uv",
+                     "ogl_vulkan_world_upload_face_uvs",
+                     "ogl_vulkan_world_face_uv_mesh_generation",
+                     "ogl_vulkan_world_face_uv_uploads",
+                     "ogl_vulkan_world_offscreen_scene_mean_green"):
+            self.assertIn(name,api)
+            self.assertIn(name,module)
+        for marker in (
+            "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
+            "if (uv_scan) face_uvs.reserve(ogl_triangle_budget);",
+            "face_uvs.resize(triangles.size(),neutral_uv)",
+            "face.mTexCoords",
+            "te->getTexGen()==0",
+            "te->getScale(&uv_scale_s,&uv_scale_t)",
+            "te->getOffset(&uv_offset_s,&uv_offset_t)",
+            "te->getRotation(&uv_angle)",
+            "const LLVector2 tc(face.mTexCoords[index]);",
+            "uv_cos+tex_v*uv_sin",
+            "if (uv_scan)",
+            "face_uvs.push_back(uv_triangle_valid ?",
+            "(!uv_scan || face_uvs.size()==triangles.size())",
+            "uv_scan ? face_uvs.front().uv : nullptr",
+        ):
+            self.assertIn(marker,pipeline)
+        self.assertIn("const float *face_uvs,unsigned count",header)
+        for marker in (
+            "live_deferred_face_uvs=face_uvs ?",
+            "world_upload_face_uvs(live_deferred_face_uvs,count)==1",
+            "world_uv_mesh_generation()==world_mesh_generation()",
+            "world_upload_face_uvs(nullptr,0)",
+            "tint_success=tint_success && tint_needed &&",
+        ):
+            self.assertIn(marker,host)
+        start=module.index("int upload_world_face_uvs(")
+        end=module.index("void gpu_probe_cleanup()",start)
+        upload=module[start:end]
+        for marker in (
+            "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
+            "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
+            "OGL_VULKAN_WORLD_LAMBERT_PROBE",
+            "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
+            "count!=world_device.mesh_triangle_count",
+            "world_device.tint_mesh_generation!=world_device.mesh_generation",
+            "std::isfinite(coord)",
+            "coord<-4096.f",
+            "sizeof(float)*6",
+            "world_device.clear_face_uvs()",
+            "upload_world_attribute_bytes(uv_triangles,",
+            "world_device.uv_mesh_generation=world_device.mesh_generation",
+            "++world_device.uv_uploads",
+        ):
+            self.assertIn(marker,upload)
+        self.assertIn("void clear_face_uvs()",module)
+        self.assertIn("clear_face_uvs();\n        clear_face_tints();",module)
+        self.assertIn("bool upload_world_attribute_bytes(",module)
+        draw=module[module.index("uint32_t render_offscreen_color_frame("):
+                    module.index("// Independent opt-in camera projection")]
+        for marker in (
+            "const uint32_t shading_mode=uv_checker ? 4u :",
+            "ogl_dev_world_uv_checker_vert_spv",
+            "ogl_dev_world_uv_checker_frag_spv",
+            "VK_FORMAT_R32G32_SFLOAT",
+            "shading_mode==4u",
+            "world_device.uv_mesh_generation!=world_device.mesh_generation",
+            "world_device.uv_vertex_count!=world_device.mesh_triangle_count*3u",
+            "vkCmdBindVertexBuffers(command,0,3,buffers,offsets)",
+            "world_device.offscreen_world_mean_green=changed ?",
+        ):
+            self.assertIn(marker,draw)
+        for symbol in ("ogl_dev_world_uv_checker_vert_spv",
+                       "ogl_dev_world_uv_checker_frag_spv"):
+            self.assertIn("static constexpr uint32_t "+symbol+"[]",module)
+        for marker in (
+            'P05 Vulkan UV checker GPU:',
+            'uv_upload(&checker_invalid,1)==0',
+            'uv_upload(&checker_red,2)==0',
+            'uv_upload(&checker_green,1)==1',
+            'uv_upload(&checker_wrapped,1)==1',
+            'uv_mesh_generation()==0',
+            'offscreen_world_frames()==offscreen_start+30',
+        ):
+            self.assertIn(marker,native)
+        self.assertNotIn("vkQueuePresentKHR(",draw)
+        self.assertNotIn("SDL_",draw)
 
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

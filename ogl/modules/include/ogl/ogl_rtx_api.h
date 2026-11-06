@@ -99,6 +99,26 @@ OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_tint_uploads(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_red(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_blue(void);
 
+/* P05/4 opt-in REAL OpenSim volume-face UV coordinates: one float2 per
+ * vertex, ordered exactly with the original 3*count XYZ world vertices.
+ * These are UVs only, NOT loaded OpenSim texture assets or material maps.
+ * The first private renderer visualizes UV wrapping using a procedural
+ * 4x4 diagnostic checker (NOT a sampled VkImage).
+ * Developer-only OGL_VULKAN_WORLD_UV_CHECKER_PROBE=1 and ALL existing
+ * FACE_TINT/LAMBERT/SUN/WORLD/MESH/CAMERA/OFFSCREEN permissions required.
+ * count=0 clears only the UV sidecar. Valid UV range: finite [-4096,4096].
+ * Any mesh/region clear invalidates UV generation, no stale GPU sampling.
+ */
+typedef struct ogl_rtx_face_uv {
+    float uv[6]; /* u0,v0,u1,v1,u2,v2 */
+} ogl_rtx_face_uv;
+OGL_MODULE_EXPORT int ogl_vulkan_world_upload_face_uvs(
+    const ogl_rtx_face_uv* uv_triangles,uint32_t triangle_count);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_uv_mesh_generation(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_uv_uploads(void);
+OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_green(void);
+
+
 
 
 /* P05 experimental independent Vulkan world-to-clip matrix from the same
