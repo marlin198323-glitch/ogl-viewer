@@ -115,6 +115,10 @@ bool ogl_vulkan_world_mesh_staging_enabled();
 // Actual Firestorm frame/camera bridge for opt-in Vulkan diagnostics.
  // The active OpenGL world renderer remains unchanged.
 // Triangles are copied synchronously; never retained by the host.
+// Real OpenSim region transitions invalidate the cached Vulkan camera.
+// The pipeline detects the UUID change; zero-triangle samples are NOT
+// region transitions. This does not change the active OpenGL engine.
+void ogl_rtx_on_region_transition();
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.

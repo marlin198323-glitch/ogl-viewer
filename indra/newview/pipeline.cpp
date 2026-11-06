@@ -9513,6 +9513,10 @@ void LLPipeline::renderDeferredLighting()
                 ogl_rtx_region->getRegionID() : LLUUID::null;
             if (current_region_id != ogl_rtx_last_region_id)
             {
+                // The camera at the top of this deferred pass might still
+                // belong to the previous region. Invalidate its host cache
+                // BEFORE clearing the GPU scene and accepting new meshes.
+                ogl_rtx_on_region_transition();
                 if (!ogl_rtx_last_region_id.isNull())
                     ogl_rtx_submit_world_triangles(nullptr, 0);
                 ogl_tracked_ids.clear();

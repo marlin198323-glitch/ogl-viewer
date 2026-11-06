@@ -191,6 +191,7 @@ struct WorldGraphicsDevice {
     uint32_t persistent_total_presents = 0;
     uint32_t persistent_teardown_idles = 0;
     uint64_t mesh_generation = 0; // accepted scene revisions, including clear
+    uint64_t camera_mesh_generation = 0; // accepted pose binds ONE mesh generation
     uint32_t mesh_retire_waits = 0; // bounded GPU-fence waits, NOT queue idle
     uint32_t mesh_retire_failures = 0;
 
@@ -201,6 +202,10 @@ struct WorldGraphicsDevice {
     VkBuffer mesh_indices = VK_NULL_HANDLE;
     VkDeviceMemory mesh_index_memory = VK_NULL_HANDLE;
     uint32_t mesh_triangle_count = 0;
+    // Optional exact byte-for-byte dedup for live captured scene snapshots.
+    // Never suppress a real scene change based on a hash collision.
+    std::vector<ogl_rtx_triangle> mesh_cpu_snapshot;
+    uint64_t mesh_dedup_skips = 0;
     // CPU-generated Vulkan clip projection from a validated Firestorm
     // camera. Exactly 16 column-major floats for the 64-byte push constant.
     std::array<float,16> world_to_clip{};
@@ -231,6 +236,7 @@ struct WorldGraphicsDevice {
         mesh_vertex_memory=VK_NULL_HANDLE;
         mesh_index_memory=VK_NULL_HANDLE;
         mesh_triangle_count=0;
+        mesh_cpu_snapshot.clear();
     }
 
     void release_persistent_frames() {
@@ -334,10 +340,12 @@ struct WorldGraphicsDevice {
         detach_window(); // WSI handles must die before VkDevice/VkInstance.
         world_camera_ready = false;
         world_camera_aspect = 0.f;
+        camera_mesh_generation = 0;
         world_to_clip.fill(0.f);
         world_camera_accepts = 0;
         mesh_uploads = 0;
         mesh_generation = 0;
+        mesh_dedup_skips = 0;
         mesh_retire_waits = mesh_retire_failures = 0;
         sync_max_outstanding = 0;
         sync_last_submitted = 0;
@@ -693,6 +701,7 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         std::fabs(world_device.world_camera_aspect-swap_aspect)>0.01f) {
         world_device.world_camera_ready=false;
         world_device.world_camera_aspect=0.f;
+        world_device.camera_mesh_generation=0;
         world_device.world_to_clip.fill(0.f);
     }
     // Passive WSI attach never acquires or presents; GL remains unchanged.
@@ -1406,6 +1415,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             !flagged("OGL_VULKAN_WORLD_MESH_UPLOAD") ||
             !flagged("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
             !world_device.world_camera_ready ||
+            world_device.camera_mesh_generation!=world_device.mesh_generation ||
             !world_device.mesh_vertices || !world_device.mesh_indices ||
             !world_device.mesh_triangle_count ||
             world_device.mesh_triangle_count>OGL_RTX_MAX_SCENE_TRIANGLES ||
@@ -2347,6 +2357,7 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
         return 0;
     world_device.world_camera_ready=false;
     world_device.world_camera_aspect=0.f;
+    world_device.camera_mesh_generation=0;
     world_device.world_to_clip.fill(0.f);
     if (!frame || !ogl::valid_camera_frame(*frame)) return 0;
     const float actual_aspect=float(frame->width)/float(frame->height);
@@ -2406,6 +2417,7 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
         if (!std::isfinite(v)) return 0;
     world_device.world_to_clip=matrix;
     world_device.world_camera_aspect=frame->aspect_ratio;
+    world_device.camera_mesh_generation=world_device.mesh_generation;
     world_device.world_camera_ready=true;
     ++world_device.world_camera_accepts; // no Vulkan draw/queue work
     return 1;
@@ -2427,6 +2439,22 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     if (count)
         for (uint32_t i=0;i<count;++i)
             if (!ogl::is_valid_triangle(triangles[i])) return 0;
+
+    // An unchanged snapshot references exactly the SAME GPU vertex/index
+    // data and camera. Under its own explicit developer flag we can skip
+    // upload, invalidation and GPU fence waits entirely. Compare full
+    // bytes, not a lossy fingerprint; hash collisions cannot hide updates.
+    const char* dedup=std::getenv("OGL_VULKAN_WORLD_MESH_DEDUP");
+    const bool dedup_enabled=dedup && std::strcmp(dedup,"1")==0;
+    if (dedup_enabled && count>0 &&
+        world_device.mesh_triangle_count==count &&
+        world_device.mesh_vertices && world_device.mesh_indices &&
+        world_device.mesh_cpu_snapshot.size()==count &&
+        std::memcmp(world_device.mesh_cpu_snapshot.data(),triangles,
+            size_t(count)*sizeof(ogl_rtx_triangle))==0) {
+        ++world_device.mesh_dedup_skips;
+        return 1; // no generation/camera change; no GPU work
+    }
 
     // P05 world scene rotation: keep the old VkBuffers alive until ALL
     // queued graphics submissions that reference the old mesh have
@@ -2471,12 +2499,18 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
         // Invalidate the old region's projection on teleport/region loss.
         world_device.world_camera_ready=false;
         world_device.world_camera_aspect=0.f;
+        world_device.camera_mesh_generation=0;
         world_device.world_to_clip.fill(0.f);
         ++world_device.mesh_generation; // explicit empty-region generation
         return 1;
     }
     static_assert(sizeof(ogl_rtx_triangle)==sizeof(float)*9,
         "World triangle ABI must be tightly packed XYZ positions");
+    // Allocate the optional CPU shadow BEFORE creating or replacing VkBuffers.
+    // Publication is a no-throw swap only after BOTH GPU uploads succeed.
+    std::vector<ogl_rtx_triangle> accepted_snapshot;
+    if (dedup_enabled)
+        accepted_snapshot.assign(triangles,triangles+count);
     const uint32_t vertex_count=count*3u;
     const VkDeviceSize vertex_bytes=VkDeviceSize(count)*sizeof(ogl_rtx_triangle);
     const VkDeviceSize index_bytes=VkDeviceSize(vertex_count)*sizeof(uint32_t);
@@ -2567,12 +2601,17 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     world_device.mesh_vertex_memory=vertex_memory;
     world_device.mesh_index_memory=index_memory;
     world_device.mesh_triangle_count=count;
+    // Keep CPU bytes only with the opt-in, no memory cost for standard GL.
+    // Never cache a partially uploaded scene.
+    if (dedup_enabled)
+        world_device.mesh_cpu_snapshot.swap(accepted_snapshot);
     ++world_device.mesh_uploads;
     ++world_device.mesh_generation;
     // Mesh and camera MUST be paired only after another real camera
     // submission. A new snapshot may correspond to a new region/camera.
     world_device.world_camera_ready=false;
     world_device.world_camera_aspect=0.f;
+    world_device.camera_mesh_generation=0;
     world_device.world_to_clip.fill(0.f);
     if (logger)
         logger(1,(std::string("P05 Vulkan vertex/index upload: triangles=")+
@@ -3225,6 +3264,7 @@ extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_camera_matches_swapchain(
 // camera frame can pair with the new GPU buffers.
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_live_inputs_ready() {
     return world_device.world_camera_ready &&
+           world_device.camera_mesh_generation==world_device.mesh_generation &&
            world_device.mesh_triangle_count>0 &&
            world_device.mesh_vertices!=VK_NULL_HANDLE &&
            world_device.mesh_indices!=VK_NULL_HANDLE ? 1u : 0u;
@@ -3239,6 +3279,15 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads() {
 // These are CPU/queue lifetime diagnostics, NOT live OpenSim region versions.
 extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_generation() {
     return world_device.mesh_generation;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_dedup_skips() {
+    return world_device.mesh_dedup_skips;
+}
+// Diagnostic only: most recently accepted real-world camera's paired mesh
+// generation. Zero means no valid pair after a scene update/region clear.
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_camera_mesh_generation() {
+    return world_device.world_camera_ready ?
+        world_device.camera_mesh_generation : 0u;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_waits() {
     return world_device.mesh_retire_waits;

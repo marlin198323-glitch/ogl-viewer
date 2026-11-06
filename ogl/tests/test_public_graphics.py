@@ -809,6 +809,75 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("OGL_VULKAN_SDL_PREGL_MESH_ROTATION_PROBE",
                          (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
+    def test_p05_real_opensim_deferred_mesh_camera_generation_handoff(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        # The camera is submitted before a sometimes-later deferred scene
+        # capture. The region callback MUST invalidate stale cached poses.
+        self.assertIn("void ogl_rtx_on_region_transition()",header)
+        self.assertIn("void ogl_rtx_on_region_transition() {",host)
+        self.assertIn("last_live_world_camera_valid=false;",host)
+        self.assertIn("++live_world_region_epoch;",host)
+        self.assertIn("ogl_rtx_on_region_transition();",pipeline)
+        i=pipeline.index("if (current_region_id != ogl_rtx_last_region_id)")
+        j=pipeline.index("ogl_rtx_submit_world_triangles(nullptr, 0);",i)
+        self.assertLess(i,pipeline.index("ogl_rtx_on_region_transition();",i))
+        self.assertLess(pipeline.index("ogl_rtx_on_region_transition();",i),j)
+        self.assertLess(pipeline.index("ogl_rtx_submit_camera_sun(viewport.getWidth()"),
+                        pipeline.index("ogl_rtx_submit_world_triangles(\n                        triangles.front().position"))
+        self.assertIn("ogl_rtx_frame_state last_live_world_camera{};",host)
+        self.assertIn("last_live_world_camera=frame;",host)
+        self.assertIn("last_live_world_camera_valid=true;",host)
+        self.assertIn("OGL_VULKAN_LIVE_CAMERA_REBIND",host)
+        self.assertIn("world_set_camera(&last_live_world_camera)==1",host)
+        self.assertIn("world_camera_mesh_generation()==world_mesh_generation()",host)
+        self.assertIn("world_input_ready()==1",host)
+        self.assertIn("NO Vulkan world present, OpenGL remains active.",host)
+        self.assertIn("live_world_rebinds%64==0",host)
+        self.assertIn("world_camera_mesh_generation = nullptr;",host)
+        self.assertIn("last_live_world_camera_valid=false;",host)
+        self.assertNotIn("vkQueuePresentKHR(",host)
+        # The module cannot report a ready scene until the camera has
+        # been validated AGAIN for the actual accepted mesh generation.
+        self.assertIn("uint64_t camera_mesh_generation = 0;",module)
+        self.assertIn("world_device.camera_mesh_generation=world_device.mesh_generation;",module)
+        self.assertIn("world_device.camera_mesh_generation!=world_device.mesh_generation",module)
+        self.assertIn("world_device.camera_mesh_generation==world_device.mesh_generation",module)
+        self.assertIn("ogl_vulkan_world_camera_mesh_generation(void)",api)
+        self.assertIn("camera_mesh_generation()==mesh_generation()",native)
+        self.assertIn("camera_mesh_generation()==0",native)
+        # A repeated exact real OpenSim snapshot does not touch VkBuffers
+        # or invalidate a correctly paired camera when explicit opt-in set.
+        self.assertIn("OGL_VULKAN_WORLD_MESH_DEDUP",module)
+        self.assertIn("std::vector<ogl_rtx_triangle> mesh_cpu_snapshot;",module)
+        self.assertIn("std::memcmp(world_device.mesh_cpu_snapshot.data(),triangles,",module)
+        self.assertIn("++world_device.mesh_dedup_skips;",module)
+        self.assertIn("ogl_vulkan_world_mesh_dedup_skips(void)",api)
+        a=module.index("int upload_world_geometry(")
+        b=module.index("int ",a+10)
+        fn=module[a:b]
+        self.assertLess(fn.index("std::memcmp("),fn.index("VkFence unfinished[2]"))
+        self.assertLess(fn.index("std::memcmp("),fn.index("world_device.clear_mesh();"))
+        self.assertIn("accepted_snapshot.assign(triangles,triangles+count)",fn)
+        self.assertIn("world_device.mesh_cpu_snapshot.swap(accepted_snapshot)",fn)
+        self.assertLess(fn.index("accepted_snapshot.assign(triangles,triangles+count)"),
+                        fn.index("const auto get_device="))
+        self.assertLess(fn.index("world_device.clear_mesh();"),
+                        fn.index("world_device.mesh_cpu_snapshot.swap(accepted_snapshot)"))
+        self.assertIn("mesh_dedup_skips()==dedup0+1",native)
+        self.assertIn("camera_mesh_generation()==mesh_generation()",native)
+        self.assertIn("const bool changed=!world_mesh_generation ||",host)
+        self.assertIn("if (changed) world_inputs_live_logged=false;",host)
+        self.assertIn("if (enabled && !world_inputs_live_logged &&",host)
+        self.assertIn("if (count==0) world_inputs_live_logged=false;",host)
+        self.assertIn("if (!rtx_submit_geometry || !rtx_hardware_ready) return;",host)
+        # It remains GL-owned after actual Firestorm scene capture.
+        self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
+
     def test_p05_native_multiframe_gpu_present_is_bounded_and_pixel_verified(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         header=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

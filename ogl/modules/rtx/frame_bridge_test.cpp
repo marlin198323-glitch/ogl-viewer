@@ -85,6 +85,10 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_mesh_uploads"));
     const auto mesh_generation = reinterpret_cast<uint64_t(*)()>(
         dlsym(library,"ogl_vulkan_world_mesh_generation"));
+    const auto mesh_dedup_skips = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_mesh_dedup_skips"));
+    const auto camera_mesh_generation = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_camera_mesh_generation"));
     const auto mesh_retire_waits = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_mesh_retire_waits"));
     const auto mesh_retire_failures = reinterpret_cast<uint32_t(*)()>(
@@ -97,7 +101,9 @@ int main(int argc, char** argv) {
         dlsym(library, "ogl_vulkan_world_detach_window"));
     assert(world_camera && camera_ready && aspect_matches && live_inputs &&
            camera_updates && mesh_uploads && mesh_generation &&
+           camera_mesh_generation && mesh_dedup_skips &&
            mesh_retire_waits && mesh_retire_failures);
+    assert(mesh_dedup_skips()==0 && camera_mesh_generation()==0);
     assert(mesh_generation()==0 && mesh_retire_waits()==0 &&
            mesh_retire_failures()==0);
     assert(camera_ready()==0 && live_inputs()==0 &&
@@ -191,6 +197,7 @@ int main(int argc, char** argv) {
     if (uploaded) {
         assert(world_gpu_count()==1);
         assert(live_inputs()==0 && camera_ready()==0 &&
+               camera_mesh_generation()==0 && mesh_generation()>0 &&
                camera_updates()==0 && mesh_uploads()==1);
         ogl_rtx_frame_state live_frame{};
         live_frame.struct_size=sizeof(live_frame);
@@ -208,17 +215,23 @@ int main(int argc, char** argv) {
         assert(setenv("OGL_VULKAN_WORLD_CAMERA_PROBE","1",1)==0);
         assert(world_camera(&live_frame)==1);
         assert(camera_ready()==1 && live_inputs()==1 &&
+               camera_mesh_generation()==mesh_generation() &&
                camera_updates()==1);
         live_frame.aspect_ratio=2.f;
         assert(world_camera(&live_frame)==0); // invalid input clears camera
         assert(camera_ready()==0 && live_inputs()==0 &&
+               camera_mesh_generation()==0 &&
                camera_updates()==1);
         live_frame.aspect_ratio=4.f/3.f;
         assert(world_camera(&live_frame)==1 && live_inputs()==1 &&
                camera_updates()==2);
+        const uint64_t old_mesh=mesh_generation();
         assert(world_upload(&world_triangle,1)==1); // new scene invalidates pose
-        assert(camera_ready()==0 && live_inputs()==0 && mesh_uploads()==2);
+        assert(mesh_generation()==old_mesh+1 &&
+               camera_mesh_generation()==0 &&
+               camera_ready()==0 && live_inputs()==0 && mesh_uploads()==2);
         assert(world_camera(&live_frame)==1 && live_inputs()==1 &&
+               camera_mesh_generation()==mesh_generation() &&
                camera_updates()==3);
         auto bad=world_triangle;
         bad.position[0]=std::numeric_limits<float>::quiet_NaN();
@@ -229,12 +242,14 @@ int main(int argc, char** argv) {
         assert(world_upload(all.data(),8192)==1);
         assert(world_gpu_count()==8192);
         assert(camera_ready()==0 && live_inputs()==0 &&
+               camera_mesh_generation()==0 &&
                mesh_uploads()==3); // no stale camera across mesh revisions
         assert(world_upload(all.data(),8193)==0);
         assert(world_gpu_count()==8192);
         assert(world_upload(nullptr,0)==1);
         assert(world_gpu_count()==0); // region-clear frees GPU buffers
         assert(camera_ready()==0 && live_inputs()==0 &&
+               camera_mesh_generation()==0 &&
                mesh_uploads()==3 && camera_updates()==3);
         unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
     } else {
@@ -1152,6 +1167,7 @@ int main(int argc, char** argv) {
         const bool test_rotation=rotation_env &&
             std::strcmp(rotation_env,"1")==0;
         bool rotation_ok=true,rotation_invalid=true;
+        bool rotation_dedup=true;
         bool rotation_clear=true,rotation_no_idle=true;
         if (test_rotation) {
             for (const char* flag:{
@@ -1186,6 +1202,8 @@ int main(int argc, char** argv) {
             camera.near_clip_m=2.f;camera.far_clip_m=10.f;
             XResizeWindow(display,window,512,384);
             XSync(display,False);
+            setenv("OGL_VULKAN_WORLD_MESH_DEDUP","1",1);
+            const uint64_t dedup0=mesh_dedup_skips();
             const uint64_t gen0=mesh_generation();
             const uint32_t wait0=mesh_retire_waits();
             const uint32_t idle0=persistent_idles();
@@ -1226,6 +1244,15 @@ int main(int argc, char** argv) {
                 persistent_count()==1 && pixel_is(237,48,38) &&
                 persistent_clear(1)==1 &&
                 persistent_count()==2 && pixel_is(237,48,38);
+            // A byte-for-byte duplicate region snapshot must not retire
+            // any in-flight buffers, rebind a camera, or advance revision.
+            rotation_dedup=world_upload(pair,2)==1 &&
+                mesh_dedup_skips()==dedup0+1 &&
+                mesh_generation()==gen0+1 &&
+                mesh_retire_waits()==wait0 &&
+                camera_mesh_generation()==mesh_generation() &&
+                live_inputs()==1 && persistent_count()==2;
+            rotation_ok=rotation_ok && rotation_dedup;
             // Old default behavior still rejects mutation when explicit
             // mesh-generation retirement permission is not supplied.
             rotation_ok=rotation_ok &&
@@ -1238,6 +1265,7 @@ int main(int argc, char** argv) {
             auto invalid=far;
             invalid.position[0]=std::numeric_limits<float>::quiet_NaN();
             rotation_invalid=world_upload(&invalid,1)==0 &&
+                mesh_dedup_skips()==dedup0+1 &&
                 mesh_generation()==gen0+1 &&
                 mesh_retire_waits()==wait0 &&
                 world_gpu_count()==2;
@@ -1285,6 +1313,7 @@ int main(int argc, char** argv) {
                 world_gpu_count()==0 &&
                 camera_ready()==0;
             for (const char* flag:{
+                 "OGL_VULKAN_WORLD_MESH_DEDUP",
                  "OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
@@ -1296,8 +1325,8 @@ int main(int argc, char** argv) {
                 unsetenv(flag);
             std::fprintf(stdout,
                 "P05 live GPU mesh generations: rotation=%d invalid=%d "
-                "clear=%d no-frame-idle=%d generations=%llu waits=%u\n",
-                rotation_ok?1:0,rotation_invalid?1:0,
+                "dedup=%d clear=%d no-frame-idle=%d generations=%llu waits=%u\n",
+                rotation_ok?1:0,rotation_invalid?1:0,rotation_dedup?1:0,
                 rotation_clear?1:0,rotation_no_idle?1:0,
                 static_cast<unsigned long long>(mesh_generation()),
                 mesh_retire_waits());
@@ -1322,7 +1351,7 @@ int main(int argc, char** argv) {
             restored_count!=1 || restored_reset!=0 ||
             stopped_count!=0 ||
             (test_rotation && (!rotation_ok || !rotation_invalid ||
-                !rotation_clear || !rotation_no_idle)) ||
+                !rotation_dedup || !rotation_clear || !rotation_no_idle)) ||
             (test_persistent_world && (!persistent_world_ok ||
                 !persistent_world_moved || !persistent_world_immutable ||
                 !persistent_world_resize)) ||

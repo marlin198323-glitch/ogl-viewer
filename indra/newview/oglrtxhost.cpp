@@ -67,6 +67,17 @@ using ogl_world_camera_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_world_camera_fn world_set_camera = nullptr;
 using ogl_world_input_ready_fn = uint32_t (*)();
 ogl_world_input_ready_fn world_input_ready = nullptr;
+using ogl_world_generation_fn = std::uint64_t (*)();
+ogl_world_generation_fn world_mesh_generation = nullptr;
+ogl_world_generation_fn world_camera_mesh_generation = nullptr;
+// The real Firestorm camera is sampled BEFORE the deferred scene scan.
+// Retain it only after successful module validation, and invalidate it on
+// every real region change. It may be rebound after accepted geometry,
+// but MUST never be paired across region epochs.
+ogl_rtx_frame_state last_live_world_camera{};
+bool last_live_world_camera_valid = false;
+std::uint64_t live_world_region_epoch = 0;
+std::uint64_t live_world_rebinds = 0;
 bool world_camera_live_logged = false;
 bool world_inputs_live_logged = false;
 using ogl_world_device_ready_fn = int (*)();
@@ -257,6 +268,14 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_set_projection_camera"));
     world_input_ready = reinterpret_cast<ogl_world_input_ready_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_live_inputs_ready"));
+    world_mesh_generation = reinterpret_cast<ogl_world_generation_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_mesh_generation"));
+    world_camera_mesh_generation = reinterpret_cast<ogl_world_generation_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_camera_mesh_generation"));
+    last_live_world_camera={};
+    last_live_world_camera_valid=false;
+    live_world_region_epoch=0;
+    live_world_rebinds=0;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     world_device_ready = reinterpret_cast<ogl_world_device_ready_fn>(
@@ -418,6 +437,12 @@ void ogl_shutdown_rtx_module() {
     world_upload_geometry = nullptr;
     world_set_camera = nullptr;
     world_input_ready = nullptr;
+    world_mesh_generation = nullptr;
+    world_camera_mesh_generation = nullptr;
+    last_live_world_camera={};
+    last_live_world_camera_valid=false;
+    live_world_region_epoch=0;
+    live_world_rebinds=0;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     world_device_ready = nullptr;
@@ -466,6 +491,20 @@ bool ogl_vulkan_world_mesh_staging_enabled() {
 #endif
 }
 
+// The region UUID is compared by the actual Firestorm pipeline. No UUID
+// or position is exported to diagnostics; only invalidate the cached pose.
+// Called AFTER the pipeline has detected a genuine OpenSim region change,
+// NOT when a partial geometry scan returns zero candidates.
+void ogl_rtx_on_region_transition() {
+#if LL_LINUX || LL_WINDOWS
+    last_live_world_camera={};
+    last_live_world_camera_valid=false;
+    ++live_world_region_epoch;
+    world_camera_live_logged=false;
+    world_inputs_live_logged=false;
+#endif
+}
+
 void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     const float* camera_position, const float* camera_forward,
     const float* camera_right, const float* camera_up,
@@ -507,7 +546,14 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
     frame.aspect_ratio = aspect_ratio;
     frame.near_clip_m = near_clip_m;
     frame.far_clip_m = far_clip_m;
+    if (gpu_camera) {
+        // Never reuse a prior pose if this frame was rejected. The region
+        // callback invalidates the copy independently of GPU state.
+        last_live_world_camera_valid=false;
+    }
     if (gpu_camera && world_set_camera(&frame)==1) {
+        last_live_world_camera=frame;
+        last_live_world_camera_valid=true;
         // First real viewer-camera input, NOT a displayed Vulkan frame.
         if (!world_camera_live_logged) {
             world_camera_live_logged=true;
@@ -519,6 +565,9 @@ void ogl_rtx_submit_camera_sun(unsigned width, unsigned height,
         // This requires a GPU scene uploaded before this camera frame,
         // so stale geometry after region changes is never considered ready.
         if (!world_inputs_live_logged && world_input_ready &&
+            world_mesh_generation && world_camera_mesh_generation &&
+            world_mesh_generation()>0 &&
+            world_camera_mesh_generation()==world_mesh_generation() &&
             world_input_ready()==1) {
             world_inputs_live_logged=true;
             LL_INFOS("OGLRenderer")
@@ -540,12 +589,49 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
     const auto* triangles=reinterpret_cast<const ogl_rtx_triangle*>(triangle_xyz);
     const char* staging=std::getenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
     if (world_upload_geometry && staging && std::strcmp(staging,"1")==0) {
+        const std::uint64_t before=world_mesh_generation ?
+            world_mesh_generation() : 0u;
         const bool uploaded=world_upload_geometry(triangles,count)==1;
+        const bool changed=!world_mesh_generation ||
+            before!=world_mesh_generation();
         if (count==0) world_inputs_live_logged=false; // region lost
         if (uploaded && count>0) {
-            // Another live camera update is required AFTER this mesh upload
-            // before the paired-input diagnostic can be reported.
-            world_inputs_live_logged=false;
+            // A byte-identical, opted-in mesh snapshot is already paired
+            // with this pose and uses the same VkBuffers. Never generate
+            // synthetic camera revisions or misleading upload logs.
+            if (changed) world_inputs_live_logged=false;
+            // The real deferred camera was sampled earlier in THIS frame
+            // than the region geometry. A successful upload invalidates
+            // that camera, so explicitly rebind its VALIDATED current pose.
+            // This never takes over GL's window or submits Vulkan presents.
+            // A region-transition callback discards the cache: no old-region
+            // matrix can be attached to a new-region mesh. Entirely opt-in.
+            const char* rebind=std::getenv("OGL_VULKAN_LIVE_CAMERA_REBIND");
+            const bool enabled=rebind && std::strcmp(rebind,"1")==0;
+            if (enabled && !world_inputs_live_logged &&
+                last_live_world_camera_valid && world_set_camera &&
+                world_input_ready && world_mesh_generation &&
+                world_camera_mesh_generation && world_device_ready &&
+                world_device_ready()==1 &&
+                world_set_camera(&last_live_world_camera)==1 &&
+                world_mesh_generation()>0 &&
+                world_camera_mesh_generation()==world_mesh_generation() &&
+                world_input_ready()==1) {
+                ++live_world_rebinds;
+                world_inputs_live_logged=true;
+                // Bounded diagnostics without region IDs, avatar positions,
+                // object names or unbounded per-frame logging.
+                if (live_world_rebinds<=3 || live_world_rebinds%64==0)
+                    LL_INFOS("OGLRenderer")
+                        << "P05 real Firestorm/OpenSim mesh and camera "
+                           "generation paired after deferred capture: "
+                        << "triangles=" << count
+                        << " mesh_generation=" << world_mesh_generation()
+                        << " region_epoch=" << live_world_region_epoch
+                        << " rebinds=" << live_world_rebinds
+                        << "; NO Vulkan world present, OpenGL remains active."
+                        << LL_ENDL;
+            }
         }
     }
     // The historical RTX diagnostic path retains its feature/opt-in gating.

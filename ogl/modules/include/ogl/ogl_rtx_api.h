@@ -121,6 +121,19 @@ OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_uploads(void);
  * invalidates the old camera and requires a fresh camera before drawing.
  */
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_generation(void);
+/* Optional bit-exact unchanged-geometry coalescing:
+ * OGL_VULKAN_WORLD_MESH_DEDUP=1. Returns success for byte-identical
+ * snapshots without reallocating VkBuffers, invalidating a valid camera,
+ * advancing scene generation or waiting on in-flight graphics fences.
+ * Explicit region clear still advances the generation. This is not a
+ * proof that a world frame was rendered under Vulkan.
+ */
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_mesh_dedup_skips(void);
+/* The camera is only usable with the exact accepted mesh generation.
+ * Scene replacement/region clear and failed camera submissions invalidate it.
+ * This counter alone is NOT proof of a visible GPU world frame.
+ */
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_camera_mesh_generation(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_waits(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_mesh_retire_failures(void);
 
