@@ -4,60 +4,29 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 06.11.2026 (Code 5938a395):
-20 konkrete technische Teilaufgaben
-zur Vulkan-GPU-Welt-Beleuchtung.
-Neue separate Entwicklerfreigabe
-OGL_VULKAN_WORLD_LAMBERT_PROBE=1:
-2 originale GLSL-450-Shader
-als mit Khronos spirv-val
-validiertes Vulkan-1.0-SPIR-V
-im vorhandenen Vulkan-Modul.
-Vertex-XYZ-Weltposition wird
-an Fragment übergeben;
-GPU-dFdx/dFdy-Flächennormale
-mit Degenerationsschutz,
-gerichtete zweiseitige
-Lambert-/Ambient-Beleuchtung.
-Keine realen Texturen/Materialien,
-kein Raytracing/PBR. Standard
-ist unveränderter roter/grüner
-Depth-Debugshader. Ungültige
-Shader-Flags fail-closed;
-Fenced-GPU-Cache baut bei
-Shader-Modus-/Auflösungswechsel
-neu und reused ansonsten.
-Read-only-Vulkan-ABI für
-GPU-lit-pixels / mittlere
-RGB-Summe, Host-Deferred-
-GPU-Logs und lokaler Reporter
-numerisch und anonym;
-alte GPU-Quittungen lesbar.
-Native echte Vulkan-GPU:
-18 Welt-/Depth-Bilder,
-10 Cache-Builds, 8 Reuses,
-10 Releases, Weltflächen
-mit unterschiedlicher
-Geometrienormale liefern
-274 vs 327 mittlere RGB-
-Summe als echte GPU-Daten.
-Linux-Vollviewer 371 Python,
-41 native CTests, 59 gezielte
-Grafik-, 45 Report-Tests,
-29/29 isolierte SDL-GUI-Starts grün.
-Vorige GitHub-CI grün;
-neue Commit-CI gesondert prüfen.
-Keine neue Shaderdatei im
-Repository, keine User-Viewer,
-Profile, Cache, Secrets berühren.
-KEIN authentifizierter Live-
-OpenSim-GPU-Frame und KEINE
-produktive Vulkan-World-Engine,
-Terrain/Texturen/Avatare/UI
-fehlen. OpenGL bleibt sichtbar,
-P05 formal 2/20, Blöcke 3/4
-offen. Details/20 Blöcke:
-ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 07.11.2026 (Code 043efe22):
+20 zusätzliche tatsächlich ausgeführte technische Aufgaben
+für dynamische private Vulkan-GPU-World-Sonnenbeleuchtung.
+Sun_DIRECTION aus echtem Firestorm-Deferred-v3-Kameraframe:
+normiert, nur bei SUN_LIGHT_PROBE=1 plus LAMBERT_PROBE=1
+und existierenden unabhängigen GPU/Mesh/Camera/Offscreen-
+Freigaben. Vulkan 1.0 geprüfter Fragmentshader mit 80-Byte-
+PushConstant (Camera64 + Sun16). Drei Cache-Modi
+Depth-Debug/Fixed-Lambert/Dynamic-Sun, keine GPU-Pipeline-/
+Mesh-Neuanlage allein bei Lichtwechsel, Region-/Mesh-/
+WSI-/Camera-Invalidierung setzt Sonnenvektor zurück.
+120-Frame-Kamera-Tick bewertet Sonne nur bei dynamischem Opt-in.
+Native GPU: 22 private World-/Depth-Frames, 12 Builds,
+10 Reuses, 12 Releases, SunX/SunZ RGB-Mittel 70/349
+mit gleichem GPU-Mesh, negative Flag-/Nullsonne-Tests.
+Linux-Vollbuild: 372 Python/41 CTests/60 Grafik/45 Reporter. 33/33 isolierte echte SDL-Viewer-GUI-Starts grün.
+Vorige GitHub-CI grün; neue CI separat kontrollieren.
+KEIN authentifizierter OpenSim-Live-GPU-Welt-Nachweis.
+Keine sichtbare Vulkan-Terrain-/Textur-/Avatar-/UI-Engine,
+nur OpenGL produktiv. P05 weiter 2/20, Block3/4 offen.
+User-Prozesse/Profildaten/Cache/Secrets nicht anfassen,
+keine Projektdatei-Duplikate.
+Fortsetzung ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

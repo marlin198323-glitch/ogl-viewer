@@ -687,6 +687,23 @@ Welt ausschließlich OpenGL.
 P05 formal 2/20, Block 3/4 offen.
 Code 5938a395.
 
+**P05/3–4 echte Firestorm-Kamera-Sonnenrichtung als Vulkan-Entwicklerlicht (07.11.2026, Code 043efe22):**
+20 konkrete technische Arbeitsschritte, siehe ogl/PROJECT_STATUS.md.
+Vulkan-1.0-SPIR-V-Fragmentshader für dynamisch normalisierte
+Firestorm-v3-Sonnenrichtung (Kamera 64B + Sonne 16B PushConstant).
+Dynamik nur mit SUN_LIGHT_PROBE=1 und LAMBERT_PROBE=1 sowie
+bestehenden Vulkan-GPU-/Mesh-/Camera-/Offscreen-Gates; bei
+Sun-only oder fehlerhaften Flags kein GPU-World-Draw.
+Normierte Lichtdaten werden bei Region-/Mesh-/WSI-/Camera-
+Invalidierung verworfen. Drei unabhängige Shadercache-Modi,
+keine Pipeline-/Mesh-Rebuilds bei Lichtänderungen.
+GPU: 22 World-/Depth-Frames, 12 Builds/10 Reuses/12 Releases,
+Sun-X/Sun-Z mittlere RGB-Summen 70/349 bei gleichem Mesh.
+Linux: 372 Python, 41 CTests, 60 Grafik-, 45 Reporter-Tests grün.
+33/33 isolierte echte SDL-/X11-Viewerstarts bestanden.
+Kein authentifizierter OpenSim-Live-Welt-GPU-Nachweis;
+sichtbar ausschließlich OpenGL; P05 2/20, Block3/4 offen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

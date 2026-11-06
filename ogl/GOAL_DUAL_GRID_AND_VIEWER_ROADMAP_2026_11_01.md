@@ -1746,6 +1746,18 @@ Terrain/Avatare/Window-Present
 noch NICHT abgenommen.
 P05 2/20, Blöcke 3/4 offen.
 
+**P05/3–4 dynamische Kamera-Sonne für Vulkan-World-Shader (07.11.2026, 043efe22):**
+Sun-Light-Probe und Lambert-Probe müssen beide aktiviert sein,
+80-Byte-WorldCamera+Sun-Vulkan-PushConstant. Lichtänderungen
+erfordern keine neuen GPU-Meshes oder Pipeline-Neuaufbauten.
+GPU-Cache und Regions-/Mesh-/Kamera-Invalidierung abgesichert.
+Real GPU: 22 private World-/Depth-Frames, 12 Builds/10 Reuses/
+12 Releases, RGB 70 vs. 349 für zwei Sonnenvektoren.
+Linux: 372 Python, 41 CTests, 60 Grafik-, 45 Reporter-Tests.
+33/33 isolierte SDL-Viewerstarts grün.
+Kein authentifizierter Live-OpenSim-Worldframe,
+sichtbarer Vulkan-Renderer weiterhin offen; P05 formal 2/20.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

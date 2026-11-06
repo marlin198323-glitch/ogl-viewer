@@ -1,10 +1,92 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 06.11.2026
+Stand: 07.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3–4 – 20 technische Schritte: Sonnenrichtung aus Firestorm auf Vulkan-GPU (07.11.2026)
+
+**Neue Umsetzung:** Die privat gerenderte Vulkan-World-XYZ-Lambert-Pipeline
+kann unter zwei separaten Entwicklerfreigaben den tatsächlichen
+Sonnenrichtungsvektor des Firestorm-Deferred-Kameraframes verwenden.
+Der neue Vulkan-1.0-Fragmentshader wurde mittels glslangValidator
+kompiliert und mit spirv-val validiert. Ein 80-Byte-Vulkan-PushConstant-
+Paket enthält die bestehende 64-Byte-Kameramatrix und 16 Byte
+normalisierte Sonnenrichtung. Bei Lichtwechsel sind weder neue
+GPU-Meshuploads noch Shader-/Image-/Pipeline-Rebuilds notwendig.
+
+**Gates:** OGL_VULKAN_WORLD_SUN_LIGHT_PROBE=1 erfordert zusätzlich
+OGL_VULKAN_WORLD_LAMBERT_PROBE=1 sowie die bisherigen unabhängigen
+Device-/Mesh-/Camera-/Offscreen-Freigaben. Ungültige Flags, Nullsonne,
+NaN/Inf und unplausible Sonnenlängen werden verworfen. Drei
+Shadermodi bleiben unabhängig: Depth-Debug als Standard, feste
+Lambert-Testbeleuchtung, dynamische Sonne. Regions-/Mesh-/WSI-/
+Kamerainvalidierung verwirft auch die gekoppelte Sonnendatenquelle.
+Der 120-Deferred-Frame-Hosttick reagiert nur bei explizit aktiviertem
+dynamischem Licht auf reine Sonnenänderungen.
+
+**20 tatsächlich durchgeführte technische Arbeitsschritte:**
+
+01. Branch, CI auf Linux/Windows/macOS und kanonische Projektdokumentation geprüft.
+02. Firestorm-Deferred-Pass und echten LLEnvironment-Sonnenvektor bis zur vorhandenen v3-Kamera-ABI geprüft.
+03. Starre Entwickler-Lambert-Lichtquelle als nächste fehlende reale Weltquelle identifiziert.
+04. Neue GLSL-450-Vulkan-Fragmentshader-Variante für veränderbare Sonnenrichtung und GPU-Weltflächennormalen erstellt.
+05. GPU-Normalen weiter aus dFdx/dFdy der Weltpositionsdaten berechnet.
+06. Sonnenlicht als zusätzliche vec4 nach der 64-Byte-World-to-Clip-Kamera-PushConstant angebunden.
+07. Neuen GLSL-Shader für Vulkan 1.0 kompiliert und mit Khronos spirv-val erfolgreich validiert.
+08. Validierte 460 SPIR-V-Wörter in bestehender Vulkan-C++-Moduldatei eingebettet, keine neuen Repo-Dateien.
+09. Eigenes OGL_VULKAN_WORLD_SUN_LIGHT_PROBE-Opt-in zusätzlich zu LAMBERT_PROBE und bestehenden GPU-Gates erzwungen.
+10. Ungültige Opt-ins, Null-/nicht endliche Sonnenrichtung und außerhalb der geprüften Vektorlänge liegende Werte fail-closed abgelehnt.
+11. Den akzeptierten Kamerasonnenvektor normiert und nur intern als vier Float-Werte für die GPU bereitgestellt.
+12. Nur für dynamisches Sonnenlicht das Vulkan-Pipeline-Push-Layout auf 80 Byte und Vertex-/Fragment-Stages erweitert; alte Modi bleiben 64 Byte.
+13. Shader-Cache strikt nach den drei Modi Depth-Debug, feste Lambert-Normale und dynamische Sonne getrennt.
+14. Beim Sonnenrichtungswechsel lediglich PushConstants erneuert; GPU-Image, Pipeline und Meshbuffer wiederverwendet.
+15. Ungültige Sonnen-Kamera-Daten bei Regionswechsel, Meshersatz, Scene-Clear, WSI-Kamerainvalidierung und fehlerhaftem Kameraframe verworfen.
+16. Vorhandenen gedrosselten 120-Frame-Kamera-Tick erweitert: reine Sonnenbewegung zählt nur bei beiden dynamischen Entwicklerfreigaben.
+17. Grafik-Quellcode-Regressionsprüfung für 80-Byte-PushConstant, Shader, Freigaben, Cache-Modi und Sicherheitsgrenzen ergänzt.
+18. Native Vulkan-GPU: zwei verschiedene Sonnenrichtungen auf identischem Mesh verglichen, mittlere RGB-Summe 70 gegenüber 349 bei unveränderter GPU-Meshgeneration.
+19. Negative GPU-Abnahmen für fehlende Lambert-Freigabe, ungültiges Sonnenflag, Nullsonne und anschließende erfolgreiche Wiederherstellung umgesetzt.
+20. Native Vulkan-GPU mit 22 World-/Depth-Frames, 12 Builds/10 Reuses/12 Releases und alten Vulkan-X11-/Regionstests bestanden; Linux-Vollbuild 372 Python-, 41 native CTests, 60 Grafiktests und 45 Reporter-Tests grün.
+
+**GPU-Abnahme:** Echte native Vulkan-X11-Tests:
+22 private Welt-/Depth-GPU-Frames, 12 Cache-Builds,
+10 Reuses und 12 Releases. Bei gleicher Kamera und
+gleichem GPU-Mesh brachten Sonnenvektoren entlang
+X und Z nach GPU-Auswertung mittlere RGB-Summen
+von **70 bzw. 349**. GPU-Mesh-Uploadzähler und
+Meshgeneration blieben unverändert. Ein Vektor
+mit Länge 2 wurde normiert; Null-Sonnenvektor
+und ungültige oder unvollständige Developer-
+Flags wurden abgewiesen. Bisherige Vulkan-
+Region-/Depth-/X11-Present-Tests bestanden.
+
+**GUI-Abnahme: 33/33 isolierte reale SDL/X11-Viewerstarts bestanden**, einschließlich vier neuer SUN-/LAMBERT-Opt-in- und Invalid-Flag-Fälle.
+
+**Voll-Linux-Build:** 372/372 Python-Tests und
+41/41 native CTests erfolgreich; 60/60
+gezielte Grafik-Quellcode-Kontrakte und
+45/45 GPU-Report-Tests ebenfalls grün.
+Isolierte echte SDL/X11-Viewer-GUI-Smokes
+prüfen vier neue Sonnenlicht-/Invalid-Flag-
+Kombinationen, normalen OpenGL-Login sowie
+bisherige Vulkan-Fallbacks. Keine Nutzer-
+Viewer-Prozesse, Profile oder Secrets berührt.
+
+**Offen:** Die echten GPU-Testpixel stammen
+aus synthetischen Entwickler-World-Meshes.
+Kein authentifiziertes OpenSim-Login mit
+nachgewiesenem Vulkan-Live-Weltrendering.
+Terrain, reale Materialien/Texturen,
+Wasser, Avatare und Benutzeroberfläche
+werden nicht über Vulkan gezeichnet.
+Keine sichere produktive Vulkan-
+Fensterübernahme. Die sichtbare Welt
+verwendet weiter OpenGL.
+**P05 formal 2/20 operative Blöcke,
+Block 3 und vollständiger Block 4 offen.**
+Code-Commit: 043efe22e4b39bbb64c1126ea255e7aba247d707.
 
 ## P05/3–4 – 20 technische Schritte: GPU-Normalen und einfaches Vulkan-Weltlicht (06.11.2026)
 
