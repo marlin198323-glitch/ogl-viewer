@@ -776,6 +776,35 @@ Keine echte OpenSim-TextureAsset-Decodierung,
 kein authentifizierter Live-Welt-GPU-Frame, kein
 sichtbarer Vulkan-Welt-Renderer. P05 formal 2/20.
 
+**P05/3–4 reale Firestorm-Decoded-Raw-Quelle an Vulkan (09.11.2026, Code edd33d9b):**
+20 konkrete Entwicklungs-/Testschritte, Details ogl/PROJECT_STATUS.md.
+Zusätzlicher synchroner Firestorm-Deferred-Source-Pfad aus
+LLViewerFetchedTexture::getRawImage (bereits decodiertes
+LLImageRaw) für EIN einheitliches deckendes Legacy-Diffuse-Bild
+pro vollständigem World-Mesh: Source- und Raw-Lebensdauer
+über LLPointer, SharedLock auf Pixelpuffer, keine
+Neudecodierung/GL-Readback oder Asset-ID-Logs.
+Nur bei OGL_VULKAN_LIVE_RGBA_SOURCE=1 plus
+OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1 und vorherigen
+GPU-/Mesh-/RGB-/UV-/Sun-Dev-Gates.
+Mixed/Default/Missing/Transparent/Animated/PBR/GLTF,
+Terrain und Prepass-Snapshots sind nicht geeignet.
+RGB3-/RGBA4->RGBA8, Originalalpha-Validierung,
+1..1024px Quellseiten, maximal 64px aspektrichtige
+CPU-Kopie. Vulkan-Image-ABI bleibt unverändert,
+source-qualified und generationstreu.
+Voll-Linux 376 Python-/41 CTests, 64 Grafik- und
+45 Reporttests grün. Native Bilddaten-/Aspect-
+Negativtests grün; Vulkan-X11 weiter 35 GPU-Frames,
+19 Builds/16 Reuses/19 Releases, Sample R51/G0
+vs R0/G51. 10 isolierte GL-/Vulkan-Login-Fälle.
+Wichtig: NOCH KEIN authentifizierter Live-Region-
+Vulkan-Texturframe, kein Multi-Asset-/PBR-Renderer;
+sichtbare Welt bleibt OpenGL, P05 formal 2/20.
+Letzter GitHub-Workflow 42673502520 FAIL mit
+null Jobs, Ursache noch ungeklärt; neue CI
+nach neuem Push prüfen.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

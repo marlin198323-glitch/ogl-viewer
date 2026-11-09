@@ -6,6 +6,124 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: reale decodierte Firestorm-Texturquelle mit Vulkan verknüpfen (09.11.2026)
+
+**Neuer tatsächlicher Datenpfad:** Der Firestorm-Viewer decodiert
+OpenSim-Texturen bereits in LLViewerFetchedTexture/LLImageRaw.
+Die optionale World-Source-Bridge kann jetzt diese vorhandenen,
+decodierten Pixel einer akzeptierten Deferred-Szenengeometrie
+zuordnen, in einem kleinen CPU-RGBA8-Bild zusammenfassen und
+an die vorhandene private Vulkan-VkImage/VkSampler-Pipeline
+weiterreichen. Es werden keine JPEG2000-Dateien neu decodiert,
+keine Assets aus dem Netzwerk geladen, keine OpenGL-Textur
+ausgelesen und keine Pixel protokolliert.
+
+**Voraussetzungen und Quellenintegrität:** Der bisherige Vulkan-
+Testshader unterstützt weiterhin nur **ein Bild pro vollständigem
+World-Mesh**, nicht beliebige Materialien je Objekt oder Face.
+Deshalb liefert der neue echte Source-Pfad bewusst nur dann
+ein Bild, wenn ALLE erfassten Dreiecke ausschließlich aus
+VolumeFaces stammen und dasselbe valide, bereits im RAM
+decodierte Legacy-Diffuse-Bild besitzen. Terrain-/Ray-Anker-
+Snapshots, gemischte Texturen, fehlende/Default-Assets,
+transparente TextureEntries oder Bildpixel sowie animierte
+und PBR-/GLTF-Materialien werden abgewiesen. Dies ist ein
+enger Prototyp und für normale, komplexe OpenSim-Regionen
+noch keine flächendeckende Materiallösung.
+
+**Implementierung:** Nur mit OGL_VULKAN_LIVE_RGBA_SOURCE=1
+UND OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1, zusätzlich zu
+vorhandenen UV-/FaceRGB-/Lambert-/Sun-/World-/Device-/
+Mesh-/Camera-/Offscreen-Gates. Die Quelle wird durch
+LLPointer-Referenzen auf Texture und Raw-Image gepinnt,
+mit LLImageDataSharedLock kopiert und nicht über den
+synchronen Aufruf hinaus gehalten. Ein rein funktionaler
+RGB/RGBA->RGBA8-Konverter validiert jeden Original-Alpha-
+Wert, Komponenten (3/4), Pixelmaße (1..1024), Bytezahl
+und baut ein seitenverhältnistreues Nearest-Neighbor-Bild
+(max. 64x64). Host und Vulkan-Modul erzwingen, dass
+dieses Bild mit exakt der akzeptierten XYZ/FaceRGB/UV-
+Meshgeneration übereinstimmt. Ein fehlgeschlagener
+Source-Upload invalidiert alte Quittungen; es werden
+keine falschen realen Welt-GPU-Frames behauptet.
+
+**20 tatsächlich ausgeführte Implementierungs-/
+Testaufgaben:**
+
+01. Arbeitsbranch ogl-develop, sauberen Projektstand, AGENTS/Handoff/Status/Roadmap und den zuletzt fehlerhaften GitHub-Lauf mit null gestarteten Jobs geprüft.
+02. Die bestehende Firestorm-Texture-Fetch-/JPEG2000-Verarbeitung und die Schnittstellen LLViewerObject::getTEImage, LLViewerFetchedTexture und LLImageRaw untersucht.
+03. Eine bewusst eingeschränkte erste echte Textur-Quellübernahme gewählt: nur ein einheitliches, bereits decodiertes Legacy-Diffuse-Bild je vollständigem GPU-Szenensnapshot.
+04. Ein zusätzliches eigenständiges Entwickler-Opt-in OGL_VULKAN_LIVE_RGBA_SOURCE=1 eingeführt; das bestehende RGBA_IMAGE_PROBE bleibt weiterhin erforderlich.
+05. Live-Materialquelle nur aus dem quellqualifizierten Deferred-OpenSim-Regionenscanner und nicht aus Prelogin-/Synthetic-/Generic-Geometry akzeptiert.
+06. Alle aufgenommenen Dreiecke anhand derselben LLViewerFetchedTexture-Instanz geprüft; gemischte Texturen werden für den Ein-Image-Prototyp vollständig zurückgewiesen.
+07. Snapshots mit Terrain- oder Kameraanker-Dreiecken ohne eindeutige VolumeFace-Materialquelle für echte GPU-Bildpixel ausgeschlossen.
+08. Fehlende Texturassets, Platzhalterbilder und ungültige/fehlende VolumeFace-UV-Transformationen geschlossen abgewiesen.
+09. TextureEntry-Oberflächen mit Transparenz, animiertem Texture-Transform oder GLTF-/PBR-Material nicht als gültige Legacy-Diffuse-Bildquelle zugelassen.
+10. Vorhandene RGBA-/UV-/FaceRGB-Quell-ABI beibehalten und nur optional um Bilddatenzeiger, Bildabmessungen und die bereits gekoppelte Dreieckszahl ergänzt.
+11. LLViewerFetchedTexture::isRawImageValid/getRawImage nur lesend verwendet; keine erzwungene Neudecodierung und kein OpenGL-Readback eingebaut.
+12. LLPointer<LLViewerFetchedTexture> sowie LLPointer<LLImageRaw> zur referenzsicheren Lebensdauer der bereits vorhandenen CPU-Bilddaten während des synchronen Scans eingesetzt.
+13. LLImageDataSharedLock während der Quell-Pixelkopie ergänzt, damit weder Bildpuffer noch Quelldaten pointerbasiert nach dem Scan zurückbehalten werden.
+14. Plattformneutrale RGB/RGBA-zu-RGBA8-Konvertierung in bestehendem Host-Header implementiert, ohne neues Repository-Dateiduplikat.
+15. Quelldimensionen und Speichergröße auf 1..1024 Pixel je Achse beziehungsweise geprüfte Bytezahl beschränkt; unzulässige Formate und transparente Originalpixel abgewiesen.
+16. Seitenverhältnistreue Nearest-Neighbor-Verkleinerung auf maximal 64x64 implementiert, einschließlich extremer Seitenverhältnisse ohne Null- oder Integer-Overflow.
+17. Host-Symbolauflösung für die bisherige additive Vulkan-RGBA-Upload-ABI ergänzt und reine CPU-Quelldaten synchron nach erfolgreichem XYZ/FaceRGB/UV-Meshupload übergeben.
+18. GPU-Bildrevision ausdrücklich an dieselbe aktuelle Vulkan-Meshgeneration gekoppelt; ohne Live-Opt-in, bei fehlerhaftem Raw-Image oder bei fehlgeschlagenem Meshupload wird der frühere Live-Quellnachweis invalidiert.
+19. Native plattformneutrale C++-Negativ- und Downsample-Tests ergänzt und frühere echte Vulkan-GPU-Image-/Sampler-/Region-/Depth-Tests unter isoliertem X11 erneut erfolgreich ausgeführt.
+20. Vollständigen Linux-Viewer gebaut, 376 Python-/41 CTests und 64 Grafik-/45 Reportprüfungen erfolgreich kontrolliert sowie 10 isolierte SDL-Login-/Vulkan-Fallback-Szenarien ohne Nutzerprofil ausgeführt.
+
+**Lokale Abnahme:** Der Linux-Vollviewer-Build
+bestand mit **376/376 Python-Tests** und
+**41/41 nativen CTests**. Die gezielten
+Quellcode-/Funktionsverträge umfassen
+**64 Grafik- und 45 Herkunfts-/Reporttests**.
+Der native C++-Test prüft echte rohe RGB-
+und RGBA-Bildarray-Kopien, Transparenz,
+korrupte Datenlänge, invalide Kanalzahl,
+256x128->64x32- und 1x1024->1x64-
+Verkleinerung sowie Besitz der Bilddaten.
+Die unveränderte private Vulkan-X11-GPU-
+Abnahme bestand mit **35 VkDrawIndexed-
+Welt-/Depth-Frames, 19 Cache-Builds,
+16 Reuses, 19 Releases**; echtes
+VkImage-Sampling zeigte R51/G0 gegen
+R0/G51. Die erneuten isolierten SDL/
+OpenGL-Viewerstarts prüfen 10 Varianten
+mit/ohne Live-Flag und Vulkan-Rückfall,
+jeweils nur bis zum Login-Screen.
+Alle dabei genutzten Testdaten und
+Testprozesse sind vom Benutzerprofil
+isoliert.
+
+**Wesentliche offene Abnahme:** Es wurde
+KEIN authentifizierter Live-OpenSim-Region-
+Snapshot mit gleichzeitig gültiger
+einheitlicher decodierter Textur als
+Vulkan-Worldframe nachgewiesen.
+Der GPU-Sampler wurde bislang mit
+synthetischen 2x2-/64x64-Testbildern
+abgenommen; das neue Firestorm-Quell-
+Sampling ist compiliert und lokal
+vertraglich getestet, nicht live
+authentifiziert. Produktionsmaterialien
+brauchen per-Face-Texturzuordnung,
+Sampler-/Residency-/Streaming-Management,
+Opaque- und Alpha-Blending, PBR/GLTF,
+Terrain, Avatare und Fenster-Present.
+Die tatsächliche Welt rendert weiter
+OpenGL. P05 formal **2/20 operative
+Hauptblöcke**, Block3 und vollständiger
+Block4 weiter offen.
+
+**GitHub-CI:** Der vorangegangene
+GitHub-Lauf 42673502520 wurde von
+GitHub als Workflow-File-Fehler
+ohne gestartete Jobs markiert;
+lokale YAML-Analyse allein erklärt
+das nicht. Neue Commit-CI
+separat kontrollieren, nicht als
+bestanden markieren.
+Code-Commit: edd33d9b52f6c95d79b01b633db7cf4549dc838f.
+
 ## P05/3–4 – 20 technische Schritte: Vulkan-VkImage-Sampler für decodierte RGBA8-Texturpixel (09.11.2026)
 
 **Erreicht:** Die private, NICHT sichtbare Vulkan-World-GPU-Pipeline

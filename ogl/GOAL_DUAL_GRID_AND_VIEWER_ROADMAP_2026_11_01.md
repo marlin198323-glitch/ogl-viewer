@@ -1816,6 +1816,31 @@ Zuordnung, kein Live-GPU-Bild einer eingeloggten
 Region; OpenGL bleibt sichtbarer Welt-Renderer.
 P05 formal 2/20, Block 3/4 weiterhin offen.
 
+**P05/3–4 Echte Decoder-Quelle aus Firestorm (09.11.2026, Code edd33d9b):**
+Der bereits vorhandene VkImage-Sampler kann optional ein
+direkt aus LLViewerFetchedTexture/LLImageRaw kopiertes,
+bereits decodiertes 3/4-Kanal-Bild nutzen. Nur bei
+LIVE_RGBA_SOURCE=1 und RGBA_IMAGE_PROBE=1, allen bisherigen
+World-Source-Gates und EINEM einheitlichen, deckenden
+Legacy-Diffuse-Bild für ALLE erfassten VolumeFace-
+Dreiecke; kein Terrain/Prepass, keine Mixed/PBR/
+Anim- oder Alpha-Materialien. RawObject-Referenz/
+SharedLock, nicht blockierendes Fetch, CPU 64px-
+Thumbnail mit validierter Originalpuffergröße.
+CPU-/Source-Revision streng an Vulkan-XYZ/RGB/UV-
+Meshgeneration gekoppelt; kein altes GPU-Bild aus
+anderem Snapshot. Linux 376 Python/41 CTests,
+64 Grafik-/45 Reporttests; 10 isolierte
+OpenGL-/Vulkan-Login-GUI-Fälle. Native Vulkan-
+GPU 35 private Frames, Cache 19/16/19, echte
+Testbild-Sampler R51/G0 vs R0/G51.
+Kein authentifizierter Live-Vulkan-Texturframe;
+weitere Implementierung Multi-Face-Material/
+GPU-Resident-Texturassets/Alpha/PBR/WindowPresent.
+P05 formal 2/20.
+Vorige GitHub-CI 42673502520 mit 0 Jobs fehlgeschlagen,
+nächsten Lauf überprüfen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
