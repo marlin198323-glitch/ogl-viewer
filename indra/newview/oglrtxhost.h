@@ -58,6 +58,54 @@ inline bool ogl_rtx_thumbnail_opaque_rgba8(
     return true;
 }
 
+// P05/6: four explicit opaque RGBA8 materials, packed to a single
+// 64x64 GPU atlas with four independent 32x32 tiles. No image
+// download, texture UUID exposure or forced decode. All pixel pointers
+// are borrowed for this synchronous copy; no persistent source refs.
+struct OGLRgbaTileView {
+    const std::uint8_t* rgba = nullptr;
+    std::size_t byte_count = 0;
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+};
+
+inline bool ogl_rtx_pack_rgba_atlas_2x2(
+    const OGLRgbaTileView* tiles,std::uint32_t tile_count,
+    std::vector<std::uint8_t>& atlas)
+{
+    atlas.clear();
+    if (!tiles || tile_count==0 || tile_count>4) return false;
+    for (std::uint32_t slot=0;slot<tile_count;++slot) {
+        const auto& tile=tiles[slot];
+        if (!tile.rgba || tile.width==0 || tile.height==0 ||
+            tile.width>64 || tile.height>64 ||
+            tile.byte_count<std::size_t(tile.width)*tile.height*4u)
+            return false;
+        for (std::size_t pixel=3;pixel<std::size_t(tile.width)*
+             tile.height*4u;pixel+=4)
+            if (tile.rgba[pixel]!=255u) return false;
+    }
+    // Unused slots are opaque white, but may not be referenced by
+    // geometry: the material-slot sidecar requires <tile_count.
+    std::vector<std::uint8_t> packed(64u*64u*4u,255u);
+    for (std::uint32_t slot=0;slot<tile_count;++slot) {
+        const auto& tile=tiles[slot];
+        const auto sx=(slot%2u)*32u;
+        const auto sy=(slot/2u)*32u;
+        for (std::uint32_t y=0;y<32;++y)
+            for (std::uint32_t x=0;x<32;++x) {
+                const auto from=(
+                    std::size_t((std::uint64_t(y)*tile.height)/32u)*
+                    tile.width+std::size_t((std::uint64_t(x)*tile.width)/32u))*4u;
+                const auto to=(std::size_t(sy+y)*64u+sx+x)*4u;
+                for (unsigned channel=0;channel<4;++channel)
+                    packed[to+channel]=tile.rgba[from+channel];
+            }
+    }
+    atlas.swap(packed);
+    return true;
+}
+
 // P04/2: world-renderer backend contract. This is a decision model, NOT a
 // Vulkan world-renderer implementation or a user-visible engine selector.
 // OpenGL owns the current GL context, world pipeline, UI, framebuffer and
@@ -197,7 +245,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // prelogin or standalone synthetic GPU test paths.
 void ogl_rtx_submit_deferred_world_triangles(
     const float *triangle_xyz,const float *face_tints_rgb,
-    const float *face_uvs,const std::uint8_t *decoded_rgba,
+    const float *face_uvs,const float *face_material_slots,
+    unsigned atlas_tile_count,const std::uint8_t *decoded_rgba,
     unsigned image_width,unsigned image_height,unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.

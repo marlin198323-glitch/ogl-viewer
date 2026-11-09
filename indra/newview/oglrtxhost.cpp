@@ -75,12 +75,20 @@ using ogl_world_rgba_upload_fn = int (*)(const std::uint8_t*,std::uint32_t,std::
 ogl_world_rgba_upload_fn world_upload_rgba_image = nullptr;
 using ogl_world_rgba_generation_fn = std::uint64_t (*)();
 ogl_world_rgba_generation_fn world_rgba_mesh_generation = nullptr;
+using ogl_world_slot_upload_fn = int (*)(
+    const ogl_rtx_face_material_slot*,uint32_t,uint32_t);
+ogl_world_slot_upload_fn world_upload_material_slots = nullptr;
+using ogl_world_slot_generation_fn = std::uint64_t (*)();
+ogl_world_slot_generation_fn world_material_slot_generation = nullptr;
 // Borrowed, synchronous input from the real deferred volume-face scanner.
 // Never persists after ogl_rtx_submit_deferred_world_triangles returns.
 const ogl_rtx_face_tint* live_deferred_face_tints = nullptr;
 unsigned live_deferred_face_tint_count = 0;
 const ogl_rtx_face_uv* live_deferred_face_uvs = nullptr;
 unsigned live_deferred_face_uv_count = 0;
+const ogl_rtx_face_material_slot* live_deferred_material_slots = nullptr;
+unsigned live_deferred_material_slot_count=0;
+unsigned live_deferred_material_tile_count=0;
 const std::uint8_t* live_deferred_rgba_pixels = nullptr;
 std::uint32_t live_deferred_rgba_width = 0;
 std::uint32_t live_deferred_rgba_height = 0;
@@ -331,6 +339,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_upload_rgba_image"));
     world_rgba_mesh_generation = reinterpret_cast<ogl_world_rgba_generation_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_rgba_mesh_generation"));
+    world_upload_material_slots = reinterpret_cast<ogl_world_slot_upload_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_upload_material_slots"));
+    world_material_slot_generation = reinterpret_cast<ogl_world_slot_generation_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_material_slot_mesh_generation"));
     world_set_camera = reinterpret_cast<ogl_world_camera_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_set_projection_camera"));
     world_input_ready = reinterpret_cast<ogl_world_input_ready_fn>(
@@ -553,6 +565,11 @@ void ogl_shutdown_rtx_module() {
     world_uv_mesh_generation = nullptr;
     world_upload_rgba_image = nullptr;
     world_rgba_mesh_generation = nullptr;
+    world_upload_material_slots = nullptr;
+    world_material_slot_generation = nullptr;
+    live_deferred_material_slots = nullptr;
+    live_deferred_material_slot_count = 0;
+    live_deferred_material_tile_count = 0;
     live_deferred_rgba_pixels = nullptr;
     live_deferred_rgba_width = live_deferred_rgba_height = 0;
     live_deferred_face_tints=nullptr;
@@ -996,6 +1013,13 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
             std::strcmp(rgba_flag,"1")==0;
         const bool rgba_needed=rgba_requested &&
             rgba_live_flag && std::strcmp(rgba_live_flag,"1")==0;
+        const char* atlas_flag=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
+        const char* atlas_live=std::getenv("OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE");
+        const bool atlas_requested=atlas_flag && std::strcmp(atlas_flag,"1")==0;
+        const bool atlas_needed=atlas_requested && rgba_needed &&
+            atlas_live && std::strcmp(atlas_live,"1")==0;
+        if (uploaded && count>0 && atlas_requested && !atlas_needed)
+            tint_success=false;
         if (!uploaded && count>0 && live_deferred_capture_call &&
             rgba_requested) {
             // A failed real upload must not leave a previous material
@@ -1009,10 +1033,24 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
         }
         if (uploaded && count>0 && rgba_requested && !rgba_needed)
             tint_success=false; // no live source authorization
+        if (uploaded && count>0 && atlas_needed) {
+            // Material slot sidecar is synchronized with the exact
+            // real scanner's world mesh before the image is accepted.
+            tint_success=tint_success && tint_needed && uv_needed &&
+                live_deferred_capture_call &&
+                live_deferred_material_slots &&
+                live_deferred_material_slot_count==count &&
+                live_deferred_material_tile_count>=1u &&
+                live_deferred_material_tile_count<=4u &&
+                world_upload_material_slots &&
+                world_material_slot_generation && world_mesh_generation &&
+                world_upload_material_slots(live_deferred_material_slots,
+                    count,live_deferred_material_tile_count)==1 &&
+                world_material_slot_generation()==world_mesh_generation();
+        }
         if (uploaded && count>0 && rgba_needed) {
-            // Only the actual Firestorm scanner's homogeneous opaque
-            // decoded image can be paired with the accepted GPU XYZ+RGB+UV.
-            // Never trust an unrelated image, texture ID, file or cache.
+            // Only actual scanner material atlas or homogeneous image
+            // can be paired with the accepted GPU XYZ+RGB+UV mesh.
             tint_success=tint_success && tint_needed && uv_needed &&
                 live_deferred_capture_call && live_deferred_rgba_pixels &&
                 live_deferred_rgba_width>0 && live_deferred_rgba_width<=64 &&
@@ -1026,6 +1064,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
         if (uploaded && count>0 && !tint_success) {
             if (world_upload_rgba_image && rgba_requested)
                 world_upload_rgba_image(nullptr,0,0);
+            if (world_upload_material_slots && atlas_requested)
+                world_upload_material_slots(nullptr,0,0);
             if (world_upload_face_tints && tint_needed)
                 world_upload_face_tints(nullptr,0);
             if (world_upload_face_uvs && uv_needed)
@@ -1123,7 +1163,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 // triangle ABI NEVER marks a batch as deferred-source evidence.
 void ogl_rtx_submit_deferred_world_triangles(
     const float* triangle_xyz,const float* face_tints_rgb,
-    const float* face_uvs,const std::uint8_t* decoded_rgba,
+    const float* face_uvs,const float* face_material_slots,
+    unsigned atlas_tile_count,const std::uint8_t* decoded_rgba,
     unsigned image_width,unsigned image_height,unsigned count)
 {
 #if LL_LINUX || LL_WINDOWS
@@ -1138,6 +1179,8 @@ void ogl_rtx_submit_deferred_world_triangles(
                   "Face RGB ABI must be tightly packed");
     static_assert(sizeof(ogl_rtx_face_uv)==sizeof(float)*6,
                   "Face UV ABI must be tightly packed");
+    static_assert(sizeof(ogl_rtx_face_material_slot)==sizeof(float)*3,
+                  "Face material slot ABI must be tightly packed");
     live_deferred_capture_call=true;
     live_deferred_face_tints=face_tints_rgb ?
         reinterpret_cast<const ogl_rtx_face_tint*>(face_tints_rgb) : nullptr;
@@ -1145,6 +1188,10 @@ void ogl_rtx_submit_deferred_world_triangles(
     live_deferred_face_uvs=face_uvs ?
         reinterpret_cast<const ogl_rtx_face_uv*>(face_uvs) : nullptr;
     live_deferred_face_uv_count=face_uvs ? count : 0u;
+    live_deferred_material_slots=face_material_slots ?
+        reinterpret_cast<const ogl_rtx_face_material_slot*>(face_material_slots) : nullptr;
+    live_deferred_material_slot_count=face_material_slots ? count : 0u;
+    live_deferred_material_tile_count=face_material_slots ? atlas_tile_count : 0u;
     live_deferred_rgba_pixels=decoded_rgba;
     live_deferred_rgba_width=decoded_rgba ? image_width : 0u;
     live_deferred_rgba_height=decoded_rgba ? image_height : 0u;
@@ -1155,11 +1202,16 @@ void ogl_rtx_submit_deferred_world_triangles(
     live_deferred_face_tint_count=0;
     live_deferred_face_uvs=nullptr;
     live_deferred_face_uv_count=0;
+    live_deferred_material_slots=nullptr;
+    live_deferred_material_slot_count=0;
+    live_deferred_material_tile_count=0;
     live_deferred_capture_call=false;
 #else
     (void)triangle_xyz;
     (void)face_tints_rgb;
     (void)face_uvs;
+    (void)face_material_slots;
+    (void)atlas_tile_count;
     (void)decoded_rgba;
     (void)image_width;
     (void)image_height;

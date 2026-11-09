@@ -9654,6 +9654,13 @@ void LLPipeline::renderDeferredLighting()
                     std::strcmp(rgba_pref,"1")==0 &&
                     rgba_source_pref &&
                     std::strcmp(rgba_source_pref,"1")==0;
+                const char* atlas_flag=std::getenv(
+                    "OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
+                const char* atlas_source_flag=std::getenv(
+                    "OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE");
+                const bool atlas_scan=rgba_scan && atlas_flag &&
+                    std::strcmp(atlas_flag,"1")==0 && atlas_source_flag &&
+                    std::strcmp(atlas_source_flag,"1")==0;
                 // Opaque per-face LLTextureEntry diffuse RGB only; no
                 // pixels, images, texture IDs or other avatar/asset data.
                 // Never create the tint vector in normal OpenGL mode.
@@ -9665,8 +9672,18 @@ void LLPipeline::renderDeferredLighting()
                 // opaque image for the ENTIRE batch, not face materials.
                 // Prepass/terrain anchors have no matching diffuse asset,
                 // so only an initially pure volume-only batch qualifies.
-                bool homogeneous_rgba=rgba_scan && triangles.empty();
+                bool homogeneous_rgba=rgba_scan && !atlas_scan &&
+                    triangles.empty();
                 LLPointer<LLViewerFetchedTexture> homogeneous_image;
+                // A real decoded Vulkan texture atlas can represent at
+                // most FOUR unique fully opaque legacy diffuse assets.
+                // Slots are ordered by first accepted triangle, and copied
+                // 1:1 with accepted XYZ/RGB/UV triangles.
+                std::array<LLPointer<LLViewerFetchedTexture>,4> atlas_images{};
+                std::vector<ogl_rtx_face_material_slot> face_material_slots;
+                if (atlas_scan) face_material_slots.reserve(ogl_triangle_budget);
+                std::uint32_t atlas_tile_count=0;
+                bool atlas_valid=atlas_scan && triangles.empty();
                 const LLVector3 eye = camera->getOrigin();
                 size_t near_terrain_triangles=0;
                 size_t mid_terrain_triangles=0;
@@ -10022,6 +10039,13 @@ void LLPipeline::renderDeferredLighting()
                     // volume-face TextureEntry. Use unmapped neutral UV.
                     face_uvs.resize(triangles.size(),neutral_uv);
                 }
+                // Neither a single diffuse texture nor a 4-slot atlas
+                // may pretend that terrain/ray anchors have that image.
+                // This also fixes the original one-image source check.
+                if (!triangles.empty()) {
+                    homogeneous_rgba=false;
+                    atlas_valid=false;
+                }
                 for (const auto& candidate : candidates)
                 {
                     if (nearby_objects >= nearby_budget ||
@@ -10191,6 +10215,28 @@ void LLPipeline::renderDeferredLighting()
                                     else if (homogeneous_image.get()!=face_image)
                                         homogeneous_rgba=false;
                                 }
+                                if (atlas_scan) {
+                                    std::uint32_t slot=0;
+                                    if (!uv_triangle_valid || !face_image) {
+                                        atlas_valid=false;
+                                    } else if (atlas_valid) {
+                                        while (slot<atlas_tile_count &&
+                                               atlas_images[slot].get()!=face_image)
+                                            ++slot;
+                                        if (slot==atlas_tile_count) {
+                                            if (atlas_tile_count<4u) {
+                                                atlas_images[atlas_tile_count]=face_image;
+                                                ++atlas_tile_count;
+                                            } else {
+                                                atlas_valid=false;
+                                                slot=0;
+                                            }
+                                        }
+                                    }
+                                    const float index=float(slot);
+                                    face_material_slots.push_back(
+                                        ogl_rtx_face_material_slot{{index,index,index}});
+                                }
                                 ++object_triangles;
                                 if (ogl_triangle_budget>1024 &&
                                     ogl::is_valid_triangle(local_triangle))
@@ -10325,13 +10371,51 @@ void LLPipeline::renderDeferredLighting()
                     // texture readback on the rendering thread.
                     std::vector<std::uint8_t> decoded_rgba;
                     std::uint32_t image_w=0,image_h=0;
-                    if (rgba_scan && homogeneous_rgba &&
+                    if (atlas_scan && atlas_valid && atlas_tile_count &&
+                        face_material_slots.size()==triangles.size()) {
+                        // Reuse the existing Firestorm decoder. All image
+                        // objects and raw buffers are pinned during their
+                        // synchronous, bounded read. No image/asset UUID
+                        // escapes to the GPU or log.
+                        std::array<std::vector<std::uint8_t>,4> rgba_tiles;
+                        std::array<OGLRgbaTileView,4> tile_views{};
+                        bool decoded=true;
+                        for (std::uint32_t slot=0;slot<atlas_tile_count;++slot) {
+                            if (atlas_images[slot].isNull() ||
+                                !atlas_images[slot]->isRawImageValid()) {
+                                decoded=false;
+                                break;
+                            }
+                            LLPointer<LLImageRaw> raw=atlas_images[slot]->getRawImage();
+                            if (raw.isNull()) {
+                                decoded=false;
+                                break;
+                            }
+                            std::uint32_t tile_width=0,tile_height=0;
+                            {
+                                LLImageDataSharedLock lock(raw.get());
+                                decoded=ogl_rtx_thumbnail_opaque_rgba8(
+                                    raw->getData(),
+                                    std::size_t(std::max(0,raw->getDataSize())),
+                                    raw->getWidth(),raw->getHeight(),
+                                    raw->getComponents(),
+                                    rgba_tiles[slot],tile_width,tile_height);
+                            }
+                            if (!decoded) break;
+                            tile_views[slot]=OGLRgbaTileView{
+                                rgba_tiles[slot].data(),rgba_tiles[slot].size(),
+                                tile_width,tile_height};
+                        }
+                        if (decoded && ogl_rtx_pack_rgba_atlas_2x2(
+                            tile_views.data(),atlas_tile_count,decoded_rgba)) {
+                            image_w=64;
+                            image_h=64;
+                        }
+                    } else if (!atlas_scan && rgba_scan && homogeneous_rgba &&
                         homogeneous_image.notNull() &&
                         homogeneous_image->isRawImageValid()) {
                         LLPointer<LLImageRaw> raw=homogeneous_image->getRawImage();
                         if (raw.notNull()) {
-                            // Pin decoded image lifetime across the short
-                            // shared-data lock; no asynchronous raw pointer.
                             LLImageDataSharedLock lock(raw.get());
                             ogl_rtx_thumbnail_opaque_rgba8(
                                 raw->getData(),
@@ -10345,6 +10429,11 @@ void LLPipeline::renderDeferredLighting()
                         triangles.front().position,
                         tint_scan ? face_tints.front().rgb : nullptr,
                         uv_scan ? face_uvs.front().uv : nullptr,
+                        atlas_scan && atlas_valid && !decoded_rgba.empty() &&
+                            face_material_slots.size()==triangles.size() ?
+                            face_material_slots.front().slot : nullptr,
+                        atlas_scan && atlas_valid && !decoded_rgba.empty() ?
+                            atlas_tile_count : 0u,
                         decoded_rgba.empty() ? nullptr : decoded_rgba.data(),
                         image_w,image_h,
                         static_cast<unsigned>(triangles.size()));

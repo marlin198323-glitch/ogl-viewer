@@ -74,6 +74,43 @@ static void test_opensim_raw_thumbnail_policy() {
     assert(w==1 && h==64 && rgba.size()==256u);
     for (unsigned i=0;i<64;++i)
         assert(rgba[i*4u]==71 && rgba[i*4u+3u]==255);
+    // 2x2 independent 32px tiles, all four unique opaque images,
+    // strict bounds, repeat/UV sampling delegated to GPU shader.
+    const std::uint8_t red[4]{255,0,0,255};
+    const std::uint8_t green[4]{0,255,0,255};
+    const std::uint8_t blue[4]{0,0,255,255};
+    const std::uint8_t yellow[4]{255,255,0,255};
+    const OGLRgbaTileView tiles[4]{
+        {red,sizeof(red),1,1},{green,sizeof(green),1,1},
+        {blue,sizeof(blue),1,1},{yellow,sizeof(yellow),1,1}};
+    assert(!ogl_rtx_pack_rgba_atlas_2x2(nullptr,4,rgba));
+    assert(rgba.empty());
+    assert(!ogl_rtx_pack_rgba_atlas_2x2(tiles,0,rgba));
+    assert(!ogl_rtx_pack_rgba_atlas_2x2(tiles,5,rgba));
+    assert(ogl_rtx_pack_rgba_atlas_2x2(tiles,4,rgba));
+    assert(rgba.size()==64u*64u*4u);
+    for (uint32_t slot=0;slot<4;++slot) {
+        const auto pixel=(size_t((slot/2u)*32u+12u)*64u+
+                          (slot%2u)*32u+9u)*4u;
+        const auto* source=tiles[slot].rgba;
+        assert(rgba[pixel]==source[0] &&
+               rgba[pixel+1]==source[1] &&
+               rgba[pixel+2]==source[2] &&
+               rgba[pixel+3]==255);
+    }
+    assert(ogl_rtx_pack_rgba_atlas_2x2(tiles,2,rgba));
+    assert(rgba[(size_t(40u)*64u+9u)*4u]==255u); // vacant slot white
+    OGLRgbaTileView bad_tiles[4]{tiles[0],tiles[1],tiles[2],tiles[3]};
+    bad_tiles[2].byte_count=3;
+    assert(!ogl_rtx_pack_rgba_atlas_2x2(bad_tiles,4,rgba));
+    assert(rgba.empty());
+    const std::uint8_t alpha[4]{0,255,0,254};
+    bad_tiles[2]={alpha,sizeof(alpha),1,1};
+    assert(!ogl_rtx_pack_rgba_atlas_2x2(bad_tiles,4,rgba));
+    assert(rgba.empty());
+    std::fprintf(stdout,
+        "P05 4-material CPU atlas: 4x32x32 tiles, "
+        "red/green/blue/yellow, malformed/alpha rejects PASS\n");
     std::fprintf(stdout,
         "P05 real decoded OpenSim raw thumbnail policy: "
         "RGB/RGBA opaque, malformed/alpha rejects, aspect/ownership PASS\n");
@@ -160,6 +197,12 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_rgba_mesh_generation"));
     const auto rgba_uploads = reinterpret_cast<uint64_t(*)()>(
         dlsym(library,"ogl_vulkan_world_rgba_uploads"));
+    const auto slot_upload = reinterpret_cast<int(*)(const ogl_rtx_face_material_slot*,uint32_t,uint32_t)>(
+        dlsym(library,"ogl_vulkan_world_upload_material_slots"));
+    const auto slot_mesh_generation = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_material_slot_mesh_generation"));
+    const auto slot_uploads = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_material_slot_uploads"));
     const auto offscreen_mean_red = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_red"));
     const auto offscreen_mean_blue = reinterpret_cast<uint32_t(*)()>(
@@ -184,6 +227,7 @@ int main(int argc, char** argv) {
            offscreen_mean_red && offscreen_mean_blue && offscreen_mean_green &&
            uv_upload && uv_mesh_generation && uv_uploads &&
            rgba_upload && rgba_mesh_generation && rgba_uploads &&
+           slot_upload && slot_mesh_generation && slot_uploads &&
            tint_upload && tint_mesh_generation && tint_uploads &&
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
@@ -194,7 +238,8 @@ int main(int argc, char** argv) {
            offscreen_mean_red()==0 && offscreen_mean_blue()==0 &&
            offscreen_mean_green()==0 && uv_mesh_generation()==0 &&
            uv_uploads()==0 && rgba_mesh_generation()==0 &&
-           rgba_uploads()==0 &&
+           rgba_uploads()==0 && slot_mesh_generation()==0 &&
+           slot_uploads()==0 &&
            tint_mesh_generation()==0 && tint_uploads()==0 &&
            offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0);
@@ -2193,6 +2238,161 @@ int main(int argc, char** argv) {
                 sampled_green_red,sampled_green,
                 static_cast<unsigned long long>(rgba_uploads()),
                 barrier_ok?1:0);
+            // P05/6: same XYZ/FaceRGB/UV GPU mesh, FOUR different
+            // decoded opaque 32x32 image sources in one REAL VkImage.
+            // Material slot stays integer/flat per triangle and may
+            // switch without new geometry upload or GPU pipeline rebuild.
+            setenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE","1",1);
+            const ogl_rtx_face_material_slot slot0{{0.f,0.f,0.f}};
+            const ogl_rtx_face_material_slot slot1{{1.f,1.f,1.f}};
+            const ogl_rtx_face_material_slot slot2{{2.f,2.f,2.f}};
+            const ogl_rtx_face_material_slot slot3{{3.f,3.f,3.f}};
+            const ogl_rtx_face_material_slot bad_fraction{{1.5f,1.5f,1.5f}};
+            const ogl_rtx_face_material_slot bad_mixed{{0.f,1.f,0.f}};
+            const uint8_t r[4]{255,0,0,255},g[4]{0,255,0,255};
+            const uint8_t b[4]{0,0,255,255},y[4]{255,255,0,255};
+            const OGLRgbaTileView images[4]{
+                {r,4,1,1},{g,4,1,1},{b,4,1,1},{y,4,1,1}};
+            std::vector<uint8_t> atlas_rgba;
+            const bool atlas_packed=ogl_rtx_pack_rgba_atlas_2x2(
+                images,4,atlas_rgba);
+            const uint64_t atlas_mesh=mesh_generation();
+            const uint64_t atlas_xyz_uploads=mesh_uploads();
+            const uint64_t atlas_rgba_before=rgba_uploads();
+            const uint64_t atlas_slots_before=slot_uploads();
+            barrier_ok=barrier_ok &&
+                atlas_packed && atlas_rgba.size()==64u*64u*4u &&
+                offscreen_world()==0 && // source+slots must agree
+                slot_upload(&bad_fraction,1,4)==0 &&
+                slot_upload(&bad_mixed,1,4)==0 &&
+                slot_upload(&slot3,1,3)==0 &&
+                slot_upload(&slot0,2,4)==0 &&
+                slot_mesh_generation()==0 &&
+                slot_upload(&slot0,1,4)==1 &&
+                slot_uploads()==atlas_slots_before+1 &&
+                slot_mesh_generation()==atlas_mesh &&
+                rgba_upload(atlas_rgba.data(),64,64)==1 &&
+                rgba_uploads()==atlas_rgba_before+1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+36 &&
+                offscreen_mean_red()>offscreen_mean_green() &&
+                offscreen_mean_red()>offscreen_mean_blue() &&
+                offscreen_cache_builds()==offscreen_build0+20 &&
+                mesh_uploads()==atlas_xyz_uploads;
+            const uint32_t atlas_red=offscreen_mean_red();
+            barrier_ok=barrier_ok &&
+                slot_upload(&slot1,1,4)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+37 &&
+                offscreen_mean_green()>offscreen_mean_red() &&
+                offscreen_mean_green()>offscreen_mean_blue() &&
+                offscreen_cache_reuses()==offscreen_reuse0+17 &&
+                mesh_uploads()==atlas_xyz_uploads;
+            const uint32_t atlas_green=offscreen_mean_green();
+            barrier_ok=barrier_ok &&
+                slot_upload(&slot2,1,4)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+38 &&
+                offscreen_mean_blue()>offscreen_mean_red() &&
+                offscreen_mean_blue()>offscreen_mean_green() &&
+                offscreen_cache_reuses()==offscreen_reuse0+18 &&
+                mesh_uploads()==atlas_xyz_uploads;
+            const uint32_t atlas_blue=offscreen_mean_blue();
+            barrier_ok=barrier_ok &&
+                slot_upload(&slot3,1,4)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+39 &&
+                offscreen_mean_red()>0 &&
+                offscreen_mean_green()>0 &&
+                offscreen_mean_blue()==0 &&
+                offscreen_cache_reuses()==offscreen_reuse0+19 &&
+                mesh_uploads()==atlas_xyz_uploads;
+            const uint32_t atlas_yellow_red=offscreen_mean_red();
+            const uint32_t atlas_yellow_green=offscreen_mean_green();
+            const uint8_t blue_r[4]{0,0,255,255};
+            const OGLRgbaTileView swapped[4]{
+                {blue_r,4,1,1},images[1],images[2],images[3]};
+            barrier_ok=barrier_ok &&
+                ogl_rtx_pack_rgba_atlas_2x2(swapped,4,atlas_rgba) &&
+                slot_upload(&slot0,1,4)==1 &&
+                rgba_upload(atlas_rgba.data(),64,64)==1 &&
+                offscreen_cache_releases()==offscreen_release0+20 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+40 &&
+                offscreen_mean_blue()>offscreen_mean_red() &&
+                offscreen_mean_blue()>offscreen_mean_green() &&
+                offscreen_cache_builds()==offscreen_build0+21 &&
+                mesh_uploads()==atlas_xyz_uploads &&
+                slot_uploads()==atlas_slots_before+5;
+            setenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE","invalid",1);
+            barrier_ok=barrier_ok &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+40;
+            setenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE","1",1);
+            barrier_ok=barrier_ok &&
+                rgba_upload(nullptr,0,0)==1 &&
+                rgba_mesh_generation()==0 &&
+                offscreen_cache_releases()==offscreen_release0+21 &&
+                offscreen_world()==0 &&
+                slot_upload(nullptr,0,0)==1 &&
+                slot_mesh_generation()==0;
+            std::fprintf(stdout,
+                "P05 Vulkan 4-material real VkImage atlas GPU: "
+                "R=%u G=%u B=%u Y=(%u,%u) "
+                "slots=%llu source_replace=1 independent_mesh=1 valid=%d\n",
+                atlas_red,atlas_green,atlas_blue,
+                atlas_yellow_red,atlas_yellow_green,
+                static_cast<unsigned long long>(slot_uploads()),
+                barrier_ok?1:0);
+            // Two distinct real Vulkan triangles IN THE SAME frame
+            // reference independent atlas slots. This verifies a genuine
+            // per-face material binding, not only sequential slot swaps.
+            setenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE","1",1);
+            const ogl_rtx_triangle atlas_faces[2]{
+                {{12.5f,18.2f,28.6f,12.5f,19.5f,28.6f,12.5f,18.85f,31.3f}},
+                {{12.5f,20.5f,28.6f,12.5f,21.8f,28.6f,12.5f,21.15f,31.3f}}
+            };
+            const ogl_rtx_face_tint atlas_white[2]{white_tint,white_tint};
+            const ogl_rtx_face_uv atlas_uv[2]{checker_red,checker_red};
+            const ogl_rtx_face_material_slot atlas_slots[2]{slot0,slot1};
+            bool atlas_two_faces=world_upload(atlas_faces,2)==1 &&
+                world_gpu_count()==2 &&
+                slot_mesh_generation()==0 &&
+                rgba_mesh_generation()==0 &&
+                offscreen_world()==0 &&
+                tint_upload(atlas_white,2)==1 &&
+                uv_upload(atlas_uv,2)==1 &&
+                slot_upload(atlas_slots,2,4)==1 &&
+                ogl_rtx_pack_rgba_atlas_2x2(images,4,atlas_rgba) &&
+                rgba_upload(atlas_rgba.data(),64,64)==1 &&
+                world_camera(&camera)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+41 &&
+                offscreen_mean_red()>10u &&
+                offscreen_mean_green()>10u &&
+                offscreen_mean_blue()==0u;
+            std::fprintf(stdout,
+                "P05 simultaneous two-material atlas GPU: "
+                "red=%u green=%u blue=%u two_faces=%d\n",
+                offscreen_mean_red(),offscreen_mean_green(),
+                offscreen_mean_blue(),atlas_two_faces?1:0);
+            barrier_ok=barrier_ok && atlas_two_faces;
+            const ogl_rtx_face_uv atlas_wrapped[2]{
+                {{-0.875f,-0.875f,-0.875f,-0.875f,-0.875f,-0.875f}},
+                {{1.125f,1.125f,1.125f,1.125f,1.125f,1.125f}}};
+            const bool atlas_repeat=uv_upload(atlas_wrapped,2)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+42 &&
+                offscreen_mean_red()==25u &&
+                offscreen_mean_green()==25u &&
+                offscreen_mean_blue()==0u &&
+                offscreen_cache_reuses()==offscreen_reuse0+20;
+            std::fprintf(stdout,
+                "P05 per-face atlas repeat in one GPU frame: valid=%d\n",
+                atlas_repeat?1:0);
+            barrier_ok=barrier_ok && atlas_repeat;
+            unsetenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
+            unsetenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
             unsetenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
             unsetenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
             unsetenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
@@ -2206,6 +2406,7 @@ int main(int argc, char** argv) {
                  "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
                  "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
                  "OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE",
+                 "OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

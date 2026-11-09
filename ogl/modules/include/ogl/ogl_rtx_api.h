@@ -133,6 +133,25 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_upload_rgba_image(
     const uint8_t* rgba8, uint32_t width, uint32_t height);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_mesh_generation(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_uploads(void);
+/* P05/6 four-material private Vulkan atlas: ONE 64x64 RGBA8 VkImage,
+ * four strictly independent 32x32 tiles (slots 0..3). This is still
+ * NOT a general asset streamer, image-format decoder or world present.
+ * Requires OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE=1 in addition to
+ * all current RGBA/UV/TINT/LAMBERT/SUN/MESH/CAMERA opt-in gates.
+ * Each triangle has one integer-valued slot, repeated 3x (one per
+ * vertex). The slots are checked and GPU-coupled to the current mesh.
+ * atlas slot_count may be 1..4. Changes invalidate old atlas material
+ * source. count=0 explicitly clears only per-face material slots.
+ */
+typedef struct ogl_rtx_face_material_slot {
+    float slot[3];
+} ogl_rtx_face_material_slot;
+OGL_MODULE_EXPORT int ogl_vulkan_world_upload_material_slots(
+    const ogl_rtx_face_material_slot* slots,uint32_t triangle_count,
+    uint32_t slot_count);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_material_slot_mesh_generation(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_material_slot_uploads(void);
+
 
 
 
