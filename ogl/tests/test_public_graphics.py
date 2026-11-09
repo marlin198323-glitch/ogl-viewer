@@ -1199,7 +1199,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=plugin[a:b]
         for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
                        'sun_enabled && (!lambert_enabled || !world_device.world_sun_ready)',
-                       'const uint32_t shading_mode=uv_checker ? 4u : (tinted ? 3u :',
+                       'const uint32_t shading_mode=sampled ? 5u : (uv_checker ? 4u : (tinted ? 3u :',
                        'resource.shading_mode!=shading_mode',
                        'ogl_dev_world_sunlight_frag_spv',
                        'sizeof(float)*20',
@@ -1362,7 +1362,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=module[module.index("uint32_t render_offscreen_color_frame("):
                     module.index("// Independent opt-in camera projection")]
         for marker in (
-            "const uint32_t shading_mode=uv_checker ? 4u :",
+            "const uint32_t shading_mode=sampled ? 5u : (uv_checker ? 4u :",
             "ogl_dev_world_uv_checker_vert_spv",
             "ogl_dev_world_uv_checker_frag_spv",
             "VK_FORMAT_R32G32_SFLOAT",
@@ -1384,6 +1384,77 @@ class PublicGraphicsContracts(unittest.TestCase):
             'uv_upload(&checker_wrapped,1)==1',
             'uv_mesh_generation()==0',
             'offscreen_world_frames()==offscreen_start+30',
+        ):
+            self.assertIn(marker,native)
+        self.assertNotIn("vkQueuePresentKHR(",draw)
+        self.assertNotIn("SDL_",draw)
+
+    def test_p05_decoded_rgba8_vkimage_sampler_descriptor_gpu_probe(self):
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        for symbol in ("ogl_vulkan_world_upload_rgba_image",
+                       "ogl_vulkan_world_rgba_mesh_generation",
+                       "ogl_vulkan_world_rgba_uploads"):
+            self.assertIn(symbol,api)
+            self.assertIn(symbol,module)
+        start=module.index("int upload_world_rgba_image(")
+        end=module.index("void gpu_probe_cleanup()",start)
+        upload=module[start:end]
+        for marker in (
+            "OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE",
+            "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
+            "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
+            "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
+            "world_device.offscreen_world_cache.submitted",
+            "width>64 || height>64",
+            "rgba[i]!=255u",
+            "world_device.uv_mesh_generation!=world_device.mesh_generation",
+            "world_device.tint_mesh_generation!=world_device.mesh_generation",
+            "world_device.release_offscreen_world_cache();",
+            "world_device.rgba_cpu_texels.swap(accepted)",
+            "world_device.rgba_mesh_generation=world_device.mesh_generation",
+            "++world_device.rgba_uploads"):
+            self.assertIn(marker,upload)
+        draw=module[module.index("uint32_t render_offscreen_color_frame("):
+                    module.index("// Independent opt-in camera projection")]
+        for marker in (
+            "const bool sampled=scene && rgba_flag",
+            "world_device.rgba_mesh_generation!=world_device.mesh_generation",
+            "VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT",
+            "VK_IMAGE_TILING_LINEAR",
+            "VK_IMAGE_USAGE_SAMPLED_BIT",
+            "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT",
+            "vkGetImageSubresourceLayout(world_device.device,",
+            "row_layout.rowPitch",
+            "VK_IMAGE_LAYOUT_PREINITIALIZED",
+            "VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL",
+            "VK_ACCESS_HOST_WRITE_BIT",
+            "VK_ACCESS_SHADER_READ_BIT",
+            "VK_SAMPLER_ADDRESS_MODE_REPEAT",
+            "VK_FILTER_NEAREST",
+            "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
+            "vkUpdateDescriptorSets(world_device.device,1,&write,0,nullptr)",
+            "vkCmdBindDescriptorSets(command,",
+            "ogl_dev_world_rgba_sample_frag_spv",
+            "const uint32_t shading_mode=sampled ? 5u :",
+            "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT",
+            "vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",
+        ):
+            self.assertIn(marker,draw)
+        self.assertIn("static constexpr uint32_t ogl_dev_world_rgba_sample_frag_spv[]",module)
+        self.assertIn("VkImage texture_image=VK_NULL_HANDLE;",module)
+        self.assertIn("VkDescriptorSetLayout texture_set_layout=VK_NULL_HANDLE;",module)
+        self.assertIn("VkSampler texture_sampler=VK_NULL_HANDLE;",module)
+        self.assertIn("void clear_rgba_image()",module)
+        for marker in (
+            "P05 Vulkan real VkImage sampler:",
+            "rgba_upload(red_green_rgba,2,2)==1",
+            "rgba_upload(green_red_rgba,2,2)==1",
+            "rgba_upload(max_rgba.data(),64,64)==1",
+            "rgba_upload(translucent_rgba,1,1)==0",
+            "rgba_upload(nullptr,0,0)==1",
+            "rgba_mesh_generation()==tex_mesh",
         ):
             self.assertIn(marker,native)
         self.assertNotIn("vkQueuePresentKHR(",draw)

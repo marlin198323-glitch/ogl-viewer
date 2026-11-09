@@ -117,6 +117,23 @@ OGL_MODULE_EXPORT int ogl_vulkan_world_upload_face_uvs(
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_uv_mesh_generation(void);
 OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_uv_uploads(void);
 OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_mean_green(void);
+/* Developer-only P05 RGBA pixel -> actual sampled Vulkan VkImage. This
+ * accepts DECODED, tightly packed opaque RGBA8 pixels supplied by a
+ * trusted caller, not compressed OpenSim JPEG2000/GLTF asset data.
+ * Current proof supports ONE 1..64px square/rectangle image per CURRENT
+ * world mesh revision; no material-ID or face-to-texture routing yet.
+ * No texture source is read from the logged-in viewer automatically.
+ * Requires OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1 plus all existing
+ * UV_CHECKER/FACE_TINT/LAMBERT/SUN/WORLD/CAMERA/MESH GPU permissions.
+ * Width/height 1..64, full alpha=255, size exactly width*height*4.
+ * Image uploads are synchronous and must not race a pending frame.
+ * The image GPU pipeline is PRIVATE (no SDL window/texture export).
+ */
+OGL_MODULE_EXPORT int ogl_vulkan_world_upload_rgba_image(
+    const uint8_t* rgba8, uint32_t width, uint32_t height);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_mesh_generation(void);
+OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_uploads(void);
+
 
 
 

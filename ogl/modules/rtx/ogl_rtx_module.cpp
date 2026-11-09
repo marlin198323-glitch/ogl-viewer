@@ -177,9 +177,16 @@ struct OglOffscreenWorldCache {
     VkShaderModule fragment_shader=VK_NULL_HANDLE;
     VkPipelineLayout pipeline_layout=VK_NULL_HANDLE;
     VkPipeline pipeline=VK_NULL_HANDLE;
+    VkImage texture_image=VK_NULL_HANDLE;
+    VkDeviceMemory texture_memory=VK_NULL_HANDLE;
+    VkImageView texture_view=VK_NULL_HANDLE;
+    VkSampler texture_sampler=VK_NULL_HANDLE;
+    VkDescriptorSetLayout texture_set_layout=VK_NULL_HANDLE;
+    VkDescriptorPool texture_descriptor_pool=VK_NULL_HANDLE;
+    VkDescriptorSet texture_descriptor=VK_NULL_HANDLE;
     VkRenderPass pass=VK_NULL_HANDLE;
     VkExtent2D extent{}; // private target, independent of SDL window
-    uint32_t shading_mode=0; // 0=depth,1=fixed,2=sun,3=tint,4=UV checker
+    uint32_t shading_mode=0; // 0=depth,1=fixed,2=sun,3=tint,4=UV,5=sampled RGBA
     bool initialized=false;
     bool submitted=false; // fence owns possibly in-flight work
 };
@@ -243,6 +250,9 @@ struct WorldGraphicsDevice {
     uint64_t uv_mesh_generation=0;
     uint64_t uv_uploads=0;
     uint32_t uv_vertex_count=0;
+    std::vector<uint8_t> rgba_cpu_texels;
+    uint32_t rgba_width=0,rgba_height=0;
+    uint64_t rgba_mesh_generation=0,rgba_uploads=0;
     uint32_t mesh_triangle_count = 0;
     // Optional exact byte-for-byte dedup for live captured scene snapshots.
     // Never suppress a real scene change based on a hash collision.
@@ -298,6 +308,9 @@ struct WorldGraphicsDevice {
 #define OGL_OFFSCREEN_DESTROY(name) auto name=reinterpret_cast<PFN_##name>(proc(#name))
         OGL_OFFSCREEN_DESTROY(vkDestroyPipeline);
         OGL_OFFSCREEN_DESTROY(vkDestroyPipelineLayout);
+        OGL_OFFSCREEN_DESTROY(vkDestroyDescriptorPool);
+        OGL_OFFSCREEN_DESTROY(vkDestroyDescriptorSetLayout);
+        OGL_OFFSCREEN_DESTROY(vkDestroySampler);
         OGL_OFFSCREEN_DESTROY(vkDestroyShaderModule);
         OGL_OFFSCREEN_DESTROY(vkDestroyFence);
         OGL_OFFSCREEN_DESTROY(vkDestroyCommandPool);
@@ -312,6 +325,12 @@ struct WorldGraphicsDevice {
             vkDestroyPipeline(device,c.pipeline,nullptr);
         if (vkDestroyPipelineLayout && c.pipeline_layout)
             vkDestroyPipelineLayout(device,c.pipeline_layout,nullptr);
+        if (vkDestroyDescriptorPool && c.texture_descriptor_pool)
+            vkDestroyDescriptorPool(device,c.texture_descriptor_pool,nullptr);
+        if (vkDestroyDescriptorSetLayout && c.texture_set_layout)
+            vkDestroyDescriptorSetLayout(device,c.texture_set_layout,nullptr);
+        if (vkDestroySampler && c.texture_sampler)
+            vkDestroySampler(device,c.texture_sampler,nullptr);
         if (vkDestroyShaderModule) {
             if (c.vertex_shader) vkDestroyShaderModule(device,c.vertex_shader,nullptr);
             if (c.fragment_shader) vkDestroyShaderModule(device,c.fragment_shader,nullptr);
@@ -324,16 +343,19 @@ struct WorldGraphicsDevice {
         if (vkDestroyRenderPass && c.render_pass)
             vkDestroyRenderPass(device,c.render_pass,nullptr);
         if (vkDestroyImageView) {
+            if (c.texture_view) vkDestroyImageView(device,c.texture_view,nullptr);
             if (c.depth_view) vkDestroyImageView(device,c.depth_view,nullptr);
             if (c.view) vkDestroyImageView(device,c.view,nullptr);
         }
         if (vkDestroyImage) {
+            if (c.texture_image) vkDestroyImage(device,c.texture_image,nullptr);
             if (c.depth) vkDestroyImage(device,c.depth,nullptr);
             if (c.color) vkDestroyImage(device,c.color,nullptr);
         }
         if (vkDestroyBuffer && c.readback)
             vkDestroyBuffer(device,c.readback,nullptr);
         if (vkFreeMemory) {
+            if (c.texture_memory) vkFreeMemory(device,c.texture_memory,nullptr);
             if (c.depth_mem) vkFreeMemory(device,c.depth_mem,nullptr);
             if (c.color_mem) vkFreeMemory(device,c.color_mem,nullptr);
             if (c.readback_mem) vkFreeMemory(device,c.readback_mem,nullptr);
@@ -364,7 +386,14 @@ struct WorldGraphicsDevice {
         uv_vertex_count=0;
     }
 
+    void clear_rgba_image() {
+        rgba_cpu_texels.clear();
+        rgba_width=rgba_height=0;
+        rgba_mesh_generation=0;
+    }
+
     void clear_mesh() {
+        clear_rgba_image();
         clear_face_uvs();
         clear_face_tints();
         if (device && destroy_buffer) {
@@ -499,7 +528,7 @@ struct WorldGraphicsDevice {
         offscreen_world_lit_pixels = offscreen_world_mean_luminance = 0;
         offscreen_world_mean_red = offscreen_world_mean_green =
             offscreen_world_mean_blue = 0;
-        tint_uploads = uv_uploads = 0;
+        tint_uploads = uv_uploads = rgba_uploads = 0;
         offscreen_world_builds=offscreen_world_reuses=offscreen_world_releases=0;
         mesh_generation = 0;
         mesh_dedup_skips = 0;
@@ -1446,6 +1475,89 @@ static constexpr uint32_t ogl_dev_world_uv_checker_frag_spv[] = {
     0x00000006u, 0x00000066u, 0x00000063u, 0x00000002u, 0x00070050u, 0x0000002au, 0x00000067u,
     0x00000064u, 0x00000065u, 0x00000066u, 0x00000023u, 0x0003003eu, 0x0000005au, 0x00000067u,
     0x000100fdu, 0x00010038u,
+};
+
+// Vulkan 1.0 valid SPIR-V: sampled RGBA8 VkImage, UV binding2,
+// fragment-only descriptor set=0 binding=0; private opt-in world GPU.
+static constexpr uint32_t ogl_dev_world_rgba_sample_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000055u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x0009000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000bu, 0x00000042u, 0x00000046u, 0x00000047u, 0x00030010u, 0x00000004u, 0x00000007u,
+    0x00030003u, 0x00000002u, 0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x00040005u, 0x00000009u, 0x6d726f6eu, 0x00006c61u, 0x00060005u, 0x0000000bu, 0x6c726f77u,
+    0x6f705f64u, 0x69746973u, 0x00006e6fu, 0x00030005u, 0x00000012u, 0x0000326eu, 0x00040005u,
+    0x00000026u, 0x6867696cu, 0x00000074u, 0x00040005u, 0x0000002cu, 0x656d6143u, 0x00006172u,
+    0x00070006u, 0x0000002cu, 0x00000000u, 0x6c726f77u, 0x6f745f64u, 0x696c635fu, 0x00000070u,
+    0x00070006u, 0x0000002cu, 0x00000001u, 0x5f6e7573u, 0x65726964u, 0x6f697463u, 0x0000006eu,
+    0x00040005u, 0x0000002eu, 0x656d6163u, 0x00006172u, 0x00040005u, 0x0000003au, 0x65786574u,
+    0x0000006cu, 0x00060005u, 0x0000003eu, 0x74786574u, 0x5f657275u, 0x61626772u, 0x00000000u,
+    0x00040005u, 0x00000042u, 0x65636166u, 0x0076755fu, 0x00060005u, 0x00000046u, 0x7074756fu,
+    0x635f7475u, 0x726f6c6fu, 0x00000000u, 0x00050005u, 0x00000047u, 0x65636166u, 0x6267725fu,
+    0x00000000u, 0x00040047u, 0x0000000bu, 0x0000001eu, 0x00000000u, 0x00030047u, 0x0000002cu,
+    0x00000002u, 0x00040048u, 0x0000002cu, 0x00000000u, 0x00000005u, 0x00050048u, 0x0000002cu,
+    0x00000000u, 0x00000007u, 0x00000010u, 0x00050048u, 0x0000002cu, 0x00000000u, 0x00000023u,
+    0x00000000u, 0x00050048u, 0x0000002cu, 0x00000001u, 0x00000023u, 0x00000040u, 0x00040047u,
+    0x0000003eu, 0x00000021u, 0x00000000u, 0x00040047u, 0x0000003eu, 0x00000022u, 0x00000000u,
+    0x00040047u, 0x00000042u, 0x0000001eu, 0x00000002u, 0x00040047u, 0x00000046u, 0x0000001eu,
+    0x00000000u, 0x00040047u, 0x00000047u, 0x0000001eu, 0x00000001u, 0x00020013u, 0x00000002u,
+    0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u, 0x00000006u, 0x00000020u, 0x00040017u,
+    0x00000007u, 0x00000006u, 0x00000003u, 0x00040020u, 0x00000008u, 0x00000007u, 0x00000007u,
+    0x00040020u, 0x0000000au, 0x00000001u, 0x00000007u, 0x0004003bu, 0x0000000au, 0x0000000bu,
+    0x00000001u, 0x00040020u, 0x00000011u, 0x00000007u, 0x00000006u, 0x0004002bu, 0x00000006u,
+    0x00000017u, 0x2b8cbcccu, 0x00020014u, 0x00000018u, 0x0004002bu, 0x00000006u, 0x00000022u,
+    0x00000000u, 0x0004002bu, 0x00000006u, 0x00000023u, 0x3f800000u, 0x0006002cu, 0x00000007u,
+    0x00000024u, 0x00000022u, 0x00000022u, 0x00000023u, 0x0004002bu, 0x00000006u, 0x00000027u,
+    0x3e4ccccdu, 0x0004002bu, 0x00000006u, 0x00000028u, 0x3f4ccccdu, 0x00040017u, 0x0000002au,
+    0x00000006u, 0x00000004u, 0x00040018u, 0x0000002bu, 0x0000002au, 0x00000004u, 0x0004001eu,
+    0x0000002cu, 0x0000002bu, 0x0000002au, 0x00040020u, 0x0000002du, 0x00000009u, 0x0000002cu,
+    0x0004003bu, 0x0000002du, 0x0000002eu, 0x00000009u, 0x00040015u, 0x0000002fu, 0x00000020u,
+    0x00000001u, 0x0004002bu, 0x0000002fu, 0x00000030u, 0x00000001u, 0x00040020u, 0x00000031u,
+    0x00000009u, 0x0000002au, 0x00040020u, 0x00000039u, 0x00000007u, 0x0000002au, 0x00090019u,
+    0x0000003bu, 0x00000006u, 0x00000001u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000001u,
+    0x00000000u, 0x0003001bu, 0x0000003cu, 0x0000003bu, 0x00040020u, 0x0000003du, 0x00000000u,
+    0x0000003cu, 0x0004003bu, 0x0000003du, 0x0000003eu, 0x00000000u, 0x00040017u, 0x00000040u,
+    0x00000006u, 0x00000002u, 0x00040020u, 0x00000041u, 0x00000001u, 0x00000040u, 0x0004003bu,
+    0x00000041u, 0x00000042u, 0x00000001u, 0x00040020u, 0x00000045u, 0x00000003u, 0x0000002au,
+    0x0004003bu, 0x00000045u, 0x00000046u, 0x00000003u, 0x0004003bu, 0x0000000au, 0x00000047u,
+    0x00000001u, 0x0006002cu, 0x00000007u, 0x00000049u, 0x00000022u, 0x00000022u, 0x00000022u,
+    0x0006002cu, 0x00000007u, 0x0000004au, 0x00000023u, 0x00000023u, 0x00000023u, 0x00050036u,
+    0x00000002u, 0x00000004u, 0x00000000u, 0x00000003u, 0x000200f8u, 0x00000005u, 0x0004003bu,
+    0x00000008u, 0x00000009u, 0x00000007u, 0x0004003bu, 0x00000011u, 0x00000012u, 0x00000007u,
+    0x0004003bu, 0x00000008u, 0x0000001au, 0x00000007u, 0x0004003bu, 0x00000011u, 0x00000026u,
+    0x00000007u, 0x0004003bu, 0x00000039u, 0x0000003au, 0x00000007u, 0x0004003du, 0x00000007u,
+    0x0000000cu, 0x0000000bu, 0x000400cfu, 0x00000007u, 0x0000000du, 0x0000000cu, 0x0004003du,
+    0x00000007u, 0x0000000eu, 0x0000000bu, 0x000400d0u, 0x00000007u, 0x0000000fu, 0x0000000eu,
+    0x0007000cu, 0x00000007u, 0x00000010u, 0x00000001u, 0x00000044u, 0x0000000du, 0x0000000fu,
+    0x0003003eu, 0x00000009u, 0x00000010u, 0x0004003du, 0x00000007u, 0x00000013u, 0x00000009u,
+    0x0004003du, 0x00000007u, 0x00000014u, 0x00000009u, 0x00050094u, 0x00000006u, 0x00000015u,
+    0x00000013u, 0x00000014u, 0x0003003eu, 0x00000012u, 0x00000015u, 0x0004003du, 0x00000006u,
+    0x00000016u, 0x00000012u, 0x000500bau, 0x00000018u, 0x00000019u, 0x00000016u, 0x00000017u,
+    0x000300f7u, 0x0000001cu, 0x00000000u, 0x000400fau, 0x00000019u, 0x0000001bu, 0x00000021u,
+    0x000200f8u, 0x0000001bu, 0x0004003du, 0x00000007u, 0x0000001du, 0x00000009u, 0x0004003du,
+    0x00000006u, 0x0000001eu, 0x00000012u, 0x0006000cu, 0x00000006u, 0x0000001fu, 0x00000001u,
+    0x00000020u, 0x0000001eu, 0x0005008eu, 0x00000007u, 0x00000020u, 0x0000001du, 0x0000001fu,
+    0x0003003eu, 0x0000001au, 0x00000020u, 0x000200f9u, 0x0000001cu, 0x000200f8u, 0x00000021u,
+    0x0003003eu, 0x0000001au, 0x00000024u, 0x000200f9u, 0x0000001cu, 0x000200f8u, 0x0000001cu,
+    0x0004003du, 0x00000007u, 0x00000025u, 0x0000001au, 0x0003003eu, 0x00000009u, 0x00000025u,
+    0x0004003du, 0x00000007u, 0x00000029u, 0x00000009u, 0x00050041u, 0x00000031u, 0x00000032u,
+    0x0000002eu, 0x00000030u, 0x0004003du, 0x0000002au, 0x00000033u, 0x00000032u, 0x0008004fu,
+    0x00000007u, 0x00000034u, 0x00000033u, 0x00000033u, 0x00000000u, 0x00000001u, 0x00000002u,
+    0x00050094u, 0x00000006u, 0x00000035u, 0x00000029u, 0x00000034u, 0x0006000cu, 0x00000006u,
+    0x00000036u, 0x00000001u, 0x00000004u, 0x00000035u, 0x00050085u, 0x00000006u, 0x00000037u,
+    0x00000028u, 0x00000036u, 0x00050081u, 0x00000006u, 0x00000038u, 0x00000027u, 0x00000037u,
+    0x0003003eu, 0x00000026u, 0x00000038u, 0x0004003du, 0x0000003cu, 0x0000003fu, 0x0000003eu,
+    0x0004003du, 0x00000040u, 0x00000043u, 0x00000042u, 0x00050057u, 0x0000002au, 0x00000044u,
+    0x0000003fu, 0x00000043u, 0x0003003eu, 0x0000003au, 0x00000044u, 0x0004003du, 0x00000007u,
+    0x00000048u, 0x00000047u, 0x0008000cu, 0x00000007u, 0x0000004bu, 0x00000001u, 0x0000002bu,
+    0x00000048u, 0x00000049u, 0x0000004au, 0x0004003du, 0x0000002au, 0x0000004cu, 0x0000003au,
+    0x0008004fu, 0x00000007u, 0x0000004du, 0x0000004cu, 0x0000004cu, 0x00000000u, 0x00000001u,
+    0x00000002u, 0x00050085u, 0x00000007u, 0x0000004eu, 0x0000004bu, 0x0000004du, 0x0004003du,
+    0x00000006u, 0x0000004fu, 0x00000026u, 0x0005008eu, 0x00000007u, 0x00000050u, 0x0000004eu,
+    0x0000004fu, 0x00050051u, 0x00000006u, 0x00000051u, 0x00000050u, 0x00000000u, 0x00050051u,
+    0x00000006u, 0x00000052u, 0x00000050u, 0x00000001u, 0x00050051u, 0x00000006u, 0x00000053u,
+    0x00000050u, 0x00000002u, 0x00070050u, 0x0000002au, 0x00000054u, 0x00000051u, 0x00000052u,
+    0x00000053u, 0x00000023u, 0x0003003eu, 0x00000046u, 0x00000054u, 0x000100fdu, 0x00010038u,
 };
 
 // Depth QA shader: near red, far green (actual GPU gl_FragCoord.z).
@@ -2754,6 +2866,16 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
     OGL_OFFSCREEN_FN(vkCmdBindIndexBuffer);
     OGL_OFFSCREEN_FN(vkCmdPushConstants);
     OGL_OFFSCREEN_FN(vkCmdDrawIndexed);
+    OGL_OFFSCREEN_FN(vkCreateSampler);
+    OGL_OFFSCREEN_FN(vkDestroySampler);
+    OGL_OFFSCREEN_FN(vkCreateDescriptorSetLayout);
+    OGL_OFFSCREEN_FN(vkDestroyDescriptorSetLayout);
+    OGL_OFFSCREEN_FN(vkCreateDescriptorPool);
+    OGL_OFFSCREEN_FN(vkDestroyDescriptorPool);
+    OGL_OFFSCREEN_FN(vkAllocateDescriptorSets);
+    OGL_OFFSCREEN_FN(vkUpdateDescriptorSets);
+    OGL_OFFSCREEN_FN(vkCmdBindDescriptorSets);
+    OGL_OFFSCREEN_FN(vkGetImageSubresourceLayout);
 #undef OGL_OFFSCREEN_FN
     auto get_memory_properties =
         reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(
@@ -2820,8 +2942,26 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         world_device.uv_mesh_generation!=world_device.mesh_generation ||
         world_device.uv_vertex_count!=world_device.mesh_triangle_count*3u))
         return 0;
-    const uint32_t shading_mode=uv_checker ? 4u : (tinted ? 3u :
-        (lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u));
+    const char* rgba_flag=std::getenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
+    if (scene && rgba_flag && *rgba_flag &&
+        std::strcmp(rgba_flag,"0")!=0 && std::strcmp(rgba_flag,"1")!=0)
+        return 0;
+    const bool sampled=scene && rgba_flag &&
+        std::strcmp(rgba_flag,"1")==0;
+    if (sampled && (!uv_checker ||
+        world_device.rgba_mesh_generation!=world_device.mesh_generation ||
+        !world_device.rgba_width || !world_device.rgba_height ||
+        world_device.rgba_cpu_texels.size()!=
+            size_t(world_device.rgba_width)*world_device.rgba_height*4u))
+        return 0;
+    if (sampled && (!vkCreateSampler || !vkDestroySampler ||
+        !vkCreateDescriptorSetLayout || !vkDestroyDescriptorSetLayout ||
+        !vkCreateDescriptorPool || !vkDestroyDescriptorPool ||
+        !vkAllocateDescriptorSets || !vkUpdateDescriptorSets ||
+        !vkCmdBindDescriptorSets || !vkGetImageSubresourceLayout))
+        return 0;
+    const uint32_t shading_mode=sampled ? 5u : (uv_checker ? 4u : (tinted ? 3u :
+        (lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u)));
     const uint32_t width=extent.width, height=extent.height;
     if (!width || !height || width>512 || height>288 ||
         uint64_t(width)*height>512u*288u) return 0;
@@ -2833,6 +2973,12 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
         VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
     if ((fmt.optimalTilingFeatures & required_features)!=required_features)
+        return 0;
+    // Vulkan 1.0 linear RGBA image is deliberately bounded and supports
+    // direct CPU upload with VkSubresourceLayout.rowPitch. This is the
+    // first sampling proof, not portable full asset texture streaming.
+    if (sampled && !(fmt.linearTilingFeatures&
+                     VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
         return 0;
 
     VkPhysicalDeviceMemoryProperties mem{};
@@ -2877,6 +3023,24 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         if (pipeline_state.pipeline_layout && vkDestroyPipelineLayout)
             vkDestroyPipelineLayout(world_device.device,
                 pipeline_state.pipeline_layout,nullptr);
+        if (pipeline_state.texture_descriptor_pool && vkDestroyDescriptorPool)
+            vkDestroyDescriptorPool(world_device.device,
+                pipeline_state.texture_descriptor_pool,nullptr);
+        if (pipeline_state.texture_set_layout && vkDestroyDescriptorSetLayout)
+            vkDestroyDescriptorSetLayout(world_device.device,
+                pipeline_state.texture_set_layout,nullptr);
+        if (pipeline_state.texture_sampler && vkDestroySampler)
+            vkDestroySampler(world_device.device,
+                pipeline_state.texture_sampler,nullptr);
+        if (pipeline_state.texture_view && vkDestroyImageView)
+            vkDestroyImageView(world_device.device,
+                pipeline_state.texture_view,nullptr);
+        if (pipeline_state.texture_image && vkDestroyImage)
+            vkDestroyImage(world_device.device,
+                pipeline_state.texture_image,nullptr);
+        if (pipeline_state.texture_memory && vkFreeMemory)
+            vkFreeMemory(world_device.device,
+                pipeline_state.texture_memory,nullptr);
         if (pipeline_state.vertex_shader && vkDestroyShaderModule)
             vkDestroyShaderModule(world_device.device,
                 pipeline_state.vertex_shader,nullptr);
@@ -3054,18 +3218,135 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                                readback_mem,0)!=VK_SUCCESS)
             return 0;
 
+        // Private sampled RGBA8 VkImage: linear tiling + host coherent
+        // VkSubresourceLayout for this first Vulkan 1.0 texture proof.
+        // No compressed OpenSim assets or user-window presentation.
+        if (shading_mode==5u) {
+            VkImageCreateInfo ti{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+            ti.imageType=VK_IMAGE_TYPE_2D;
+            ti.format=VK_FORMAT_R8G8B8A8_UNORM;
+            ti.extent={world_device.rgba_width,world_device.rgba_height,1};
+            ti.mipLevels=1;ti.arrayLayers=1;
+            ti.samples=VK_SAMPLE_COUNT_1_BIT;
+            ti.tiling=VK_IMAGE_TILING_LINEAR;
+            ti.usage=VK_IMAGE_USAGE_SAMPLED_BIT;
+            ti.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+            ti.initialLayout=VK_IMAGE_LAYOUT_PREINITIALIZED;
+            if (vkCreateImage(world_device.device,&ti,nullptr,
+                    &resource.texture_image)!=VK_SUCCESS ||
+                !resource.texture_image) return 0;
+            VkMemoryRequirements tr{};
+            vkGetImageMemoryRequirements(world_device.device,
+                resource.texture_image,&tr);
+            const uint32_t type=choose_memory(tr.memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if (type==UINT32_MAX) return 0;
+            VkMemoryAllocateInfo ma{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+            ma.allocationSize=tr.size;ma.memoryTypeIndex=type;
+            if (vkAllocateMemory(world_device.device,&ma,nullptr,
+                    &resource.texture_memory)!=VK_SUCCESS ||
+                !resource.texture_memory ||
+                vkBindImageMemory(world_device.device,
+                    resource.texture_image,
+                    resource.texture_memory,0)!=VK_SUCCESS)
+                return 0;
+            VkImageSubresource sub{};
+            sub.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+            VkSubresourceLayout row_layout{};
+            vkGetImageSubresourceLayout(world_device.device,
+                resource.texture_image,&sub,&row_layout);
+            const size_t pitch=size_t(world_device.rgba_width)*4u;
+            const size_t rows=world_device.rgba_height;
+            if (row_layout.rowPitch<pitch ||
+                row_layout.offset>tr.size || !rows ||
+                (rows-1u)>(tr.size-row_layout.offset)/row_layout.rowPitch ||
+                pitch>tr.size-row_layout.offset-
+                    (rows-1u)*row_layout.rowPitch)
+                return 0;
+            void* texels=nullptr;
+            if (vkMapMemory(world_device.device,resource.texture_memory,
+                    0,tr.size,0,&texels)!=VK_SUCCESS || !texels)
+                return 0;
+            for (size_t row=0;row<rows;++row)
+                std::memcpy(
+                    static_cast<uint8_t*>(texels)+row_layout.offset+
+                        row*row_layout.rowPitch,
+                    world_device.rgba_cpu_texels.data()+row*pitch,pitch);
+            vkUnmapMemory(world_device.device,resource.texture_memory);
+            VkImageViewCreateInfo iv{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+            iv.image=resource.texture_image;
+            iv.viewType=VK_IMAGE_VIEW_TYPE_2D;
+            iv.format=ti.format;
+            iv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+            iv.subresourceRange.levelCount=1;
+            iv.subresourceRange.layerCount=1;
+            if (vkCreateImageView(world_device.device,&iv,nullptr,
+                    &resource.texture_view)!=VK_SUCCESS ||
+                !resource.texture_view) return 0;
+            VkSamplerCreateInfo si{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+            si.magFilter=VK_FILTER_NEAREST;
+            si.minFilter=VK_FILTER_NEAREST;
+            si.mipmapMode=VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            si.addressModeU=si.addressModeV=si.addressModeW=
+                VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            si.maxLod=0.f;
+            if (vkCreateSampler(world_device.device,&si,nullptr,
+                    &resource.texture_sampler)!=VK_SUCCESS ||
+                !resource.texture_sampler) return 0;
+            VkDescriptorSetLayoutBinding binding{};
+            binding.binding=0;
+            binding.descriptorCount=1;
+            binding.descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            binding.stageFlags=VK_SHADER_STAGE_FRAGMENT_BIT;
+            VkDescriptorSetLayoutCreateInfo dsl{
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+            dsl.bindingCount=1;dsl.pBindings=&binding;
+            if (vkCreateDescriptorSetLayout(world_device.device,&dsl,nullptr,
+                    &resource.texture_set_layout)!=VK_SUCCESS ||
+                !resource.texture_set_layout) return 0;
+            VkDescriptorPoolSize pool_size{};
+            pool_size.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            pool_size.descriptorCount=1;
+            VkDescriptorPoolCreateInfo pi{
+                VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+            pi.maxSets=1;pi.poolSizeCount=1;pi.pPoolSizes=&pool_size;
+            if (vkCreateDescriptorPool(world_device.device,&pi,nullptr,
+                    &resource.texture_descriptor_pool)!=VK_SUCCESS ||
+                !resource.texture_descriptor_pool) return 0;
+            VkDescriptorSetAllocateInfo ai{
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+            ai.descriptorPool=resource.texture_descriptor_pool;
+            ai.descriptorSetCount=1;
+            ai.pSetLayouts=&resource.texture_set_layout;
+            if (vkAllocateDescriptorSets(world_device.device,&ai,
+                    &resource.texture_descriptor)!=VK_SUCCESS ||
+                !resource.texture_descriptor) return 0;
+            VkDescriptorImageInfo image_info{};
+            image_info.sampler=resource.texture_sampler;
+            image_info.imageView=resource.texture_view;
+            image_info.imageLayout=VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet=resource.texture_descriptor;
+            write.dstBinding=0;
+            write.descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            write.descriptorCount=1;
+            write.pImageInfo=&image_info;
+            vkUpdateDescriptorSets(world_device.device,1,&write,0,nullptr);
+        }
+
         pipeline_state.pass=render_pass;
         // Optional genuine rasterization of indexed vertex data. The
         // normal single/16-frame clear tests use no shaders/pipelines.
         if (scene) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=shading_mode==4u
+            vertex_info.codeSize=shading_mode>=4u
                 ? sizeof(ogl_dev_world_uv_checker_vert_spv)
                 : (shading_mode==3u ? sizeof(ogl_dev_world_face_tint_vert_spv)
                   : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_vert_spv)
                                       : sizeof(ogl_dev_world_vert_spv)));
-            vertex_info.pCode=shading_mode==4u
+            vertex_info.pCode=shading_mode>=4u
                 ? ogl_dev_world_uv_checker_vert_spv
                 : (shading_mode==3u ? ogl_dev_world_face_tint_vert_spv
                   : (shading_mode==1u ? ogl_dev_world_lambert_vert_spv
@@ -3075,18 +3356,22 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=shading_mode==4u
+            fragment_info.codeSize=shading_mode==5u
+                ? sizeof(ogl_dev_world_rgba_sample_frag_spv)
+                : (shading_mode==4u
                 ? sizeof(ogl_dev_world_uv_checker_frag_spv)
                 : (shading_mode==3u ? sizeof(ogl_dev_world_face_tint_frag_spv)
                   : (shading_mode==2u ? sizeof(ogl_dev_world_sunlight_frag_spv)
                     : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_frag_spv)
-                                        : sizeof(ogl_dev_depth_frag_spv))));
-            fragment_info.pCode=shading_mode==4u
+                                        : sizeof(ogl_dev_depth_frag_spv)))));
+            fragment_info.pCode=shading_mode==5u
+                ? ogl_dev_world_rgba_sample_frag_spv
+                : (shading_mode==4u
                 ? ogl_dev_world_uv_checker_frag_spv
                 : (shading_mode==3u ? ogl_dev_world_face_tint_frag_spv
                   : (shading_mode==2u ? ogl_dev_world_sunlight_frag_spv
                     : (shading_mode==1u ? ogl_dev_world_lambert_frag_spv
-                                        : ogl_dev_depth_frag_spv)));
+                                        : ogl_dev_depth_frag_spv))));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &pipeline_state.fragment_shader)!=VK_SUCCESS || !pipeline_state.fragment_shader)
                 return false;
@@ -3122,10 +3407,10 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             attributes[2].format=VK_FORMAT_R32G32_SFLOAT;
             VkPipelineVertexInputStateCreateInfo vertex_input{
                 VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-            vertex_input.vertexBindingDescriptionCount=shading_mode==4u
+            vertex_input.vertexBindingDescriptionCount=shading_mode>=4u
                 ? 3u : (shading_mode==3u ? 2u : 1u);
             vertex_input.pVertexBindingDescriptions=bindings;
-            vertex_input.vertexAttributeDescriptionCount=shading_mode==4u
+            vertex_input.vertexAttributeDescriptionCount=shading_mode>=4u
                 ? 3u : (shading_mode==3u ? 2u : 1u);
             vertex_input.pVertexAttributeDescriptions=attributes;
             VkPipelineInputAssemblyStateCreateInfo assembly{
@@ -3176,8 +3461,11 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
             VkPipelineLayoutCreateInfo layout_info{
                 VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
             layout_info.pushConstantRangeCount=1u;
-            layout_info.pPushConstantRanges=true
-                ? &camera_range : nullptr;
+            layout_info.pPushConstantRanges=&camera_range;
+            if (shading_mode==5u) {
+                layout_info.setLayoutCount=1;
+                layout_info.pSetLayouts=&resource.texture_set_layout;
+            }
             if (vkCreatePipelineLayout(world_device.device,&layout_info,nullptr,
                                        &pipeline_state.pipeline_layout)!=VK_SUCCESS ||
                 !pipeline_state.pipeline_layout)
@@ -3226,6 +3514,24 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
         VkCommandBufferBeginInfo cb{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         cb.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         if (vkBeginCommandBuffer(command,&cb)!=VK_SUCCESS) return 0;
+        if (shading_mode==5u && !reuse) {
+            // Host-coherent image upload visibility and initial transition.
+            VkImageMemoryBarrier barrier{
+                VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+            barrier.srcAccessMask=VK_ACCESS_HOST_WRITE_BIT;
+            barrier.dstAccessMask=VK_ACCESS_SHADER_READ_BIT;
+            barrier.oldLayout=VK_IMAGE_LAYOUT_PREINITIALIZED;
+            barrier.newLayout=VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            barrier.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+            barrier.image=resource.texture_image;
+            barrier.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+            barrier.subresourceRange.levelCount=1;
+            barrier.subresourceRange.layerCount=1;
+            vkCmdPipelineBarrier(command,VK_PIPELINE_STAGE_HOST_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,0,0,nullptr,
+                0,nullptr,1,&barrier);
+        }
 
         VkClearValue clear{};
         clear.color.float32[0]=0.2f;
@@ -3256,6 +3562,11 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 offscreen_projection[col*4]*=aspect_correction;
             vkCmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipeline_state.pipeline);
+            if (shading_mode==5u)
+                vkCmdBindDescriptorSets(command,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipeline_state.pipeline_layout,
+                    0,1,&resource.texture_descriptor,0,nullptr);
             // Dynamic sun light is a per-frame 80-byte Vulkan push
             // constant; sun changes NEVER rebuild VkPipeline or VkMesh.
             std::array<float,20> world_light_push{};
@@ -3272,7 +3583,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 0,shading_mode>=2u ? sizeof(float)*20 : sizeof(float)*16,
                 world_light_push.data());
             const VkDeviceSize offset=0;
-            if (shading_mode==4u) {
+            if (shading_mode>=4u) {
                 const VkBuffer buffers[3]{world_device.mesh_vertices,
                                           world_device.mesh_tint_vertices,
                                           world_device.mesh_uv_vertices};
@@ -3970,6 +4281,60 @@ int upload_world_face_uvs(const ogl_rtx_face_uv* uv_triangles,uint32_t count) {
     return 1;
 }
 
+// First real VkImage+VkSampler source ABI: opaque, decoded RGBA8 pixels,
+// NOT a JPEG2000 loader and NOT region-asset mapping. A one-image proof.
+int upload_world_rgba_image(const uint8_t* rgba,uint32_t width,uint32_t height) {
+    const auto enabled=[](const char* name) {
+        const char* value=std::getenv(name);
+        return value && std::strcmp(value,"1")==0;
+    };
+    if (!enabled("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE") ||
+        !enabled("OGL_VULKAN_WORLD_UV_CHECKER_PROBE") ||
+        !enabled("OGL_VULKAN_WORLD_FACE_TINT_PROBE") ||
+        !enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
+        !enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE") ||
+        !enabled("OGL_VULKAN_WORLD_MESH_UPLOAD") ||
+        !enabled("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
+        !world_device.device || !world_device.device_proc ||
+        world_device.offscreen_world_cache.submitted)
+        return 0;
+    if (!rgba && width==0 && height==0) {
+        // Drop the sampled-image cache before any descriptor/image is freed.
+        if (world_device.offscreen_world_cache.initialized &&
+            world_device.offscreen_world_cache.shading_mode==5u) {
+            world_device.release_offscreen_world_cache();
+            if (world_device.offscreen_world_cache.initialized ||
+                world_device.offscreen_world_cache.submitted)
+                return 0;
+        }
+        world_device.clear_rgba_image();
+        return 1;
+    }
+    if (!rgba || !width || !height || width>64 || height>64 ||
+        !world_device.mesh_vertices || !world_device.mesh_indices ||
+        !world_device.mesh_tint_vertices || !world_device.mesh_uv_vertices ||
+        world_device.tint_mesh_generation!=world_device.mesh_generation ||
+        world_device.uv_mesh_generation!=world_device.mesh_generation)
+        return 0;
+    const size_t bytes=size_t(width)*height*4u; // bounded 16384
+    for (size_t i=3;i<bytes;i+=4)
+        if (rgba[i]!=255u) return 0; // alpha blending not implemented
+    std::vector<uint8_t> accepted(rgba,rgba+bytes);
+    if (world_device.offscreen_world_cache.initialized &&
+        world_device.offscreen_world_cache.shading_mode==5u) {
+        world_device.release_offscreen_world_cache();
+        if (world_device.offscreen_world_cache.initialized ||
+            world_device.offscreen_world_cache.submitted)
+            return 0;
+    }
+    world_device.rgba_cpu_texels.swap(accepted);
+    world_device.rgba_width=width;
+    world_device.rgba_height=height;
+    world_device.rgba_mesh_generation=world_device.mesh_generation;
+    ++world_device.rgba_uploads;
+    return 1;
+}
+
 void gpu_probe_cleanup() {
     probe_run = nullptr;
     probe_camera_run = nullptr;
@@ -4612,6 +4977,17 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_uv_mesh_generation()
 }
 extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_face_uv_uploads() {
     return world_device.uv_uploads;
+}
+extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_upload_rgba_image(
+    const uint8_t* rgba8,uint32_t width,uint32_t height)
+{
+    return upload_world_rgba_image(rgba8,width,height);
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_mesh_generation() {
+    return world_device.rgba_mesh_generation;
+}
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_uploads() {
+    return world_device.rgba_uploads;
 }
 extern "C" OGL_MODULE_EXPORT int ogl_vulkan_world_set_projection_camera(
     const ogl_rtx_frame_state* frame) {

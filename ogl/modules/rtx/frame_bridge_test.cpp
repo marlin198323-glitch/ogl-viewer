@@ -1,4 +1,5 @@
 #include "ogl/ogl_rtx_api.h"
+#include <array>
 #include <cassert>
 #include <cstdlib>
 #include <cstdio>
@@ -89,6 +90,12 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_face_uv_mesh_generation"));
     const auto uv_uploads = reinterpret_cast<uint64_t(*)()>(
         dlsym(library,"ogl_vulkan_world_face_uv_uploads"));
+    const auto rgba_upload = reinterpret_cast<int(*)(const uint8_t*,uint32_t,uint32_t)>(
+        dlsym(library,"ogl_vulkan_world_upload_rgba_image"));
+    const auto rgba_mesh_generation = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_rgba_mesh_generation"));
+    const auto rgba_uploads = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_rgba_uploads"));
     const auto offscreen_mean_red = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_mean_red"));
     const auto offscreen_mean_blue = reinterpret_cast<uint32_t(*)()>(
@@ -112,6 +119,7 @@ int main(int argc, char** argv) {
            offscreen_lit_pixels && offscreen_mean_luminance &&
            offscreen_mean_red && offscreen_mean_blue && offscreen_mean_green &&
            uv_upload && uv_mesh_generation && uv_uploads &&
+           rgba_upload && rgba_mesh_generation && rgba_uploads &&
            tint_upload && tint_mesh_generation && tint_uploads &&
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
@@ -121,7 +129,8 @@ int main(int argc, char** argv) {
            offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0 &&
            offscreen_mean_red()==0 && offscreen_mean_blue()==0 &&
            offscreen_mean_green()==0 && uv_mesh_generation()==0 &&
-           uv_uploads()==0 &&
+           uv_uploads()==0 && rgba_mesh_generation()==0 &&
+           rgba_uploads()==0 &&
            tint_mesh_generation()==0 && tint_uploads()==0 &&
            offscreen_cache_builds()==0 && offscreen_cache_reuses()==0 &&
            offscreen_cache_releases()==0 && offscreen_cache_release()==0);
@@ -2021,6 +2030,106 @@ int main(int argc, char** argv) {
                 uv_red_mean,uv_red_green,uv_green_red,uv_green_mean,
                 static_cast<unsigned long long>(uv_uploads()),
                 barrier_ok?1:0);
+            // Separate decoded opaque RGBA8 -> real VkImage/VkSampler
+            // sampled with current UVs in a private Vulkan GPU target.
+            // These are TEST PIXELS, NOT real OpenSim texture assets.
+            setenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE","1",1);
+            const uint8_t red_green_rgba[16]{
+                255,0,0,255, 0,255,0,255,
+                0,255,0,255, 255,0,0,255};
+            const uint8_t green_red_rgba[16]{
+                0,255,0,255, 255,0,0,255,
+                255,0,0,255, 0,255,0,255};
+            const uint8_t translucent_rgba[4]{255,0,0,127};
+            const ogl_rtx_face_uv sample_green{{
+                .625f,.125f,.625f,.125f,.625f,.125f}};
+            const ogl_rtx_face_uv sample_green_wrap{{
+                -.375f,.125f,-.375f,.125f,-.375f,.125f}};
+            const uint64_t tex_mesh=mesh_generation();
+            const uint64_t tex_mesh_uploads=mesh_uploads();
+            barrier_ok=barrier_ok &&
+                offscreen_world()==0 && // no texture source yet
+                rgba_upload(nullptr,2,2)==0 &&
+                rgba_upload(red_green_rgba,0,2)==0 &&
+                rgba_upload(red_green_rgba,65,1)==0 &&
+                rgba_upload(translucent_rgba,1,1)==0 &&
+                rgba_mesh_generation()==0 &&
+                rgba_upload(red_green_rgba,2,2)==1 &&
+                rgba_mesh_generation()==tex_mesh &&
+                rgba_uploads()==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+31 &&
+                offscreen_mean_red()>offscreen_mean_green() &&
+                offscreen_cache_builds()==offscreen_build0+17 &&
+                mesh_generation()==tex_mesh &&
+                mesh_uploads()==tex_mesh_uploads;
+            const uint32_t sampled_red=offscreen_mean_red();
+            const uint32_t sampled_red_green=offscreen_mean_green();
+            barrier_ok=barrier_ok &&
+                uv_upload(&sample_green,1)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+32 &&
+                offscreen_mean_green()>offscreen_mean_red() &&
+                offscreen_cache_builds()==offscreen_build0+17 &&
+                offscreen_cache_reuses()==offscreen_reuse0+15 &&
+                rgba_uploads()==1 &&
+                mesh_uploads()==tex_mesh_uploads;
+            const uint32_t sampled_green=offscreen_mean_green();
+            const uint32_t sampled_green_red=offscreen_mean_red();
+            barrier_ok=barrier_ok &&
+                uv_upload(&sample_green_wrap,1)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+33 &&
+                offscreen_mean_green()==sampled_green &&
+                offscreen_mean_red()==sampled_green_red &&
+                offscreen_cache_reuses()==offscreen_reuse0+16;
+            barrier_ok=barrier_ok &&
+                rgba_upload(green_red_rgba,2,2)==1 &&
+                rgba_uploads()==2 &&
+                offscreen_cache_releases()==offscreen_release0+17 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+34 &&
+                offscreen_mean_red()>offscreen_mean_green() &&
+                offscreen_cache_builds()==offscreen_build0+18 &&
+                mesh_uploads()==tex_mesh_uploads;
+            // Exercise maximum accepted 64x64 RGBA8 row pitch on
+            // the actual VkImage (4096 opaque pixels, 16KiB input).
+            std::array<uint8_t,64u*64u*4u> max_rgba{};
+            for (size_t pixel=0;pixel<64u*64u;++pixel) {
+                max_rgba[pixel*4u]=255u;
+                max_rgba[pixel*4u+3u]=255u;
+            }
+            barrier_ok=barrier_ok &&
+                rgba_upload(max_rgba.data(),64,64)==1 &&
+                rgba_uploads()==3 &&
+                offscreen_cache_releases()==offscreen_release0+18 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==offscreen_start+35 &&
+                offscreen_mean_red()>offscreen_mean_green() &&
+                offscreen_cache_builds()==offscreen_build0+19 &&
+                mesh_generation()==tex_mesh &&
+                mesh_uploads()==tex_mesh_uploads &&
+                rgba_upload(translucent_rgba,1,1)==0 &&
+                rgba_mesh_generation()==tex_mesh;
+            setenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE","unknown",1);
+            barrier_ok=barrier_ok &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+35;
+            setenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE","1",1);
+            barrier_ok=barrier_ok &&
+                rgba_upload(nullptr,0,0)==1 &&
+                rgba_mesh_generation()==0 &&
+                offscreen_cache_releases()==offscreen_release0+19 &&
+                offscreen_world()==0 &&
+                offscreen_world_frames()==offscreen_start+35;
+            std::fprintf(stdout,
+                "P05 Vulkan real VkImage sampler: red=(R%u G%u) "
+                "green=(R%u G%u) wraps=1 uploads=%llu valid=%d\n",
+                sampled_red,sampled_red_green,
+                sampled_green_red,sampled_green,
+                static_cast<unsigned long long>(rgba_uploads()),
+                barrier_ok?1:0);
+            unsetenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
             unsetenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
             unsetenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
             unsetenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
@@ -2032,6 +2141,7 @@ int main(int argc, char** argv) {
                  "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
                  "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
                  "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
+                 "OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
