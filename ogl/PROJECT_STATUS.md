@@ -6,6 +6,139 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: bis zu vier echte OpenSim-Face-Texturen über Vulkan-Atlas (09.11.2026)
+
+**Erreicht:** Der bisherige Vulkan-Sampled-Image-Prototyp konnte
+nur eine Textur pro gesamtem Szenenmesh darstellen. Jetzt können
+bis zu **vier unterschiedliche, bereits decodierte opake Legacy-
+Diffuse-Bilder** aus der tatsächlichen Firestorm-Deferred-Szene
+pro akzeptiertem VolumeFace-Dreieck indiziert werden. Ein
+64×64-RGBA8-Atlas enthält vier unabhängige 32×32-Kacheln;
+jedes Dreieck erhält über eigene GPU-Vertexbindung3 seinen
+Materialindex (0 bis 3), während XYZ, Face-RGB, UV-Koordinaten
+und Sonnenrichtung getrennt und generationsgekoppelt bleiben.
+
+**Quellpfad und Grenzen:** Der reale Scanner nutzt ausschließlich
+LLViewerFetchedTexture::getRawImage() und die bereits decodierten
+LLImageRaw-Bilder; Materialzuordnung nach ihrer stabilen Instanz
+innerhalb EINES synchronen Scans. Alle Bilder werden über
+LLPointer und LLImageDataSharedLock sicher gelesen, als
+maximal 64px-RGBA8-Thumbnail kopiert und zu vier 32px-Tiles
+zusammengefügt. Kein JPEG2000-Netzwerkfetch, erzwungener
+Decoder, OpenGL-Readback oder Asset-/UUID-Logging.
+Ein Snapshot ist NUR dann für Atlas-Texturen freigegeben,
+wenn ALLE akzeptierten Dreiecke aus eindeutig texturierten
+VolumeFaces mit unterstützter UV-Transformation stammen,
+ohne Terrain-/Ray-Anker, fehlende/Default-/transparente,
+animierte, normal-/specular- oder GLTF-/PBR-Materialien.
+Über vier unterschiedliche Bildquellen werden nicht
+teilweise als korrekt ausgegeben: die Materialabnahme
+scheitert insgesamt (fail-closed).
+
+**Vulkan-Pipeline:** Neue SPIR-V-Shader für Vulkan 1.0
+(validiert mit spirv-val) legen den Face-Material-Slot
+flach pro Dreieck fest und wenden frac() auf Original-
+UV-Koordinaten pro Texturkachel an. Die Fragment-
+abtastung quantisiert auf Texelzentren und verhindert
+Materialüberläufe an Kachelgrenzen, auch bei negativen
+Wiederholungskoordinaten. ShaderMode6 bindet vier
+Vertexbuffers: Positionen (0), FaceRGB (1), FaceUV (2)
+und Material-Slot (3). Der bereits vorhandene echte
+VkImage/VkImageView/VkSampler/Descriptor und der
+fence-sichere GPU-Cache bleiben erhalten. Die früheren
+ShaderModes0..5 werden unverändert beibehalten.
+Die GPU-Atlasdaten sind aus Platz- und Sicherheitsgründen
+auf 64×64 Pixel ohne Filter-/Mipmapping-/PBR-Streaming
+begrenzt: das ist noch KEIN universeller Texturrenderer.
+
+**Separates Entwickler-Opt-in:** Der GPU-Atlas erfordert
+OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE=1. Für die
+tatsächliche Firestorm-Quelle ist zusätzlich
+OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE=1 und das
+bestehende OGL_VULKAN_LIVE_RGBA_SOURCE=1 nötig.
+Alle vorherigen unabhängigen World-/Mesh-/Camera-/
+Offscreen-/RGB-/UV-/Sun-Freigaben gelten weiterhin.
+Bei fehlender Quelle, nicht passenden Material-
+Slot-/Bild-/Meshgenerationen oder ungültigem Bild
+wird die vorherige Live-Quittung verworfen.
+**Keiner dieser Entwicklerpfade übernimmt das
+OpenGL-Viewerfenster oder dessen Renderziel.**
+
+**20 tatsächlich ausgeführte technische Aufgaben:**
+
+01. Sauberen Branch ogl-develop, bisherige P05-Anweisungen, Vulkan-/Materialquellen und den vollständig erfolgreichen Sechs-Plattformen-CI-Lauf 42676970109 geprüft.
+02. Die bisherige Ein-Bild-VkImage-/Sampler-Pipeline und die tatsächliche Firestorm-Deferred-Quelle LLViewerFetchedTexture/LLImageRaw analysiert.
+03. Die nächste Materialausgabe ausdrücklich auf vier einzigartige deckende Legacy-Diffuse-Texturen pro Mesh und 64×64-Pixel-RGBA-Atlas begrenzt.
+04. Rein synchronen CPU-Atlas-Konverter aus ein bis vier bereits decodierten RGBA8-Bildern in bestehendem Host-Header implementiert.
+05. Jede Quelle auf RGB-Datenlänge, Maximalmaße 64×64 und vollständig opake Pixel geprüft; ungültige Eingaben löschen das Kandidatenresultat.
+06. Vier unabhängige 32×32-Atlasquadranten erzeugt, mit Nearest-Neighbor-Sampling und deckend weißen unbelegten Slots.
+07. Additive Vulkan-C-ABI ogl_rtx_face_material_slot eingeführt: drei identische ganzzahlige Slotwerte je bereits akzeptiertem Dreieck.
+08. Separaten hostkohärenten GPU-Materialslot-Vertexbuffer als Vulkan-Binding 3 eingebaut, ohne die bisherigen XYZ-/RGB-/UV-Sidecars zu verändern.
+09. GPU-Slotdaten vor Allokation auf exakte Dreieckszahl, aktuell akzeptierte Mesh-/UV-/RGB-Generation sowie ganzzahlige Slots 0..3 geprüft.
+10. Slotbuffer bei Region-/Mesh-Clear und Modul-Shutdown invalidiert und sicher freigegeben; ungültige Uploads ändern gültige Buffer nicht.
+11. Eigenen GLSL-450-Vulkan-Vertexshader für XYZ, FaceRGB, FaceUV und flache Material-Slot-Interpolation entwickelt.
+12. Eigenen GLSL-450-Vulkan-Fragmentshader erstellt, der UV-Wiederholung pro Fläche korrekt innerhalb eines 32×32-Atlasquadranten abtastet.
+13. Beide Atlas-Shader gegen Vulkan 1.0 kompiliert und mit Khronos spirv-val validiert; SPIR-V direkt in bestehender Moduldatei eingebettet.
+14. Private ShaderMode6-Renderpipeline mit VkVertexInput-Binding3 und den vorhandenen ImageView-/Sampler-/Descriptor-Ressourcen verbunden.
+15. Auswahl des Atlasmodus streng an OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE=1 und sämtliche vorhandenen RGBA-/UV-/Tint-/Sun-/World-/Camera-Gates gebunden.
+16. Quellqualifizierten Host um optionalen Face-Slot-/Tile-Count-Handoff erweitert, vor Bild-Upload geprüft und an dieselbe GPU-Meshgeneration gekoppelt.
+17. Realen Firestorm-Szenenscanner so erweitert, dass jedes akzeptierte VolumeFace-Dreieck einen Material-Slot nach erster Texturverwendung erhält; mehr als vier Texturen scheitern geschlossen.
+18. Mehrere bereits im Speicher decodierte LLImageRaw-Bilder mit LLPointer-Lebensdauer und LLImageDataSharedLock gelesen, auf RGBA8 verkleinert und an den Atlaspacker übergeben.
+19. Native echte Vulkan-GPU-Abnahme mit vier unabhängig gefärbten Slots, Materialwechsel ohne Meshneuladen sowie zwei verschieden texturierten Dreiecken IM GLEICHEN Frame bestanden; negative/positive UV-Wiederholung ebenfalls geprüft.
+20. Kompletten Linux-Viewer und Regression mit 377 Python-Tests, 41 nativen CTests, 65 Grafik- und 45 Reporttests bestanden; 16 isolierte SDL-/X11-Viewerstart- und Treiber-/Berechtigungsfälle ausgeführt.
+
+**Echte native Vulkan-GPU-Abnahme:** 42 private
+World-/Depth-Frames; vor dem endgültigen
+Modul-Shutdown 22 GPU-Cache-Aufbauten,
+20 Wiederverwendungen und 21 Freigaben.
+Die vier Atlas-Materialslots erzeugten
+jeweils ihre RGB-Hauptfarbe (R51, G51,
+B51 sowie Gelb R51/G51). Ein zweites
+Mesh mit ZWEI verschieden texturierten
+Dreiecken wurde in **einem GPU-Frame**
+gerendert: mittlere gemessene Kanäle
+**R25/G25/B0**. Auch unterschiedliche
+negative und positive UV-Perioden auf
+beiden Flächen blieben korrekt.
+Ungültige Slotwerte (NaN/Bruchteile/
+unterschiedliche Vertexslots), nicht
+passende Dreieckszahl, zu viele Tiles,
+ungültige Texturalpha-/Bytepuffer und
+stale Mesh-/Bildgeneration wurden
+abgewiesen. Der vollständige bisherige
+native Vulkan-X11-/Depth-/Regiontest
+blieb erfolgreich.
+
+**Vollständige Linux-Abnahme:** 377/377
+Python-Tests, 41/41 native CTests,
+65/65 Grafik- und 45/45 Report-
+/Herkunftsverträge. Zusätzlich 16
+voneinander isolierte SDL/X11-Viewer-
+starts mit normalem OpenGL-Login,
+verschiedenen GPU-Atlas-/Live-Source-
+Flags und fehlendem Vulkan-ICD.
+Keine echten Loginkonten oder Nutzer-
+Viewerprozesse angefasst.
+
+**Unverändert offene P05-Abnahme:**
+Die gekoppelten realen Firestorm-
+Datenquellen wurden kompiliert und
+quellcode-/plattformgeprüft, aber
+noch NICHT über einen authentifizierten
+OpenSim-Region-Frame mit realen Vulkan-
+Materialpixels abgenommen. Die messbaren
+GPU-Testbilder stammen aus kontrollierten
+synthetischen RGB-Texturen, nicht aus
+authentifizierten Region-Assets. Für
+produktive Welten fehlen >4 Materialslots,
+PBR/GLTF-Textures, Alpha-Blending, Terrain,
+Wasser, Avatare, Streaming-/Residency-
+Management, optimales Texturstaging und
+volle Vulkan-Fensterhoheit/UI.
+**P05 formal weiterhin 2/20 Hauptblöcke;
+Block3/4 nicht vollständig abgeschlossen.**
+Quellcode-Commit: cde4fb8813ff4a946818aa4f1744db15ffee7810.
+
 ## P05/3–4 – 20 technische Schritte: reale decodierte Firestorm-Texturquelle mit Vulkan verknüpfen (09.11.2026)
 
 **Neuer tatsächlicher Datenpfad:** Der Firestorm-Viewer decodiert

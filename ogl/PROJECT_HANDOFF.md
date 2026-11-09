@@ -805,6 +805,33 @@ Letzter GitHub-Workflow 42673502520 FAIL mit
 null Jobs, Ursache noch ungeklärt; neue CI
 nach neuem Push prüfen.
 
+**P05/3–4 Mehrmaterial-Atlas aus echten Firestorm-TextureEntries (09.11.2026, Code cde4fb88):**
+20 nachprüfbare technische Arbeiten, Details ogl/PROJECT_STATUS.md.
+Die bisherige EINE dekodierte RGBA8-Textur ist optional
+durch vier unterschiedliche dekodierte opaque Legacy-
+Diffuse-VolumeFace-Bilder ergänzbar: 4x32x32 Atlas-
+Quadranten in einer echten 64x64 VkImage, eigene
+pro-Dreieck Material-Slot-ABI (0..3) über GPU-Binding3,
+neue Vulkan1.0-validierte SPIR-V-Vertex-/Fragmentshader,
+flat Materialslot/frac(UV) und kein Tile-Bleeding.
+Host/source-qualified handoff über LLViewerFetchedTexture/
+LLImageRaw mit LLPointer+SharedLock und separaten
+LIVE_MATERIAL_ATLAS_SOURCE/MATERIAL_ATLAS_PROBE-Flags.
+Alle alten UV-/RGB-/Mesh-/Sun-/Camera-/GPU-Gates weiter.
+Mixed >4, fehlende/Default-/transparente/PBR/GLTF/
+animierte Materialquellen, Terrain/Anker fail-closed.
+Native echte Vulkan GPU 42 Welt-/Depth-Frames, Cache
+22 Builds/20 Reuses/21 Releases vor Modulstop,
+vier Materialfarben je R/G/B 51, Gelb R51/G51.
+2 unterschiedlich belegte Dreiecke IM SELBEN GPU-Frame
+R25/G25/B0, UV-Wrap/Region-Clear validiert.
+Voll Linux377 Python/41 CTests, 65 Grafik-/45 Reporttests,
+16 isolierte SDL/OpenGL-Login-/Fallback-Starts.
+Letzte sechsplattformige GitHub-CI 42676970109 SUCCESS;
+nächster Commit-CI separat prüfen.
+Kein authentifizierter OpenSim-Live-Vulkan-Materialframe
+und keine sichtbare Vulkan-Welt. P05 formal 2/20.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

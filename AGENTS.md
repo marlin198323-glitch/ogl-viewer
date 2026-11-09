@@ -4,53 +4,59 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 09.11.2026 (Code edd33d9b):
-20 konkrete technische Schritte für neue echte
-Firestorm-Decoded-Raw-Image-Quellbrücke zur
-bereits vorhandenen privaten Vulkan-Sampler-
-Pipeline. Quelle LLViewerFetchedTexture/
-LLImageRaw im tatsächlichen Deferred-
-OpenSim-VolumeFace-Scanner, ohne erzwungene
-Bilddecodierung, kein GL-Readback, kein
-Asset-ID-/Pixel-Logging. Nur EIN homogenes
-bereits decodiertes deckendes Legacy-Diffuse-
-Bild für GANZEN Snapshot, reine
-VolumeFaces mit korrektem TE-UV, keine
-Terrain-/Ray-Anker, Mixed-Textures,
-Missing/Default/Alpha/Animated/PBR/GLTF.
-Extra Optin OGL_VULKAN_LIVE_RGBA_SOURCE=1
-plus OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1
-und allen bisher getrennten GPU-/Mesh-/
-UV-/FaceRGB-/Sun-/Camera-/Offscreen-Gates.
-Quelle über LLPointer auf Texture+LLImageRaw
-referenziert, LLImageDataSharedLock schützt
-synchronen Pixel-Snapshot. RGB/RGBA->RGBA8,
-strict 1..1024px Quelle, max. 64x64
-seitenverhältnistreue Nearest-Thumbnail,
-Originalalpha und Bytes geprüft.
-Host-ABI übergibt PIXEL nur synchron mit
-echter XYZ/RGB/UV-Meshgeneration, bei
-fehlender Quelle/Gate bzw. Uploadfehler
-alte Vulkan-Source-Quittungen invalidiert.
-Linux-Vollviewer 376 Python-/41 CTests,
-64 Grafik-/45 Reporttests. Reale GPU-
-Abnahme 35 private Vulkan-Frames,
-Cache 19 Builds/16 Reuses/19 Releases,
-VkImage-Testpixel R51/G0 vs R0/G51.
-10 isolierte reale SDL/X11-Viewer-Login-
-Tests; keine angemeldete OpenSim-Welt.
-VORHERIGE GitHub-CI 42673502520
-Fehler vor jedem Job; Ursache offen.
-Nach Push die neue GitHub-CI prüfen.
-KEIN authentifizierter echter Vulkan-
-Live-OpenSim-Texturframe, noch keine
-per-Face Multi-Asset-/PBR-/Alpha-Pipeline
-oder sichtbare Vulkan-Welt-Window-Hoheit.
-Produktiv bleibt OpenGL; P05 formell 2/20,
-Block3/4 weiterhin offen. Userviewer,
-Userprofile, Secrets nicht anfassen;
-keine duplizierten Repo-Projektdateien.
-Details: ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 09.11.2026 (Code cde4fb88):
+20 weitere technische Teilblöcke – echter
+Vulkan-Material-Atlas für bis zu VIER
+verschiedene, bereits dekodierte opake
+Legacy-Diffuse-LLImageRaw-Quellen im
+quellqualifizierten Firestorm Deferred-
+Szenenscanner. Pro Face/XYZ-Dreieck
+MaterialSlot-v1-C-ABI mit 3 identischen
+ganzzahligen floats, separater
+GPU-VkVertexBuffer-Binding3.
+Gleiches 64x64 RGBA8-VkImage mit vier
+separaten 32x32-Quadranten, zwei
+neue Vulkan1.0/spirv-val-geprüfte
+GLSL-SPIR-V-Shader. UV-Fract je
+Materialslot -> korrekte Wrap-
+Abtastung auch an Tilegrenzen.
+Quelle: bereits vorhandenes
+LLViewerFetchedTexture/LLImageRaw
+mit LLPointer + SharedLock; kein
+GL-Readback/erzwungener Decoder,
+keine Asset-IDs/Pixel in Logs.
+Nur bei OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE=1
+und OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE=1
+plus LIVE_RGBA_SOURCE/RGBA_IMAGE/
+UV/TINT/SUN/MESH/CAMERA/OFFSCREEN
+Entwicklergates, Generationen geprüft.
+>4 Assets, Default/Missing, Alpha,
+PBR/GLTF, animated TE, Terrain/
+Ray-Anker werden geschlossen abgewiesen.
+Native Vulkan-X11 GPU 42 Weltframes,
+GPU-Cache 22 Builds, 20 Reuses,
+21 Releases vor Modul-Shutdown;
+vier Slots getrennt R/G/B 51,
+Gelb R51/G51. ZWEI gleichzeitige
+verschieden texturierte Dreiecke
+in EINEM Frame R25/G25/B0;
+UV-Wrap und stale sources abgewiesen.
+Linux377 Python/41 CTests,
+65 Grafik/45 Reportprüfungen,
+16 eigenständige SDL/X11-GUI-Starts.
+Letzter CI 42676970109 auf
+6 Windows/Linux/macOS-Architekturen
+grün. Neuen CI-Lauf nach Push prüfen.
+Noch KEINE Live-Vulkan-GPU-Abnahme
+in authentifizierter OpenSim-Region,
+keine produktive sichtbare Vulkan-
+Weltpipeline/PBR/Alpha/Terrain/UI.
+OpenGL bleibt aktiv, P05 formal 2/20,
+Block3/4 offen. Keine Userviewer,
+-Profile, Secrets oder fremde Repos
+anrühren; Dokumente nur kanonisch,
+keine Duplikate. Aktuelle Details
+ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

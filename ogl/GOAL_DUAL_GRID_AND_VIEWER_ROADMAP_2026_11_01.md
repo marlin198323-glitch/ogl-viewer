@@ -1841,6 +1841,29 @@ P05 formal 2/20.
 Vorige GitHub-CI 42673502520 mit 0 Jobs fehlgeschlagen,
 nächsten Lauf überprüfen.
 
+**P05/3–4 bis zu vier unterschiedliche Texturen pro Vulkan-Welt-Snapshot (09.11.2026, Code cde4fb88):**
+Real Firestorm-Deferred-Szenenscanner indexiert
+bis zu vier eindeutige bereits dekodierte opake
+Legacy-Diffuse-ImageRaw-Quellen je VolumeFace-
+Dreieck, keine PBR/GLTF/Alpha/Terrain/Anker.
+Neuer 4x32px RGBA8-Atlas (64px VkImage);
+MaterialSlot-v1-C-ABI mit 3 float Vertexindices
+je Triangle, Vulkan-GPU Binding3, flacher
+Materialindex und unabhängig pro Face wiederholte
+UVs; zwei neue Vulkan1.0/SPIR-V-Shader.
+Eigene zweistufige MATERIAL_ATLAS_PROBE/
+LIVE_MATERIAL_ATLAS_SOURCE Entwicklerfreigabe,
+bestehende GPU-/Host-Provenienz weiterhin aktiv.
+Native 42 Vulkan-X11-Weltframes, 22/20/21 GPU-
+Cache-Build/Reuse/Release, echte simultane
+GPU-Doppelfläche R25/G25/B0 und vier Farben
+pro Slot validiert; 377 Python-, 41 CTests,
+65 Grafik-/45 Reportprüfungen, 16 GUI-Logins.
+Noch kein authentifizierter Vulkan-OpenSim-
+Live-Texturframe und keine sichtbare Vulkan-
+Engine; P05 formal 2/20, Block3/4 offen.
+Letzte Sechs-OS-CI 42676970109 komplett grün.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
