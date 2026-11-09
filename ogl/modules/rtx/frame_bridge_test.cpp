@@ -187,6 +187,43 @@ static void test_opensim_raw_thumbnail_policy() {
     const size_t odd_texel=(std::size_t(20u)*256u+9u)*4u;
     assert(hq_cpu[even_texel]==255u && hq_cpu[even_texel+1]==0u);
     assert(hq_cpu[odd_texel]==0u && hq_cpu[odd_texel+1]==255u);
+    // Exercise the bounds and nearest-neighbour mapping at extreme aspect
+    // ratios; no other atlas slot may be modified by a 1-pixel source.
+    const std::uint8_t narrow_pixels[8]{12u,34u,56u,255u,
+                                        78u,90u,123u,255u};
+    const OGLRgbaTileView narrow_tile{narrow_pixels,8u,1u,2u};
+    assert(ogl_rtx_pack_rgba_atlas_4x4_hq(&narrow_tile,1,hq_cpu));
+    for (unsigned y=0;y<64u;++y)
+        for (unsigned x:{0u,31u,63u}) {
+            const auto at=(std::size_t(y)*256u+x)*4u;
+            const auto src=(y<32u ? 0u : 4u);
+            for (unsigned channel=0;channel<4u;++channel)
+                assert(hq_cpu[at+channel]==narrow_pixels[src+channel]);
+        }
+    assert(hq_cpu[(std::size_t(64u)*256u+0u)*4u]==255u);
+    const OGLRgbaTileView wide_tile{narrow_pixels,8u,2u,1u};
+    assert(ogl_rtx_pack_rgba_atlas_4x4_hq(&wide_tile,1,hq_cpu));
+    for (unsigned x=0;x<64u;++x) {
+        const auto at=(std::size_t(63u)*256u+x)*4u;
+        const auto src=(x<32u ? 0u : 4u);
+        for (unsigned channel=0;channel<4u;++channel)
+            assert(hq_cpu[at+channel]==narrow_pixels[src+channel]);
+    }
+    const OGLRgbaTileView too_wide{narrow_pixels,8u,65u,1u};
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(&too_wide,1,hq_cpu));
+    assert(hq_cpu.empty());
+    const OGLRgbaTileView too_tall{narrow_pixels,8u,1u,65u};
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(&too_tall,1,hq_cpu));
+    assert(hq_cpu.empty());
+    const OGLRgbaTileView zero_width{narrow_pixels,8u,0u,2u};
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(&zero_width,1,hq_cpu));
+    assert(hq_cpu.empty());
+    const OGLRgbaTileView truncated{narrow_pixels,7u,1u,2u};
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(&truncated,1,hq_cpu));
+    assert(hq_cpu.empty());
+    std::fprintf(stdout,
+        "P05 HQ atlas aspect/bounds: 1x2, 2x1 nearest scaling, "
+        "empty slots and malformed inputs PASS\n");
     std::fprintf(stdout,
         "P05 HQ 16-material CPU atlas: 256x256 4x64x64, "
         "16-tile addresses, 1px stripe detail, alpha/size guards PASS\n");

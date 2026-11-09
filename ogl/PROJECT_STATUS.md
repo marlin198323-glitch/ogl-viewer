@@ -6,6 +6,27 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – HQ-Atlas-Grenzfallregression (09.11.2026)
+
+**Zusätzliche QA-Vorarbeit; kein operativer Phasenabschluss.**
+Die vorhandene native Datei `ogl/modules/rtx/frame_bridge_test.cpp`
+prüft nun auch den 4×4-HQ-Atlaspacker mit extrem schmalen
+1×2- und breiten 2×1-Bildquellen: deterministische
+Nearest-Neighbour-Skalierung bis 64×64, exakte RGBA-Pixel
+an beiden Halbgrenzen, weiße unbenutzte Atlasbereiche und
+fail-closed Ablehnung von 65×1-, 1×65-, 0×2- und
+abgeschnittenen Quellbilddaten. Tests benutzen ausschließlich
+synthetische Pixel und schreiben keine Nutzerprofile.
+
+**Verifiziert:** vollständiger Linux-Mint-Viewer-Build
+`bash ogl/scripts/build-test.sh`, 379/379 Python-Tests,
+41/41 native CTests und separat 67/67 Grafiktests erfolgreich;
+`git diff --check` ohne Fehler. Keine authentifizierte
+OpenSim-Welt, kein Live-Vulkan-Window-Present und kein
+vollständiger Windows-/macOS-Viewer-Test durchgeführt.
+P05 bleibt formal **2/20**, Hauptblock 3 (exklusives
+SDL-Vulkan-Window-Ownership/echtes Live-Present) offen.
+
 ## P05/3–4 – 20 technische Schritte: 16 Vulkan-Materialien mit höherer Texturauflösung (09.11.2026)
 
 **Erreicht:** Der private, NICHT im normalen Viewerfenster

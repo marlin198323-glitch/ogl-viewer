@@ -11,6 +11,12 @@ Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm
 Teststart: bash ogl/scripts/run-viewer-test.sh
 Build und Tests: bash ogl/scripts/build-test.sh
 
+Aktuelle Folgeprüfung 09.11.2026: Native HQ-Atlas-
+Grenzfallregression (1x2/2x1, Größen- und Datenrejects)
+mit vollständigem Linux-Build, 379 Python- und 41 nativen
+Tests bestanden. P05 weiter 2/20, Block 3 offen;
+Details am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**
