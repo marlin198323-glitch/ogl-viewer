@@ -71,12 +71,19 @@ using ogl_world_uv_upload_fn = int (*)(const ogl_rtx_face_uv*,uint32_t);
 ogl_world_uv_upload_fn world_upload_face_uvs = nullptr;
 using ogl_world_uv_generation_fn = std::uint64_t (*)();
 ogl_world_uv_generation_fn world_uv_mesh_generation = nullptr;
+using ogl_world_rgba_upload_fn = int (*)(const std::uint8_t*,std::uint32_t,std::uint32_t);
+ogl_world_rgba_upload_fn world_upload_rgba_image = nullptr;
+using ogl_world_rgba_generation_fn = std::uint64_t (*)();
+ogl_world_rgba_generation_fn world_rgba_mesh_generation = nullptr;
 // Borrowed, synchronous input from the real deferred volume-face scanner.
 // Never persists after ogl_rtx_submit_deferred_world_triangles returns.
 const ogl_rtx_face_tint* live_deferred_face_tints = nullptr;
 unsigned live_deferred_face_tint_count = 0;
 const ogl_rtx_face_uv* live_deferred_face_uvs = nullptr;
 unsigned live_deferred_face_uv_count = 0;
+const std::uint8_t* live_deferred_rgba_pixels = nullptr;
+std::uint32_t live_deferred_rgba_width = 0;
+std::uint32_t live_deferred_rgba_height = 0;
 using ogl_world_camera_fn = int (*)(const ogl_rtx_frame_state*);
 ogl_world_camera_fn world_set_camera = nullptr;
 using ogl_world_input_ready_fn = uint32_t (*)();
@@ -320,6 +327,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_upload_face_uvs"));
     world_uv_mesh_generation = reinterpret_cast<ogl_world_uv_generation_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_face_uv_mesh_generation"));
+    world_upload_rgba_image = reinterpret_cast<ogl_world_rgba_upload_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_upload_rgba_image"));
+    world_rgba_mesh_generation = reinterpret_cast<ogl_world_rgba_generation_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_rgba_mesh_generation"));
     world_set_camera = reinterpret_cast<ogl_world_camera_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_set_projection_camera"));
     world_input_ready = reinterpret_cast<ogl_world_input_ready_fn>(
@@ -540,6 +551,10 @@ void ogl_shutdown_rtx_module() {
     world_tint_mesh_generation = nullptr;
     world_upload_face_uvs = nullptr;
     world_uv_mesh_generation = nullptr;
+    world_upload_rgba_image = nullptr;
+    world_rgba_mesh_generation = nullptr;
+    live_deferred_rgba_pixels = nullptr;
+    live_deferred_rgba_width = live_deferred_rgba_height = 0;
     live_deferred_face_tints=nullptr;
     live_deferred_face_tint_count=0;
     live_deferred_face_uvs=nullptr;
@@ -975,7 +990,42 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                 world_upload_face_uvs(live_deferred_face_uvs,count)==1 &&
                 world_uv_mesh_generation()==world_mesh_generation();
         }
+        const char* rgba_flag=std::getenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
+        const char* rgba_live_flag=std::getenv("OGL_VULKAN_LIVE_RGBA_SOURCE");
+        const bool rgba_requested=rgba_flag &&
+            std::strcmp(rgba_flag,"1")==0;
+        const bool rgba_needed=rgba_requested &&
+            rgba_live_flag && std::strcmp(rgba_live_flag,"1")==0;
+        if (!uploaded && count>0 && live_deferred_capture_call &&
+            rgba_requested) {
+            // A failed real upload must not leave a previous material
+            // receipt valid for a subsequent camera-only GPU tick.
+            live_deferred_capture_valid=false;
+            live_deferred_receipt_epoch=0;
+            live_deferred_mesh_generation=0;
+            world_inputs_live_logged=false;
+            if (world_upload_rgba_image)
+                world_upload_rgba_image(nullptr,0,0);
+        }
+        if (uploaded && count>0 && rgba_requested && !rgba_needed)
+            tint_success=false; // no live source authorization
+        if (uploaded && count>0 && rgba_needed) {
+            // Only the actual Firestorm scanner's homogeneous opaque
+            // decoded image can be paired with the accepted GPU XYZ+RGB+UV.
+            // Never trust an unrelated image, texture ID, file or cache.
+            tint_success=tint_success && tint_needed && uv_needed &&
+                live_deferred_capture_call && live_deferred_rgba_pixels &&
+                live_deferred_rgba_width>0 && live_deferred_rgba_width<=64 &&
+                live_deferred_rgba_height>0 && live_deferred_rgba_height<=64 &&
+                world_upload_rgba_image && world_rgba_mesh_generation &&
+                world_mesh_generation &&
+                world_upload_rgba_image(live_deferred_rgba_pixels,
+                    live_deferred_rgba_width,live_deferred_rgba_height)==1 &&
+                world_rgba_mesh_generation()==world_mesh_generation();
+        }
         if (uploaded && count>0 && !tint_success) {
+            if (world_upload_rgba_image && rgba_requested)
+                world_upload_rgba_image(nullptr,0,0);
             if (world_upload_face_tints && tint_needed)
                 world_upload_face_tints(nullptr,0);
             if (world_upload_face_uvs && uv_needed)
@@ -1073,14 +1123,17 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
 // triangle ABI NEVER marks a batch as deferred-source evidence.
 void ogl_rtx_submit_deferred_world_triangles(
     const float* triangle_xyz,const float* face_tints_rgb,
-    const float* face_uvs,unsigned count)
+    const float* face_uvs,const std::uint8_t* decoded_rgba,
+    unsigned image_width,unsigned image_height,unsigned count)
 {
 #if LL_LINUX || LL_WINDOWS
     if (!triangle_xyz || count==0 ||
-        count>OGL_RTX_MAX_SCENE_TRIANGLES)
+        count>OGL_RTX_MAX_SCENE_TRIANGLES ||
+        (decoded_rgba && (!image_width || image_width>64 ||
+                          !image_height || image_height>64)))
         return;
-    // These synchronous scanner-provided arrays have the EXACT same
-    // triangle indices and lifetime. Do not hold avatar/asset data.
+    // All borrowed arrays and pixel buffers are owned by the REAL
+    // deferred scanner and consumed synchronously on the render thread.
     static_assert(sizeof(ogl_rtx_face_tint)==sizeof(float)*3,
                   "Face RGB ABI must be tightly packed");
     static_assert(sizeof(ogl_rtx_face_uv)==sizeof(float)*6,
@@ -1092,7 +1145,12 @@ void ogl_rtx_submit_deferred_world_triangles(
     live_deferred_face_uvs=face_uvs ?
         reinterpret_cast<const ogl_rtx_face_uv*>(face_uvs) : nullptr;
     live_deferred_face_uv_count=face_uvs ? count : 0u;
+    live_deferred_rgba_pixels=decoded_rgba;
+    live_deferred_rgba_width=decoded_rgba ? image_width : 0u;
+    live_deferred_rgba_height=decoded_rgba ? image_height : 0u;
     ogl_rtx_submit_world_triangles(triangle_xyz,count);
+    live_deferred_rgba_pixels=nullptr;
+    live_deferred_rgba_width=live_deferred_rgba_height=0;
     live_deferred_face_tints=nullptr;
     live_deferred_face_tint_count=0;
     live_deferred_face_uvs=nullptr;
@@ -1102,6 +1160,9 @@ void ogl_rtx_submit_deferred_world_triangles(
     (void)triangle_xyz;
     (void)face_tints_rgb;
     (void)face_uvs;
+    (void)decoded_rgba;
+    (void)image_width;
+    (void)image_height;
     (void)count;
 #endif
 }

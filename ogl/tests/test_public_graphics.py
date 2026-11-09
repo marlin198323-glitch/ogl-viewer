@@ -1245,7 +1245,7 @@ class PublicGraphicsContracts(unittest.TestCase):
                        'tint_scan ? face_tints.front().rgb : nullptr'):
             self.assertIn(marker,pipeline)
         self.assertIn("const float *face_tints_rgb,",header)
-        self.assertIn("const float *face_uvs,unsigned count",header)
+        self.assertIn("const float *face_uvs,const std::uint8_t *decoded_rgba,",header)
         for marker in ("live_deferred_face_tints=face_tints_rgb ?",
                        "world_upload_face_tints(live_deferred_face_tints,count)==1",
                        "world_tint_mesh_generation()==world_mesh_generation()",
@@ -1328,7 +1328,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             "uv_scan ? face_uvs.front().uv : nullptr",
         ):
             self.assertIn(marker,pipeline)
-        self.assertIn("const float *face_uvs,unsigned count",header)
+        self.assertIn("const float *face_uvs,const std::uint8_t *decoded_rgba,",header)
         for marker in (
             "live_deferred_face_uvs=face_uvs ?",
             "world_upload_face_uvs(live_deferred_face_uvs,count)==1",
@@ -1388,6 +1388,87 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(marker,native)
         self.assertNotIn("vkQueuePresentKHR(",draw)
         self.assertNotIn("SDL_",draw)
+
+    def test_p05_actual_firestorm_decoded_opaque_texture_source_fail_closed(self):
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        for marker in (
+            "inline bool ogl_rtx_thumbnail_opaque_rgba8(",
+            "result.clear();",
+            "out_width=out_height=0;",
+            "width>1024 || height>1024",
+            "components!=3 && components!=4",
+            "data_size<needed",
+            "pixels[px]!=255u",
+            "std::max(1u,(width*64u)/maximum)",
+            "converted[output]=pixels[input];",
+            "converted[output+1]=pixels[input+1];",
+            "converted[output+2]=pixels[input+2];",
+            "result.swap(converted);",
+            "const std::uint8_t *decoded_rgba,",
+            "unsigned image_width,unsigned image_height,unsigned count"):
+            self.assertIn(marker,header)
+        for marker in (
+            '"OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE"',
+            '"OGL_VULKAN_LIVE_RGBA_SOURCE"',
+            "const bool rgba_scan=uv_scan && rgba_pref &&",
+            "bool homogeneous_rgba=rgba_scan && triangles.empty();",
+            "LLPointer<LLViewerFetchedTexture> homogeneous_image;",
+            "dynamic_cast<LLViewerFetchedTexture*>(",
+            "volume_object->getTEImage(static_cast<U8>(f))",
+            "face_image->isMissingAsset()",
+            "LLViewerFetchedTexture::sDefaultImagep.get()",
+            "!volume_object->mTextureAnimp",
+            "te->getMaterialParams().isNull()",
+            "!te->getGLTFRenderMaterial()",
+            "diffuse.mV[3]>=0.999f",
+            "if (!uv_triangle_valid || !face_image)",
+            "homogeneous_image.get()!=face_image",
+            "homogeneous_image->isRawImageValid()",
+            "LLPointer<LLImageRaw> raw=homogeneous_image->getRawImage();",
+            "LLImageDataSharedLock lock(raw.get());",
+            "ogl_rtx_thumbnail_opaque_rgba8(",
+            "decoded_rgba.empty() ? nullptr : decoded_rgba.data()",
+        ):
+            self.assertIn(marker,pipeline)
+        # No GL pixel readback or texture-forcing in the scanner.
+        self.assertNotIn("readbackRawImage()",pipeline)
+        self.assertNotIn("forceToSaveRawImage(",pipeline)
+        for marker in (
+            "ogl_vulkan_world_upload_rgba_image",
+            "ogl_vulkan_world_rgba_mesh_generation",
+            "const bool rgba_needed=rgba_requested &&",
+            "std::strcmp(rgba_live_flag,",
+            "live_deferred_capture_call && live_deferred_rgba_pixels &&",
+            "live_deferred_rgba_width>0 && live_deferred_rgba_width<=64",
+            "live_deferred_rgba_height>0 && live_deferred_rgba_height<=64",
+            "world_rgba_mesh_generation()==world_mesh_generation()",
+            "world_upload_rgba_image(nullptr,0,0)",
+            "live_deferred_capture_valid=false;",
+            "live_deferred_rgba_pixels=nullptr;",
+            "live_deferred_rgba_width=live_deferred_rgba_height=0;",
+        ):
+            self.assertIn(marker,host)
+        for marker in (
+            '#include "../../../indra/newview/oglrtxhost.h"',
+            "test_opensim_raw_thumbnail_policy();",
+            "assert(!ogl_rtx_thumbnail_opaque_rgba8(",
+            "const std::uint8_t transparent[8]",
+            "large_rgb.data(),large_rgb.size(),256,128,3",
+            "w==64 && h==32",
+            "w==1 && h==64",
+            "P05 real decoded OpenSim raw thumbnail policy:",
+        ):
+            self.assertIn(marker,native)
+        self.assertIn("rgba_cpu_texels.swap(accepted)",module)
+        self.assertIn("world_device.rgba_mesh_generation=world_device.mesh_generation",module)
+        self.assertIn("VK_IMAGE_USAGE_SAMPLED_BIT",module)
+        self.assertIn("vkCmdBindDescriptorSets(command,",module)
+        self.assertNotIn("vkQueuePresentKHR(",host[host.index("void ogl_rtx_submit_deferred_world_triangles("):
+                                                   host.index("bool ogl_rtx_track_local_object(",host.index("void ogl_rtx_submit_deferred_world_triangles("))])
 
     def test_p05_decoded_rgba8_vkimage_sampler_descriptor_gpu_probe(self):
         api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()

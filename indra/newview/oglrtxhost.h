@@ -3,6 +3,60 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
+#include <vector>
+
+
+// P05/5: convert ONLY an already-decoded, opaque, packed RGB/RGBA
+// Firestorm LLImageRaw into a bounded RGBA8 snapshot for the private
+// Vulkan material experiment. This is not an OpenSim texture decoder.
+// Pixels are copied synchronously while the image's shared-data lock
+// is held by the caller; never store the source pointer or a texture ID.
+// Nearest-neighbor downsampling retains aspect ratio, max 64x64.
+// Explicit output reset on every failure; no GL readback, logging or I/O.
+inline bool ogl_rtx_thumbnail_opaque_rgba8(
+    const std::uint8_t* pixels, std::size_t data_size,
+    std::uint32_t width,std::uint32_t height,std::uint32_t components,
+    std::vector<std::uint8_t>& result,
+    std::uint32_t& out_width,std::uint32_t& out_height)
+{
+    result.clear();
+    out_width=out_height=0;
+    if (!pixels || width==0 || height==0 || width>1024 || height>1024 ||
+        (components!=3 && components!=4)) return false;
+    const std::size_t needed=std::size_t(width)*height*components;
+    if (data_size<needed) return false;
+    // Any transparent source pixel makes the ONE opaque texture mode
+    // unsuitable; never pretend it can blend with the actual 3D scene.
+    if (components==4)
+        for (std::size_t px=3;px<needed;px+=4)
+            if (pixels[px]!=255u) return false;
+    const std::uint32_t maximum=width>height ? width : height;
+    const std::uint32_t target_width=maximum>64u ?
+        std::max(1u,(width*64u)/maximum) : width;
+    const std::uint32_t target_height=maximum>64u ?
+        std::max(1u,(height*64u)/maximum) : height;
+    if (!target_width || !target_height) return false;
+    std::vector<std::uint8_t> converted(
+        std::size_t(target_width)*target_height*4u,255u);
+    for (std::uint32_t y=0;y<target_height;++y) {
+        const auto sy=std::uint32_t(
+            (std::uint64_t(y)*height)/target_height);
+        for (std::uint32_t x=0;x<target_width;++x) {
+            const auto sx=std::uint32_t(
+                (std::uint64_t(x)*width)/target_width);
+            const auto input=(std::size_t(sy)*width+sx)*components;
+            const auto output=(std::size_t(y)*target_width+x)*4u;
+            converted[output]=pixels[input];
+            converted[output+1]=pixels[input+1];
+            converted[output+2]=pixels[input+2];
+        }
+    }
+    result.swap(converted);
+    out_width=target_width;
+    out_height=target_height;
+    return true;
+}
 
 // P04/2: world-renderer backend contract. This is a decision model, NOT a
 // Vulkan world-renderer implementation or a user-visible engine selector.
@@ -143,7 +197,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // prelogin or standalone synthetic GPU test paths.
 void ogl_rtx_submit_deferred_world_triangles(
     const float *triangle_xyz,const float *face_tints_rgb,
-    const float *face_uvs,unsigned count);
+    const float *face_uvs,const std::uint8_t *decoded_rgba,
+    unsigned image_width,unsigned image_height,unsigned count);
 // Opt-in stable OpenSim UUID object registry (local mesh and 3x4 pose).
 // Registry is CPU-side metadata; current Vulkan prototype still has one TLAS.
 bool ogl_rtx_track_local_object(const std::uint8_t* uuid16,

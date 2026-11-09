@@ -93,6 +93,8 @@
 #include "llviewercamera.h"
 #include "llviewermediafocus.h"
 #include "llviewertexturelist.h"
+#include "llviewertexture.h"
+#include "llimage.h"
 #include "llviewerobject.h"
 #include "llviewerobjectlist.h"
 #include "llviewerparcelmgr.h"
@@ -9644,6 +9646,14 @@ void LLPipeline::renderDeferredLighting()
                 // TextureEntry-RGB source. No cost in regular OpenGL.
                 const bool uv_scan=tint_scan && uv_pref &&
                     std::strcmp(uv_pref,"1")==0;
+                const char* rgba_pref=std::getenv(
+                    "OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
+                const char* rgba_source_pref=std::getenv(
+                    "OGL_VULKAN_LIVE_RGBA_SOURCE");
+                const bool rgba_scan=uv_scan && rgba_pref &&
+                    std::strcmp(rgba_pref,"1")==0 &&
+                    rgba_source_pref &&
+                    std::strcmp(rgba_source_pref,"1")==0;
                 // Opaque per-face LLTextureEntry diffuse RGB only; no
                 // pixels, images, texture IDs or other avatar/asset data.
                 // Never create the tint vector in normal OpenGL mode.
@@ -9651,6 +9661,12 @@ void LLPipeline::renderDeferredLighting()
                 if (tint_scan) face_tints.reserve(ogl_triangle_budget);
                 std::vector<ogl_rtx_face_uv> face_uvs;
                 if (uv_scan) face_uvs.reserve(ogl_triangle_budget);
+                // The current Vulkan Image ABI only supports ONE uniform
+                // opaque image for the ENTIRE batch, not face materials.
+                // Prepass/terrain anchors have no matching diffuse asset,
+                // so only an initially pure volume-only batch qualifies.
+                bool homogeneous_rgba=rgba_scan && triangles.empty();
+                LLPointer<LLViewerFetchedTexture> homogeneous_image;
                 const LLVector3 eye = camera->getOrigin();
                 size_t near_terrain_triangles=0;
                 size_t mid_terrain_triangles=0;
@@ -10058,6 +10074,32 @@ void LLPipeline::renderDeferredLighting()
                                     std::fabs(uv_offset_t)<=1024.f;
                             }
                         }
+                        // Never forward placeholder or heterogeneous
+                        // OpenSim texture assets to a single-texture shader.
+                        // Actual image bytes are inspected ONLY after
+                        // geometry passes the scanner's acceptance policy.
+                        LLViewerFetchedTexture* face_image=nullptr;
+                        if (rgba_scan && face_uv_transform_valid &&
+                            !volume_object->mTextureAnimp) {
+                            const LLTextureEntry* te=volume_object->getTE(f);
+                            if (te && te->getMaterialParams().isNull() &&
+                                !te->getGLTFRenderMaterial()) {
+                                // Legacy diffuse only. Animated, normal/
+                                // specular or PBR/GLTF materials require a
+                                // future per-face material pipeline.
+                                const LLColor4& diffuse=te->getColor();
+                                const bool opaque=
+                                    std::isfinite(diffuse.mV[3]) &&
+                                    diffuse.mV[3]>=0.999f;
+                                if (opaque)
+                                    face_image=dynamic_cast<LLViewerFetchedTexture*>(
+                                        volume_object->getTEImage(static_cast<U8>(f)));
+                            }
+                            if (face_image &&
+                                (face_image->isMissingAsset() ||
+                                 face_image==LLViewerFetchedTexture::sDefaultImagep.get()))
+                                face_image=nullptr;
+                        }
                         if (tint_scan) {
                             // This is real per-face texture-entry diffuse
                             // tint, NOT a sampled diffuse/albedo texture.
@@ -10141,6 +10183,14 @@ void LLPipeline::renderDeferredLighting()
                                 if (uv_scan)
                                     face_uvs.push_back(uv_triangle_valid ?
                                         face_uv : neutral_uv);
+                                if (rgba_scan && homogeneous_rgba) {
+                                    if (!uv_triangle_valid || !face_image)
+                                        homogeneous_rgba=false;
+                                    else if (homogeneous_image.isNull())
+                                        homogeneous_image=face_image;
+                                    else if (homogeneous_image.get()!=face_image)
+                                        homogeneous_rgba=false;
+                                }
                                 ++object_triangles;
                                 if (ogl_triangle_budget>1024 &&
                                     ogl::is_valid_triangle(local_triangle))
@@ -10268,12 +10318,35 @@ void LLPipeline::renderDeferredLighting()
                     ogl_rtx_region && !current_region_id.isNull() &&
                     (!tint_scan || face_tints.size()==triangles.size()) &&
                     (!uv_scan || face_uvs.size()==triangles.size())) {
-                    // A 1:1 XYZ/RGB/UV triple from the qualified live
-                    // region. No texture pixels or private asset IDs used.
+                    // No texture-asset ID, URL, raw pixel or region name
+                    // is logged or retained by this developer-only bridge.
+                    // Only already-decoded LLImageRaw owned by the real
+                    // viewer may be used; never force a new decode or GL
+                    // texture readback on the rendering thread.
+                    std::vector<std::uint8_t> decoded_rgba;
+                    std::uint32_t image_w=0,image_h=0;
+                    if (rgba_scan && homogeneous_rgba &&
+                        homogeneous_image.notNull() &&
+                        homogeneous_image->isRawImageValid()) {
+                        LLPointer<LLImageRaw> raw=homogeneous_image->getRawImage();
+                        if (raw.notNull()) {
+                            // Pin decoded image lifetime across the short
+                            // shared-data lock; no asynchronous raw pointer.
+                            LLImageDataSharedLock lock(raw.get());
+                            ogl_rtx_thumbnail_opaque_rgba8(
+                                raw->getData(),
+                                std::size_t(std::max(0,raw->getDataSize())),
+                                raw->getWidth(),raw->getHeight(),
+                                raw->getComponents(),
+                                decoded_rgba,image_w,image_h);
+                        }
+                    }
                     ogl_rtx_submit_deferred_world_triangles(
                         triangles.front().position,
                         tint_scan ? face_tints.front().rgb : nullptr,
                         uv_scan ? face_uvs.front().uv : nullptr,
+                        decoded_rgba.empty() ? nullptr : decoded_rgba.data(),
+                        image_w,image_h,
                         static_cast<unsigned>(triangles.size()));
                     ogl_has_scene_snapshot=true;
                 }

@@ -1,4 +1,5 @@
 #include "ogl/ogl_rtx_api.h"
+#include "../../../indra/newview/oglrtxhost.h"
 #include <array>
 #include <cassert>
 #include <cstdlib>
@@ -16,8 +17,71 @@
 
 void log_cb(int, const char*) {}
 
+// Independent platform-neutral native tests for the new LIVE Firestorm
+// LLImageRaw RGB/RGBA -> 64px Vulkan-source conversion. No image cache,
+// user login, OpenGL readback, external asset, or GPU dependency.
+static void test_opensim_raw_thumbnail_policy() {
+    std::vector<std::uint8_t> rgba;
+    std::uint32_t w=999,h=999;
+    const std::uint8_t rgb[12]{
+        10,20,30, 40,50,60, 70,80,90, 100,110,120};
+    assert(ogl_rtx_thumbnail_opaque_rgba8(
+        rgb,sizeof(rgb),2,2,3,rgba,w,h));
+    assert(w==2 && h==2 && rgba.size()==16);
+    assert(rgba[0]==10 && rgba[1]==20 && rgba[2]==30 && rgba[3]==255);
+    assert(rgba[4]==40 && rgba[5]==50 && rgba[6]==60 && rgba[7]==255);
+    assert(rgba[12]==100 && rgba[13]==110 && rgba[14]==120 && rgba[15]==255);
+    assert(!ogl_rtx_thumbnail_opaque_rgba8(
+        rgb,sizeof(rgb)-1,2,2,3,rgba,w,h));
+    assert(rgba.empty() && w==0 && h==0);
+    assert(!ogl_rtx_thumbnail_opaque_rgba8(
+        nullptr,sizeof(rgb),2,2,3,rgba,w,h));
+    assert(!ogl_rtx_thumbnail_opaque_rgba8(
+        rgb,sizeof(rgb),2,2,2,rgba,w,h));
+    assert(!ogl_rtx_thumbnail_opaque_rgba8(
+        rgb,sizeof(rgb),0,2,3,rgba,w,h));
+    assert(!ogl_rtx_thumbnail_opaque_rgba8(
+        rgb,sizeof(rgb),1025,2,3,rgba,w,h));
+    const std::uint8_t opaque[8]{1,2,3,255, 5,6,7,255};
+    assert(ogl_rtx_thumbnail_opaque_rgba8(
+        opaque,sizeof(opaque),2,1,4,rgba,w,h));
+    assert(w==2 && h==1 && rgba.size()==8);
+    assert(rgba[0]==1 && rgba[3]==255 && rgba[4]==5 && rgba[7]==255);
+    const std::uint8_t transparent[8]{1,2,3,255, 5,6,7,128};
+    assert(!ogl_rtx_thumbnail_opaque_rgba8(
+        transparent,sizeof(transparent),2,1,4,rgba,w,h));
+    assert(rgba.empty() && w==0 && h==0);
+    std::vector<std::uint8_t> large_rgb(256u*128u*3u);
+    for (unsigned y=0;y<128;++y)
+        for (unsigned x=0;x<256;++x) {
+            auto index=(y*256u+x)*3u;
+            large_rgb[index]=std::uint8_t(x);
+            large_rgb[index+1]=std::uint8_t(y);
+            large_rgb[index+2]=17u;
+        }
+    assert(ogl_rtx_thumbnail_opaque_rgba8(
+        large_rgb.data(),large_rgb.size(),256,128,3,rgba,w,h));
+    assert(w==64 && h==32 && rgba.size()==64u*32u*4u);
+    const size_t pixel=(size_t(12u)*w+5u)*4u;
+    assert(rgba[pixel]==20 && rgba[pixel+1]==48 &&
+           rgba[pixel+2]==17 && rgba[pixel+3]==255);
+    // The result is an owned, synchronous CPU snapshot.
+    large_rgb[(48u*256u+20u)*3u]=99u;
+    assert(rgba[pixel]==20u);
+    const std::vector<std::uint8_t> narrow(1024u*3u,71u);
+    assert(ogl_rtx_thumbnail_opaque_rgba8(
+        narrow.data(),narrow.size(),1,1024,3,rgba,w,h));
+    assert(w==1 && h==64 && rgba.size()==256u);
+    for (unsigned i=0;i<64;++i)
+        assert(rgba[i*4u]==71 && rgba[i*4u+3u]==255);
+    std::fprintf(stdout,
+        "P05 real decoded OpenSim raw thumbnail policy: "
+        "RGB/RGBA opaque, malformed/alpha rejects, aspect/ownership PASS\n");
+}
+
 int main(int argc, char** argv) {
     assert(argc == 2);
+    test_opensim_raw_thumbnail_policy();
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     assert(library);
     const auto start = reinterpret_cast<ogl_module_start_fn>(
