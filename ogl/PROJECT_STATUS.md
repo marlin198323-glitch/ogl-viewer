@@ -1,10 +1,130 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 07.11.2026
+Stand: 09.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3–4 – 20 technische Schritte: Vulkan-VkImage-Sampler für decodierte RGBA8-Texturpixel (09.11.2026)
+
+**Erreicht:** Die private, NICHT sichtbare Vulkan-World-GPU-Pipeline
+kann zum ersten Mal tatsächliche RGBA8-Bildpixel in einem
+eigenen VkImage speichern und über einen VkSampler/Descriptor
+anhand vorhandener interpolierter OpenSim-kompatibler UV-
+Koordinaten im Fragmentshader abtasten. Die tatsächliche
+OpenGL-Weltdarstellung und die bisherige UV-/FaceRGB-/
+XYZ-Quell-ABI bleiben unverändert.
+
+**Quellen und Grenzen:** Aktuell besitzt das Vulkan-Modul
+nur eine additive Schnittstelle für **bereits decodierte,
+deckende RGBA8-Bildpixel** (1 bis 64 Bildpunkte pro Achse,
+ein Bild pro aktuellem GPU-World-Mesh). Das Modul holt
+keine JPEG2000-/GLTF-/PBR-Assets aus Firestorm, kein
+Asset-UUID oder Texturbild einer authentifizierten Region
+ist automatisch verbunden. Die nachgewiesenen GPU-
+Testtexturen sind kontrollierte 2x2- und 64x64-
+Entwicklerbilder, keine OpenSim-Weltassets.
+
+**Implementierung:** Neuer Vulkan-1.0-SPIR-V-Fragment-
+shader verbindet texture(sampler,uv) mit der bereits
+umgesetzten Opacity-/FaceRGB-/Sonnen-Lambert-
+Diagnose. Ein echter VkImage/VkImageView/VkSampler
+und kombinierter VkImageSamplerDescriptor werden
+ausschließlich für den neuen ShaderMode5 erzeugt.
+Linear-tiling R8G8B8A8 wird nur bei nachgewiesener
+SAMPLED_IMAGE-Formatunterstützung zugelassen.
+VkGetImageSubresourceLayout.rowPitch/offset beugt
+falsch ausgerichteten Zeilen vor; HOST_WRITE-zu-
+Fragmentshader-Pipelinebarriere und Layoutwechsel
+gehen jedem ersten GPU-Draw voraus. Diese portable
+Laufzeitprüfung ist ein erster 1.0-kompatibler
+Entwicklerpfad, noch kein universelles optimales
+GPU-Staging für beliebige Texturassets.
+
+**Isolation und Fehlerbehandlung:** Nur
+OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1 ZUSÄTZLICH
+zu UV_CHECKER/FACE_TINT/LAMBERT/SUN und den
+vorherigen Vulkan-Device/Mesh/Camera/Offscreen-
+Gates. Format und Größe, Deckkraft, GPU-Mesh-
+generation sowie gültige UV-/RGB-Buffer werden
+geprüft; Fehler verändern das vorherige Bild
+nicht. Eine neue Textur verwirft nur den privaten
+Sampler-/Offscreen-Cache nach einem begrenzten
+GPU-Fence, NICHT die Weltmeshes. Regions-/Mesh-
+Clear entfernt den CPU-Texturstatus; der Vulkan-
+Cache übernimmt seine Image- und Descriptor-
+Lebensdauer bis nach Abschluss des GPU-Fence.
+Keine VkQueuePresentKHR-Nutzung auf dem
+OpenGL-Viewerfenster.
+
+**20 nachweisbar ausgeführte Teilaufgaben:**
+
+01. Git-Stand ogl-develop, sauberen Ausgangs-Checkout und letzte vollständig grüne plattformübergreifende GitHub-CI kontrolliert.
+02. Den bestehenden Firestorm-Deferred-XYZ-/FaceRGB-/UV-Pfad und den getrennten privaten Vulkan-Offscreen-Renderer untersucht.
+03. Eine eng begrenzte v1-Bildschnittstelle für bereits decodierte RGBA8-Pixel definiert, ohne OpenSim-JPEG2000-Bilddecodierung vorzutäuschen.
+04. Additive C-ABI für Pixel-Upload, aktive Textur-Meshgeneration und Textur-Uploadzähler implementiert.
+05. Neues Entwicklerflag OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE eingeführt, zusätzlich zu allen vorherigen GPU-/UV-/RGB-/Sonnen-/Kamera-Freigaben.
+06. Upload-Grenzen 1 bis 64 Bildpixel je Achse validiert, ohne dynamische GPU-Bildspeicher-Allokation bei unzulässigen Maßen.
+07. Nur vollständig deckende RGBA8-Texel zugelassen; transparente Alpha-Werte als nicht unterstützte Materialfunktion abgewiesen.
+08. Textur-Upload vor Zustandsänderung in einen begrenzten separaten CPU-Buffer kopiert und Mesh-/UV-/FaceRGB-Generation auf Gleichheit geprüft.
+09. Neue Bildrevision so gekoppelt, dass nach Region-/Meshwechsel nie ein alter Textur-Asset-Buffer für eine neue Meshgeneration autorisiert wird.
+10. Alten GPU-Bildcache vor gültigem Texturwechsel oder explizitem Clear mit bereits vorhandener begrenzter Vulkan-Fence-Warteprüfung freigegeben.
+11. Zwei aktive Texture-Sidecar-Zustände getrennt: im Modul gehaltene sichere RGBA-Quelldaten und ausschließlich vom privaten GPU-Cache gehaltenes VkImage.
+12. Neuen GLSL-450-Fragmentshader mit kombinierter UV-Texturabtastung, Face-RGB-Tint und richtungsabhängiger Sonnendiffusbeleuchtung erstellt.
+13. Fragmentshader zu Vulkan-1.0-SPIR-V kompiliert und mit Khronos spirv-val geprüft; Binärdaten in bestehende Modulquelldatei eingebettet.
+14. Fünften privaten Vulkan-Shadermodus für das tatsächliche Abtasten eines Sampled-Image-Descriptors ergänzt; die bisherigen vier Shaderpfade bleiben separat.
+15. Vor VkImage-Erzeugung die Vulkan-R8G8B8A8_UNORM-SAMPLED_IMAGE-Fähigkeit bei linearem Tiling abgefragt und bei Nichtunterstützung geschlossen abgelehnt.
+16. Ein reales VkImage mit begrenztem, host-kohärentem Bildspeicher implementiert; RowPitch/Offset aus VkGetImageSubresourceLayout für den CPU->GPU-Upload beachtet.
+17. Vulkan-ImageView, VkSampler mit Nearest-/Repeat-Adressierung, DescriptorSetLayout/Pool/Set und Fragmentshader-Binding 0 eingerichtet.
+18. Explizite Vulkan-Pipelinebarriere von PREINITIALIZED zu SHADER_READ_ONLY_OPTIMAL und VkCmdBindDescriptorSets vor VkDrawIndexed ergänzt.
+19. Echte Vulkan-X11-GPU-Abnahmen für 2x2-Rot/Grün-Texel, UV-Wrapping, Bildersatz, Maximum 64x64, Alpha-/Dimensions-/Flag-Ablehnung und Mesh-Upload-Unabhängigkeit bestanden.
+20. Linux-Vollviewer gebaut, 375 Python-Tests, 41 CTests, 63 Grafikverträge, 45 Reporttests und fünf isolierte SDL/OpenGL-Login-Szenarien abgenommen; kanonische Projektdateien aktualisiert.
+
+**GPU-Hardwareabnahme:** Echte, isolierte Vulkan-X11-
+GPU-Prüfung mit **35 privaten Welt-/Depth-Frames**,
+**19 GPU-Cache-Builds, 16 Reuses und 19 Releases**.
+Ein hochgeladenes 2x2-RGBA8-Bild liefert über die
+UV-Koordinaten **Rot R51/G0** gegenüber
+**Grün R0/G51**; negativer UV-Wrap liefert
+dieselben Texel. Bildinhaltswechsel ohne
+erneuten GPU-XYZ-Meshupload erfolgreich.
+Ein vollständig deckendes 64x64-Bild wurde
+über den tatsächlichen Vulkan-Subresource-
+RowPitch gesampelt. Transluzenz, fehlende
+RGBA-Daten, ungültige Maße/Flags wurden
+abgewiesen; voriger valider Texturstand
+bleibt bei ungültigem Ersatz erhalten.
+Alte Vulkan-X11-/Depth-/Region-/UV-Tests
+bleiben erfolgreich.
+
+**Volltest:** Linux-Viewer-Build mit
+**375/375 Python-Tests**, **41/41 nativen
+CTests**, davon 63 gezielte Grafik-
+und 45 Herkunfts-/Report-Tests.
+Zusätzlich **5/5 eigenständig isolierte
+echte SDL/X11-Viewerstarts** geprüft:
+normaler OpenGL-Login, gültiges Sampled-
+Image-Opt-in, ohne UV-Freigabe, ungültiges
+Bildflag und fehlender Vulkan-ICD.
+Kein Test hat einen authentifizierten
+OpenSim-3D-Weltframe erzeugt.
+Testläufe mit temporären Profilen und
+Xvfb ohne Nutzerkonten/Anmeldung.
+
+**Noch offen:** Die eigentliche OpenSim-
+Texturasset-Decode-/Upload-/Residency-
+Pipeline, realer Texturwechsel je
+VolumeFace, SRGB-/PBR-/Alpha-/Material-
+handling, GPU-optimaler Stagingupload,
+Terrain, Wasser, Avatare, UI und
+sichere exklusive Vulkan-Window-
+World-Presentation. Ein
+authentifizierter Live-OpenSim-Vulkan-
+Textur-GPU-Frame wurde NICHT abgenommen.
+P05 bleibt formal 2/20 operative
+Hauptblöcke; Block3/4 noch offen.
+Code-Commit: 0fa365e4bbe03873d2a15be71cab0939a04738cb.
 
 ## P05/3–4 – 20 technische Schritte: echte OpenSim-UV-Daten im privaten Vulkan-Testshader (07.11.2026)
 

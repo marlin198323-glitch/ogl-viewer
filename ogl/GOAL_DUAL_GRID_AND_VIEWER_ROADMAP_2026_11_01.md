@@ -1797,6 +1797,25 @@ kein authentifizierter Live-Vulkan-Weltframe.
 P05 formal 2/20; weiterer Schritt echte
 VkImage-/Sampler-/TextureAsset-Pipeline.
 
+**P05/3–4 VkImage-Sampler mit echten RGBA8-Diagnosepixeln (09.11.2026, Code 0fa365e4):**
+Über additive ABI beliebige vorab decodierte, deckende
+RGBA8-Testdaten (1..64px) auf privaten Vulkan-Sampled-
+VkImage geladen; VkImageView/VkSampler/DescriptorSet,
+Host-coherent linear-tiling mit RowPitch und Image-
+Barrier; actual fragment texture(sampler,UV).
+Nur RGBA_IMAGE_PROBE=1 plus vorherige Shader-/GPU-Gates;
+validierte Mesh-/UV-/RGB-Revision, safe Cache-Fence.
+Native Vulkan-X11-GPU 35 Frames, Cache 19 Builds,
+16 Reuses, 19 Releases, Sample-Rot R51/G0 und
+Sample-Grün R0/G51, 64x64-Maximalbild.
+Linux-Vollbuild 375 Python, 41 CTests, 63 Grafik-,
+45 Reportchecks und 5/5 echte isolierte
+SDL/OpenGL-Login-Starts grün.
+Noch kein OpenSim-Asset-Decoder, keine Face-Asset-
+Zuordnung, kein Live-GPU-Bild einer eingeloggten
+Region; OpenGL bleibt sichtbarer Welt-Renderer.
+P05 formal 2/20, Block 3/4 weiterhin offen.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

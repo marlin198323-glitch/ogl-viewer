@@ -754,6 +754,28 @@ Noch kein authentifizierter Live-OpenSim-
 Vulkan-Textur-/Weltframe, Welt bleibt OpenGL.
 P05 formal 2/20, Block3/4 offen.
 
+**P05/3–4 echter privater Vulkan RGBA8 VkImage-Sampler (09.11.2026, Code 0fa365e4):**
+20 echte Quellcode-/Testschritte, Details ogl/PROJECT_STATUS.md.
+Neuer additive C-ABI für EINE vorab decodierte, vollständig
+deckende 1..64px-RGBA8-Textur pro aktueller GPU-Meshrevision.
+Vulkan-1.0-validierter Fragmentshader nutzt tatsächliches
+VkImage, VkImageView, Nearest-Repeat-VkSampler, kombiniert
+ImageSamplerDescriptor und zuvor gekoppelte XYZ/FaceRGB/
+UV/Sun. Linear-Tiling-Format nur bei SAMPLED_IMAGE-Support,
+Host-coherent GPU-Image-RowPitch und explizite Vulkan-
+Imagebarriere. Nur RGBA_IMAGE_PROBE=1 plus bestehende
+UV_CHECKER/FACE_TINT/LAMBERT/SUN/Mesh/Camera/Offscreen-
+Flags; bei fehlender Berechtigung keine UV/Texture-
+GPU-Bilder. Bildrevision und Region-Clear sicher.
+GPU: 35 private Frames, 19 Builds/16 Reuses/19 Releases,
+realer Image-Sampler rot R51/G0, grün R0/G51,
+64x64-Maximalbild, 2x2-Wrapping/Replacement geprüft.
+Linux: 375 Python, 41 CTests, 63 Grafik-, 45 Report-
+Checks und 5 isolierte echte SDL/OpenGL-GUI-Starts grün.
+Keine echte OpenSim-TextureAsset-Decodierung,
+kein authentifizierter Live-Welt-GPU-Frame, kein
+sichtbarer Vulkan-Welt-Renderer. P05 formal 2/20.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

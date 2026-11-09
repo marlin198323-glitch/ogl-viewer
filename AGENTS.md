@@ -4,46 +4,49 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 07.11.2026 (Code ee2d7544):
-20 weitere echte technische Teilschritte zur realen
-OpenSim-Face-UV-Quelle und privaten Vulkan-UV-
-Checker-Shaderpipeline. Der Firestorm-Deferred-
-Scanner liest mTexCoords von LLVolumeFace und
-wendet Standard-LLFace-/TextureEntry-Rotation,
-Skalierung und Offset an. Terrain/Prepass/
-Planarprojektion mit neutralen UVs, animierte Textransforms/
-PBR noch nicht unterstützt.
-Zusätzlich zur unveränderten XYZ- und FaceRGB-
-C-ABI FaceUV-v1 mit sechs floats je Dreieck;
-neuer VkBuffer für Binding2 und geprüfter
-Vulkan-1.0-SPIR-V-VS/FS im ShaderMode4
-(prozedurales 4x4 UV-Muster, keine echten
-TextureAsset-Pixel/VkImage-Sampler!).
-OGL_VULKAN_WORLD_UV_CHECKER_PROBE=1
-braucht FACE_TINT/LAMBERT/SUN/World
-Mesh/Camera/Offscreen-Gates. Einfache
-Face-UV-Transformationsdaten exakt an
-XYZ-Snapshot gekoppelt, finite [-4096,4096],
-generationsgleiche GPU-Sidecars, stale nach
-Mesh-/Region-/Shader-Lifecycle verworfen.
-Real GPU: 30 private World-/Depth-Frames,
-16 Builds/14 Reuses/16 Releases,
-Rotfeld R48/G6, Grünfeld R6/G47
-bei identischer Meshgeneration,
-negativer UV-Wrap GPU-verifiziert.
-Linux-Vollviewer-Build 374 Python,
-41 CTests, 62 Grafik-/45 Reportchecks,
-43/43 isolierte SDL/X11-GUI-Starts grün.
-Vorherige GitHub-CI Windows/Linux/macOS grün;
-neuer Commit-CI gesondert prüfen.
-Kein authentifizierter OpenSim-Live-
-Vulkan-GPU-World-/Texturframe,
-OpenGL bleibt exklusiver sichtbarer Renderer.
-Vulkan-P05 formell 2/20, Block3/4 offen.
-Keine Nutzer-Viewer-Prozesse/Cache/Passwörter
-oder fremde Repos anfassen; Projektunterlagen
-nur kanonisch anpassen; keine Repo-Duplikate.
-Details ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 09.11.2026 (Code 0fa365e4):
+20 umgesetzte und verifizierte technische
+Teilschritte zum echten privaten Vulkan-
+VkImage-Sampler aus VORAB DECODIERTEN
+1..64px voll deckenden RGBA8-Bilddaten.
+Ein Bild je aktueller GPU-Meshgeneration,
+kein Face-Asset-Mapping; ShaderMode5
+gibt sample(texture,UV) * FaceRGB * Sun
+auf GPU in privates Offscreen-Image.
+Echtes VkImage / VkImageView /
+Nearest-Repeat-VkSampler, kombiniertes
+DescriptorSet, Host-coherent linear
+VkSubresourceLayout.rowPitch und
+PREINITIALIZED->SHADER_READ_ONLY-
+Pipelinebarriere; checked linear
+format sampled support, fail-closed.
+OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1
+BRAUCHT UV_CHECKER/FACE_TINT/LAMBERT/
+SUN/Mesh/Camera/Offscreen-Dev-Gates.
+Frühere ShaderModes0..4 nicht geändert.
+Bildgenerations-/Texelgrößen-/Alpha-
+und GPU-Fence-/Region-Clear-Sicherheit.
+Native echte Vulkan-X11-GPU:
+35 Welt-/Depthframes, 19 Builds/16
+Reuses/19 Releases; gesampelte RGBA
+Rot R51/G0, Grün R0/G51, UV-Wrap/
+64x64-Grenze/Texelersatz validiert.
+Linux-Vollviewer: 375 Python, 41
+native CTests, 63 Grafik-/45 Report-
+Tests sowie 5/5 isolierte SDL-X11-
+OpenGL-Logins grün. Letzte GitHub-CI
+grün; neue CI separat prüfen.
+KEINE decodierten echten OpenSim-
+JPEG2000-Assets, keine echte
+Regionstextur-Zuordnung, keine
+authentifizierte Vulkan-Live-Welt,
+kein sichtbares Vulkan-Window-Present,
+OpenGL bleibt produktiv. P05 formal
+2/20, Block3/4 weiterhin offen.
+Viewer/Profile/Secrets nicht anfassen;
+nur vorhandene Dateien im Fork
+über Linux Mint Commander bearbeiten.
+Status: ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md
