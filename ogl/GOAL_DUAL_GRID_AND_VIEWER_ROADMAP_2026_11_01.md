@@ -1891,6 +1891,37 @@ keine vollständige Vulkan-Window-World,
 P05 Hauptblöcke formal 2/20.
 Letzte 6-OS-CI 42681231907 erfolgreich.
 
+**P05/3–4 sechzehn HQ-Texturen mit realen 64×64-Pixeln je Face (09.11.2026, Code a32e457e):**
+Neuer optionaler Vulkan-ShaderMode8,
+16 unabhängige 64px-RGBA8-Tiles als
+4×4-Atlas in 256×256 privaten VkImage;
+Vulkan1.0-Shader mit Nearest-Texel-
+Sampling, Face-UV-Wiederholung und
+bestehendem FaceMaterialSlot-Binding3.
+Original-4er (Mode6), 16er-16px
+(Mode7) und alle älteren Pfade
+unverändert. Nur mit WORLD_MATERIAL_
+ATLAS_HQ_PROBE=1 zusätzlich zum
+bisherigen 16er-GPU-Flag und
+LIVE_MATERIAL_ATLAS_HQ_SOURCE=1
+für echte Firestorm-LLImageRaw-Quellen.
+Originalalpha, 1..16 Quellbilder,
+Bytes/64px pro Tile und CPU→GPU-
+RowPitch streng geprüft.
+Native Vulkan-X11: 81 Worldframes,
+27 Builds/54 Reuses/26 Releases;
+16 einzigartige Face-Farben,
+2 zugleich sichtbare Materialien,
+GPU-Beweis echter 1-Pixel-Details
+zwischen u=8,5/64 und 9,5/64,
+Rückfall HQ→Legacy16 ohne XYZ-
+Neubau. Linux 379 Python/41 CTests,
+67 Grafik-/45 Reportprüfungen.
+**32/32 echte isolierte SDL/X11-Viewerstarts** mit unabhängigen temporären Profilen und ohne Nutzerkonten erfolgreich: normaler OpenGL-Login, HQ-16er-Atlas, ältere 16er-/4er-/Einzeltexturpfade, gültige/fehlende/ungültige Entwicklerfreigaben sowie fehlender Vulkan-ICD. Sämtliche von diesen Tests gestarteten Prozesse sind beendet. Keine authentifizierte OpenSim-Welt wurde angemeldet.
+Keine Live-OpenSim-Authentifizierung
+und keine echte sichtbare Vulkan-
+Welt: P05 bleibt formal 2/20.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.

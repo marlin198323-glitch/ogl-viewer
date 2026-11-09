@@ -4,53 +4,51 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
-Aktueller P05-Stand 09.11.2026 (Code 55f9016d):
-20 weitere echte technische Teilblöcke:
-opt-in 16-Material-Prototyp für Vulkan-
-Offscreen-World-ShaderMode7, komplett
-rückwärtskompatibel zum vorhandenen
-Vier-Material-ShaderMode6.
-Vorhandenes 64×64 VkImage wird als
-4×4-Atlas aus sechzehn unabhängigen
-16px-RGBA8-Texturquadranten benutzt.
-CPU-Packer in gleichem Host-Header,
-Alpha-/Dimension-/Bytes-/Count-Guards,
-Vulkan1.0-validierter Fragment-SPIR-V,
-Materialslot-Binding3 und UV-Repeat
-innerhalb eigener Kacheln.
-Firestorm Deferred LLViewerFetchedTexture/
-LLImageRaw liest bis 16 eindeutige
-OPAQUE Legacy-Diffuse-Quellen über
-LLPointer+SharedLock, kein JPEG2000-
-Fetch/GL-Readback; mehr als16,
-Terrain/Anker, Default/Missing/Alpha,
-PBR/GLTF/Animated/Normal/Specular
-werden geschlossen abgewiesen.
-GPU nur bei OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1
-und vollständigen bisherigen Gates;
-LiveFirestorm-Quelle zusätzlich nur bei
-OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1.
-Host quittiert nur passende Mesh-/UV/
-RGB/Material-/Bildgenerationen.
-Echte Vulkan-X11 GPU 60 private Frames,
-24 Cache-Builds, 36 Reuses, 23 Releases,
-16 Farben und zwei entfernte Face-Slots
-im selben Frame; Rückkehr zum alten
-4-Tile-Shader ohne XYZ-Mesh-Reupload.
-Linux-Vollviewer: 378 Python/41 CTests,
-66 Grafik-/45 Reportprüfungen grün.
-**24/24 isolierte reale SDL/X11-Viewerstarts** mit eigenständigen temporären Profilen (OpenGL-Login, 4er-/16er-Atlas, Berechtigungen, ungültige Flags und fehlender Vulkan-ICD) erfolgreich. Keine Anmeldung in eine authentifizierte OpenSim-Welt.
-Vorige 6plattformige CI 42681231907
-Windows/Linux/macOS komplett SUCCESS;
-neuen CI-Lauf getrennt prüfen.
-Weder authentifizierter OpenSim-
-16-Texture-Live-GPU-Frame noch
-sichtbares Vulkan-Weltfenster.
-Produktiv weiterhin OpenGL, P05 formal
-2/20, Block3/4 nicht abgeschlossen.
-User-Profile, aktive Viewer, Secrets
-und fremde Repos nicht anfassen.
-Status: ogl/PROJECT_STATUS.md.
+Aktueller P05-Stand 09.11.2026 (Code a32e457e):
+20 neue echte technische Teilblöcke:
+optionaler Vulkan-HQ-Atlas ShaderMode8
+mit sechzehn 64×64-RGBA8-Materialien
+in einem 256×256 privaten Sampled-VkImage.
+16-fache Texelmenge je Material gegenüber
+Mode7 (16×16); Mode0–7/GL sichtbar
+unverändert. Neuer Vulkan1.0-validierter
+SPIR-V-Fragmentshader, vorhandener
+MaterialSlot-Binding3, vier Vertexbuffer,
+FaceUV/Tint/Sun/Camera/Depth, sicherer
+Sampler/Descriptor- und GPU-Fence-Cache.
+Echter Firestorm-Deferred-LLViewerFetchedTexture/
+LLImageRaw-Quellpfad nur mit zusätzlichem
+OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1
+plus OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1
+und sämtlichen vorherigen 16-/4-/RGBA/
+UV-/Tint-/Sun-/Camera-/Mesh-Dev-Gates.
+Quelle per LLPointer/SharedLock bereits
+decodiert, nur opaque Legacy-Diffuse;
+kein JPEG2000-Fetch, OpenGL-Readback,
+Terrain/PBR/Alpha/GLTF oder >16 Assets.
+Neuer 4x4-HQ-CPU-Packer mit 64px-
+Kacheln, Byte-/Alpha-/Size-/Count-
+Guards, strikt 256x256 HQ vs 64x64
+Altmodus, Quellen-/Meshrevision geprüft.
+Native echte Vulkan-X11: 81 Frames,
+27 Cache-Builds, 54 Reuses,26 Releases,
+16 Materialien + simultane Face-Slots,
+echter 1-Texel-Rot-/Grün-Wechsel im
+Fragmentshader bei 1/64 UV-Abstand.
+HQ→Altmodus16 ohne Meshneuladen.
+Linux-Vollviewer 379 Python/41 native
+CTests, 67 Grafik-/45 Reporttests grün.
+**32/32 echte isolierte SDL/X11-Viewerstarts** mit unabhängigen temporären Profilen und ohne Nutzerkonten erfolgreich: normaler OpenGL-Login, HQ-16er-Atlas, ältere 16er-/4er-/Einzeltexturpfade, gültige/fehlende/ungültige Entwicklerfreigaben sowie fehlender Vulkan-ICD. Sämtliche von diesen Tests gestarteten Prozesse sind beendet. Keine authentifizierte OpenSim-Welt wurde angemeldet.
+Alte GitHub-CI 42685116191 6 Plattformen
+SUCCESS; neue CI erst nach Push prüfen.
+KEIN authentifizierter Live-OpenSim-
+Vulkan-HQ-Frame oder sichtbare Vulkan-
+Window-World. Produktiv OpenGL,
+P05 formal 2/20, Block3/4 offen.
+Nur ogl-develop über Linux Mint Commander,
+keine Benutzerprofile, Credentials oder
+User-Viewerprozesse verändern.
+Details: ogl/PROJECT_STATUS.md.
 
 Bei jeder Entwicklungsaufgabe ZUERST lesen:
 1. ogl/PROJECT_HANDOFF.md

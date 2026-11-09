@@ -860,6 +860,46 @@ neue Commit-CI nach Push gesondert kontrollieren.
 Weder authentifizierter Live-OpenSim-Materialframe
 noch sichtbare Vulkan-Window-World: P05 2/20.
 
+**P05/3–4 16 Vulkan-Materialien mit 64px HQ-Texturdetails (09.11.2026, Code a32e457e):**
+20 reale technische Arbeitsschritte, Details in
+ogl/PROJECT_STATUS.md. Optional ShaderMode8
+mit 16 unabhängigen 64×64-RGBA8-Kacheln
+in einem privaten 256×256 VkImage; damit
+16-mal so viele Originalpixel je Material
+wie zuvor ShaderMode7 (16×16 pro Tile).
+Eigener Vulkan-1.0-Fragment-SPIR-V,
+Mode0–7 unverändert. CPU-4x4-HQ-Atlaspacker
+akzeptiert 1..16 bereits decodierte,
+voll deckende 1..64px-Quellbilder unter
+eigenen LLImageRaw-SharedLocks und
+LLPointer-Referenzen. Die Quelle ist
+weiterhin quell-/mesh-/GPU-generations-
+gebunden und fail-closed, kein JPEG2000-
+Fetch, kein GL-Readback, keine PBR-/Alpha-
+oder Terraindarstellung.
+GPU braucht zusätzlich
+OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1
+UND alle vorherigen 16-/4-/RGBA-Flags.
+Reale Firestorm-Quelle braucht zusätzlich
+OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1.
+GPU exakt 256² nur HQ / 64² Legacy;
+Host-coherent RowPitch-VkImage und
+Fence-gesicherte Cacheerneuerung.
+Native Vulkan-X11-Test 81 Weltframes,
+27 Builds/54 Reuses/26 Releases,
+16 eindeutige Shaderfarben, zwei
+Face-Slots zugleich, echter 1-Texel-
+Rot-/Grün-Wechsel per UV, HQ→Legacy16
+ohne XYZ-Neu-Upload erfolgreich.
+Linux-Build 379 Python/41 native CTests,
+67 Grafik-/45 Reporttests erfolgreich.
+**32/32 echte isolierte SDL/X11-Viewerstarts** mit unabhängigen temporären Profilen und ohne Nutzerkonten erfolgreich: normaler OpenGL-Login, HQ-16er-Atlas, ältere 16er-/4er-/Einzeltexturpfade, gültige/fehlende/ungültige Entwicklerfreigaben sowie fehlender Vulkan-ICD. Sämtliche von diesen Tests gestarteten Prozesse sind beendet. Keine authentifizierte OpenSim-Welt wurde angemeldet.
+Alte 6-Plattformen-Grafik-CI 42685116191
+komplett SUCCESS; neue CI nach Push prüfen.
+Keine authentifizierte Live-Welt-GPU-
+Textur und kein sichtbarer Vulkan-
+Worldrenderer. P05 formal 2/20.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

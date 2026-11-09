@@ -6,6 +6,125 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3–4 – 20 technische Schritte: 16 Vulkan-Materialien mit höherer Texturauflösung (09.11.2026)
+
+**Erreicht:** Der private, NICHT im normalen Viewerfenster
+sichtbare Vulkan-World-Renderer unterstützt optional ein
+HQ-Bildlayout mit **16 unabhängigen 64×64-Pixel-Texturen**.
+Das ist die **16-fache Pixelmenge je Material** gegenüber
+dem vorigen 4×4-Atlas mit nur 16×16 Pixeln pro Textur.
+Dafür wurde ein eigenes privates **256×256-RGBA8-VkImage**
+und ein separater Vulkan-1.0-SPIR-V-Fragmentshader
+(ShaderMode8) implementiert. Die bisherige 16er-
+Variante (ShaderMode7, 64×64-VkImage mit 16×16
+pro Material), der Vierer-Atlas (ShaderMode6) und
+sämtliche übrigen ShaderModes0–5 bleiben getrennt.
+Die vorhandenen VkSampler/VkImageView-/Descriptor-,
+4-Vertexbuffer-/FaceMaterialSlot-, UV-/FaceRGB-,
+Kamera-/Sonnen-/Depth- und GPU-Fence-Pfade
+werden weiterverwendet.
+
+**Firestorm-Quellpfad und Isolation:** Bereits im Speicher
+von Firestorm decodierte LLViewerFetchedTexture/
+LLImageRaw-Bilder werden nur über LLPointer und
+LLImageDataSharedLock synchron kopiert. Neuer,
+seitenverhältnistreuer Nearest-Atlaspacker mit bis zu
+16 Quellbildern 1..64×64, alle Bilder vollständig
+deckend und alle Eingabegrößen/Bytezahlen geprüft.
+Eine sichtbare bzw. authentifizierte OpenSim-Welt
+wurde NICHT umgestellt oder abgenommen.
+Keine Asset-ID-Übertragung, kein erzwungener Fetch,
+kein OpenGL-Texture-Readback, keine PBR-/GLTF-
+oder Alpha-/Terrain-Unterstützung.
+>16 verschiedene Texturen, mehrdeutige Material-
+Zuordnung sowie unzulässige Quellen werden
+geschlossen abgewiesen.
+
+**Freigabekette:** Für GPU-HQ
+OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1,
+zusätzlich zur vorhandenen 16er-Atlas- und allen
+alten RGBA-/UV-/RGB-/Sun-/Camera-/Mesh-/Offscreen-
+Entwicklerfreigaben. Für echte Firestorm-Quellen
+muss außerdem
+OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1
+aktiv sein. Falls eine Freigabe fehlt, dürfen
+weder die neue Bildgröße noch die bereits
+vorhandene Material-/Bildgeneration fälschlich
+als erfolgreicher Live-HQ-Frame gelten.
+Die GPU-Größenprüfung akzeptiert exakt
+256×256 nur im HQ-Modus und 64×64 in
+den bisherigen Atlas-Modi; ein Quellenwechsel
+wird nach bestehender begrenzter Vulkan-Fence
+freigegeben.
+
+**20 tatsächlich ausgeführte Entwicklungsschritte:**
+
+01. Git-Ausgangslage und sauberen Branch ogl-develop sowie die erfolgreich abgeschlossene sechsfache CI 42685116191 geprüft.
+02. Bestehende Vulkan-Offscreen-World-Pipeline (ShaderModes0–7), 2×2-/4×4-Atlanten, Face-Slot-ABI, Meshgenerationen und Vulkan-Image-Upload analysiert.
+03. Neuen Bildqualitätsmodus ohne Austausch der 16 Material-Slots festgelegt: 16×64×64 statt 16×16×16 Texel, weiterhin ein privates VkImage.
+04. Zusätzlichen GLSL-450-Fragmentshader mit 4×4-Atlas, 64-Texel-Kacheln und unabhängig wiederholten Face-UVs erstellt.
+05. Neuen Shader durch glslangValidator gegen Vulkan 1.0 kompiliert und mit Khronos spirv-val erfolgreich validiert.
+06. Shader-SPIR-V ausschließlich in die vorhandene Vulkan-C++-Quelldatei eingebettet; keine neuen Repository-Dateien oder Duplikate erzeugt.
+07. ShaderMode8 für die optionale 256×256-Textur implementiert; Legacy-ShaderModes0–7 und ihre Layouts nicht umgewidmet.
+08. Den vorhandenen Vier-Vertexbuffer-Pfad (XYZ, FaceRGB, FaceUV, Materialslot) inklusive Sonnenlicht und VkSampler auch für ShaderMode8 verwendet.
+09. Opt-in OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1 eingeführt und streng an die vorherige Basis-Atlas- und 16-Material-Entwicklerfreigabe gekoppelt.
+10. Die private Vulkan-Texturgrößenprüfung an den ausgewählten Modus gebunden (64×64 für Legacy, exakt 256×256 für HQ).
+11. Host-kohärenten VkImage-Upload auf maximal 262.144 RGBA-Bytes erweitert; Zeilenabstand wird weiter mit VkGetImageSubresourceLayout geprüft.
+12. Eigenen begrenzten 4×4-HQ-CPU-Atlaspacker implementiert: 16 unabhängige 64×64-Quellkacheln in einem 256×256-Pixelbild.
+13. Original-Alpha, Quellgröße, Datenlänge, Bildanzahl 1–16 und leere/ungültige Bilddaten bei der neuen CPU-Packung fail-closed behandelt.
+14. Firestorm-Deferred-Scanner um den optionalen HQ-Quellpfad ergänzt, weiterhin nur für vorhandene, valide, bereits decodierte LLImageRaw-VolumeFace-Daten.
+15. Zusätzliche Live-Quellfreigabe OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1 eingeführt; fehlende GPU-/Source-Gates werden nicht durch andere Freigaben ersetzt.
+16. Host-Handoff mit HQ-Bildabmessungen und vorhandener XYZ-/RGB-/UV-/Materialslot-Meshgeneration gekoppelt; keine Asset-IDs, erzwungenen Decoder oder OpenGL-Readbacks hinzugefügt.
+17. Native CPU-Tests für 16 Atlaspositionen, Ecken/Mitten, weiße Leerfelder, Übergröße, ungültige Bytes/Alpha und exakt erhaltene 1-Pixel-Farbwechsel erstellt.
+18. Native echte Vulkan-GPU-Prüfung für alle 16 unterscheidbaren Materialslots und zwei gleichzeitig sichtbare Texturen im selben Frame ausgeführt.
+19. Auf der GPU 1-Pixel-Abstand im 64×64-Quellbild mit unterschiedlich rotem/grünem Ergebnis gemessen; Wechsel HQ→16er-Legacy ohne XYZ-Meshneuladen validiert.
+20. Vollständigen Linux-Firestorm-Viewer erfolgreich gebaut; 379 Python-, 41 native CTests sowie 67 Grafik-/45 Reporttests bestanden und 32 isolierte SDL/X11-GUI-Szenarien angestoßen.
+
+**GPU-Prüfung (echtes isoliertes Vulkan-X11, nicht nur Quellcode):**
+**81 private Welt-/Depthframes; 27 GPU-Cache-Aufbauten,
+54 Wiederverwendungen und 26 Freigaben** vor dem
+Modul-Shutdown. Alle 16 HQ-Materialslots mit
+erwarteten, eindeutig verschiedenen Rot/Grün-
+Werten geprüft; zwei unterschiedliche Slots
+gleichzeitig im selben GPU-Bild. Entscheidend:
+ein bereits decodiertes 64×64-Rot-/Grün-
+Streifenbild mit nur **einem Texel Abstand**
+wird tatsächlich mit unterscheidbaren
+Fragmentshader-Ergebnissen abgetastet.
+Ebenfalls abgenommen: Ablehnung falscher
+64×64-/257×256-Uploadgröße im HQ-Modus,
+Rückwechsel zum 64×64-Vulkan-16er-Modus
+ohne erneuten XYZ-Mesh-Upload, unveränderte
+ältere Vulkan-WSI-/Depth-/Region-/Sampler-
+Tests. Diese GPU-Bilder sind KONTROLLIERTE
+Testdaten, keine authentifizierten Assets
+einer laufenden OpenSim-Region.
+
+**Vollständiger Linux-Build:** 379/379
+Python-Tests, 41/41 native CTests,
+67/67 gezielte Grafik- und 45/45
+Report-/Herkunftstests.
+**32/32 echte isolierte SDL/X11-Viewerstarts** mit unabhängigen temporären Profilen und ohne Nutzerkonten erfolgreich: normaler OpenGL-Login, HQ-16er-Atlas, ältere 16er-/4er-/Einzeltexturpfade, gültige/fehlende/ungültige Entwicklerfreigaben sowie fehlender Vulkan-ICD. Sämtliche von diesen Tests gestarteten Prozesse sind beendet. Keine authentifizierte OpenSim-Welt wurde angemeldet.
+Die vorausgehende portable GitHub-CI
+42685116191 ist mit ihren sechs
+Linux-/Windows-/macOS-Grafikjobs
+grün. Die neue Commit-CI ist separat
+zu kontrollieren; eine portable CI
+ist keine Vollviewer-/Inworld-
+Abnahme auf Windows und macOS.
+
+**Weiter offen:** Vulkan-Window-Present
+mit kompletter OpenSim-Welt, GPU-
+Residency-/Mip-/Texturstreaming,
+Materialcache je Face über Frames,
+Alpha/PBR/GLTF, Terrain, Wasser, Avatare,
+UI und authentifizierte echte Live-
+Region-Texturprüfung.
+Die sichtbare Welt bleibt OpenGL.
+P05 formal **2/20 operative Hauptblöcke**,
+auch nach dieser 20er-Teilaufgabenrunde.
+Code-Commit: a32e457ed04a534ddb1992702bc327b30e24f2de.
+
 ## P05/3–4 – 20 technische Schritte: optionaler 16-Material-Vulkan-Atlas (09.11.2026)
 
 **Implementiert:** Der bisherige reale private Vulkan-4-Material-
