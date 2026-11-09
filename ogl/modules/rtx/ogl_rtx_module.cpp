@@ -186,7 +186,7 @@ struct OglOffscreenWorldCache {
     VkDescriptorSet texture_descriptor=VK_NULL_HANDLE;
     VkRenderPass pass=VK_NULL_HANDLE;
     VkExtent2D extent{}; // private target, independent of SDL window
-    uint32_t shading_mode=0; // 0=depth,1=fixed,2=sun,3=tint,4=UV,5=RGBA,6=4-tile,7=16-tile atlas
+    uint32_t shading_mode=0; // 0=depth,1=fixed,2=sun,3=tint,4=UV,5=RGBA,6=4-tile,7=16-tile,8=HQ16 atlas
     bool initialized=false;
     bool submitted=false; // fence owns possibly in-flight work
 };
@@ -1650,6 +1650,117 @@ static constexpr uint32_t ogl_dev_world_material_atlas_vert_spv[] = {
 };
 
 // Vulkan 1.0 validated P05 material-slot GPU atlas (4 independent RGBA tiles).
+// P05/8: Vulkan 1.0 validated 4x4 / 64px tile HQ material atlas shader.
+static constexpr uint32_t ogl_dev_world_material_atlas_hq_frag_spv[] = {
+    0x07230203u, 0x00010000u, 0x0008000bu, 0x00000077u, 0x00000000u, 0x00020011u, 0x00000001u,
+    0x0006000bu, 0x00000001u, 0x4c534c47u, 0x6474732eu, 0x3035342eu, 0x00000000u, 0x0003000eu,
+    0x00000000u, 0x00000001u, 0x000a000fu, 0x00000004u, 0x00000004u, 0x6e69616du, 0x00000000u,
+    0x0000000bu, 0x0000003du, 0x00000049u, 0x00000069u, 0x0000006au, 0x00030010u, 0x00000004u,
+    0x00000007u, 0x00030003u, 0x00000002u, 0x000001c2u, 0x00040005u, 0x00000004u, 0x6e69616du,
+    0x00000000u, 0x00040005u, 0x00000009u, 0x6d726f6eu, 0x00006c61u, 0x00060005u, 0x0000000bu,
+    0x6c726f77u, 0x6f705f64u, 0x69746973u, 0x00006e6fu, 0x00030005u, 0x00000012u, 0x0000326eu,
+    0x00040005u, 0x00000026u, 0x6867696cu, 0x00000074u, 0x00040005u, 0x0000002cu, 0x656d6143u,
+    0x00006172u, 0x00070006u, 0x0000002cu, 0x00000000u, 0x6c726f77u, 0x6f745f64u, 0x696c635fu,
+    0x00000070u, 0x00070006u, 0x0000002cu, 0x00000001u, 0x5f6e7573u, 0x65726964u, 0x6f697463u,
+    0x0000006eu, 0x00040005u, 0x0000002eu, 0x656d6163u, 0x00006172u, 0x00040005u, 0x0000003bu,
+    0x65786574u, 0x0000006cu, 0x00040005u, 0x0000003du, 0x65636166u, 0x0076755fu, 0x00040005u,
+    0x00000047u, 0x746f6c73u, 0x00000000u, 0x00060005u, 0x00000049u, 0x6574616du, 0x6c616972u,
+    0x6f6c735fu, 0x00000074u, 0x00040005u, 0x0000004eu, 0x65646e69u, 0x00000078u, 0x00050005u,
+    0x00000057u, 0x616c7461u, 0x76755f73u, 0x00000000u, 0x00040005u, 0x0000005fu, 0x66666964u,
+    0x00657375u, 0x00060005u, 0x00000063u, 0x74786574u, 0x5f657275u, 0x61626772u, 0x00000000u,
+    0x00060005u, 0x00000069u, 0x7074756fu, 0x635f7475u, 0x726f6c6fu, 0x00000000u, 0x00050005u,
+    0x0000006au, 0x65636166u, 0x6267725fu, 0x00000000u, 0x00040047u, 0x0000000bu, 0x0000001eu,
+    0x00000000u, 0x00030047u, 0x0000002cu, 0x00000002u, 0x00040048u, 0x0000002cu, 0x00000000u,
+    0x00000005u, 0x00050048u, 0x0000002cu, 0x00000000u, 0x00000007u, 0x00000010u, 0x00050048u,
+    0x0000002cu, 0x00000000u, 0x00000023u, 0x00000000u, 0x00050048u, 0x0000002cu, 0x00000001u,
+    0x00000023u, 0x00000040u, 0x00040047u, 0x0000003du, 0x0000001eu, 0x00000002u, 0x00030047u,
+    0x00000049u, 0x0000000eu, 0x00040047u, 0x00000049u, 0x0000001eu, 0x00000003u, 0x00040047u,
+    0x00000063u, 0x00000021u, 0x00000000u, 0x00040047u, 0x00000063u, 0x00000022u, 0x00000000u,
+    0x00040047u, 0x00000069u, 0x0000001eu, 0x00000000u, 0x00040047u, 0x0000006au, 0x0000001eu,
+    0x00000001u, 0x00020013u, 0x00000002u, 0x00030021u, 0x00000003u, 0x00000002u, 0x00030016u,
+    0x00000006u, 0x00000020u, 0x00040017u, 0x00000007u, 0x00000006u, 0x00000003u, 0x00040020u,
+    0x00000008u, 0x00000007u, 0x00000007u, 0x00040020u, 0x0000000au, 0x00000001u, 0x00000007u,
+    0x0004003bu, 0x0000000au, 0x0000000bu, 0x00000001u, 0x00040020u, 0x00000011u, 0x00000007u,
+    0x00000006u, 0x0004002bu, 0x00000006u, 0x00000017u, 0x2b8cbcccu, 0x00020014u, 0x00000018u,
+    0x0004002bu, 0x00000006u, 0x00000022u, 0x00000000u, 0x0004002bu, 0x00000006u, 0x00000023u,
+    0x3f800000u, 0x0006002cu, 0x00000007u, 0x00000024u, 0x00000022u, 0x00000022u, 0x00000023u,
+    0x0004002bu, 0x00000006u, 0x00000027u, 0x3e4ccccdu, 0x0004002bu, 0x00000006u, 0x00000028u,
+    0x3f4ccccdu, 0x00040017u, 0x0000002au, 0x00000006u, 0x00000004u, 0x00040018u, 0x0000002bu,
+    0x0000002au, 0x00000004u, 0x0004001eu, 0x0000002cu, 0x0000002bu, 0x0000002au, 0x00040020u,
+    0x0000002du, 0x00000009u, 0x0000002cu, 0x0004003bu, 0x0000002du, 0x0000002eu, 0x00000009u,
+    0x00040015u, 0x0000002fu, 0x00000020u, 0x00000001u, 0x0004002bu, 0x0000002fu, 0x00000030u,
+    0x00000001u, 0x00040020u, 0x00000031u, 0x00000009u, 0x0000002au, 0x00040017u, 0x00000039u,
+    0x00000006u, 0x00000002u, 0x00040020u, 0x0000003au, 0x00000007u, 0x00000039u, 0x00040020u,
+    0x0000003cu, 0x00000001u, 0x00000039u, 0x0004003bu, 0x0000003cu, 0x0000003du, 0x00000001u,
+    0x0004002bu, 0x00000006u, 0x00000040u, 0x42800000u, 0x0004002bu, 0x00000006u, 0x00000043u,
+    0x3f000000u, 0x0005002cu, 0x00000039u, 0x00000044u, 0x00000043u, 0x00000043u, 0x00040020u,
+    0x00000046u, 0x00000007u, 0x0000002fu, 0x00040020u, 0x00000048u, 0x00000001u, 0x0000002fu,
+    0x0004003bu, 0x00000048u, 0x00000049u, 0x00000001u, 0x0004002bu, 0x0000002fu, 0x0000004bu,
+    0x00000000u, 0x0004002bu, 0x0000002fu, 0x0000004cu, 0x0000000fu, 0x0004002bu, 0x0000002fu,
+    0x00000050u, 0x00000004u, 0x0004002bu, 0x00000006u, 0x0000005cu, 0x43800000u, 0x00090019u,
+    0x00000060u, 0x00000006u, 0x00000001u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000001u,
+    0x00000000u, 0x0003001bu, 0x00000061u, 0x00000060u, 0x00040020u, 0x00000062u, 0x00000000u,
+    0x00000061u, 0x0004003bu, 0x00000062u, 0x00000063u, 0x00000000u, 0x00040020u, 0x00000068u,
+    0x00000003u, 0x0000002au, 0x0004003bu, 0x00000068u, 0x00000069u, 0x00000003u, 0x0004003bu,
+    0x0000000au, 0x0000006au, 0x00000001u, 0x0006002cu, 0x00000007u, 0x0000006cu, 0x00000022u,
+    0x00000022u, 0x00000022u, 0x0006002cu, 0x00000007u, 0x0000006du, 0x00000023u, 0x00000023u,
+    0x00000023u, 0x00050036u, 0x00000002u, 0x00000004u, 0x00000000u, 0x00000003u, 0x000200f8u,
+    0x00000005u, 0x0004003bu, 0x00000008u, 0x00000009u, 0x00000007u, 0x0004003bu, 0x00000011u,
+    0x00000012u, 0x00000007u, 0x0004003bu, 0x00000008u, 0x0000001au, 0x00000007u, 0x0004003bu,
+    0x00000011u, 0x00000026u, 0x00000007u, 0x0004003bu, 0x0000003au, 0x0000003bu, 0x00000007u,
+    0x0004003bu, 0x00000046u, 0x00000047u, 0x00000007u, 0x0004003bu, 0x0000003au, 0x0000004eu,
+    0x00000007u, 0x0004003bu, 0x0000003au, 0x00000057u, 0x00000007u, 0x0004003bu, 0x00000008u,
+    0x0000005fu, 0x00000007u, 0x0004003du, 0x00000007u, 0x0000000cu, 0x0000000bu, 0x000400cfu,
+    0x00000007u, 0x0000000du, 0x0000000cu, 0x0004003du, 0x00000007u, 0x0000000eu, 0x0000000bu,
+    0x000400d0u, 0x00000007u, 0x0000000fu, 0x0000000eu, 0x0007000cu, 0x00000007u, 0x00000010u,
+    0x00000001u, 0x00000044u, 0x0000000du, 0x0000000fu, 0x0003003eu, 0x00000009u, 0x00000010u,
+    0x0004003du, 0x00000007u, 0x00000013u, 0x00000009u, 0x0004003du, 0x00000007u, 0x00000014u,
+    0x00000009u, 0x00050094u, 0x00000006u, 0x00000015u, 0x00000013u, 0x00000014u, 0x0003003eu,
+    0x00000012u, 0x00000015u, 0x0004003du, 0x00000006u, 0x00000016u, 0x00000012u, 0x000500bau,
+    0x00000018u, 0x00000019u, 0x00000016u, 0x00000017u, 0x000300f7u, 0x0000001cu, 0x00000000u,
+    0x000400fau, 0x00000019u, 0x0000001bu, 0x00000021u, 0x000200f8u, 0x0000001bu, 0x0004003du,
+    0x00000007u, 0x0000001du, 0x00000009u, 0x0004003du, 0x00000006u, 0x0000001eu, 0x00000012u,
+    0x0006000cu, 0x00000006u, 0x0000001fu, 0x00000001u, 0x00000020u, 0x0000001eu, 0x0005008eu,
+    0x00000007u, 0x00000020u, 0x0000001du, 0x0000001fu, 0x0003003eu, 0x0000001au, 0x00000020u,
+    0x000200f9u, 0x0000001cu, 0x000200f8u, 0x00000021u, 0x0003003eu, 0x0000001au, 0x00000024u,
+    0x000200f9u, 0x0000001cu, 0x000200f8u, 0x0000001cu, 0x0004003du, 0x00000007u, 0x00000025u,
+    0x0000001au, 0x0003003eu, 0x00000009u, 0x00000025u, 0x0004003du, 0x00000007u, 0x00000029u,
+    0x00000009u, 0x00050041u, 0x00000031u, 0x00000032u, 0x0000002eu, 0x00000030u, 0x0004003du,
+    0x0000002au, 0x00000033u, 0x00000032u, 0x0008004fu, 0x00000007u, 0x00000034u, 0x00000033u,
+    0x00000033u, 0x00000000u, 0x00000001u, 0x00000002u, 0x00050094u, 0x00000006u, 0x00000035u,
+    0x00000029u, 0x00000034u, 0x0006000cu, 0x00000006u, 0x00000036u, 0x00000001u, 0x00000004u,
+    0x00000035u, 0x00050085u, 0x00000006u, 0x00000037u, 0x00000028u, 0x00000036u, 0x00050081u,
+    0x00000006u, 0x00000038u, 0x00000027u, 0x00000037u, 0x0003003eu, 0x00000026u, 0x00000038u,
+    0x0004003du, 0x00000039u, 0x0000003eu, 0x0000003du, 0x0006000cu, 0x00000039u, 0x0000003fu,
+    0x00000001u, 0x0000000au, 0x0000003eu, 0x0005008eu, 0x00000039u, 0x00000041u, 0x0000003fu,
+    0x00000040u, 0x0006000cu, 0x00000039u, 0x00000042u, 0x00000001u, 0x00000008u, 0x00000041u,
+    0x00050081u, 0x00000039u, 0x00000045u, 0x00000042u, 0x00000044u, 0x0003003eu, 0x0000003bu,
+    0x00000045u, 0x0004003du, 0x0000002fu, 0x0000004au, 0x00000049u, 0x0008000cu, 0x0000002fu,
+    0x0000004du, 0x00000001u, 0x0000002du, 0x0000004au, 0x0000004bu, 0x0000004cu, 0x0003003eu,
+    0x00000047u, 0x0000004du, 0x0004003du, 0x0000002fu, 0x0000004fu, 0x00000047u, 0x0005008bu,
+    0x0000002fu, 0x00000051u, 0x0000004fu, 0x00000050u, 0x0004006fu, 0x00000006u, 0x00000052u,
+    0x00000051u, 0x0004003du, 0x0000002fu, 0x00000053u, 0x00000047u, 0x00050087u, 0x0000002fu,
+    0x00000054u, 0x00000053u, 0x00000050u, 0x0004006fu, 0x00000006u, 0x00000055u, 0x00000054u,
+    0x00050050u, 0x00000039u, 0x00000056u, 0x00000052u, 0x00000055u, 0x0003003eu, 0x0000004eu,
+    0x00000056u, 0x0004003du, 0x00000039u, 0x00000058u, 0x0000004eu, 0x0005008eu, 0x00000039u,
+    0x00000059u, 0x00000058u, 0x00000040u, 0x0004003du, 0x00000039u, 0x0000005au, 0x0000003bu,
+    0x00050081u, 0x00000039u, 0x0000005bu, 0x00000059u, 0x0000005au, 0x00050050u, 0x00000039u,
+    0x0000005du, 0x0000005cu, 0x0000005cu, 0x00050088u, 0x00000039u, 0x0000005eu, 0x0000005bu,
+    0x0000005du, 0x0003003eu, 0x00000057u, 0x0000005eu, 0x0004003du, 0x00000061u, 0x00000064u,
+    0x00000063u, 0x0004003du, 0x00000039u, 0x00000065u, 0x00000057u, 0x00050057u, 0x0000002au,
+    0x00000066u, 0x00000064u, 0x00000065u, 0x0008004fu, 0x00000007u, 0x00000067u, 0x00000066u,
+    0x00000066u, 0x00000000u, 0x00000001u, 0x00000002u, 0x0003003eu, 0x0000005fu, 0x00000067u,
+    0x0004003du, 0x00000007u, 0x0000006bu, 0x0000006au, 0x0008000cu, 0x00000007u, 0x0000006eu,
+    0x00000001u, 0x0000002bu, 0x0000006bu, 0x0000006cu, 0x0000006du, 0x0004003du, 0x00000007u,
+    0x0000006fu, 0x0000005fu, 0x00050085u, 0x00000007u, 0x00000070u, 0x0000006eu, 0x0000006fu,
+    0x0004003du, 0x00000006u, 0x00000071u, 0x00000026u, 0x0005008eu, 0x00000007u, 0x00000072u,
+    0x00000070u, 0x00000071u, 0x00050051u, 0x00000006u, 0x00000073u, 0x00000072u, 0x00000000u,
+    0x00050051u, 0x00000006u, 0x00000074u, 0x00000072u, 0x00000001u, 0x00050051u, 0x00000006u,
+    0x00000075u, 0x00000072u, 0x00000002u, 0x00070050u, 0x0000002au, 0x00000076u, 0x00000073u,
+    0x00000074u, 0x00000075u, 0x00000023u, 0x0003003eu, 0x00000069u, 0x00000076u, 0x000100fdu,
+    0x00010038u,
+};
+
 // P05/7: Vulkan 1.0 validated 4x4 opaque material atlas sampling shader.
 static constexpr uint32_t ogl_dev_world_material_atlas_16_frag_spv[] = {
     0x07230203u, 0x00010000u, 0x0008000bu, 0x00000077u, 0x00000000u, 0x00020011u, 0x00000001u,
@@ -3286,17 +3397,28 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
     const bool atlas16=scene && atlas16_flag &&
         std::strcmp(atlas16_flag,"1")==0;
     if (atlas16 && !atlas) return 0;
+    const char* hq_flag=std::getenv(
+        "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+    if (scene && hq_flag && *hq_flag &&
+        std::strcmp(hq_flag,"0")!=0 &&
+        std::strcmp(hq_flag,"1")!=0)
+        return 0;
+    const bool atlas_hq=scene && hq_flag &&
+        std::strcmp(hq_flag,"1")==0;
+    if (atlas_hq && !atlas16) return 0;
     if (atlas && (!sampled ||
         !world_device.mesh_material_slot_vertices ||
         world_device.material_slot_mesh_generation!=world_device.mesh_generation ||
         world_device.material_slot_vertex_count!=world_device.mesh_triangle_count*3u ||
         !world_device.material_slot_count ||
         world_device.material_slot_count>(atlas16 ? 16u : 4u) ||
-        world_device.rgba_width!=64u || world_device.rgba_height!=64u))
+        world_device.rgba_width!=(atlas_hq ? 256u : 64u) ||
+        world_device.rgba_height!=(atlas_hq ? 256u : 64u)))
         return 0;
-    const uint32_t shading_mode=atlas16 ? 7u : (atlas ? 6u : (sampled ? 5u :
+    const uint32_t shading_mode=atlas_hq ? 8u : (atlas16 ? 7u :
+        (atlas ? 6u : (sampled ? 5u :
         (uv_checker ? 4u : (tinted ? 3u :
-        (lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u)))));
+        (lambert_enabled ? (sun_enabled ? 2u : 1u) : 0u))))));
     const uint32_t width=extent.width, height=extent.height;
     if (!width || !height || width>512 || height>288 ||
         uint64_t(width)*height>512u*288u) return 0;
@@ -3695,7 +3817,9 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=shading_mode==7u
+            fragment_info.codeSize=shading_mode==8u
+                ? sizeof(ogl_dev_world_material_atlas_hq_frag_spv)
+                : (shading_mode==7u
                 ? sizeof(ogl_dev_world_material_atlas_16_frag_spv)
                 : (shading_mode==6u
                 ? sizeof(ogl_dev_world_material_atlas_frag_spv)
@@ -3706,8 +3830,10 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 : (shading_mode==3u ? sizeof(ogl_dev_world_face_tint_frag_spv)
                   : (shading_mode==2u ? sizeof(ogl_dev_world_sunlight_frag_spv)
                     : (shading_mode==1u ? sizeof(ogl_dev_world_lambert_frag_spv)
-                                        : sizeof(ogl_dev_depth_frag_spv)))))));
-            fragment_info.pCode=shading_mode==7u
+                                        : sizeof(ogl_dev_depth_frag_spv))))))));
+            fragment_info.pCode=shading_mode==8u
+                ? ogl_dev_world_material_atlas_hq_frag_spv
+                : (shading_mode==7u
                 ? ogl_dev_world_material_atlas_16_frag_spv
                 : (shading_mode==6u
                 ? ogl_dev_world_material_atlas_frag_spv
@@ -3718,7 +3844,7 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                 : (shading_mode==3u ? ogl_dev_world_face_tint_frag_spv
                   : (shading_mode==2u ? ogl_dev_world_sunlight_frag_spv
                     : (shading_mode==1u ? ogl_dev_world_lambert_frag_spv
-                                        : ogl_dev_depth_frag_spv))))));
+                                        : ogl_dev_depth_frag_spv)))))));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &pipeline_state.fragment_shader)!=VK_SUCCESS || !pipeline_state.fragment_shader)
                 return false;
@@ -4660,6 +4786,9 @@ int upload_world_material_slots(const ogl_rtx_face_material_slot* slots,
         !world_device.destroy_buffer || !world_device.free_memory ||
         world_device.offscreen_world_cache.submitted)
         return 0;
+    if (enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") &&
+        !enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE"))
+        return 0;
     if (!count && !tile_count) {
         world_device.clear_material_slots();
         return 1;
@@ -4729,19 +4858,28 @@ int upload_world_rgba_image(const uint8_t* rgba,uint32_t width,uint32_t height) 
         return 1;
     }
     const bool atlas_requested=enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
-    if (atlas_requested && (width!=64u || height!=64u ||
+    const bool atlas16_requested=enabled(
+        "OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+    const bool hq_requested=enabled(
+        "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+    if (hq_requested && (!atlas_requested || !atlas16_requested))
+        return 0;
+    if (atlas_requested && (width!=(hq_requested ? 256u : 64u) ||
+        height!=(hq_requested ? 256u : 64u) ||
         !world_device.mesh_material_slot_vertices ||
         !world_device.material_slot_count ||
         world_device.material_slot_mesh_generation!=world_device.mesh_generation ||
         world_device.material_slot_vertex_count!=world_device.mesh_triangle_count*3u))
         return 0;
-    if (!rgba || !width || !height || width>64 || height>64 ||
+    const uint32_t max_source_edge=hq_requested ? 256u : 64u;
+    if (!rgba || !width || !height ||
+        width>max_source_edge || height>max_source_edge ||
         !world_device.mesh_vertices || !world_device.mesh_indices ||
         !world_device.mesh_tint_vertices || !world_device.mesh_uv_vertices ||
         world_device.tint_mesh_generation!=world_device.mesh_generation ||
         world_device.uv_mesh_generation!=world_device.mesh_generation)
         return 0;
-    const size_t bytes=size_t(width)*height*4u; // bounded 16384
+    const size_t bytes=size_t(width)*height*4u; // bounded <=262144
     for (size_t i=3;i<bytes;i+=4)
         if (rgba[i]!=255u) return 0; // alpha blending not implemented
     std::vector<uint8_t> accepted(rgba,rgba+bytes);

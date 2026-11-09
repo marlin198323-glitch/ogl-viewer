@@ -141,6 +141,55 @@ static void test_opensim_raw_thumbnail_policy() {
     bad16[15]={semi16,4u,1u,1u};
     assert(!ogl_rtx_pack_rgba_atlas_4x4(bad16,16,rgba));
     assert(rgba.empty());
+    // P05/8: genuine 64x64 tiles inside an opaque 256x256 atlas.
+    // Source-level 1-pixel alternating columns must be preserved:
+    // the legacy 16px-per-material mode cannot represent this detail.
+    std::vector<std::uint8_t> hq_cpu;
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(nullptr,16,hq_cpu));
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(images16.data(),0,hq_cpu));
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(images16.data(),17,hq_cpu));
+    assert(ogl_rtx_pack_rgba_atlas_4x4_hq(
+        images16.data(),16,hq_cpu));
+    assert(hq_cpu.size()==256u*256u*4u);
+    for (unsigned slot=0;slot<16;++slot) {
+        for (unsigned y:{0u,31u,63u})
+            for (unsigned x:{0u,17u,63u}) {
+                const auto pixel=(
+                    std::size_t((slot/4u)*64u+y)*256u+
+                    (slot%4u)*64u+x)*4u;
+                for (unsigned channel=0;channel<4u;++channel)
+                    assert(hq_cpu[pixel+channel]==rgb16[slot][channel]);
+            }
+    }
+    assert(ogl_rtx_pack_rgba_atlas_4x4_hq(
+        images16.data(),3,hq_cpu));
+    assert(hq_cpu[(std::size_t(72u)*256u+8u)*4u]==255u);
+    bad16[15].byte_count=3u;
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(bad16,16,hq_cpu));
+    assert(hq_cpu.empty());
+    bad16[15]={semi16,4u,1u,1u};
+    assert(!ogl_rtx_pack_rgba_atlas_4x4_hq(bad16,16,hq_cpu));
+    assert(hq_cpu.empty());
+    std::vector<std::uint8_t> stripe64(64u*64u*4u,255u);
+    for (unsigned y=0;y<64u;++y)
+        for (unsigned x=0;x<64u;++x) {
+            const auto at=(std::size_t(y)*64u+x)*4u;
+            stripe64[at]=x%2u==0u ? 255u : 0u;
+            stripe64[at+1]=x%2u==0u ? 0u : 255u;
+            stripe64[at+2]=0u;
+        }
+    const OGLRgbaTileView stripe_source{
+        stripe64.data(),stripe64.size(),64u,64u};
+    assert(ogl_rtx_pack_rgba_atlas_4x4_hq(
+        &stripe_source,1,hq_cpu));
+    assert(hq_cpu.size()==256u*256u*4u);
+    const size_t even_texel=(std::size_t(20u)*256u+8u)*4u;
+    const size_t odd_texel=(std::size_t(20u)*256u+9u)*4u;
+    assert(hq_cpu[even_texel]==255u && hq_cpu[even_texel+1]==0u);
+    assert(hq_cpu[odd_texel]==0u && hq_cpu[odd_texel+1]==255u);
+    std::fprintf(stdout,
+        "P05 HQ 16-material CPU atlas: 256x256 4x64x64, "
+        "16-tile addresses, 1px stripe detail, alpha/size guards PASS\n");
     std::fprintf(stdout,
         "P05 16-material CPU atlas: 4x4 independent tiles, "
         "unused white, overrun/alpha rejects PASS\n");
@@ -2524,6 +2573,129 @@ int main(int argc, char** argv) {
                 samples16[15].first,samples16[15].second,
                 (atlas16_simultaneous && legacy16_restored)?1:0);
             barrier_ok=barrier_ok && atlas16_simultaneous && legacy16_restored;
+            // P05/8 optional HQ Vulkan: sixteen 64x64 materials packed
+            // in one REAL host-coherent 256x256 sampled VkImage.
+            // All three existing atlas modes must be opt-in separate.
+            setenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE","1",1);
+            setenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE","1",1);
+            const uint64_t hq_frame_start=offscreen_world_frames();
+            const uint64_t hq_mesh_uploads=mesh_uploads();
+            std::vector<uint8_t> hq_rgba;
+            bool hq_valid=ogl_rtx_pack_rgba_atlas_4x4_hq(
+                sources16.data(),16u,hq_rgba) &&
+                hq_rgba.size()==256u*256u*4u &&
+                rgba_upload(nullptr,0,0)==1 &&
+                slot_upload(nullptr,0,0)==1 &&
+                slot_upload(first16_pair,2,16)==1 &&
+                rgba_upload(hq_rgba.data(),64,64)==0 &&
+                rgba_upload(hq_rgba.data(),257,256)==0 &&
+                rgba_upload(hq_rgba.data(),256,256)==1;
+            std::array<std::pair<uint32_t,uint32_t>,16> hq_colors{};
+            for (unsigned slot=0;slot<16u && hq_valid;++slot) {
+                const float material=float(slot);
+                const ogl_rtx_face_material_slot q{{material,material,material}};
+                const ogl_rtx_face_material_slot pair[2]{q,q};
+                hq_valid=slot_upload(pair,2,16)==1 &&
+                    offscreen_world()==1 &&
+                    offscreen_world_frames()==hq_frame_start+slot+1u &&
+                    offscreen_mean_blue()==0u &&
+                    mesh_uploads()==hq_mesh_uploads;
+                if (!hq_valid) break;
+                const uint32_t red=offscreen_mean_red();
+                const uint32_t green=offscreen_mean_green();
+                hq_colors[slot]={red,green};
+                const uint32_t r_expected=(slot%4u)*17u;
+                const uint32_t g_expected=(slot/4u)*17u;
+                hq_valid=std::abs(int(red)-int(r_expected))<=2 &&
+                    std::abs(int(green)-int(g_expected))<=2;
+                for (unsigned prev=0;prev<slot;++prev)
+                    if (hq_colors[prev]==hq_colors[slot])
+                        hq_valid=false;
+            }
+            const ogl_rtx_face_material_slot hq_two_faces[2]{
+                slot3,slot12};
+            const bool hq_both=hq_valid &&
+                slot_upload(hq_two_faces,2,16)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==hq_frame_start+17u &&
+                offscreen_mean_red()>10u &&
+                offscreen_mean_green()>10u &&
+                offscreen_mean_blue()==0u &&
+                mesh_uploads()==hq_mesh_uploads;
+            // An actual alternating red/green *single source pixel*
+            // changes the output between two UVs just 1/64 apart.
+            // Legacy Mode7's 16px tile cannot represent that detail.
+            std::vector<uint8_t> hq_stripes(64u*64u*4u,255u);
+            for (uint32_t y=0;y<64u;++y)
+                for (uint32_t x=0;x<64u;++x) {
+                    const auto at=(size_t(y)*64u+x)*4u;
+                    hq_stripes[at]=x%2u==0u ? 255u : 0u;
+                    hq_stripes[at+1]=x%2u==0u ? 0u : 255u;
+                    hq_stripes[at+2]=0u;
+                }
+            const OGLRgbaTileView hq_stripe_view{
+                hq_stripes.data(),hq_stripes.size(),64u,64u};
+            const ogl_rtx_face_material_slot hq_s0[2]{slot0,slot0};
+            const float u_red=8.5f/64.f, u_green=9.5f/64.f;
+            const ogl_rtx_face_uv hq_uv_red{{
+                u_red,u_red,u_red,u_red,u_red,u_red}};
+            const ogl_rtx_face_uv hq_uv_green{{
+                u_green,u_green,u_green,u_green,u_green,u_green}};
+            const ogl_rtx_face_uv hq_uv_pair[2]{
+                hq_uv_red,hq_uv_green};
+            bool hq_detail=hq_both &&
+                ogl_rtx_pack_rgba_atlas_4x4_hq(
+                    &hq_stripe_view,1u,hq_rgba) &&
+                slot_upload(hq_s0,2,16)==1 &&
+                rgba_upload(hq_rgba.data(),256,256)==1 &&
+                uv_upload(hq_uv_pair,2)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==hq_frame_start+18u &&
+                offscreen_mean_red()>10u &&
+                offscreen_mean_green()>10u &&
+                offscreen_mean_blue()==0u;
+            const ogl_rtx_face_uv hq_red_pair[2]{
+                hq_uv_red,hq_uv_red};
+            const ogl_rtx_face_uv hq_green_pair[2]{
+                hq_uv_green,hq_uv_green};
+            hq_detail=hq_detail &&
+                uv_upload(hq_red_pair,2)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==hq_frame_start+19u &&
+                offscreen_mean_red()>45u &&
+                offscreen_mean_green()==0u &&
+                uv_upload(hq_green_pair,2)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==hq_frame_start+20u &&
+                offscreen_mean_red()==0u &&
+                offscreen_mean_green()>45u &&
+                mesh_uploads()==hq_mesh_uploads;
+            const uint32_t hq_green_pixel=offscreen_mean_green();
+            // Unset HQ before any legacy upload. The existing 256x256
+            // image must NOT be reinterpreted as the old 64x64 layout.
+            unsetenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+            const bool hq_no_leak=offscreen_world()==0;
+            const bool hq_legacy16=hq_no_leak &&
+                rgba_upload(nullptr,0,0)==1 &&
+                slot_upload(hq_two_faces,2,16)==1 &&
+                ogl_rtx_pack_rgba_atlas_4x4(
+                    sources16.data(),16u,atlas16_bytes) &&
+                rgba_upload(atlas16_bytes.data(),64,64)==1 &&
+                uv_upload(atlas_uv,2)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==hq_frame_start+21u &&
+                offscreen_mean_red()>10u &&
+                offscreen_mean_green()>10u &&
+                mesh_uploads()==hq_mesh_uploads;
+            std::fprintf(stdout,
+                "P05 Vulkan HQ 16-material sampled VkImage: "
+                "slots=%u, detail_1px=%d, colors16=%d, "
+                "two_faces=%d, legacy16=%d, Gpixel=%u, valid=%d\n",
+                16u,hq_detail?1:0,hq_valid?1:0,
+                hq_both?1:0,hq_legacy16?1:0,hq_green_pixel,
+                (hq_detail&&hq_legacy16)?1:0);
+            barrier_ok=barrier_ok && hq_detail && hq_legacy16;
+            unsetenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
             unsetenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
             unsetenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
             unsetenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
@@ -2541,6 +2713,7 @@ int main(int argc, char** argv) {
                  "OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE",
                  "OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE",
                  "OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE",
+                 "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

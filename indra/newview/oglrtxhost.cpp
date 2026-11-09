@@ -1026,6 +1026,16 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
             "OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE");
         const bool atlas16_allowed=atlas16_requested && atlas_needed &&
             atlas16_live && std::strcmp(atlas16_live,"1")==0;
+        const char* atlas_hq_flag=std::getenv(
+            "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+        const bool atlas_hq_requested=atlas_hq_flag &&
+            std::strcmp(atlas_hq_flag,"1")==0;
+        const char* atlas_hq_live=std::getenv(
+            "OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE");
+        const bool atlas_hq_allowed=atlas_hq_requested && atlas16_allowed &&
+            atlas_hq_live && std::strcmp(atlas_hq_live,"1")==0;
+        if (uploaded && count>0 && atlas_hq_requested && !atlas_hq_allowed)
+            tint_success=false; // never reinterpret HQ atlas as legacy
         if (uploaded && count>0 && atlas_requested && !atlas_needed)
             tint_success=false;
         if (uploaded && count>0 && atlas16_requested && !atlas16_allowed)
@@ -1064,8 +1074,13 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
             // can be paired with the accepted GPU XYZ+RGB+UV mesh.
             tint_success=tint_success && tint_needed && uv_needed &&
                 live_deferred_capture_call && live_deferred_rgba_pixels &&
-                live_deferred_rgba_width>0 && live_deferred_rgba_width<=64 &&
-                live_deferred_rgba_height>0 && live_deferred_rgba_height<=64 &&
+                live_deferred_rgba_width>0 &&
+                live_deferred_rgba_width<=(atlas_hq_allowed ? 256u : 64u) &&
+                live_deferred_rgba_height>0 &&
+                live_deferred_rgba_height<=(atlas_hq_allowed ? 256u : 64u) &&
+                (!atlas_hq_allowed ||
+                 (live_deferred_rgba_width==256u &&
+                  live_deferred_rgba_height==256u)) &&
                 world_upload_rgba_image && world_rgba_mesh_generation &&
                 world_mesh_generation &&
                 world_upload_rgba_image(live_deferred_rgba_pixels,

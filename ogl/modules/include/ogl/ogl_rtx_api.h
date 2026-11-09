@@ -144,8 +144,12 @@ OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_uploads(void);
  * OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1 it may be 1..16, using
  * sixteen 16x16 texel tiles instead of four 32x32 tiles. The caller
  * must supply the matching exact 4x4 atlas layout, not reinterpret
- * an old 2x2 atlas. The actual Firestorm source additionally requires
- * OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1 and all prior source gates.
+ * an old 2x2 atlas. With the additional explicit developer flag
+ * OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1 this layout becomes
+ * 256x256 with 16 independent 64x64 tiles; all 16-material gates
+ * remain mandatory. The actual Firestorm source additionally requires
+ * OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1 and for HQ source the
+ * extra OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1 permission.
  * Changes invalidate old atlas material source. count=0 clears slots.
  */
 typedef struct ogl_rtx_face_material_slot {

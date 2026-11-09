@@ -144,6 +144,51 @@ inline bool ogl_rtx_pack_rgba_atlas_4x4(
     return true;
 }
 
+// P05/8: higher-detail optional 16-tile atlas. Each independent
+// 64x64 tile occupies a quadrant of the 4x4 grid in a 256x256
+// PRIVATE sampled VkImage (no window, streaming or GL interference).
+// Images are already decoded 1..64px opaque RGBA8; the caller holds
+// source locks. No persistent source pointer and no asset UUID.
+inline bool ogl_rtx_pack_rgba_atlas_4x4_hq(
+    const OGLRgbaTileView* tiles,std::uint32_t tile_count,
+    std::vector<std::uint8_t>& atlas)
+{
+    atlas.clear();
+    if (!tiles || !tile_count || tile_count>16u) return false;
+    for (std::uint32_t slot=0;slot<tile_count;++slot) {
+        const auto& tile=tiles[slot];
+        if (!tile.rgba || !tile.width || !tile.height ||
+            tile.width>64u || tile.height>64u ||
+            tile.byte_count<std::size_t(tile.width)*tile.height*4u)
+            return false;
+        for (std::size_t pixel=3;
+             pixel<std::size_t(tile.width)*tile.height*4u;pixel+=4u)
+            if (tile.rgba[pixel]!=255u) return false;
+    }
+    std::vector<std::uint8_t> packed(256u*256u*4u,255u);
+    for (std::uint32_t slot=0;slot<tile_count;++slot) {
+        const auto& tile=tiles[slot];
+        const auto dst_x=(slot%4u)*64u;
+        const auto dst_y=(slot/4u)*64u;
+        for (std::uint32_t y=0;y<64u;++y) {
+            const auto source_y=std::uint32_t(
+                (std::uint64_t(y)*tile.height)/64u);
+            for (std::uint32_t x=0;x<64u;++x) {
+                const auto source_x=std::uint32_t(
+                    (std::uint64_t(x)*tile.width)/64u);
+                const auto src=(
+                    std::size_t(source_y)*tile.width+source_x)*4u;
+                const auto dst=(
+                    std::size_t(dst_y+y)*256u+dst_x+x)*4u;
+                for (unsigned channel=0;channel<4u;++channel)
+                    packed[dst+channel]=tile.rgba[src+channel];
+            }
+        }
+    }
+    atlas.swap(packed);
+    return true;
+}
+
 // P04/2: world-renderer backend contract. This is a decision model, NOT a
 // Vulkan world-renderer implementation or a user-visible engine selector.
 // OpenGL owns the current GL context, world pipeline, UI, framebuffer and

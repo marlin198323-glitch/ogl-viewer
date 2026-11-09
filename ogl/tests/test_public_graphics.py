@@ -1199,7 +1199,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=plugin[a:b]
         for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
                        'sun_enabled && (!lambert_enabled || !world_device.world_sun_ready)',
-                       'const uint32_t shading_mode=atlas16 ? 7u :',
+                       'const uint32_t shading_mode=atlas_hq ? 8u :',
                        'resource.shading_mode!=shading_mode',
                        'ogl_dev_world_sunlight_frag_spv',
                        'sizeof(float)*20',
@@ -1362,7 +1362,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=module[module.index("uint32_t render_offscreen_color_frame("):
                     module.index("// Independent opt-in camera projection")]
         for marker in (
-            "const uint32_t shading_mode=atlas16 ? 7u :",
+            "const uint32_t shading_mode=atlas_hq ? 8u :",
             "ogl_dev_world_uv_checker_vert_spv",
             "ogl_dev_world_uv_checker_frag_spv",
             "VK_FORMAT_R32G32_SFLOAT",
@@ -1443,8 +1443,8 @@ class PublicGraphicsContracts(unittest.TestCase):
             "const bool rgba_needed=rgba_requested &&",
             "std::strcmp(rgba_live_flag,",
             "live_deferred_capture_call && live_deferred_rgba_pixels &&",
-            "live_deferred_rgba_width>0 && live_deferred_rgba_width<=64",
-            "live_deferred_rgba_height>0 && live_deferred_rgba_height<=64",
+            "live_deferred_rgba_width<=(atlas_hq_allowed ? 256u : 64u)",
+            "live_deferred_rgba_height<=(atlas_hq_allowed ? 256u : 64u)",
             "world_rgba_mesh_generation()==world_mesh_generation()",
             "world_upload_rgba_image(nullptr,0,0)",
             "live_deferred_capture_valid=false;",
@@ -1488,7 +1488,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             "OGL_VULKAN_WORLD_FACE_TINT_PROBE",
             "OGL_VULKAN_WORLD_SUN_LIGHT_PROBE",
             "world_device.offscreen_world_cache.submitted",
-            "width>64 || height>64",
+            "width>max_source_edge || height>max_source_edge",
             "rgba[i]!=255u",
             "world_device.uv_mesh_generation!=world_device.mesh_generation",
             "world_device.tint_mesh_generation!=world_device.mesh_generation",
@@ -1518,7 +1518,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             "vkUpdateDescriptorSets(world_device.device,1,&write,0,nullptr)",
             "vkCmdBindDescriptorSets(command,",
             "ogl_dev_world_rgba_sample_frag_spv",
-            "const uint32_t shading_mode=atlas16 ? 7u :",
+            "const uint32_t shading_mode=atlas_hq ? 8u :",
             "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT",
             "vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",
         ):
@@ -1582,8 +1582,8 @@ class PublicGraphicsContracts(unittest.TestCase):
                     "LLImageDataSharedLock lock(raw.get());",
                     "ogl_rtx_thumbnail_opaque_rgba8(",
                     "ogl_rtx_pack_rgba_atlas_2x2(",
-                    "image_w=64;",
-                    "image_h=64;",
+                    "image_w=atlas_hq_scan ? 256u : 64u;",
+                    "image_h=atlas_hq_scan ? 256u : 64u;",
                     "face_material_slots.front().slot : nullptr"):
             self.assertIn(key,pipeline)
         for key in ("ogl_vulkan_world_upload_material_slots",
@@ -1610,12 +1610,12 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(key,upload)
         draw=module[module.index("uint32_t render_offscreen_color_frame("):
                     module.index("// Independent opt-in camera projection")]
-        for key in ("const uint32_t shading_mode=atlas16 ? 7u :",
+        for key in ("const uint32_t shading_mode=atlas_hq ? 8u :",
                     "ogl_dev_world_material_atlas_vert_spv",
                     "ogl_dev_world_material_atlas_frag_spv",
                     "VK_FORMAT_R32_SFLOAT",
                     "world_device.material_slot_vertex_count!=world_device.mesh_triangle_count*3u",
-                    "world_device.rgba_width!=64u",
+                    "world_device.rgba_width!=(atlas_hq ? 256u : 64u)",
                     "vkCmdBindVertexBuffers(command,0,4,buffers,offsets)",
                     "world_device.mesh_material_slot_vertices"):
             self.assertIn(key,draw)
@@ -1682,7 +1682,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             "const bool atlas16=scene && atlas16_flag &&",
             "if (atlas16 && !atlas) return 0;",
             "material_slot_count>(atlas16 ? 16u : 4u)",
-            "const uint32_t shading_mode=atlas16 ? 7u :",
+            "const uint32_t shading_mode=atlas_hq ? 8u :",
             "shading_mode>=6u",
             "enabled(\"OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE\") ? 16u : 4u",
             "world_device.material_slot_mesh_generation=world_device.mesh_generation",
@@ -1706,6 +1706,92 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("vkQueuePresentKHR(",
             module[module.index("uint32_t render_offscreen_color_frame("):
                    module.index("// Independent opt-in camera projection")])
+
+    def test_p05_hq_16_material_vulkan_detail_and_exact_source_gates(self):
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        for marker in (
+            "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1",
+            "OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1"):
+            self.assertIn(marker,api)
+        for marker in (
+            "inline bool ogl_rtx_pack_rgba_atlas_4x4_hq(",
+            "atlas.clear();",
+            "tile_count>16u",
+            "tile.width>64u || tile.height>64u",
+            "tile.rgba[pixel]!=255u",
+            "std::vector<std::uint8_t> packed(256u*256u*4u,255u)",
+            "const auto dst_x=(slot%4u)*64u;",
+            "const auto dst_y=(slot/4u)*64u;",
+            "std::size_t(dst_y+y)*256u+dst_x+x",
+            "atlas.swap(packed);"):
+            self.assertIn(marker,header)
+        for marker in (
+            "const bool atlas_hq_scan=atlas16_scan && atlas_hq_flag &&",
+            '"OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE"',
+            '"OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE"',
+            "ogl_rtx_pack_rgba_atlas_4x4_hq(",
+            "ogl_rtx_pack_rgba_atlas_4x4(",
+            "ogl_rtx_pack_rgba_atlas_2x2(",
+            "image_w=atlas_hq_scan ? 256u : 64u;",
+            "image_h=atlas_hq_scan ? 256u : 64u;",
+            "LLImageDataSharedLock lock(raw.get());"):
+            self.assertIn(marker,pipeline)
+        for marker in (
+            "const bool atlas_hq_requested=atlas_hq_flag &&",
+            "const bool atlas_hq_allowed=atlas_hq_requested && atlas16_allowed &&",
+            "if (uploaded && count>0 && atlas_hq_requested && !atlas_hq_allowed)",
+            "live_deferred_rgba_width<=(atlas_hq_allowed ? 256u : 64u)",
+            "live_deferred_rgba_height<=(atlas_hq_allowed ? 256u : 64u)",
+            "live_deferred_rgba_width==256u",
+            "live_deferred_rgba_height==256u",
+            "world_rgba_mesh_generation()==world_mesh_generation()"):
+            self.assertIn(marker,host)
+        for marker in (
+            "ogl_dev_world_material_atlas_hq_frag_spv[]",
+            "const bool atlas_hq=scene && hq_flag &&",
+            "if (atlas_hq && !atlas16) return 0;",
+            "material_slot_count>(atlas16 ? 16u : 4u)",
+            "world_device.rgba_width!=(atlas_hq ? 256u : 64u)",
+            "const uint32_t shading_mode=atlas_hq ? 8u :",
+            "sizeof(ogl_dev_world_material_atlas_hq_frag_spv)",
+            "ogl_dev_world_material_atlas_hq_frag_spv",
+            "shading_mode>=6u",
+            "const uint32_t max_source_edge=hq_requested ? 256u : 64u;",
+            "width>max_source_edge || height>max_source_edge",
+            "const size_t bytes=size_t(width)*height*4u; // bounded <=262144",
+            "hq_requested && (!atlas_requested || !atlas16_requested)",
+            "world_device.release_offscreen_world_cache();",
+            "VK_IMAGE_TILING_LINEAR",
+            "row_layout.rowPitch",
+            "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
+            "VK_FILTER_NEAREST"):
+            self.assertIn(marker,module)
+        for marker in (
+            "P05 HQ 16-material CPU atlas:",
+            "P05 Vulkan HQ 16-material sampled VkImage:",
+            "hq_rgba.size()==256u*256u*4u",
+            "rgba_upload(hq_rgba.data(),64,64)==0",
+            "rgba_upload(hq_rgba.data(),257,256)==0",
+            "rgba_upload(hq_rgba.data(),256,256)==1",
+            "slot_upload(hq_two_faces,2,16)==1",
+            "hq_stripes[at]=x%2u==0u ? 255u : 0u;",
+            "const float u_red=8.5f/64.f, u_green=9.5f/64.f;",
+            "offscreen_mean_red()>45u",
+            "offscreen_mean_green()>45u",
+            "const bool hq_no_leak=offscreen_world()==0;",
+            "const bool hq_legacy16=hq_no_leak &&",
+            "offscreen_world_frames()==hq_frame_start+21u"):
+            self.assertIn(marker,native)
+        self.assertNotIn("readbackRawImage()",pipeline)
+        self.assertNotIn("forceToSaveRawImage(",pipeline)
+        draw=module[module.index("uint32_t render_offscreen_color_frame("):
+                    module.index("// Independent opt-in camera projection")]
+        self.assertNotIn("vkQueuePresentKHR(",draw)
 
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

@@ -9669,6 +9669,13 @@ void LLPipeline::renderDeferredLighting()
                     std::strcmp(atlas16_flag,"1")==0 &&
                     atlas16_live_flag &&
                     std::strcmp(atlas16_live_flag,"1")==0;
+                const char* atlas_hq_flag=std::getenv(
+                    "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+                const char* atlas_hq_live=std::getenv(
+                    "OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE");
+                const bool atlas_hq_scan=atlas16_scan && atlas_hq_flag &&
+                    std::strcmp(atlas_hq_flag,"1")==0 &&
+                    atlas_hq_live && std::strcmp(atlas_hq_live,"1")==0;
                 const std::uint32_t atlas_capacity=atlas16_scan ? 16u : 4u;
                 // Opaque per-face LLTextureEntry diffuse RGB only; no
                 // pixels, images, texture IDs or other avatar/asset data.
@@ -10415,13 +10422,16 @@ void LLPipeline::renderDeferredLighting()
                                 tile_width,tile_height};
                         }
                         if (decoded &&
-                            (atlas16_scan ?
+                            (atlas_hq_scan ?
+                              ogl_rtx_pack_rgba_atlas_4x4_hq(
+                                  tile_views.data(),atlas_tile_count,decoded_rgba) :
+                             atlas16_scan ?
                               ogl_rtx_pack_rgba_atlas_4x4(
                                   tile_views.data(),atlas_tile_count,decoded_rgba) :
                               ogl_rtx_pack_rgba_atlas_2x2(
                                   tile_views.data(),atlas_tile_count,decoded_rgba))) {
-                            image_w=64;
-                            image_h=64;
+                            image_w=atlas_hq_scan ? 256u : 64u;
+                            image_h=atlas_hq_scan ? 256u : 64u;
                         }
                     } else if (!atlas_scan && rgba_scan && homogeneous_rgba &&
                         homogeneous_image.notNull() &&
