@@ -832,6 +832,34 @@ nächster Commit-CI separat prüfen.
 Kein authentifizierter OpenSim-Live-Vulkan-Materialframe
 und keine sichtbare Vulkan-Welt. P05 formal 2/20.
 
+**P05/3–4 optionaler 16-Material-Atlas (09.11.2026, Code 55f9016d):**
+20 echte Implementierungs-/Testschritte, DETAILS ogl/PROJECT_STATUS.md.
+Neuer Vulkan1.0-SPIR-V-ShaderMode7 mit 4×4 unabhängigen
+16×16-RGBA-Kacheln in vorhandenem 64×64 VkImage,
+Materialslot-Binding3 0..15; Legacy 2×2 mit Slots0..3
+unverändert. CPU-Atlas4x4 prüft Bildmaße, Alpha,
+Datenlänge und fehlende Sources. Exakter GPU-
+Meshgenerations-Handshake. Freigabe GPU nur mit
+OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1; für
+realen Firestorm-Live-LLImageRaw-Quellpfad zusätzlich
+OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1 und
+alle bisherigen Vulkan-/Material-/Camera-/UV-Gates.
+Maximal16 eindeutige decodierte opaque Legacy-
+Diffuse-Assets; >16/Alpha/Missing/PBR/GLTF/
+Terrain/Anker fail-closed.
+Echte isolierte Vulkan-X11 GPU: 60 Weltframes,
+24 Builds/36 Reuses/23 Releases, alle 16
+Materialslotfarben geprüft und 2 diverse Face-
+Assets gleichzeitig im selben Frame. Rückwechsel
+zu Legacy-4 ohne Reupload XYZ erfolgreich.
+Linux-Vollviewer 378 Python, 41 CTests,
+66 Grafik-/45 Reporttests grün.
+**24/24 isolierte reale SDL/X11-Viewerstarts** mit eigenständigen temporären Profilen (OpenGL-Login, 4er-/16er-Atlas, Berechtigungen, ungültige Flags und fehlender Vulkan-ICD) erfolgreich. Keine Anmeldung in eine authentifizierte OpenSim-Welt.
+Vorige sechsplattformige GitHub-CI 42681231907 SUCCESS;
+neue Commit-CI nach Push gesondert kontrollieren.
+Weder authentifizierter Live-OpenSim-Materialframe
+noch sichtbare Vulkan-Window-World: P05 2/20.
+
 ## Automatischer /goal-Phasenlauf
 
 **Maßgeblich sind P01–P13 im bestehenden Hauptprojektplan.**

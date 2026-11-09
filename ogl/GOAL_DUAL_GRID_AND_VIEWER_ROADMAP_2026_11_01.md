@@ -1864,6 +1864,33 @@ Live-Texturframe und keine sichtbare Vulkan-
 Engine; P05 formal 2/20, Block3/4 offen.
 Letzte Sechs-OS-CI 42676970109 komplett grün.
 
+**P05/3–4 bis zu 16 Face-Materialien im privaten Vulkan-World-Atlas (09.11.2026, Code 55f9016d):**
+Separates Entwickleropt-in für 4×4-Tile-Raster in
+vorhandenem 64×64 VkImage, 16×16 Pixel je
+unabhängiger opaker Legacy-Diffuse-Quelle.
+Mode7 Vulkan1.0/SPIR-V; flache Face-Material-
+Slot-Bindung3 (0..15). Mode6 2×2 bleibt
+vollständig kompatibel. CPU-Atlasformat,
+Ausgangspixel, Originalalpha, Quellgröße
+und Mesh-/Sidecar-Revision streng geprüft.
+Firestorm LLViewerFetchedTexture/LLImageRaw
+nutzt 16 Face-Quellen nur mit zusätzlicher
+LIVE_MATERIAL_ATLAS_16_SOURCE=1 und
+WORLD_MATERIAL_ATLAS_16_PROBE=1 sowie allen
+vorherigen Vulkan-Developer-Gates.
+Native echte Vulkan-X11-GPU 60 Frames,
+24 Cache-Builds, 36 Reuses, 23 Releases,
+16 tatsächlich gesampelte Farben,
+simultane voneinander entfernte Material-
+Slots im selben Weltframe; Altmodus 4
+ohne Meshneuladen wiederhergestellt.
+Linux 378 Python/41 CTests, 66 Grafik/
+45 Reportprüfungen grün. **24/24 isolierte reale SDL/X11-Viewerstarts** mit eigenständigen temporären Profilen (OpenGL-Login, 4er-/16er-Atlas, Berechtigungen, ungültige Flags und fehlender Vulkan-ICD) erfolgreich. Keine Anmeldung in eine authentifizierte OpenSim-Welt.
+Keine authentifizierte Live-Region,
+keine vollständige Vulkan-Window-World,
+P05 Hauptblöcke formal 2/20.
+Letzte 6-OS-CI 42681231907 erfolgreich.
+
 **Technischer Zielzustand:** Welt-Rendering statt Diagnose.
 
 1. Vulkan-Instance/Device/Queue-Initialisierung mit Schutzprüfungen integrieren.
