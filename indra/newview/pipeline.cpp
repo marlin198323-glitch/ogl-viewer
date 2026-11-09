@@ -9661,6 +9661,15 @@ void LLPipeline::renderDeferredLighting()
                 const bool atlas_scan=rgba_scan && atlas_flag &&
                     std::strcmp(atlas_flag,"1")==0 && atlas_source_flag &&
                     std::strcmp(atlas_source_flag,"1")==0;
+                const char* atlas16_flag=std::getenv(
+                    "OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+                const char* atlas16_live_flag=std::getenv(
+                    "OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE");
+                const bool atlas16_scan=atlas_scan && atlas16_flag &&
+                    std::strcmp(atlas16_flag,"1")==0 &&
+                    atlas16_live_flag &&
+                    std::strcmp(atlas16_live_flag,"1")==0;
+                const std::uint32_t atlas_capacity=atlas16_scan ? 16u : 4u;
                 // Opaque per-face LLTextureEntry diffuse RGB only; no
                 // pixels, images, texture IDs or other avatar/asset data.
                 // Never create the tint vector in normal OpenGL mode.
@@ -9675,11 +9684,10 @@ void LLPipeline::renderDeferredLighting()
                 bool homogeneous_rgba=rgba_scan && !atlas_scan &&
                     triangles.empty();
                 LLPointer<LLViewerFetchedTexture> homogeneous_image;
-                // A real decoded Vulkan texture atlas can represent at
-                // most FOUR unique fully opaque legacy diffuse assets.
-                // Slots are ordered by first accepted triangle, and copied
-                // 1:1 with accepted XYZ/RGB/UV triangles.
-                std::array<LLPointer<LLViewerFetchedTexture>,4> atlas_images{};
+                // Only explicit separate 16-slot live opt-in permits more
+                // than FOUR unique opaque legacy diffuse images.
+                // Stable face-first slot ordering, paired 1:1 with XYZ/RGB/UV.
+                std::array<LLPointer<LLViewerFetchedTexture>,16> atlas_images{};
                 std::vector<ogl_rtx_face_material_slot> face_material_slots;
                 if (atlas_scan) face_material_slots.reserve(ogl_triangle_budget);
                 std::uint32_t atlas_tile_count=0;
@@ -10224,7 +10232,7 @@ void LLPipeline::renderDeferredLighting()
                                                atlas_images[slot].get()!=face_image)
                                             ++slot;
                                         if (slot==atlas_tile_count) {
-                                            if (atlas_tile_count<4u) {
+                                            if (atlas_tile_count<atlas_capacity) {
                                                 atlas_images[atlas_tile_count]=face_image;
                                                 ++atlas_tile_count;
                                             } else {
@@ -10377,8 +10385,8 @@ void LLPipeline::renderDeferredLighting()
                         // objects and raw buffers are pinned during their
                         // synchronous, bounded read. No image/asset UUID
                         // escapes to the GPU or log.
-                        std::array<std::vector<std::uint8_t>,4> rgba_tiles;
-                        std::array<OGLRgbaTileView,4> tile_views{};
+                        std::array<std::vector<std::uint8_t>,16> rgba_tiles;
+                        std::array<OGLRgbaTileView,16> tile_views{};
                         bool decoded=true;
                         for (std::uint32_t slot=0;slot<atlas_tile_count;++slot) {
                             if (atlas_images[slot].isNull() ||
@@ -10406,8 +10414,12 @@ void LLPipeline::renderDeferredLighting()
                                 rgba_tiles[slot].data(),rgba_tiles[slot].size(),
                                 tile_width,tile_height};
                         }
-                        if (decoded && ogl_rtx_pack_rgba_atlas_2x2(
-                            tile_views.data(),atlas_tile_count,decoded_rgba)) {
+                        if (decoded &&
+                            (atlas16_scan ?
+                              ogl_rtx_pack_rgba_atlas_4x4(
+                                  tile_views.data(),atlas_tile_count,decoded_rgba) :
+                              ogl_rtx_pack_rgba_atlas_2x2(
+                                  tile_views.data(),atlas_tile_count,decoded_rgba))) {
                             image_w=64;
                             image_h=64;
                         }

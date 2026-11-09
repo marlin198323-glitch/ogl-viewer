@@ -108,6 +108,42 @@ static void test_opensim_raw_thumbnail_policy() {
     bad_tiles[2]={alpha,sizeof(alpha),1,1};
     assert(!ogl_rtx_pack_rgba_atlas_2x2(bad_tiles,4,rgba));
     assert(rgba.empty());
+    // Separate P05/7 4x4 packing: sixteen independently checked
+    // opaque image tiles; old 2x2 layout remains unchanged.
+    std::array<std::array<std::uint8_t,4>,16> rgb16{};
+    std::array<OGLRgbaTileView,16> images16{};
+    for (unsigned slot=0;slot<16;++slot) {
+        rgb16[slot]={std::uint8_t((slot%4u)*85u),
+                     std::uint8_t((slot/4u)*85u),0u,255u};
+        images16[slot]={rgb16[slot].data(),4u,1u,1u};
+    }
+    assert(!ogl_rtx_pack_rgba_atlas_4x4(nullptr,16,rgba));
+    assert(rgba.empty());
+    assert(!ogl_rtx_pack_rgba_atlas_4x4(images16.data(),0,rgba));
+    assert(!ogl_rtx_pack_rgba_atlas_4x4(images16.data(),17,rgba));
+    assert(ogl_rtx_pack_rgba_atlas_4x4(images16.data(),16,rgba));
+    assert(rgba.size()==64u*64u*4u);
+    for (unsigned slot=0;slot<16;++slot) {
+        const std::size_t at=(
+            std::size_t((slot/4u)*16u+7u)*64u+
+            std::size_t((slot%4u)*16u+8u))*4u;
+        for (unsigned channel=0;channel<4u;++channel)
+            assert(rgba[at+channel]==rgb16[slot][channel]);
+    }
+    assert(ogl_rtx_pack_rgba_atlas_4x4(images16.data(),3,rgba));
+    assert(rgba[(std::size_t(20u)*64u+9u)*4u]==255u);
+    OGLRgbaTileView bad16[16]{};
+    std::copy(images16.begin(),images16.end(),bad16);
+    bad16[15].byte_count=3u;
+    assert(!ogl_rtx_pack_rgba_atlas_4x4(bad16,16,rgba));
+    assert(rgba.empty());
+    const std::uint8_t semi16[4]{255u,1u,0u,254u};
+    bad16[15]={semi16,4u,1u,1u};
+    assert(!ogl_rtx_pack_rgba_atlas_4x4(bad16,16,rgba));
+    assert(rgba.empty());
+    std::fprintf(stdout,
+        "P05 16-material CPU atlas: 4x4 independent tiles, "
+        "unused white, overrun/alpha rejects PASS\n");
     std::fprintf(stdout,
         "P05 4-material CPU atlas: 4x32x32 tiles, "
         "red/green/blue/yellow, malformed/alpha rejects PASS\n");
@@ -2391,6 +2427,103 @@ int main(int argc, char** argv) {
                 "P05 per-face atlas repeat in one GPU frame: valid=%d\n",
                 atlas_repeat?1:0);
             barrier_ok=barrier_ok && atlas_repeat;
+            // P05/7: 4x4 RGBA atlas GPU, sixteen unique colors and
+            // sixteen DIFFERENT accepted per-face material slot values.
+            // Keep the already accepted 2-triangle XYZ/RGB/UV mesh:
+            // this deliberately tests material-only GPU updates.
+            setenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE","1",1);
+            const uint64_t atlas16_frames_before=offscreen_world_frames();
+            const uint32_t atlas16_builds_before=offscreen_cache_builds();
+            const uint32_t atlas16_reuses_before=offscreen_cache_reuses();
+            const uint64_t atlas16_mesh_uploads=mesh_uploads();
+            std::array<std::array<uint8_t,4>,16> colors16{};
+            std::array<OGLRgbaTileView,16> sources16{};
+            for (unsigned slot=0;slot<16u;++slot) {
+                colors16[slot]={
+                    uint8_t((slot%4u)*85u),
+                    uint8_t((slot/4u)*85u),0u,255u};
+                sources16[slot]={colors16[slot].data(),4u,1u,1u};
+            }
+            std::vector<uint8_t> atlas16_bytes;
+            const bool atlas16_packed=ogl_rtx_pack_rgba_atlas_4x4(
+                sources16.data(),16u,atlas16_bytes);
+            const ogl_rtx_face_material_slot bad16_slot{{16.f,16.f,16.f}};
+            const ogl_rtx_face_material_slot bad16_fraction{{15.5f,15.5f,15.5f}};
+            const ogl_rtx_face_material_slot bad16_mixed{{15.f,0.f,15.f}};
+            const ogl_rtx_face_material_slot first16_pair[2]{slot0,slot0};
+            bool atlas16_valid=
+                atlas16_packed &&
+                atlas16_bytes.size()==64u*64u*4u &&
+                rgba_upload(nullptr,0,0)==1 &&
+                slot_upload(nullptr,0,0)==1 &&
+                slot_upload(&bad16_slot,1,16)==0 &&
+                slot_upload(first16_pair,2,17)==0 &&
+                slot_upload(&bad16_fraction,1,16)==0 &&
+                slot_upload(&bad16_mixed,1,16)==0 &&
+                slot_upload(first16_pair,2,16)==1 &&
+                rgba_upload(atlas16_bytes.data(),64,64)==1;
+            std::array<std::pair<uint32_t,uint32_t>,16> samples16{};
+            for (unsigned slot=0;slot<16u && atlas16_valid;++slot) {
+                const float index=float(slot);
+                const ogl_rtx_face_material_slot material{{
+                    index,index,index}};
+                const ogl_rtx_face_material_slot pair[2]{material,material};
+                atlas16_valid=slot_upload(pair,2,16)==1 &&
+                    offscreen_world()==1 &&
+                    offscreen_world_frames()==atlas16_frames_before+slot+1u &&
+                    offscreen_mean_blue()==0u &&
+                    mesh_uploads()==atlas16_mesh_uploads;
+                if (!atlas16_valid) break;
+                const uint32_t red_channel=offscreen_mean_red();
+                const uint32_t green_channel=offscreen_mean_green();
+                samples16[slot]={red_channel,green_channel};
+                const uint32_t expected_red=((slot%4u)*85u*51u+127u)/255u;
+                const uint32_t expected_green=((slot/4u)*85u*51u+127u)/255u;
+                atlas16_valid=std::abs(int(red_channel)-int(expected_red))<=2 &&
+                    std::abs(int(green_channel)-int(expected_green))<=2;
+                for (unsigned previous=0;previous<slot;++previous)
+                    if (samples16[previous]==samples16[slot])
+                        atlas16_valid=false;
+            }
+            // Distant slots #3 and #12 in a SINGLE GPU frame:
+            // no shader-mode transition, still the same XYZ buffers.
+            const ogl_rtx_face_material_slot slot12{{12.f,12.f,12.f}};
+            const ogl_rtx_face_material_slot slot16_pair[2]{slot3,slot12};
+            const bool atlas16_simultaneous=atlas16_valid &&
+                slot_upload(slot16_pair,2,16)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==atlas16_frames_before+17u &&
+                offscreen_mean_red()>10u &&
+                offscreen_mean_green()>10u &&
+                offscreen_mean_blue()==0u &&
+                mesh_uploads()==atlas16_mesh_uploads &&
+                offscreen_cache_builds()==atlas16_builds_before+1u &&
+                offscreen_cache_reuses()==atlas16_reuses_before+16u;
+            // Explicit opt-out cannot reuse a valid 16-tile asset as
+            // the old 2x2 layout; restoring legacy slots and image must
+            // rebuild the original ShaderMode6 cached pipeline.
+            unsetenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+            const bool legacy16_denied=
+                slot_upload(slot16_pair,2,16)==0 &&
+                offscreen_world()==0;
+            const ogl_rtx_face_material_slot legacy_slots[2]{slot0,slot1};
+            const bool legacy16_restored=legacy16_denied &&
+                slot_upload(legacy_slots,2,4)==1 &&
+                ogl_rtx_pack_rgba_atlas_2x2(images,4,atlas_rgba) &&
+                rgba_upload(atlas_rgba.data(),64,64)==1 &&
+                offscreen_world()==1 &&
+                offscreen_world_frames()==atlas16_frames_before+18u &&
+                mesh_uploads()==atlas16_mesh_uploads;
+            std::fprintf(stdout,
+                "P05 16-material real Vulkan atlas GPU: "
+                "unique=%d samples=%llu two_faces=%d legacy4=%d "
+                "r15=%u g15=%u valid=%d\n",
+                atlas16_valid?1:0,
+                static_cast<unsigned long long>(16),
+                atlas16_simultaneous?1:0,legacy16_restored?1:0,
+                samples16[15].first,samples16[15].second,
+                (atlas16_simultaneous && legacy16_restored)?1:0);
+            barrier_ok=barrier_ok && atlas16_simultaneous && legacy16_restored;
             unsetenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
             unsetenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
             unsetenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
@@ -2407,6 +2540,7 @@ int main(int argc, char** argv) {
                  "OGL_VULKAN_WORLD_UV_CHECKER_PROBE",
                  "OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE",
                  "OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE",
+                 "OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE",
                  "OGL_VULKAN_WORLD_OFFSCREEN_RASTER",
                  "OGL_VULKAN_LIVE_REGION_BARRIER",
                  "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",

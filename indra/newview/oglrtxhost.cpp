@@ -1018,8 +1018,18 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
         const bool atlas_requested=atlas_flag && std::strcmp(atlas_flag,"1")==0;
         const bool atlas_needed=atlas_requested && rgba_needed &&
             atlas_live && std::strcmp(atlas_live,"1")==0;
+        const char* atlas16_flag=std::getenv(
+            "OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+        const bool atlas16_requested=atlas16_flag &&
+            std::strcmp(atlas16_flag,"1")==0;
+        const char* atlas16_live=std::getenv(
+            "OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE");
+        const bool atlas16_allowed=atlas16_requested && atlas_needed &&
+            atlas16_live && std::strcmp(atlas16_live,"1")==0;
         if (uploaded && count>0 && atlas_requested && !atlas_needed)
             tint_success=false;
+        if (uploaded && count>0 && atlas16_requested && !atlas16_allowed)
+            tint_success=false; // missing live 16-tile authorization
         if (!uploaded && count>0 && live_deferred_capture_call &&
             rgba_requested) {
             // A failed real upload must not leave a previous material
@@ -1041,7 +1051,8 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                 live_deferred_material_slots &&
                 live_deferred_material_slot_count==count &&
                 live_deferred_material_tile_count>=1u &&
-                live_deferred_material_tile_count<=4u &&
+                live_deferred_material_tile_count<=
+                    (atlas16_allowed ? 16u : 4u) &&
                 world_upload_material_slots &&
                 world_material_slot_generation && world_mesh_generation &&
                 world_upload_material_slots(live_deferred_material_slots,

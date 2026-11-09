@@ -1199,7 +1199,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=plugin[a:b]
         for phrase in ('OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
                        'sun_enabled && (!lambert_enabled || !world_device.world_sun_ready)',
-                       'const uint32_t shading_mode=atlas ? 6u :',
+                       'const uint32_t shading_mode=atlas16 ? 7u :',
                        'resource.shading_mode!=shading_mode',
                        'ogl_dev_world_sunlight_frag_spv',
                        'sizeof(float)*20',
@@ -1362,7 +1362,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         draw=module[module.index("uint32_t render_offscreen_color_frame("):
                     module.index("// Independent opt-in camera projection")]
         for marker in (
-            "const uint32_t shading_mode=atlas ? 6u :",
+            "const uint32_t shading_mode=atlas16 ? 7u :",
             "ogl_dev_world_uv_checker_vert_spv",
             "ogl_dev_world_uv_checker_frag_spv",
             "VK_FORMAT_R32G32_SFLOAT",
@@ -1518,7 +1518,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             "vkUpdateDescriptorSets(world_device.device,1,&write,0,nullptr)",
             "vkCmdBindDescriptorSets(command,",
             "ogl_dev_world_rgba_sample_frag_spv",
-            "const uint32_t shading_mode=atlas ? 6u :",
+            "const uint32_t shading_mode=atlas16 ? 7u :",
             "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT",
             "vkCmdDrawIndexed(command,world_device.mesh_triangle_count*3u,",
         ):
@@ -1569,16 +1569,16 @@ class PublicGraphicsContracts(unittest.TestCase):
                     "OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE",
                     "const bool atlas_scan=rgba_scan",
                     "bool atlas_valid=atlas_scan && triangles.empty()",
-                    "std::array<LLPointer<LLViewerFetchedTexture>,4> atlas_images",
+                    "std::array<LLPointer<LLViewerFetchedTexture>,16> atlas_images",
                     "face_material_slots.reserve(ogl_triangle_budget)",
                     "if (!triangles.empty()) {",
                     "homogeneous_rgba=false;",
                     "atlas_valid=false;",
                     "while (slot<atlas_tile_count",
                     "atlas_images[atlas_tile_count]=face_image",
-                    "if (atlas_tile_count<4u)",
+                    "if (atlas_tile_count<atlas_capacity)",
                     "face_material_slots.push_back(",
-                    "std::array<std::vector<std::uint8_t>,4> rgba_tiles;",
+                    "std::array<std::vector<std::uint8_t>,16> rgba_tiles;",
                     "LLImageDataSharedLock lock(raw.get());",
                     "ogl_rtx_thumbnail_opaque_rgba8(",
                     "ogl_rtx_pack_rgba_atlas_2x2(",
@@ -1589,7 +1589,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         for key in ("ogl_vulkan_world_upload_material_slots",
                     "world_material_slot_generation()==world_mesh_generation()",
                     "live_deferred_material_slot_count==count",
-                    "live_deferred_material_tile_count<=4u",
+                    "live_deferred_material_tile_count<=\n                    (atlas16_allowed ? 16u : 4u)",
                     "world_upload_material_slots(nullptr,0,0)",
                     "live_deferred_material_slots=face_material_slots ?",
                     "live_deferred_material_slot_count=0;",
@@ -1599,7 +1599,7 @@ class PublicGraphicsContracts(unittest.TestCase):
                       module.index("// First real VkImage+VkSampler source ABI:")]
         for key in ("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE",
                     "count!=world_device.mesh_triangle_count",
-                    "tile_count==0 || tile_count>4",
+                    "tile_count==0 || tile_count>",
                     "std::isfinite(value)",
                     "value>=float(tile_count)",
                     "std::floor(value)!=value",
@@ -1610,7 +1610,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(key,upload)
         draw=module[module.index("uint32_t render_offscreen_color_frame("):
                     module.index("// Independent opt-in camera projection")]
-        for key in ("const uint32_t shading_mode=atlas ? 6u :",
+        for key in ("const uint32_t shading_mode=atlas16 ? 7u :",
                     "ogl_dev_world_material_atlas_vert_spv",
                     "ogl_dev_world_material_atlas_frag_spv",
                     "VK_FORMAT_R32_SFLOAT",
@@ -1638,6 +1638,74 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("readbackRawImage()",pipeline)
         self.assertNotIn("forceToSaveRawImage(",pipeline)
         self.assertNotIn("vkQueuePresentKHR(",draw)
+
+    def test_p05_sixteen_material_vulkan_atlas_and_legacy_fallback(self):
+        api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        pipeline=(ROOT/"indra/newview/pipeline.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1",api)
+        for marker in (
+            "inline bool ogl_rtx_pack_rgba_atlas_2x2(",
+            "inline bool ogl_rtx_pack_rgba_atlas_4x4(",
+            "tile_count==0 || tile_count>16u",
+            "tile.width>64u || tile.height>64u",
+            "tile.rgba[i]!=255u",
+            "std::vector<std::uint8_t> packed(64u*64u*4u,255u)",
+            "const auto dx=(slot%4u)*16u,dy=(slot/4u)*16u;",
+            "atlas.swap(packed);"):
+            self.assertIn(marker,header)
+        for marker in (
+            '"OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE"',
+            '"OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE"',
+            "const bool atlas16_scan=atlas_scan && atlas16_flag &&",
+            "const std::uint32_t atlas_capacity=atlas16_scan ? 16u : 4u;",
+            "std::array<LLPointer<LLViewerFetchedTexture>,16> atlas_images",
+            "if (atlas_tile_count<atlas_capacity)",
+            "std::array<OGLRgbaTileView,16> tile_views{};",
+            "ogl_rtx_pack_rgba_atlas_4x4(",
+            "ogl_rtx_pack_rgba_atlas_2x2(",
+            "atlas16_scan ?",
+            "LLImageDataSharedLock lock(raw.get());"):
+            self.assertIn(marker,pipeline)
+        for marker in (
+            "const bool atlas16_allowed=atlas16_requested && atlas_needed &&",
+            "if (uploaded && count>0 && atlas16_requested && !atlas16_allowed)",
+            "(atlas16_allowed ? 16u : 4u)",
+            "world_upload_material_slots(nullptr,0,0)",
+            "world_rgba_mesh_generation()==world_mesh_generation()"):
+            self.assertIn(marker,host)
+        for marker in (
+            "ogl_dev_world_material_atlas_16_frag_spv",
+            "const bool atlas16=scene && atlas16_flag &&",
+            "if (atlas16 && !atlas) return 0;",
+            "material_slot_count>(atlas16 ? 16u : 4u)",
+            "const uint32_t shading_mode=atlas16 ? 7u :",
+            "shading_mode>=6u",
+            "enabled(\"OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE\") ? 16u : 4u",
+            "world_device.material_slot_mesh_generation=world_device.mesh_generation",
+            "world_device.rgba_mesh_generation=world_device.mesh_generation"):
+            self.assertIn(marker,module)
+        for marker in (
+            "P05 16-material CPU atlas:",
+            "P05 16-material real Vulkan atlas GPU:",
+            "samples16[slot]={red_channel,green_channel};",
+            "slot_upload(first16_pair,2,17)==0",
+            "slot_upload(&bad16_slot,1,16)==0",
+            "slot_upload(slot16_pair,2,16)==1",
+            "atlas16_frames_before+17u",
+            "offscreen_cache_reuses()==atlas16_reuses_before+16u",
+            "slot_upload(slot16_pair,2,16)==0",
+            "const bool legacy16_restored=legacy16_denied &&",
+            "offscreen_world_frames()==atlas16_frames_before+18u"):
+            self.assertIn(marker,native)
+        self.assertNotIn("readbackRawImage()",pipeline)
+        self.assertNotIn("forceToSaveRawImage(",pipeline)
+        self.assertNotIn("vkQueuePresentKHR(",
+            module[module.index("uint32_t render_offscreen_color_frame("):
+                   module.index("// Independent opt-in camera projection")])
 
     def test_p05_deferred_source_provenance_receipts_fail_closed(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

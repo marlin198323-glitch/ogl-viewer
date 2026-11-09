@@ -140,8 +140,13 @@ OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_rgba_uploads(void);
  * all current RGBA/UV/TINT/LAMBERT/SUN/MESH/CAMERA opt-in gates.
  * Each triangle has one integer-valued slot, repeated 3x (one per
  * vertex). The slots are checked and GPU-coupled to the current mesh.
- * atlas slot_count may be 1..4. Changes invalidate old atlas material
- * source. count=0 explicitly clears only per-face material slots.
+ * atlas slot_count may be 1..4 normally; with explicit
+ * OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1 it may be 1..16, using
+ * sixteen 16x16 texel tiles instead of four 32x32 tiles. The caller
+ * must supply the matching exact 4x4 atlas layout, not reinterpret
+ * an old 2x2 atlas. The actual Firestorm source additionally requires
+ * OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1 and all prior source gates.
+ * Changes invalidate old atlas material source. count=0 clears slots.
  */
 typedef struct ogl_rtx_face_material_slot {
     float slot[3];

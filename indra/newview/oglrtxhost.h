@@ -106,6 +106,44 @@ inline bool ogl_rtx_pack_rgba_atlas_2x2(
     return true;
 }
 
+// P05/7: optional 16-material atlas, deliberately separate from the
+// original four-slot 2x2 atlas. Original CPU layout/ShaderMode6 remains
+// byte-for-byte stable. Four-by-four layout uses 16x16 texels per tile.
+// Source pixels are borrowed only for the synchronous bounded copy;
+// no asset lookup, upload scheduling, cache or renderer presentation.
+inline bool ogl_rtx_pack_rgba_atlas_4x4(
+    const OGLRgbaTileView* tiles,std::uint32_t tile_count,
+    std::vector<std::uint8_t>& atlas)
+{
+    atlas.clear();
+    if (!tiles || tile_count==0 || tile_count>16u) return false;
+    for (std::uint32_t slot=0;slot<tile_count;++slot) {
+        const auto& tile=tiles[slot];
+        if (!tile.rgba || !tile.width || !tile.height ||
+            tile.width>64u || tile.height>64u ||
+            tile.byte_count<std::size_t(tile.width)*tile.height*4u)
+            return false;
+        for (std::size_t i=3;i<std::size_t(tile.width)*tile.height*4u;i+=4)
+            if (tile.rgba[i]!=255u) return false;
+    }
+    std::vector<std::uint8_t> packed(64u*64u*4u,255u);
+    for (std::uint32_t slot=0;slot<tile_count;++slot) {
+        const auto& tile=tiles[slot];
+        const auto dx=(slot%4u)*16u,dy=(slot/4u)*16u;
+        for (std::uint32_t y=0;y<16u;++y)
+            for (std::uint32_t x=0;x<16u;++x) {
+                const std::size_t from=(
+                    std::size_t((std::uint64_t(y)*tile.height)/16u)*
+                    tile.width+std::size_t((std::uint64_t(x)*tile.width)/16u))*4u;
+                const std::size_t to=(std::size_t(dy+y)*64u+dx+x)*4u;
+                for (unsigned channel=0;channel<4u;++channel)
+                    packed[to+channel]=tile.rgba[from+channel];
+            }
+    }
+    atlas.swap(packed);
+    return true;
+}
+
 // P04/2: world-renderer backend contract. This is a decision model, NOT a
 // Vulkan world-renderer implementation or a user-visible engine selector.
 // OpenGL owns the current GL context, world pipeline, UI, framebuffer and
