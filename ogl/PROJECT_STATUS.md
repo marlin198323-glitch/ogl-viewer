@@ -6,6 +6,48 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs- und QA-Teilblöcke: Vulkan-WSI-Capabilities und echtes SDL-Pre-GL-Present (10.11.2026)
+
+**Ergebnis:** Die bestehende Linux-X11-Vulkan-Swapchain-Erstellung
+verweigert ab jetzt inkonsistente Surface-Capabilities schon vor
+`vkCreateSwapchainKHR`: ungültige minimale Extents, min>max,
+unsupported `currentTransform`, `maxImageCount<minImageCount`
+sowie feste/extents nach Clamping außerhalb der gemeldeten Grenzen.
+Die Prüfung ist auf Entwickler-WSI begrenzt; OpenGL bleibt produktiv.
+
+**20 tatsächlich durchgeführte Teilblöcke und Nachweise:**
+
+01. Sauberen `ogl-develop` gegen `origin/ogl-develop` geprüft; Ausgangscommit `2bb257fc`.
+02. `AGENTS.md`, Übergabe, Projektstatus und aktive `/goal`-Roadmap erneut eingelesen.
+03. Ausstehende CI-Läufe des vorherigen Branch-Stands abgefragt; keine unbelegten Plattformfreigaben.
+04. Den tatsächlichen SDL-Pre-GL-Fensterpfad und Vulkan-Xlib-Attach-Aufrufkette analysiert.
+05. Vulkan-Surface-Capability-Prüfpfad einschließlich Resize/Extent-Klemmung untersucht.
+06. Die bisher fehlende Validierung von minimalen, maximalen und festen Extents identifiziert.
+07. Leere minImageExtent-Werte vor Swapchain-Erstellung abgewiesen.
+08. Umgekehrte min/max-Grenzen für Breite und Höhe abgewiesen.
+09. Nicht unterstützte `currentTransform`-Bitangaben abgewiesen.
+10. Widersprüchliche min/max-Swapchain-Bildanzahl abgewiesen.
+11. Tatsächlich gewählte Breite/Höhe nach Clamp gegen beide Grenzen validiert.
+12. Fehlerpfade weiterhin transaktional mit `detach_window()` und unverändertem GL-Fallback ausgeführt.
+13. Eine neue fokussierte Python-Regression in `ogl/tests/test_public_graphics.py` ergänzt.
+14. Guards vor dem realen `VkSwapchainCreateInfoKHR` durch Regression geprüft (71/71 Grafiktests grün).
+15. Vulkan-C++-Modul gebaut und 41/41 native CTests bestanden.
+16. Native echte X11-Clear-/Persistent-WSI-Frames: 16 Bilder, Resizes/Recreate/Teardown bestanden.
+17. Native echte X11-World-/Depth-Frames: 16 Bilder, Kamerabewegung, Resize und Depth bestanden.
+18. Ersten isolierten echten SDL/X11-Vollviewer-Pre-GL-Start mit 20/20 Vulkan-Presents, 100/100 Pixelproben und 3 Extents validiert; danach OpenGL `STATE_LOGIN_WAIT`.
+19. Vollständigen Linux-Vollviewer mit `bash ogl/scripts/build-test.sh` gebaut: 383/383 Python-Tests und 41/41 CTests bestanden.
+20. Zweiten isolierten SDL/X11-Pre-GL-Start mit neuem Build erneut geprüft: 20/20 Vulkan-Presents, 100/100 Pixelproben, 3 Extents, erfolgreicher Vulkan-Detach und OpenGL-Login-Wartezustand. Keine Userprofile verändert. Der Viewer wurde nach dem Prelogin-Smoke gezielt mit Timeout 124 beendet, nicht regulär heruntergefahren; `git diff --check` sauber.
+
+**Präzisierung:** Die neuen ungültigen Treiberantworten sind
+quellcodebasiert abgesichert, nicht durch einen gezielt gefälschten
+Vulkan-ICD zur Laufzeit injiziert. Die SDL-Vulkan-Presents zeigen
+synthetische Clear-Pixel ausdrücklich **vor** dem OpenGL-Kontext,
+keine angemeldete OpenSim-3D-Welt und keinen dauerhaften
+Vulkan-Renderer. Keine Windows-/macOS-Vollviewer-Läufe.
+Keine neuen Dateien im Repository oder blind entfernte Altdateien.
+**Operativer P05-Stand: 2/20; Block 3 bleibt bis zur echten
+exklusiven In-World-Vulkan-Window-/Frame-Übergabe offen.**
+
 ## P05/3 – /goal 20 technische Teilblöcke: stabile Xlib-Surface-Fähigkeiten (10.11.2026)
 
 **Ergebnis:** Die bestehende passive Linux-X11-WSI-Erstellung

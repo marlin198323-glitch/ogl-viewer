@@ -42,6 +42,17 @@ echte 16-Frame-X11-Clear- und World-/Depth-Proben
 bestanden. Kein SDL-Live-Vulkan-Renderer, P05 2/20.
 20 Teilblöcke am Anfang PROJECT_STATUS.md.
 
+10.11.2026 /goal-Teilrunde: WSI-Surface-Capabilities
+vor Vulkan-Swapchain validiert (min/max Extents,
+currentTransform, Image-Counts). 383 Python-/41 native
+Tests, 71 Grafiktests, native X11 16-Frame-Clear/World-
+Depth und zweimal echter isolierter SDL-Pre-GL-20-Frame-
+Vulkan-Present mit je 100 Pixelproben/3 Extents erfolgreich.
+Danach OpenGL `STATE_LOGIN_WAIT`; Test-Viewer per
+Timeout beendet, kein regulärer Quit-Nachweis.
+P05 weiter 2/20, Live-Vulkan-Welt offen; 20 Teilblöcke
+am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

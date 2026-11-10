@@ -849,6 +849,16 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         world_device.detach_window();
         return false;
     }
+    // A malformed WSI capabilities snapshot must not reach swapchain
+    // creation, especially when the surface provides a fixed extent.
+    if (!caps.minImageExtent.width || !caps.minImageExtent.height ||
+        caps.minImageExtent.width>caps.maxImageExtent.width ||
+        caps.minImageExtent.height>caps.maxImageExtent.height ||
+        !(caps.supportedTransforms&caps.currentTransform) ||
+        (caps.maxImageCount && caps.maxImageCount<caps.minImageCount)) {
+        world_device.detach_window();
+        return false;
+    }
     VkExtent2D extent=caps.currentExtent;
     if (extent.width==UINT32_MAX) {
         extent.width=std::max(caps.minImageExtent.width,
@@ -857,7 +867,11 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
                                std::min(height,caps.maxImageExtent.height));
     }
     if (extent.width==0 || extent.height==0 ||
-        extent.width>16384 || extent.height>16384) {
+        extent.width>16384 || extent.height>16384 ||
+        extent.width<caps.minImageExtent.width ||
+        extent.height<caps.minImageExtent.height ||
+        extent.width>caps.maxImageExtent.width ||
+        extent.height>caps.maxImageExtent.height) {
         world_device.detach_window();
         return false;
     }

@@ -1707,6 +1707,29 @@ class PublicGraphicsContracts(unittest.TestCase):
             module[module.index("uint32_t render_offscreen_color_frame("):
                    module.index("// Independent opt-in camera projection")])
 
+    def test_p05_xlib_wsi_rejects_invalid_surface_extents_and_transforms(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        begin=module.index("bool attach_world_xlib_window(")
+        end=module.index("// Passive WSI attach never acquires or presents",begin)
+        attach=module[begin:end]
+        for marker in (
+            "!caps.minImageExtent.width || !caps.minImageExtent.height",
+            "caps.minImageExtent.width>caps.maxImageExtent.width",
+            "caps.minImageExtent.height>caps.maxImageExtent.height",
+            "!(caps.supportedTransforms&caps.currentTransform)",
+            "caps.maxImageCount<caps.minImageCount",
+            "extent.width<caps.minImageExtent.width",
+            "extent.height<caps.minImageExtent.height",
+            "extent.width>caps.maxImageExtent.width",
+            "extent.height>caps.maxImageExtent.height",
+            "world_device.detach_window();",
+        ):
+            self.assertIn(marker,attach)
+        self.assertLess(attach.index("!(caps.supportedTransforms&caps.currentTransform)"),
+                        attach.index("VkSwapchainCreateInfoKHR swap{"))
+        self.assertLess(attach.index("extent.width<caps.minImageExtent.width"),
+                        attach.index("VkSwapchainCreateInfoKHR swap{"))
+
     def test_p05_xlib_wsi_validates_second_surface_capability_enumerations(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         begin=module.index("bool attach_world_xlib_window(")
