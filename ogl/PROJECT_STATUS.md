@@ -6,6 +6,55 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs-/QA-Teilblöcke: 32 persistente Vulkan-GPU-Frames (10.11.2026)
+
+**Umgesetzt:** Der persistente Vulkan-X11-GPU-Pfad bleibt ohne
+zusätzliche Entwicklerfreigabe strikt auf 16 GPU-Presents pro
+Swapchain-Anbindung begrenzt. Mit
+`OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE=1` wird die Grenze
+für einen separat aktivierbaren nativen QA-Stresstest auf
+**32 Frames** erweitert. Der neue QA-Modus testet die
+Wiederverwendung der zwei GPU-Submit-Fences, der
+Image-indexierten Render-Finished-Semaphoren, des
+VkCommandPool und der Renderpass-/Depth-Ressourcen über
+16 Frames hinaus. Er baut die Ressourcen pro Anbindung
+nur einmal auf und gibt sie beim Detach wieder frei.
+Keine Freigabe als produktiver In-World-Renderer.
+
+**20 tatsächlich ausgeführte Schritte:**
+
+01. Sauberen `ogl-develop` und Ausgangscommit `73822e58` geprüft.
+02. `AGENTS.md`, Handoff, Projektstatus und P05-Roadmap erneut gelesen.
+03. Aktuelle CI der letzten Pushes geprüft; frühere Gesamtläufe nach tatsächlichem Ergebnis unterschieden.
+04. Persistente Swapchain-/GPU-Fence-Lebenszyklen im Vulkan-Modul analysiert.
+05. Die bisherige harte 16-Frame-Grenze auf ihre Eignung für längere QA-Szenarien geprüft.
+06. Verwendete Image-Fences, Bildindex-Semaphore und zwei Submit-Slots verifiziert.
+07. Ein zusätzliches, ausdrücklich freizugebendes 32-Frame-QA-Limit im bestehenden Modul umgesetzt.
+08. Ohne Long-Run-Opt-in die bisherige 16-Frame-Grenze erhalten.
+09. Native X11-Clear-QA in der bestehenden Testdatei auf wahlweise 16 oder 32 Frames erweitert.
+10. Eindeutige native Long-Run-Testfreigabe und abschließendes Zurücksetzen des Modul-Opt-ins ergänzt.
+11. Image-/Fence-/Cache-Lifecycle bei 32 wiederholten GPU-Submits mitgezählt.
+12. Native X11-World-/Depth-QA auf die längere 32-Frame-Sequenz erweitert.
+13. Bestehende Kameraänderung, unveränderte Meshbuffers und Depth-Pixelprüfung erhalten.
+14. Testmeldungen um tatsächliche Frame-Zielzahl erweitert; kein pauschaler 16-Frame-Erfolg bei 32 angegeben.
+15. Bestehenden Python-Quellcodevertrag auf variable, ausdrücklich begrenzte Framezahl angepasst.
+16. Neuen Python-Grafikregressionstest für getrennte Freigabe, Limit und native Testabdeckung ergänzt: 76/76 Grafiktests bestanden.
+17. Native C++-Module erfolgreich neu gebaut und 41/41 native CTests bestanden.
+18. Echte X11-GPU-Long-Run-QA: 32/32 persistente CLEAR-Presents und 32/32 World-/Depth-Presents auf jeweils einer Swapchain, Resize und Detach bestanden.
+19. Normale X11-QA ohne Long-Run-Opt-in erneut bestanden: 16/16 CLEAR und 16/16 World-/Depth-Presents; anschließend vollständigen Linux-Viewer gebaut und 388/388 Python- sowie 41/41 native Tests bestanden.
+20. Isolierten echten SDL/X11-Viewerstart nach Vollbuild geprüft: 20/20 Pre-GL-Clear-Presents, 100 Pixelproben, drei Größen, anschließender OpenGL-Login-Wartezustand; `git diff --check` bestanden.
+
+**Grenzen:** Long-Run-Freigabe ist nur für Entwickler-QA; die
+32 GPU-Frames finden in separaten nativen X11-Testfenstern
+und nicht innerhalb einer authentifizierten OpenSim-Welt
+statt. SDL-Pre-GL bleibt bei seiner bisherigen 20-Frame-
+Probe. Kein Windows-/macOS-Vollviewer-Test; keine gezielte
+GPU-Fault-Injektion. SDL-Viewer nach Login-Wartezustand per
+Test-Zeitlimit beendet (Exit 124), kein regulärer Quit.
+Keine User-Profile oder Secrets verändert und keine neuen
+Repository-Dateien angelegt. **P05 formal weiterhin 2/20;
+P05/3 mit dauerhafter Vulkan-In-World-Fensterübernahme offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: SDL-Vulkan-Preflight aller Probe-Berechtigungen (10.11.2026)
 
 **Umgesetzt:** Der bestehende SDL/X11-Startpfad validiert jetzt auch

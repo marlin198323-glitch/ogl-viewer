@@ -2641,7 +2641,13 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         world_device.exclusive_present_used)
         return 0;
     auto& p=world_device.persistent;
-    if (p.blocked || p.frame_count>=16 ||
+    // A separately enabled native GPU acceptance run exercises 32 frames
+    // on ONE VkSwapchain to expose fence/semaphore reuse beyond the usual
+    // 16-frame QA ceiling. The normal pre-GL path remains capped at 16.
+    const char* long_run=std::getenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
+    const uint32_t max_frames=long_run && std::strcmp(long_run,"1")==0
+        ? 32u : 16u;
+    if (p.blocked || p.frame_count>=max_frames ||
         (p.initialized && p.world_depth!=world)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);

@@ -1260,6 +1260,13 @@ int main(int argc, char** argv) {
             "OGL_VULKAN_PERSISTENT_WSI_TEST_X11");
         const bool test_persistent=persistent_env &&
             std::strcmp(persistent_env,"1")==0;
+        const char* long_run_env=std::getenv(
+            "OGL_VULKAN_PERSISTENT_LONG_RUN_TEST_X11");
+        const bool long_run=long_run_env &&
+            std::strcmp(long_run_env,"1")==0;
+        const uint32_t persistent_frames=long_run ? 32u : 16u;
+        if (test_persistent && long_run)
+            setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
         bool persistent_ok=true,persistent_resized=true;
         if (test_persistent) {
             setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE","1",1);
@@ -1295,7 +1302,7 @@ int main(int argc, char** argv) {
                 }
                 return false;
             };
-            for (uint32_t i=0;i<16 && frames_ok;++i) {
+            for (uint32_t i=0;i<persistent_frames && frames_ok;++i) {
                 frames_ok=persistent_clear(1)==1 &&
                     persistent_count()==i+1 &&
                     persistent_builds()==1 &&
@@ -1304,7 +1311,7 @@ int main(int argc, char** argv) {
                     front_matches(i,320,180);
             }
             frames_ok=frames_ok && persistent_clear(1)==0 &&
-                persistent_count()==16 && persistent_builds()==1 &&
+                persistent_count()==persistent_frames && persistent_builds()==1 &&
                 persistent_idles()==0;
             window_detach();
             persistent_ok=frames_ok && persistent_count()==0 &&
@@ -1323,10 +1330,12 @@ int main(int argc, char** argv) {
                 persistent_releases()==2 && persistent_idles()==2 &&
                 persistent_count()==0;
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
+            if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             std::fprintf(stdout,
-                "P05 persistent X11 WSI: frames=%d resized=%d builds=%u releases=%u teardown_idle=%u\n",
+                "P05 persistent X11 WSI: frames=%d resized=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
                 persistent_ok?1:0,persistent_resized?1:0,
-                persistent_builds(),persistent_releases(),persistent_idles());
+                persistent_builds(),persistent_releases(),persistent_idles(),
+                persistent_frames);
         }
         // Persistent indexed WORLD + Depth GPU QA: identical projected
         // foreground/background triangles with depth buffers PER IMAGE.
@@ -1336,6 +1345,8 @@ int main(int argc, char** argv) {
             "OGL_VULKAN_PERSISTENT_WORLD_TEST_X11");
         const bool test_persistent_world=persistent_world_env &&
             std::strcmp(persistent_world_env,"1")==0;
+        if (test_persistent_world && long_run)
+            setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
         bool persistent_world_ok=true,persistent_world_moved=true;
         bool persistent_world_immutable=true,persistent_world_resize=true;
         if (test_persistent_world) {
@@ -1401,7 +1412,7 @@ int main(int argc, char** argv) {
                 return false;
             };
             bool frames=inputs && attach_world;
-            for (uint32_t frame=0;frame<16 && frames;++frame) {
+            for (uint32_t frame=0;frame<persistent_frames && frames;++frame) {
                 if (frame==8) {
                     camera.camera_position[1]=32.f;
                     persistent_world_moved=world_camera(&camera)==1 &&
@@ -1435,7 +1446,7 @@ int main(int argc, char** argv) {
                 }
             }
             persistent_world_ok=frames && persistent_clear(1)==0 &&
-                persistent_count()==16;
+                persistent_count()==persistent_frames;
             window_detach();
             persistent_world_ok=persistent_world_ok &&
                 persistent_idles()==idles_before+1 &&
@@ -1458,6 +1469,7 @@ int main(int argc, char** argv) {
             window_detach();
             persistent_world_resize=persistent_world_resize &&
                 world_upload(nullptr,0)==1 && live_inputs()==0;
+            if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
             unsetenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
@@ -1466,9 +1478,10 @@ int main(int argc, char** argv) {
             unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
             unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
             std::fprintf(stdout,
-                "P05 persistent Vulkan WORLD depth: frames=%d moved=%d guarded=%d resize=%d\n",
+                "P05 persistent Vulkan WORLD depth: frames=%d moved=%d guarded=%d resize=%d target=%u\n",
                 persistent_world_ok?1:0,persistent_world_moved?1:0,
-                persistent_world_immutable?1:0,persistent_world_resize?1:0);
+                persistent_world_immutable?1:0,persistent_world_resize?1:0,
+                persistent_frames);
         }
         // P05 scene revision acceptance: the GPU completes old mesh
         // submissions using TWO bounded VkFence waits, without queue-idle.
@@ -2833,7 +2846,8 @@ int main(int argc, char** argv) {
                 restored_repeat,restored_count,stopped_count);
             return 12;
         }
-        std::puts("P05 native X11 swapchain: 16 consecutive GPU presents, bounded frames and 2 resizes PASS");
+        std::printf("P05 native X11 swapchain: %u consecutive GPU presents, bounded frames and 2 resizes PASS\n",
+            persistent_frames);
         if (raster_test)
             std::puts("P05 real indexed triangle graphics raster in X11 swapchain: PASS");
         if (test_world)
@@ -2843,9 +2857,11 @@ int main(int argc, char** argv) {
         if (test_world_depth)
             std::puts("P05 native GPU world XYZ projected depth, anti-depth control, camera move/resize and stale reject: PASS");
         if (test_persistent)
-            std::puts("P05 persistent Vulkan swapchain CLEAR: 16 GPU presents, one initialization, teardown-only queue idle, resize/recreate PASS");
+            std::printf("P05 persistent Vulkan swapchain CLEAR: %u GPU presents, one initialization, teardown-only queue idle, resize/recreate PASS\n",
+                persistent_frames);
         if (test_persistent_world)
-            std::puts("P05 persistent Vulkan WORLD depth: 16 indexed GPU frames, camera motion, immutable mesh, resize/recreate PASS");
+            std::printf("P05 persistent Vulkan WORLD depth: %u indexed GPU frames, camera motion, immutable mesh, resize/recreate PASS\n",
+                persistent_frames);
         if (test_rotation)
             std::puts("P05 GPU mesh-generation transitions: red/green/empty/red/green, bounded GPU fences, no per-frame queue idle PASS");
         if (test_region_barrier)

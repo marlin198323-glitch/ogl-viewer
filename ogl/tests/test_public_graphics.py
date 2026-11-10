@@ -736,7 +736,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         b=module.index("// P05/3 foundation: exercise the REAL Vulkan graphics queue",a)
         fn=module[a:b]
         self.assertIn('OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE',fn)
-        self.assertIn("p.frame_count>=16",fn)
+        self.assertIn("p.frame_count>=max_frames",fn)
+        self.assertIn('OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE',fn)
+        self.assertIn('? 32u : 16u;',fn)
         self.assertIn("p.presented_by_image[image_index]",fn)
         self.assertIn("p.image_in_flight[image_index]",fn)
         self.assertIn("vkWaitForFences(world_device.device,1,&slot_fence",fn)
@@ -749,7 +751,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("++persistent_teardown_idles;",module)
         self.assertIn("OGL_VULKAN_PERSISTENT_WSI_TEST_X11",native)
         self.assertIn("persistent_clear(1)==1",native)
-        self.assertIn("persistent_count()==16",native)
+        self.assertIn("persistent_count()==persistent_frames",native)
         self.assertIn("persistent_builds()==2",native)
         self.assertIn("persistent_idles()==2",native)
         self.assertIn("OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE",win)
@@ -1837,6 +1839,25 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(attach.index("count!=expected_modes"),
                         attach.index("world_device.swapchain_probe_ready=true;"))
         self.assertNotIn("vkQueuePresentKHR(",attach)
+
+    def test_p05_persistent_long_run_is_separately_opted_in_and_bounded(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        a=module.index("uint32_t present_persistent_clear_frame(")
+        b=module.index("// P05/3 foundation: exercise the REAL Vulkan graphics queue",a)
+        frame=module[a:b]
+        self.assertIn('std::getenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE")',frame)
+        self.assertIn('std::strcmp(long_run,"1")==0',frame)
+        self.assertIn('? 32u : 16u;',frame)
+        self.assertIn('p.frame_count>=max_frames',frame)
+        self.assertIn('vkQueuePresentKHR(world_device.queue,&present)',frame)
+        self.assertNotIn('vkQueueWaitIdle(',frame)
+        self.assertIn('OGL_VULKAN_PERSISTENT_LONG_RUN_TEST_X11',native)
+        self.assertIn('const uint32_t persistent_frames=long_run ? 32u : 16u;',native)
+        self.assertIn('i<persistent_frames && frames_ok',native)
+        self.assertIn('frame<persistent_frames && frames',native)
+        self.assertIn('persistent_count()==persistent_frames',native)
+        self.assertIn('if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE")',native)
 
     def test_p05_persistent_wsi_rejects_incomplete_image_enumeration(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

@@ -103,6 +103,18 @@ Positive 20-Frame-Persistent-Clear-Probe ebenfalls
 grün. 20 Teilblöcke in PROJECT_STATUS.md.
 Kein Live-OpenSim-Rendering; P05 unverändert 2/20.
 
+10.11.2026 neue /goal-20er-Runde: opt-in native Vulkan-
+X11-Langzeit-QA mit 32 GPU-Frames pro VkSwapchain.
+Ohne `OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE=1` weiterhin
+hart 16 Frames. Persistent CLEAR 32/32, World/Depth
+32/32 inklusive Kamerabewegung, GPU-Caches, Resize und
+Detach erfolgreich; normale 16-Frame-QA unverändert grün.
+Linux-Vollbuild 388/388 Python-, 76 Grafik- und
+41/41 native Tests. SDL-Viewer-Pre-GL 20/20,
+100 Pixel und GL `STATE_LOGIN_WAIT`. Keine
+Live-OpenSim-Vulkan-Welt, P05 operativ 2/20.
+20 Teilprüfungen am Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**
