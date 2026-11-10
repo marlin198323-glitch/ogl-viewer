@@ -1707,6 +1707,27 @@ class PublicGraphicsContracts(unittest.TestCase):
             module[module.index("uint32_t render_offscreen_color_frame("):
                    module.index("// Independent opt-in camera projection")])
 
+    def test_p05_wsi_requires_complete_second_swapchain_image_enumeration(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        start=module.index("bool attach_world_xlib_window(")
+        end=module.index("// Passive WSI attach never acquires or presents",start)
+        attach=module[start:end]
+        for marker in (
+            "const uint32_t expected_count=count;",
+            "std::vector<VkImage> swapchain_images(expected_count,VK_NULL_HANDLE);",
+            "&count,swapchain_images.data())!=VK_SUCCESS",
+            "count!=expected_count",
+            "std::any_of(swapchain_images.begin(),swapchain_images.end(),",
+            "return image==VK_NULL_HANDLE;",
+            "world_device.detach_window();",
+            "world_device.swapchain_probe_ready=true;"):
+            self.assertIn(marker,attach)
+        self.assertLess(attach.index("count!=expected_count"),
+                        attach.index("world_device.swapchain_probe_ready=true;"))
+        # The GL viewer never transfers window/present ownership here.
+        self.assertNotIn("vkQueuePresentKHR(",attach)
+        self.assertNotIn("vkAcquireNextImageKHR(",attach)
+
     def test_p05_hq_16_material_vulkan_detail_and_exact_source_gates(self):
         api=(ROOT/"ogl/modules/include/ogl/ogl_rtx_api.h").read_text()
         header=(ROOT/"indra/newview/oglrtxhost.h").read_text()

@@ -17,6 +17,12 @@ mit vollständigem Linux-Build, 379 Python- und 41 nativen
 Tests bestanden. P05 weiter 2/20, Block 3 offen;
 Details am Anfang von PROJECT_STATUS.md.
 
+Aktuell 10.11.2026: Vulkan-Xlib-Swapchain-Ready-Guard
+verlangt vollständig enumerierte, nicht-null Bilder;
+380 Python-/41 native Tests und Linux-Vollbuild grün.
+P05 formal 2/20, exklusives SDL-Vulkan-Present offen.
+Details: Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

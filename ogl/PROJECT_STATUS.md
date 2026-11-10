@@ -1,10 +1,40 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 09.11.2026
+Stand: 10.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3 – WSI-Swapchain-Imagevalidierung (10.11.2026)
+
+**Umgesetzt:** Die bestehende Vulkan-Xlib-WSI-Attach-Funktion
+`attach_world_xlib_window()` in
+`ogl/modules/rtx/ogl_rtx_module.cpp` meldet die
+Swapchain erst nach vollständiger zweiter
+`vkGetSwapchainImagesKHR`-Abfrage als bereit.
+Ein Fehler/VK_INCOMPLETE, eine geänderte Bildanzahl
+oder ein Null-Imagehandle verwirft das WSI-Attach
+transaktional über `detach_window()`; OpenGL erhält
+weiter allein die Fenster-/Present-Verantwortung.
+Die neue Regression in `ogl/tests/test_public_graphics.py`
+prüft die Guard-Reihenfolge und verhindert versehentliches
+Acquire/Present innerhalb der passiven Attach-Funktion.
+Keine neuen Projektdateien erzeugt.
+
+**Prüfung:** Realer Linux-Mint-Vollviewer mit
+`bash ogl/scripts/build-test.sh` gebaut;
+**380/380 Python-Tests**, **41/41 native CTests**,
+separat **68/68 Grafiktests** erfolgreich,
+`git diff --check` sauber.
+Die Tests decken den Quellcodevertrag und vorhandene
+GPU-Testfälle ab; ein künstlich injizierter
+Treiberfehler in der zweiten Enumerationsabfrage,
+produktiv authentifizierte OpenSim-Welt und
+Windows-/macOS-Vollviewer wurden nicht abgenommen.
+**P05 operativ weiterhin 2/20.** Block 3:
+exklusives SDL-Vulkan-Window-Ownership und sichtbares
+Live-Present bleiben offen.
 
 ## P05/3–4 – HQ-Atlas-Grenzfallregression (09.11.2026)
 

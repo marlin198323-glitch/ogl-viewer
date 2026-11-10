@@ -896,6 +896,20 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         world_device.detach_window();
         return false;
     }
+    // A count-only query does not prove the swapchain exposes usable images.
+    // Verify the second enumeration before publishing WSI readiness, and
+    // reject a concurrent image-count change rather than retaining a
+    // partially enumerated or uninitialized attachment set.
+    const uint32_t expected_count=count;
+    std::vector<VkImage> swapchain_images(expected_count,VK_NULL_HANDLE);
+    if (get_images(world_device.device,world_device.swapchain,
+                   &count,swapchain_images.data())!=VK_SUCCESS ||
+        count!=expected_count ||
+        std::any_of(swapchain_images.begin(),swapchain_images.end(),
+                    [](VkImage image){ return image==VK_NULL_HANDLE; })) {
+        world_device.detach_window();
+        return false;
+    }
     world_device.swapchain_probe_ready=true;
     world_device.swapchain_format=format.format;
     world_device.swapchain_extent=extent;
