@@ -131,6 +131,19 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         return;
     }
     startup_probe_attempted=true;
+    // Both independent permissions are required for a multi-frame Vulkan
+    // takeover. A half-configured request must NOT degrade to a single
+    // Vulkan present in the SDL window; skip the probe entirely and keep GL.
+    const bool sequence_requested=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE");
+    const bool sequence_permitted=
+        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
+    if (sequence_requested!=sequence_permitted) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL pre-GL sequence permission incomplete; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -208,8 +221,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
     // run on the actual, pre-GL SDL window. Normal opt-in retains ONE frame.
     // All GPU presents finish and all WSI objects die before GL creation.
-    const bool sequence=ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE") &&
-                        ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP");
+    const bool sequence=sequence_requested && sequence_permitted;
     const bool persistent_world_requested=
         ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");
     const bool persistent_world_permission=

@@ -355,10 +355,30 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE",
             (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
+    def test_p05_sdl_pre_gl_sequence_requires_matching_optin_flags(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        begin=win.index("void ogl_probe_real_sdl_window_before_gl(")
+        end=win.index("} // namespace",begin)
+        fn=win[begin:end]
+        for marker in (
+            'const bool sequence_requested=',
+            'ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE")',
+            'const bool sequence_permitted=',
+            'ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP")',
+            'if (sequence_requested!=sequence_permitted)',
+            'P05 SDL pre-GL sequence permission incomplete; OpenGL follows.',
+            'const bool sequence=sequence_requested && sequence_permitted;'):
+            self.assertIn(marker,fn)
+        self.assertLess(fn.index('if (sequence_requested!=sequence_permitted)'),
+                        fn.index('SDL_GetWindowWMInfo(window,&wm)'))
+        self.assertLess(fn.index('if (sequence_requested!=sequence_permitted)'),
+                        fn.index('SDL_LoadObject("./lib/ogl_rtx.so")'))
+        self.assertLess(fn.index('const bool sequence=sequence_requested'),
+                        fn.index('if (sequence && count)'))
+
     def test_p05_actual_sdl_three_extent_multiframe_probe_contract(self):
         win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
-        self.assertIn('ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SEQUENCE_PROBE")',win)
-        self.assertIn('ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_FRAME_LOOP")',win)
+        self.assertIn('const bool sequence=sequence_requested && sequence_permitted;',win)
         self.assertIn('SDL_LoadFunction(library,"ogl_vulkan_world_exclusive_present_count")',win)
         self.assertIn('original_width,original_height,8',win)
         self.assertIn('frame_group(actual_width,actual_height,8)',win)

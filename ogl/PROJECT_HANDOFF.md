@@ -78,6 +78,19 @@ Pre-GL-World-/Depth-Test 20/20 Presents, 100 Pixel,
 Keine Live-OpenSim-Vulkan-Welt. P05 weiterhin 2/20.
 20 reale Teilprüfungen am Anfang PROJECT_STATUS.md.
 
+10.11.2026 /goal-20er-Runde: tatsächlicher SDL-X11-
+Pre-GL-Pfad verlangt nun BEIDE Entwicklerfreigaben für
+20 Vulkan-Frames. Einseitige Freigabe führt zum
+vollständigen Probe-Verzicht, nie zum ungewollten
+Single-Frame-Present; OpenGL startet regulär.
+386/386 Python-, 74/74 Grafik- und 41/41 native Tests,
+Linux-Vollbuild bestanden. Drei isolierte SDL-Starts:
+SDL-only und module-only je kein Present + Login-Wait;
+beide Freigaben 20/20 Frames + Login-Wait. Zwei
+native X11-16-Frame-GPU-Pfade grün. Alle 20 realen
+Teilprüfungen am Anfang PROJECT_STATUS.md.
+P05 bleibt 2/20; Live-Vulkan-OpenSim-Welt offen.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

@@ -6,6 +6,52 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 technische Schritte: SDL-20-Frame-Freigabe muss vollständig sein (10.11.2026)
+
+**Konkret umgesetzt:** Die echte SDL/X11-Viewer-Startprobe hat
+zwei getrennte Freigaben für die 20-Frame-Vulkan-Sequenz.
+Bislang konnte eine fehlende Freigabe unbemerkt in einen
+einzelnen Vulkan-Testframe zurückfallen. Jetzt bewirkt
+`sequence_requested!=sequence_permitted` einen ausdrücklichen,
+frühen Abbruch **vor Vulkan-Modulladen und Window-Attach**;
+OpenGL wird normal initialisiert. Nur beide Freigaben zusammen
+erlauben die 20 Frames. Die bestehende Vulkan-Welt ist weiter
+nur ein isolierter Entwickler-Pre-GL-Test.
+
+**20 tatsächlich ausgeführte Arbeits-/Prüfschritte:**
+
+01. `ogl-develop`, Git-Status und Ausgangscommit `28dfa2cd` geprüft.
+02. Verbindliche `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap gelesen.
+03. GitHub-CI-Status des vorherigen Pushes kontrolliert, keine unbestätigte neue CI-Freigabe angegeben.
+04. Vulkan-Persistent-Present-Fence-, Acquire- und Queue-Lifecycle auf gefährliche automatische Umschaltungen untersucht.
+05. Echten SDL-X11-Pre-GL-Present-Code samt bestehenden Fault-Gates geprüft.
+06. Die beiden separaten SDL-/Modul-Freigaben für die 20er-Sequenz identifiziert.
+07. Fehlverhalten bei nur einer Freigabe (impliziter Single-Frame-Fallback) festgestellt.
+08. Beide Flagwerte im vorhandenen SDL-Fensterpfad explizit als boolesche Freigaben erfasst.
+09. Einseitige Entwicklerfreigabe vor `SDL_GetWindowWMInfo` und Vulkan-Modulladen fail-closed abgewiesen.
+10. Technische Warnmeldung für die unvollständige Freigabe implementiert, ohne in den normalen Login einzugreifen.
+11. Bestehende 20-Frame-Bedingung auf die beiden validierten Werte umgestellt.
+12. In der bestehenden Python-Grafiktestdatei eine Guard-/Reihenfolge-Regression implementiert.
+13. Bereits vorhandenen 20-Frame-Quellcodetest auf die neue Freigabevariable angepasst.
+14. 74/74 Grafiktests und 41/41 native CTests bestanden; Vulkan-Modul neu kompiliert.
+15. Vollständigen Linux-Viewer mit `bash ogl/scripts/build-test.sh` gebaut: 386/386 Python- und 41/41 native Tests bestanden.
+16. Isolierten Xvfb-SDL-Start nur mit SDL-Sequenzflag durchgeführt: Vulkan-Test vollständig übersprungen, OpenGL `STATE_LOGIN_WAIT` erreicht.
+17. Unabhängigen Xvfb-SDL-Start nur mit Modul-Frame-Loop-Flag durchgeführt: ebenfalls kein Vulkan-Present, OpenGL `STATE_LOGIN_WAIT` erreicht.
+18. Dritten isolierten SDL-Start mit beiden Sequenzflags und Persistent-Clear-Freigabe geprüft: 20/20 Vulkan-Frames, verifizierte Pixel und danach OpenGL `STATE_LOGIN_WAIT`.
+19. Native X11-Persistent-Clear-GPU-QA mit 16 Frames, Recreate und Teardown bestanden.
+20. Native X11-World-/Depth-GPU-QA mit 16 Frames, Kamera und Resize bestanden; `git diff --check` ohne Beanstandung.
+
+**Abgrenzung:** Die drei SDL-Tests liefen in separaten temporären
+Profilen und wurden nach dem Pre-Login-Test kontrolliert mit
+Zeitlimit beendet (`timeout` 124 ist kein regulärer Shutdown).
+Es wurde keine authentifizierte OpenSim-Welt betreten und kein
+in-world Vulkan-Renderer aktiviert. Keine Nutzerprofile oder
+Secrets geändert, keine neuen Quellprojektdateien angelegt und
+keine ungesicherten Altbestände gelöscht. Windows/macOS-
+Vollviewer nicht ausgeführt. **P05 operativ unverändert 2/20;
+Block 3 bleibt bis zur dauerhaften sicheren SDL-Vulkan-
+In-World-Fensterübernahme offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: kohärente Vulkan-Surface-Extents und Swapchain-Bildgrenzen (10.11.2026)
 
 **Änderung:** `attach_world_xlib_window()` verweigert
