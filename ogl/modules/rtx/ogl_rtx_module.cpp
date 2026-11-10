@@ -817,16 +817,20 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
     if (get_formats(world_device.physical_device,world_device.surface,
                     &count,formats.data())!=VK_SUCCESS ||
         count!=expected_formats ||
+        // VK_FORMAT_UNDEFINED is legal ONLY for a single surface-format
+        // entry: it asks the application to select its own compatible
+        // format. It must not be chosen as a concrete swapchain format.
         std::any_of(formats.begin(),formats.end(),
-            [](const VkSurfaceFormatKHR& entry) {
+            [expected_formats](const VkSurfaceFormatKHR& entry) {
                 return entry.format==VK_FORMAT_UNDEFINED &&
-                       entry.colorSpace!=VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+                    (expected_formats!=1 ||
+                     entry.colorSpace!=VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
             })) {
         world_device.detach_window();
         return false;
     }
     VkSurfaceFormatKHR format=formats.front();
-    if (count==1 && format.format==VK_FORMAT_UNDEFINED)
+    if (expected_formats==1 && format.format==VK_FORMAT_UNDEFINED)
         format={VK_FORMAT_B8G8R8A8_UNORM,VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
     else for (const auto& entry : formats) {
         if (entry.format==VK_FORMAT_B8G8R8A8_UNORM &&

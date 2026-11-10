@@ -6,6 +6,52 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: Surface-Format-Validierung, SDL-World-Pre-GL und fehlender ICD (10.11.2026)
+
+**Ergebnis:** Die bisherige Vulkan-X11-Swapchain akzeptierte
+`VK_FORMAT_UNDEFINED` in einer Liste mit mehreren Formaten,
+obwohl der Vulkan-Sonderfall nur bei genau einem gemeldeten
+Surface-Format zulässig ist. Der vorhandene Attach-Pfad
+verwirft nun einen solchen widersprüchlichen Formatdatensatz
+vor `vkCreateSwapchainKHR`. Der legale Single-Format-Fall
+bleibt mit einer expliziten B8G8R8A8/SRGB-Auswahl erhalten.
+Der produktive Renderer bleibt OpenGL.
+
+**20 konkret ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. Sauberen `ogl-develop` und Ausgangscommit `257dabf2` geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap gelesen.
+03. GitHub-CI-Status des letzten Branch-Stands geprüft; laufender Workflow noch nicht als erfolgreich bezeichnet.
+04. Vulkan-Device-/Swapchain- und persistenten Frame-Lifecycle untersucht.
+05. Den vollständigen SDL-X11-Pre-GL-World-/Depth-Present-Codepfad und die Entwicklerfreigaben geprüft.
+06. Ein echtes isoliertes SDL-X11-20-Frame-World-/Depth-Szenario mit allen erforderlichen Opt-ins ausgeführt.
+07. Dabei 20/20 tatsächlich präsentierte GPU-Frames mit Indexed-Geometry/Camera/Depth verifiziert.
+08. Die 100/100 sichtbaren RGB-Pixelproben und drei unterschiedlichen Fenstergrößen bestätigt.
+09. Sicheren Vulkan-Abbau vor GL-Kontext und danach den OpenGL-Login-Wartezustand belegt.
+10. Format-Auswahllogik auf die Vulkan-Spezialregel `VK_FORMAT_UNDEFINED` hin untersucht.
+11. Fehlerfall `VK_FORMAT_UNDEFINED` bei mehr als einem Surface-Format erkannt.
+12. Im vorhandenen Vulkan-C++-Modul Multi-Format-Undefined-Einträge fail-closed ausgeschlossen.
+13. Legale einmalige Undefined-Format-Abfrage mit B8G8R8A8_UNORM/SRGB-Auswahl erhalten.
+14. Regressionstest in bestehender `ogl/tests/test_public_graphics.py` für beide Regeln ergänzt.
+15. Modul erfolgreich neu gebaut; 72/72 Python-Grafiktests und 41/41 native CTests bestanden.
+16. Reale X11-Clear-/Persistent-WSI-GPU-Tests mit 16 Frames, Resize/Recreate und Teardown bestanden.
+17. Reale X11-World-/Depth-GPU-Tests mit 16 Frames, Kameraänderung und Resize bestanden.
+18. Vollständigen Linux-Viewer mit `bash ogl/scripts/build-test.sh` gebaut; 384/384 Python- und 41/41 native Tests bestanden.
+19. Aktualisierten SDL-Viewer erneut vor GL mit 20/20 GPU-World-/Depth-Presents, 100 Pixelproben, 3 Fenstergrößen und anschließendem OpenGL-Login-Wartezustand verifiziert.
+20. Unabhängigen SDL-X11-Test mit nicht vorhandenem Vulkan-ICD ausgeführt: Vulkan 0/1 und `surface=unavailable`, danach dennoch `STATE_LOGIN_WAIT` unter OpenGL; `git diff --check` bestanden.
+
+**Grenzen:** Die 20 sichtbaren GPU-World-/Depth-Frames benutzen
+synthetische Szenengeometrie vor GL-Kontexterzeugung. Sie sind
+kein authentifizierter Live-OpenSim-Renderer und keine dauerhafte
+Vulkan-In-World-Fensterübernahme. Die negativen Formatlisten
+wurden über Quellcode-Regressionen, nicht über manipulierte
+Treiberantworten geprüft. Test-Viewer sind isolierte temporäre
+Prozesse und wurden per Zeitlimit beendet; kein regulärer
+Shutdown-Nachweis. Keine Nutzerprofile/Secrets geändert, keine
+neuen Quellprojektdateien angelegt, keine ungesicherten
+Altdateien gelöscht; Windows/macOS ungetestet.
+**Operativer P05-Zähler bleibt 2/20: Block 3 ist offen.**
+
 ## P05/3 – /goal 20 Entwicklungs- und QA-Teilblöcke: Vulkan-WSI-Capabilities und echtes SDL-Pre-GL-Present (10.11.2026)
 
 **Ergebnis:** Die bestehende Linux-X11-Vulkan-Swapchain-Erstellung

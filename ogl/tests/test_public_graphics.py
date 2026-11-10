@@ -1707,6 +1707,24 @@ class PublicGraphicsContracts(unittest.TestCase):
             module[module.index("uint32_t render_offscreen_color_frame("):
                    module.index("// Independent opt-in camera projection")])
 
+    def test_p05_xlib_wsi_rejects_undefined_in_multi_format_surface(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        begin=module.index("bool attach_world_xlib_window(")
+        end=module.index("// Passive WSI attach never acquires or presents",begin)
+        attach=module[begin:end]
+        for expected in (
+            "[expected_formats](const VkSurfaceFormatKHR& entry)",
+            "entry.format==VK_FORMAT_UNDEFINED &&",
+            "(expected_formats!=1 ||",
+            "entry.colorSpace!=VK_COLOR_SPACE_SRGB_NONLINEAR_KHR",
+            "if (expected_formats==1 && format.format==VK_FORMAT_UNDEFINED)",
+            "format={VK_FORMAT_B8G8R8A8_UNORM,VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};"):
+            self.assertIn(expected,attach)
+        self.assertLess(attach.index("expected_formats!=1"),
+                        attach.index("VkSurfaceFormatKHR format=formats.front();"))
+        self.assertLess(attach.index("VkSurfaceFormatKHR format=formats.front();"),
+                        attach.index("VkSwapchainCreateInfoKHR swap{"))
+
     def test_p05_xlib_wsi_rejects_invalid_surface_extents_and_transforms(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         begin=module.index("bool attach_world_xlib_window(")

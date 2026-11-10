@@ -53,6 +53,19 @@ Timeout beendet, kein regulärer Quit-Nachweis.
 P05 weiter 2/20, Live-Vulkan-Welt offen; 20 Teilblöcke
 am Anfang von PROJECT_STATUS.md.
 
+10.11.2026 neue /goal-20er-Teilrunde: Vulkan-Xlib-
+Surface-Formate verweigern `VK_FORMAT_UNDEFINED` in
+Mehrfachlisten, legaler Einzelfall bleibt erhalten.
+384 Python-/41 native Tests, 72 Grafiktests grün.
+Native 16-Frame-X11-GPU-Regressionsläufe bestanden;
+echter isolierter SDL-X11-Pre-GL-World-/Depth-Test
+20/20 Frames, 100 Pixelproben, drei Fenstergrößen
+bestanden – vor und nach Neu-Build. Fehlender Vulkan-ICD:
+0/1 Vulkan und OpenGL `STATE_LOGIN_WAIT` nachgewiesen.
+P05 weiterhin 2/20; kein authentifiziertes OpenSim-
+Vulkan-In-World-Rendering. Alle 20 Teilblöcke am Anfang
+von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**
