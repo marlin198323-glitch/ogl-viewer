@@ -2677,12 +2677,17 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             if (vkGetSwapchainImagesKHR(world_device.device,
                     world_device.swapchain,&count,nullptr)!=VK_SUCCESS ||
                 count<2 || count>16) return false;
-            std::vector<VkImage> images(count);
+            // The active renderer must use the same verified image set as
+            // passive WSI attach: count-only success is insufficient.
+            const uint32_t expected_count=count;
+            std::vector<VkImage> images(expected_count,VK_NULL_HANDLE);
             if (vkGetSwapchainImagesKHR(world_device.device,
                     world_device.swapchain,&count,images.data())!=VK_SUCCESS ||
-                count<2 || count>16) return false;
-            images.resize(count);
-            p.image_count=count;
+                count!=expected_count ||
+                std::any_of(images.begin(),images.end(),
+                    [](VkImage image){ return image==VK_NULL_HANDLE; }))
+                return false;
+            p.image_count=expected_count;
             p.world_depth=world;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,

@@ -1707,6 +1707,32 @@ class PublicGraphicsContracts(unittest.TestCase):
             module[module.index("uint32_t render_offscreen_color_frame("):
                    module.index("// Independent opt-in camera projection")])
 
+    def test_p05_persistent_wsi_rejects_incomplete_image_enumeration(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        begin=module.index("uint32_t present_persistent_clear_frame(")
+        end=module.index("// P05/3 foundation: exercise the REAL Vulkan graphics queue",begin)
+        frame=module[begin:end]
+        required=(
+            "const uint32_t expected_count=count;",
+            "std::vector<VkImage> images(expected_count,VK_NULL_HANDLE);",
+            "&count,images.data())!=VK_SUCCESS",
+            "count!=expected_count",
+            "std::any_of(images.begin(),images.end(),",
+            "return image==VK_NULL_HANDLE;",
+            "p.image_count=expected_count;",
+            "world_device.release_persistent_frames();",
+            "vkAcquireNextImageKHR(world_device.device,",
+            "vkQueuePresentKHR(world_device.queue,&present)"
+        )
+        for marker in required:
+            self.assertIn(marker,frame)
+        self.assertLess(frame.index("count!=expected_count"),
+                        frame.index("p.image_count=expected_count;"))
+        self.assertLess(frame.index("p.image_count=expected_count;"),
+                        frame.index("vkAcquireNextImageKHR(world_device.device,"))
+        self.assertIn("if (!init()) {",frame)
+        self.assertIn("return 0;",frame)
+
     def test_p05_wsi_requires_complete_second_swapchain_image_enumeration(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         start=module.index("bool attach_world_xlib_window(")

@@ -23,6 +23,17 @@ verlangt vollständig enumerierte, nicht-null Bilder;
 P05 formal 2/20, exklusives SDL-Vulkan-Present offen.
 Details: Anfang PROJECT_STATUS.md.
 
+10.11.2026 /goal-20er-Runde: persistenter Vulkan-X11-
+Present-Pfad validiert jetzt die zweite Swapchain-
+Image-Enumeration auf exakt stabile Anzahl und
+vollständige Nichtnull-Handles. 20 konkrete technische
+Entwicklungs-/Prüfschritte dokumentiert; 381 Python-/
+41 native Tests, 69 Grafiktests, reale 16-Frame-X11-
+Clear- und World/Depth-Present-Szenarien grün.
+**P05 weiterhin 2/20**, exklusiver OpenSim-SDL-
+Vulkan-Renderer nicht freigegeben. Details am Anfang
+von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

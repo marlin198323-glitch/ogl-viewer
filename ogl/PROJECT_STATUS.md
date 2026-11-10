@@ -6,6 +6,50 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 technische Entwicklungs-/QA-Teilblöcke: persistente WSI-Imagevalidierung (10.11.2026)
+
+**Ziel und Grenze:** Das bereits vorhandene passive Xlib-WSI-Attach
+prüft Swapchain-Image-Handles; der separate, tatsächlich Frames
+präsentierende persistente X11-Vulkan-Pfad musste denselben
+fail-closed-Vertrag erhalten. Diese 20 Teilblöcke betreffen
+**P05/3 als technische Vorarbeit**, nicht 20 erledigte operative
+Phasenblöcke. Reales SDL-/OpenSim-Vulkan-Window-Ownership bleibt offen.
+
+**20 ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. Arbeitsbranch `ogl-develop`, sauberen Arbeitsbaum und Ausgangscommit `5766501f` geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und aktive `/goal`-Roadmap erneut gelesen.
+03. Die vorhandene Xlib-WSI-Attach-Validierung auf unveränderte Bildanzahl und gültige Handles untersucht.
+04. Vulkan-Persistent-Present-Initialisierung bis zur Image-Enumeration analysiert.
+05. Fehlenden Schutz gegen zwischen beiden Abfragen geänderte Swapchain-Bildanzahl lokalisiert.
+06. Fehlenden Schutz gegen nullwertige `VkImage`-Handles im persistenten Bildarray lokalisiert.
+07. Im bestehenden Vulkan-Modul die erwartete Bildanzahl nach dem ersten API-Aufruf eingefroren.
+08. Zweite Image-Abfrage mit explizit nullinitialisiertem `VkImage`-Array verbunden.
+09. Jede Abweichung der zurückgegebenen tatsächlichen Bildanzahl fail-closed abgewiesen.
+10. Null-Image-Handles vor ImageView-/Framebuffer-Erzeugung fail-closed abgewiesen.
+11. `p.image_count` ausschließlich nach vollständiger Image-Enumeration aktualisiert.
+12. Bestehenden transaktionalen Fehlschlag- und GPU-Ressourcenfreigabepfad beibehalten.
+13. Keine WSI-/Present-Aktivierung im produktiven OpenGL-Viewer vorgenommen.
+14. In bestehender `test_public_graphics.py` Regressionen für Guards und deren Reihenfolge ergänzt.
+15. Vulkan-Modul als native C++-Shared-Library erfolgreich neu kompiliert.
+16. 69/69 gezielte Python-Grafiktests und 41/41 native CTests bestanden.
+17. Echtes isoliertes X11-Vulkan-Clear-Present: 16 GPU-Frames, Frame-Limit und zwei Resizes bestanden.
+18. Persistentes Clear-Present: ein Cache-Aufbau, Wiederverwendung, Resize/Recreate und Teardown-Queue-Idle bestanden.
+19. Echtes isoliertes X11-Vulkan-World-/Depth-Present: 16 GPU-Frames, Kamerabewegung, unverändertes Mesh, Resize/Recreate bestanden.
+20. Vollständigen Linux-Mint-Viewer erfolgreich gebaut und 381/381 Python- sowie 41/41 native Tests bestanden; `git diff --check` geprüft.
+
+**Dateiregel:** Nur bestehende Quell-/Test- und Dokumentationsdateien
+aktualisiert; keine neuen Repository-Dateien, kein Zugriff auf
+Benutzerprofile oder Anmeldedaten. Keine nachweislich unbenutzten
+Altdateien im betroffenen Pfad gefunden und daher nichts gelöscht.
+
+**Nicht nachgewiesen:** Injektion eines inkonsistenten realen
+Vulkan-Treiberrückgabewerts, Live-Viewer-Fensterübernahme unter
+SDL, authentifizierte OpenSim-Vulkan-Welt, Windows/macOS-Vollviewer.
+Die vorhandenen GPU-Präsentationen laufen in separaten
+X11-QA-Testfenstern. **P05 bleibt operativ 2/20,
+Block 3 offen.**
+
 ## P05/3 – WSI-Swapchain-Imagevalidierung (10.11.2026)
 
 **Umgesetzt:** Die bestehende Vulkan-Xlib-WSI-Attach-Funktion
