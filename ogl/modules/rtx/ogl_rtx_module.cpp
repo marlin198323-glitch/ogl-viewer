@@ -812,9 +812,16 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         world_device.detach_window();
         return false;
     }
-    std::vector<VkSurfaceFormatKHR> formats(count);
+    const uint32_t expected_formats=count;
+    std::vector<VkSurfaceFormatKHR> formats(expected_formats);
     if (get_formats(world_device.physical_device,world_device.surface,
-                    &count,formats.data())!=VK_SUCCESS || count==0) {
+                    &count,formats.data())!=VK_SUCCESS ||
+        count!=expected_formats ||
+        std::any_of(formats.begin(),formats.end(),
+            [](const VkSurfaceFormatKHR& entry) {
+                return entry.format==VK_FORMAT_UNDEFINED &&
+                       entry.colorSpace!=VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+            })) {
         world_device.detach_window();
         return false;
     }
@@ -833,9 +840,11 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         world_device.detach_window();
         return false;
     }
-    std::vector<VkPresentModeKHR> modes(count);
+    const uint32_t expected_modes=count;
+    std::vector<VkPresentModeKHR> modes(expected_modes);
     if (get_modes(world_device.physical_device,world_device.surface,
                   &count,modes.data())!=VK_SUCCESS ||
+        count!=expected_modes ||
         std::find(modes.begin(),modes.end(),VK_PRESENT_MODE_FIFO_KHR)==modes.end()) {
         world_device.detach_window();
         return false;

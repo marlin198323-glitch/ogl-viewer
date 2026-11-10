@@ -34,6 +34,14 @@ Clear- und World/Depth-Present-Szenarien grün.
 Vulkan-Renderer nicht freigegeben. Details am Anfang
 von PROJECT_STATUS.md.
 
+10.11.2026 weitere /goal-20er-Teilrunde: Linux-Xlib-
+Vulkan-WSI prüft jetzt auch unveränderte zweite
+Surface-Format-/FIFO-Present-Mode-Enumerationen.
+382/382 Python-, 41/41 native Tests, 70/70 Grafiktests,
+echte 16-Frame-X11-Clear- und World-/Depth-Proben
+bestanden. Kein SDL-Live-Vulkan-Renderer, P05 2/20.
+20 Teilblöcke am Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

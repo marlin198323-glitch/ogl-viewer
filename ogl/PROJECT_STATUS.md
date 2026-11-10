@@ -6,6 +6,51 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 technische Teilblöcke: stabile Xlib-Surface-Fähigkeiten (10.11.2026)
+
+**Ergebnis:** Die bestehende passive Linux-X11-WSI-Erstellung
+verlangt nun vollständig konsistente Vulkan-Enumerationen auch
+für `VkSurfaceFormatKHR` und `VkPresentModeKHR`. In der
+zweistufigen Vulkan-Abfrage konnte sich die Anzahl zwischen
+Count- und Datenaufruf ändern; dann drohten die Verarbeitung
+unvollständiger Array-Einträge oder ungültige Formatwahl.
+Der Attach-Pfad bricht nun bei `VK_INCOMPLETE`, veränderter
+Anzahl oder unzulässiger Undefined-Format-/Farbraum-Kombination
+vor dem Erzeugen der Swapchain fail-closed ab. Keine
+User-Profile oder Zugangsdaten angefasst.
+
+**20 tatsächlich bearbeitete Entwicklungs- und Prüfschritte:**
+
+01. Sauberen lokalen Branch `ogl-develop` und Ausgangscommit `85c75836` geprüft.
+02. Repository-Anweisungen, Handoff, Status und P05-Hauptroadmap gelesen.
+03. GitHub-CI-Status des vorherigen Commits abgefragt (noch queued zum Prüfzeitpunkt).
+04. Xlib-WSI-Oberflächen-/Geräte- und Queue-Vertrag geprüft.
+05. Surface-Format-Count- und Datenabfrage mit ihren Abbruchbedingungen geprüft.
+06. Fehlende Gleichheit des zweiten Format-Counts erkannt.
+07. Zweiten Format-Count gegenüber dem ersten unveränderlich abgesichert.
+08. Undefined-Format-/Farbraum-Kombinationen vor der Formatwahl überprüft.
+09. FIFO-Present-Mode-Count-/Datenabfrage geprüft.
+10. Fehlende Gleichheit des zweiten Present-Mode-Counts erkannt.
+11. Zweiten Present-Mode-Count gegenüber dem ersten abgesichert.
+12. Abbruch und `detach_window()` bei inkonsistenten Fähigkeiten beibehalten.
+13. Readiness-Flag erst nach verifizierter Format-/Present-/Imageabfrage erhalten.
+14. Eine neue Python-Grafikregression in der bestehenden Testdatei ergänzt.
+15. Regression prüft Count-Guards vor Formatnutzung und WSI-Ready-Markierung.
+16. Vulkan-C++-Modul erfolgreich neu kompiliert; 70/70 Grafiktests bestanden.
+17. Native Gesamtsuite separat geprüft: 41/41 CTests bestanden.
+18. Echte Vulkan-X11-Clear-/Persistent-GPU-QA: 16 Frames, Resize/Recreate, Teardown bestanden.
+19. Echte Vulkan-X11-World-/Depth-GPU-QA: 16 Frames, Kameraänderung und Resize bestanden.
+20. Linux-Vollviewer mit `bash ogl/scripts/build-test.sh` gebaut: 382/382 Python- und 41/41 native Tests grün; `git diff --check` ohne Beanstandung.
+
+**Grenzen:** Die neuen Fehlerfälle sind durch Quellcode- und
+Regressionstests, nicht durch künstlich injizierte Treiberantworten
+verifiziert. Die GPU-Nachweise nutzen isolierte X11-Testfenster,
+keine authentifizierte OpenSim-Welt. Windows-/macOS-Vollviewer
+nicht geprüft. Keine nachweislich redundanten Quellressourcen
+gefunden; keine ungesicherten Löschungen vorgenommen.
+**Operativer P05-Stand bleibt 2/20; Block 3 mit echter
+SDL-Viewer-Fensterübernahme und Live-Vulkan-Present offen.**
+
 ## P05/3 – /goal 20 technische Entwicklungs-/QA-Teilblöcke: persistente WSI-Imagevalidierung (10.11.2026)
 
 **Ziel und Grenze:** Das bereits vorhandene passive Xlib-WSI-Attach
