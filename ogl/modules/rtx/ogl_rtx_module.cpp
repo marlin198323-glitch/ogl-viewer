@@ -153,6 +153,7 @@ struct OglPersistentClearFrames {
     std::array<VkFence,2> submit_fences{};
     std::array<bool,2> submit_pending{};
     uint32_t frame_count = 0;
+    uint32_t max_frames = 16; // frozen for this swapchain attachment
     uint32_t image_count = 0;
     bool submitted_any = false;
     bool blocked = false;
@@ -2644,10 +2645,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     // A separately enabled native GPU acceptance run exercises 32 frames
     // on ONE VkSwapchain to expose fence/semaphore reuse beyond the usual
     // 16-frame QA ceiling. The normal pre-GL path remains capped at 16.
-    const char* long_run=std::getenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
-    const uint32_t max_frames=long_run && std::strcmp(long_run,"1")==0
-        ? 32u : 16u;
-    if (p.blocked || p.frame_count>=max_frames ||
+    if (p.blocked || (p.initialized && p.frame_count>=p.max_frames) ||
         (p.initialized && p.world_depth!=world)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
@@ -3023,10 +3021,18 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             world_device.release_persistent_frames();
             return 0;
         }
+        // Only the native X11 stress harness can request 32 frames.
+        // Freeze that decision once per initialized swapchain, so changing
+        // process flags cannot extend a live presentation sequence.
+        const char* long_run=std::getenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
+        const char* native_test=std::getenv("OGL_VULKAN_PRESENT_TEST_X11");
+        p.max_frames=long_run && std::strcmp(long_run,"1")==0 &&
+            native_test && std::strcmp(native_test,"1")==0 ? 32u : 16u;
         p.initialized=true;
         ++world_device.persistent_builds;
     }
 
+    if (p.frame_count>=p.max_frames) return 0;
     const uint32_t slot=p.frame_count%2u;
     const VkFence slot_fence=p.submit_fences[slot];
     // Reuse a CPU frame slot only after its prior GPU submit completed.

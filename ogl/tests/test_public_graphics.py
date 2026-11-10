@@ -736,8 +736,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         b=module.index("// P05/3 foundation: exercise the REAL Vulkan graphics queue",a)
         fn=module[a:b]
         self.assertIn('OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE',fn)
-        self.assertIn("p.frame_count>=max_frames",fn)
+        self.assertIn("p.frame_count>=p.max_frames",fn)
         self.assertIn('OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE',fn)
+        self.assertIn('OGL_VULKAN_PRESENT_TEST_X11',fn)
         self.assertIn('? 32u : 16u;',fn)
         self.assertIn("p.presented_by_image[image_index]",fn)
         self.assertIn("p.image_in_flight[image_index]",fn)
@@ -1840,6 +1841,33 @@ class PublicGraphicsContracts(unittest.TestCase):
                         attach.index("world_device.swapchain_probe_ready=true;"))
         self.assertNotIn("vkQueuePresentKHR(",attach)
 
+    def test_p05_native_frame_limit_survives_mid_swapchain_flag_changes(self):
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn('for (uint32_t i=0;i<persistent_frames && frames_ok;++i) {',native)
+        self.assertIn('for (uint32_t frame=0;frame<persistent_frames && frames;++frame) {',native)
+        self.assertIn('if (i==8) {',native)
+        self.assertIn('if (frame==8) {',native)
+        self.assertIn('setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1)',native)
+        self.assertIn('unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE")',native)
+        self.assertIn('persistent_count()==persistent_frames',native)
+        self.assertIn('persistent_clear(1)==0',native)
+
+    def test_p05_persistent_frame_ceiling_is_frozen_per_swapchain(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        structure=module[module.index("struct OglPersistentClearFrames {"):
+                         module.index("struct OglOffscreenWorldCache {")]
+        self.assertIn('uint32_t max_frames = 16;',structure)
+        begin=module.index('uint32_t present_persistent_clear_frame(')
+        end=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',begin)
+        frame=module[begin:end]
+        self.assertIn('p.initialized && p.frame_count>=p.max_frames',frame)
+        self.assertIn('p.frame_count>=p.max_frames',frame)
+        self.assertIn('p.max_frames=long_run',frame)
+        self.assertIn('native_test && std::strcmp(native_test,"1")==0 ? 32u : 16u;',frame)
+        self.assertLess(frame.index('p.max_frames=long_run'),frame.index('p.initialized=true;'))
+        self.assertLess(frame.index('p.frame_count>=p.max_frames) return 0;'),
+                        frame.index('vkAcquireNextImageKHR(world_device.device,'))
+
     def test_p05_persistent_long_run_is_separately_opted_in_and_bounded(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
@@ -1849,7 +1877,12 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('std::getenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE")',frame)
         self.assertIn('std::strcmp(long_run,"1")==0',frame)
         self.assertIn('? 32u : 16u;',frame)
-        self.assertIn('p.frame_count>=max_frames',frame)
+        self.assertIn('p.frame_count>=p.max_frames',frame)
+        self.assertIn('p.max_frames=long_run',frame)
+        self.assertIn('std::getenv("OGL_VULKAN_PRESENT_TEST_X11")',frame)
+        self.assertIn('p.initialized=true;',frame)
+        self.assertLess(frame.index('p.max_frames=long_run'),
+                        frame.index('p.initialized=true;'))
         self.assertIn('vkQueuePresentKHR(world_device.queue,&present)',frame)
         self.assertNotIn('vkQueueWaitIdle(',frame)
         self.assertIn('OGL_VULKAN_PERSISTENT_LONG_RUN_TEST_X11',native)

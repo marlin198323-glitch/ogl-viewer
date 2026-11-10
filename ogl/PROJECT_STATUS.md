@@ -6,6 +6,57 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: unveränderliches GPU-Frame-Budget je VkSwapchain (10.11.2026)
+
+**Umgesetzt:** Der bestehende Long-Run-Entwickler-Modus
+für persistente Vulkan-GPU-Presents las seine 16/32-
+Frame-Grenze bisher bei jedem Frame erneut aus der
+Prozessumgebung. Damit war die Grenze während einer
+laufenden Swapchain nachträglich veränderbar. Ab jetzt
+wird `max_frames` beim erfolgreichen ersten GPU-Frame
+für die gesamte Swapchain-Anbindung einmal festgelegt;
+der Wert übersteht Änderungen von Entwicklerflags und
+wird erst beim vollständigen Detach zurückgesetzt.
+Das höhere 32er-Budget erfordert gleichzeitig
+`OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE=1` und den
+nativen X11-Akzeptanztest `OGL_VULKAN_PRESENT_TEST_X11=1`.
+Der normale SDL-Pre-GL-Viewer kann dadurch nicht allein
+durch ein Long-Run-Flag die 16er-Grenze verlängern.
+
+**20 tatsächlich ausgeführte Teilblöcke:**
+
+01. Sauberen `ogl-develop`-Git-Stand und Ausgangscommit `d45ee366` geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und aktive P05-Roadmap erneut gelesen.
+03. GitHub-CI-Status geprüft; vorheriger Commit `d45ee366` auf SUCCESS bestätigt.
+04. Vulkan-Persistent-Present-Swapchain und zwei Submit-Slots untersucht.
+05. Wiederholtes Lesen der Long-Run-Freigabe bei jedem Present als unerwünschten variablen Zustand identifiziert.
+06. Das zur Swapchain gehörende `OglPersistentClearFrames` um ein dauerhaftes `max_frames`-Feld mit Default 16 erweitert.
+07. Framegrenze vor weiterer GPU-Arbeit anhand des eingefrorenen Budgets geprüft.
+08. Initialisierung fixiert das Framebudget beim ersten erfolgreichen Aufbau der persistenten GPU-Ressourcen.
+09. 32er-Budget nur bei beiden nativen Entwickler-/X11-Testfreigaben zugelassen.
+10. Automatisches Zurücksetzen des Budgets über die vorhandene vollständige `persistent={}`-Freigabe beibehalten.
+11. Bestehenden Grafikvertrag auf per-Swapchain-Budget statt Live-Umgebungsabfrage aktualisiert.
+12. Fokussierten Python-Test für initialisierte Grenzen, Native-Gate und Reihenfolge ergänzt.
+13. Native X11-Clear-QA so erweitert, dass sie nach dem achten Frame das Long-Run-Flag absichtlich umschaltet.
+14. Native X11-World-/Depth-QA ebenso um Flagwechsel beim achten Frame ergänzt, gleichzeitig mit Kamerabewegung.
+15. Die Testumgebung nach jeder Anbindung wieder in den ursprünglichen Zustand versetzt; eigener Python-Regressionstest ergänzt.
+16. 78/78 Python-Grafiktests und 41/41 native CTests bestanden, C++-Module erfolgreich gebaut.
+17. Native Echt-GPU-Clear-Presents ohne und mit Long-Run bei wechselndem Opt-in bestanden: 16/16 und 32/32 Frames.
+18. Native Echt-GPU-World-/Depth-Presents mit Kamerabewegung, Tiefentest und Flagwechsel bestanden: 16/16 und 32/32 Frames.
+19. Vollständigen Linux-Viewer erfolgreich gebaut: 390/390 Python-Tests und 41/41 native CTests bestanden; `git diff --check` sauber.
+20. Isolierten echten SDL/X11-Viewer mit Long-Run-Flag, aber ohne native Testfreigabe geprüft: 20/20 Pre-GL-Frames über drei Fenstergrößen, 100/100 sichtbare Pixel, danach OpenGL `STATE_LOGIN_WAIT`; die separate Long-Run-Grenze bleibt nicht für den SDL-Viewer freigeschaltet.
+
+**Grenzen:** Native Vulkan-X11-Proben sind isolierte
+synthetische GPU-Szenarien, keine authentifizierte
+OpenSim-In-World-Darstellung. Der SDL-Pre-GL-Test ist
+kein dauerhafter Vulkan-Renderer; er wurde nach dem
+Login-Wartezustand per Test-Timeout beendet (Exit 124,
+kein regulärer Quit). Keine manipulierten Treiberantworten
+oder Windows-/macOS-Vollviewer-Starts. Keine neuen
+Projektdateien, Userprofile, Secrets oder gefährlichen
+Altdateilöschungen. **P05 operativ bleibt 2/20;
+Block 3 Live-Vulkan-Weltfensterübernahme offen.**
+
 ## P05/3 – /goal 20 Entwicklungs-/QA-Teilblöcke: 32 persistente Vulkan-GPU-Frames (10.11.2026)
 
 **Umgesetzt:** Der persistente Vulkan-X11-GPU-Pfad bleibt ohne

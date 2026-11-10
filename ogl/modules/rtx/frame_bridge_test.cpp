@@ -1303,6 +1303,15 @@ int main(int argc, char** argv) {
                 return false;
             };
             for (uint32_t i=0;i<persistent_frames && frames_ok;++i) {
+                // Flip the opt-in AFTER the first eight GPU presents.
+                // The already initialized swapchain must keep its limit:
+                // 16 cannot grow to 32 and 32 cannot shrink to 16.
+                if (i==8) {
+                    if (long_run)
+                        unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
+                    else
+                        setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
+                }
                 frames_ok=persistent_clear(1)==1 &&
                     persistent_count()==i+1 &&
                     persistent_builds()==1 &&
@@ -1314,6 +1323,10 @@ int main(int argc, char** argv) {
                 persistent_count()==persistent_frames && persistent_builds()==1 &&
                 persistent_idles()==0;
             window_detach();
+            if (long_run)
+                setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
+            else
+                unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             persistent_ok=frames_ok && persistent_count()==0 &&
                 persistent_releases()==1 && persistent_idles()==1;
             XResizeWindow(display,window,480,300);
@@ -1414,6 +1427,12 @@ int main(int argc, char** argv) {
             bool frames=inputs && attach_world;
             for (uint32_t frame=0;frame<persistent_frames && frames;++frame) {
                 if (frame==8) {
+                    // Exercise the same immutable cap with GPU world/depth
+                    // submissions and a camera motion on this frame.
+                    if (long_run)
+                        unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
+                    else
+                        setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
                     camera.camera_position[1]=32.f;
                     persistent_world_moved=world_camera(&camera)==1 &&
                         world_gpu_count()==2 && live_inputs()==1;
@@ -1448,6 +1467,10 @@ int main(int argc, char** argv) {
             persistent_world_ok=frames && persistent_clear(1)==0 &&
                 persistent_count()==persistent_frames;
             window_detach();
+            if (long_run)
+                setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
+            else
+                unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             persistent_world_ok=persistent_world_ok &&
                 persistent_idles()==idles_before+1 &&
                 persistent_count()==0;

@@ -115,6 +115,19 @@ Linux-Vollbuild 388/388 Python-, 76 Grafik- und
 Live-OpenSim-Vulkan-Welt, P05 operativ 2/20.
 20 Teilprüfungen am Anfang PROJECT_STATUS.md.
 
+10.11.2026 weitere /goal-20er-Runde: persistentes
+Vulkan-GPU-Framebudget wird je Swapchain beim ersten
+Aufbau auf 16 bzw. 32 festgeschrieben. 32 Frames nur
+bei Long-Run- UND nativer X11-Testfreigabe. Vier echte
+native GPU-Szenarien mit mitten im Lauf wechselnder
+Freigabe bestehen: Clear/World-Depth je 16/16 und
+32/32 Frames, Kamera, Resize, Cache/Detach.
+Linux-Vollviewer 390/390 Python-, 41/41 native und
+78/78 Grafiktests grün. Isolierter SDL-Pre-GL-Viewer
+20/20 Frames, 100 Pixel, drei Extents, GL Login-Wait.
+20 Schritte am Anfang PROJECT_STATUS.md; P05 bleibt
+2/20, echte OpenSim-In-World-Vulkan-Engine offen.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**
