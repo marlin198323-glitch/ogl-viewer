@@ -6,6 +6,50 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: SDL-Vulkan-Preflight aller Probe-Berechtigungen (10.11.2026)
+
+**Umgesetzt:** Der bestehende SDL/X11-Startpfad validiert jetzt auch
+die Entwickler-Berechtigungspaare für Depth, Persistent-Clear,
+Persistent-World, Mesh-Rotation und Region-Barrier sowie das
+zusätzliche SDL-Dual-Sync-Opt-in **vor** `SDL_GetWindowWMInfo()`
+und `SDL_LoadObject()` des Vulkan-Moduls. Bisher wurden solche
+Mismatch-Konfigurationen erst nach dem Laden der Bibliothek
+abgewiesen. Der Fail-Closed-Abbruch verändert weder OpenGL noch
+Benutzerprofile. Bestehende modulseitige Prüfungen bleiben erhalten.
+
+**20 tatsächlich bearbeitete Entwicklungs- und Prüfschritte:**
+
+01. Git-Status `ogl-develop`, sauberer Branch und Ausgangscommit `f52e9435` kontrolliert.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und Hauptroadmap P05 gelesen.
+03. Aktuelle GitHub-CI-Läufe abgefragt; laufenden jüngsten Lauf nicht als bestanden ausgegeben.
+04. SDL-X11-Pre-GL-Fensterübernahme und deren zeitliche Reihenfolge untersucht.
+05. Bestehende Freigaben für Depth und Raster/World analysiert.
+06. Freigaben für Persistent-Clear und Persistent-World analysiert.
+07. Separate Freigaben für GPU-Mesh-Rotation und Region-Barrier analysiert.
+08. Zusätzliche duale GPU-Fence-Synchronisationsfreigabe geprüft.
+09. Identifiziert, dass die genannten Freigabemismatches erst nach SDL-Modulladen abgefangen wurden.
+10. Vorzeitige Freigabeprüfung für Depth in der bestehenden SDL-Quelldatei implementiert.
+11. Vorzeitige Freigabeprüfung für Persistent-Clear und Persistent-World implementiert.
+12. Vorzeitige Freigabeprüfung für Mesh-Rotation und Region-Barrier implementiert.
+13. Vorzeitige Abweisung fehlender Dual-Sync-Modulberechtigung implementiert.
+14. Bestehende normale OpenGL-Initialisierung und späte Defense-in-Depth-Prüfung erhalten.
+15. Fokussierten Python-Grafikregressionstest mit Prüfungen der Flagpaare und Reihenfolge ergänzt: 75/75 Grafiktests bestanden.
+16. Vulkan-Modultest gebaut; native CTests 41/41 bestanden.
+17. Vollständigen Linux-Viewer gebaut: 387/387 Python- und 41/41 native Tests bestanden.
+18. Zwei unabhängige SDL/X11-Starts mit einseitigen Depth- bzw. Persistent-Clear-Freigaben getestet: beide ohne Vulkan-Present, OpenGL `STATE_LOGIN_WAIT` erreicht.
+19. Zwei weitere SDL/X11-Starts mit einseitigem Region-Barrier- bzw. Dual-Sync-Flag getestet: beide ohne Vulkan-Present, OpenGL `STATE_LOGIN_WAIT` erreicht.
+20. Positiven SDL/X11-Start mit vollständig freigegebener Persistent-Clear-20-Frame-Sequenz getestet: 20/20 Frames, Pixelverifikation und OpenGL `STATE_LOGIN_WAIT`; `git diff --check` bestanden.
+
+**Abgrenzung:** Die fünf SDL-Probeläufe wurden mit eigenen
+Xvfb-Anzeigen und temporären Profilen nach der Login-Prüfung
+per `timeout` (Exit 124) beendet, nicht per regulärem Quit.
+Die positive Probe benutzt synthetische Clear-Frames vor der
+GL-Kontexterzeugung; sie zeigt keine authentifizierte
+OpenSim-Region und keine dauerhafte Vulkan-Weltengine.
+Windows/macOS-Vollviewer nicht abgenommen, keine neuen
+Projektdateien oder unsicheren Löschungen. **P05 operativ
+2/20; P05/3 Live-In-World-Window-Ownership offen.**
+
 ## P05/3 – /goal 20 technische Schritte: SDL-20-Frame-Freigabe muss vollständig sein (10.11.2026)
 
 **Konkret umgesetzt:** Die echte SDL/X11-Viewer-Startprobe hat

@@ -144,6 +144,36 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // Validate the other independent developer permission pairs BEFORE
+    // loading the Vulkan module or borrowing SDL's native X11 window.
+    // A malformed probe request must not initialize any Vulkan resources.
+    const char* paired_probe_flags[][2]{
+        {"OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE",
+         "OGL_VULKAN_SDL_PREGL_DEPTH_PROBE"},
+        {"OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
+         "OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE"},
+        {"OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
+         "OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE"},
+        {"OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",
+         "OGL_VULKAN_SDL_PREGL_MESH_ROTATION_PROBE"},
+        {"OGL_VULKAN_LIVE_REGION_BARRIER",
+         "OGL_VULKAN_SDL_PREGL_REGION_BARRIER_PROBE"}
+    };
+    for (const auto& pair : paired_probe_flags) {
+        if (ogl_pre_gl_flag(pair[0])!=ogl_pre_gl_flag(pair[1])) {
+            LL_WARNS("OGLRenderer") <<
+                "P05 SDL pre-GL developer permission pair incomplete; OpenGL follows."
+                << LL_ENDL;
+            return;
+        }
+    }
+    if (ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_DUAL_SYNC_PROBE") &&
+        !ogl_pre_gl_flag("OGL_VULKAN_FRAME_SYNC_PROBE")) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL pre-GL dual-sync permission incomplete; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {

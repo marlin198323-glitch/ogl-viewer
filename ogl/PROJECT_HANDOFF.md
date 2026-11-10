@@ -91,6 +91,18 @@ native X11-16-Frame-GPU-Pfade grün. Alle 20 realen
 Teilprüfungen am Anfang PROJECT_STATUS.md.
 P05 bleibt 2/20; Live-Vulkan-OpenSim-Welt offen.
 
+10.11.2026 /goal-20er-Runde: SDL/X11-Preflight für
+Depth, Persistent-Clear/World, Mesh-Rotation,
+Region-Barrier und SDL-Dual-Sync vor Vulkan-
+Modulladen. 387/387 Python-, 41/41 native und
+75/75 Grafiktests bestanden. Vier isolierte
+negative SDL-Starts (Depth-only, Persistent-only,
+Region-only, Dual-Sync-only) verweigern Vulkan-
+Present und erreichen OpenGL `STATE_LOGIN_WAIT`.
+Positive 20-Frame-Persistent-Clear-Probe ebenfalls
+grün. 20 Teilblöcke in PROJECT_STATUS.md.
+Kein Live-OpenSim-Rendering; P05 unverändert 2/20.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

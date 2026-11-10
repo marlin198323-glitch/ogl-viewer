@@ -355,6 +355,34 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertNotIn("OGL_VULKAN_SDL_PREGL_PRESENT_PROBE",
             (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
 
+    def test_p05_sdl_pre_gl_all_permission_pairs_are_checked_before_vulkan(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        begin=win.index("void ogl_probe_real_sdl_window_before_gl(")
+        end=win.index("} // namespace",begin)
+        fn=win[begin:end]
+        names=(
+            "OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE",
+            "OGL_VULKAN_SDL_PREGL_DEPTH_PROBE",
+            "OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE",
+            "OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE",
+            "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE",
+            "OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE",
+            "OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",
+            "OGL_VULKAN_SDL_PREGL_MESH_ROTATION_PROBE",
+            "OGL_VULKAN_LIVE_REGION_BARRIER",
+            "OGL_VULKAN_SDL_PREGL_REGION_BARRIER_PROBE")
+        for flag in names:
+            self.assertIn('"'+flag+'"',fn)
+        self.assertIn("const char* paired_probe_flags[][2]",fn)
+        self.assertIn("ogl_pre_gl_flag(pair[0])!=ogl_pre_gl_flag(pair[1])",fn)
+        self.assertIn("P05 SDL pre-GL developer permission pair incomplete; OpenGL follows.",fn)
+        self.assertIn('!ogl_pre_gl_flag("OGL_VULKAN_FRAME_SYNC_PROBE")',fn)
+        self.assertIn("P05 SDL pre-GL dual-sync permission incomplete; OpenGL follows.",fn)
+        self.assertLess(fn.index("for (const auto& pair : paired_probe_flags)"),
+                        fn.index('SDL_LoadObject("./lib/ogl_rtx.so")'))
+        self.assertLess(fn.index("P05 SDL pre-GL dual-sync permission incomplete"),
+                        fn.index("SDL_GetWindowWMInfo(window,&wm)"))
+
     def test_p05_sdl_pre_gl_sequence_requires_matching_optin_flags(self):
         win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
         begin=win.index("void ogl_probe_real_sdl_window_before_gl(")
