@@ -1707,6 +1707,24 @@ class PublicGraphicsContracts(unittest.TestCase):
             module[module.index("uint32_t render_offscreen_color_frame("):
                    module.index("// Independent opt-in camera projection")])
 
+    def test_p05_xlib_wsi_rejects_mixed_extent_sentinals_and_image_caps(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        begin=module.index("bool attach_world_xlib_window(")
+        end=module.index("// Passive WSI attach never acquires or presents",begin)
+        attach=module[begin:end]
+        for marker in (
+            "!caps.minImageCount || caps.minImageCount>16",
+            "!caps.maxImageArrayLayers",
+            "((caps.currentExtent.width==UINT32_MAX) !=",
+            "(caps.currentExtent.height==UINT32_MAX))",
+            "world_device.detach_window();",
+            "VkSwapchainCreateInfoKHR swap{"):
+            self.assertIn(marker,attach)
+        self.assertLess(attach.index("!caps.minImageCount ||"),
+                        attach.index("VkSwapchainCreateInfoKHR swap{"))
+        self.assertLess(attach.index("caps.currentExtent.height==UINT32_MAX"),
+                        attach.index("VkExtent2D extent=caps.currentExtent;"))
+
     def test_p05_xlib_wsi_rejects_undefined_in_multi_format_surface(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         begin=module.index("bool attach_world_xlib_window(")

@@ -66,6 +66,18 @@ P05 weiterhin 2/20; kein authentifiziertes OpenSim-
 Vulkan-In-World-Rendering. Alle 20 Teilblöcke am Anfang
 von PROJECT_STATUS.md.
 
+10.11.2026 /goal-20er-Runde: Vulkan-Xlib-WSI weist
+gemischte feste/variable `currentExtent`-Werte,
+`minImageCount` 0 oder >16 sowie null
+`maxImageArrayLayers` vor Swapchain-Erstellung ab.
+Linux-Vollbuild und 385/385 Python-/41/41 CTests,
+73 Grafiktests grün. Native X11-Clear/World/Depth
+16-Frame-Presents bestanden; echter isolierter SDL-
+Pre-GL-World-/Depth-Test 20/20 Presents, 100 Pixel,
+3 Extents und GL `STATE_LOGIN_WAIT` bestanden.
+Keine Live-OpenSim-Vulkan-Welt. P05 weiterhin 2/20.
+20 reale Teilprüfungen am Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

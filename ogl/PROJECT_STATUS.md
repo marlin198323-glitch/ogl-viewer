@@ -6,6 +6,54 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: kohärente Vulkan-Surface-Extents und Swapchain-Bildgrenzen (10.11.2026)
+
+**Änderung:** `attach_world_xlib_window()` verweigert
+inkonsistente `VkSurfaceCapabilitiesKHR` vor dem
+Swapchain-Aufbau. Vulkan erlaubt bei `currentExtent`
+beide Dimensionen variabel (`UINT32_MAX`) oder beide
+fest; ein gemischtes Paar wird ausgeschlossen.
+Ebenfalls früh abgewiesen: keine Mindestbildanzahl,
+mehr als 16 erforderliche Swapchain-Bilder (Limit des
+bestehenden GPU-Framecaches) und null zulässige
+Image-Array-Layers. Ansonsten blieben Auswahl von
+FIFO, Present-Queue, GL-Fallback und opt-in-Schutz
+unverändert.
+
+**20 tatsächlich durchgeführte technische Schritte/Prüfungen:**
+
+01. Sauberen Git-Stand `ogl-develop` und Ausgangscommit `de8877ce` geprüft.
+02. Projektanweisungen `AGENTS.md`, Handoff, Status und `/goal`-Roadmap erneut gelesen.
+03. Aktuelle GitHub-CI-Läufe nach Zustand und Plattformjobs geprüft.
+04. Beim älteren CI-Fehler die fünf erfolgreichen Jobs und den abgebrochenen macOS-15-Job abgegrenzt; kein pauschales Plattform-Fail behauptet.
+05. Vulkan-Surface-Fähigkeiten im vorhandenen Xlib-Attach untersucht.
+06. Vulkan-Sentinel-Regel für variable/feste `currentExtent`-Dimensionen kontrolliert.
+07. Gemischte feste/variable Extents vor `vkCreateSwapchainKHR` ausgeschlossen.
+08. Ungültiges `minImageCount==0` vor Swapchain-Erstellung ausgeschlossen.
+09. `minImageCount>16` passend zum begrenzten persistenten Framecache ausgeschlossen.
+10. `maxImageArrayLayers==0` vor Swapchain-Erstellung ausgeschlossen.
+11. Bestehende Prüfungen für Größen-Min/Max, Transform, FIFO und Image-Enumeration beibehalten.
+12. In der bestehenden Python-Grafiktestdatei einen fokussierten Guard-/Reihenfolgetest ergänzt.
+13. 73/73 Grafiktests bestanden.
+14. Vorhandenes Vulkan-Modul als native C++-Shared-Library neu gebaut.
+15. Alle 41/41 native CTests einschließlich GPU-Regressionssuite bestanden.
+16. Echtes isoliertes X11-Persistent-Clear-Present mit 16 Frames und Resize/Recreate bestanden.
+17. Echtes isoliertes X11-World-/Depth-Present mit 16 Frames, Kamera und Resize bestanden.
+18. Vollständigen Linux-Firestorm-Viewer mit `bash ogl/scripts/build-test.sh` kompiliert.
+19. Gesamttest des Linux-Viewers: 385/385 Python-Tests und 41/41 native CTests bestanden.
+20. Tatsächlichen SDL-Viewer in separatem Xvfb/Testprofil getestet: 20/20 Vulkan-World-/Depth-Pre-GL-Presents, 100/100 Pixelproben, 3 Größen, anschließend GL-Kontext und `STATE_LOGIN_WAIT`; `git diff --check` erfolgreich.
+
+**Abgrenzung:** Der SDL-Test rendert eine synthetische
+Testwelt vor OpenGL, nicht die angemeldete OpenSim-Welt.
+Kein regulärer Shutdown-Test (Testprozess per Timeout).
+Keine injizierten fehlerhaften ICD-Rückgaben, keine
+Windows-/macOS-Vollviewer-Abnahme. Keine neuen
+Repository-Dateien und keine Änderungen an echten
+Benutzerprofilen oder Secrets. Keine verlässlich
+identifizierten Altdateien gelöscht. **P05 operativ
+weiterhin 2/20, Block 3 (dauerhafte exklusive
+Vulkan-In-World-Window-/Present-Ownership) offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: Surface-Format-Validierung, SDL-World-Pre-GL und fehlender ICD (10.11.2026)
 
 **Ergebnis:** Die bisherige Vulkan-X11-Swapchain akzeptierte

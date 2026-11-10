@@ -855,9 +855,15 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
     }
     // A malformed WSI capabilities snapshot must not reach swapchain
     // creation, especially when the surface provides a fixed extent.
-    if (!caps.minImageExtent.width || !caps.minImageExtent.height ||
+    if (!caps.minImageCount || caps.minImageCount>16 ||
+        !caps.maxImageArrayLayers ||
+        !caps.minImageExtent.width || !caps.minImageExtent.height ||
         caps.minImageExtent.width>caps.maxImageExtent.width ||
         caps.minImageExtent.height>caps.maxImageExtent.height ||
+        // Vulkan specifies either BOTH dimensions as variable, or BOTH
+        // as fixed. Never combine a sentinel with a fixed dimension.
+        ((caps.currentExtent.width==UINT32_MAX) !=
+         (caps.currentExtent.height==UINT32_MAX)) ||
         !(caps.supportedTransforms&caps.currentTransform) ||
         (caps.maxImageCount && caps.maxImageCount<caps.minImageCount)) {
         world_device.detach_window();
