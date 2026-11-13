@@ -120,10 +120,21 @@ P05_CAPTURE = re.compile(
 )
 P05_GPU = re.compile(
     r"P05 deferred GPU receipt: epoch=(\d+) capture=(\d+) "
-    r"mesh_generation=(\d+) source=(mesh-rebind|camera-tick) "
+    r"mesh_generation=(\d+) source=(mesh-rebind|camera-tick|present-coupled) "
     r"frames=(\d+) camera_frames=(\d+) nonclear_pixels=(\d+)"
     r"(?: width=(\d+) height=(\d+))?"
     r"(?: lit_pixels=(\d+) mean_luminance=(\d+))? status=completed"
+)
+
+
+# Logged only after a REAL world-swap-coupled, private Vulkan draw. The
+# renderer remains OpenGL; this is NOT a Vulkan swapchain present.
+P05_WORLD_SWAP = re.compile(
+    r"P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
+    r"visible_swaps=(\d+) completed_private_frames=(\d+) "
+    r"(?:suppressed_retries=(\d+) )?"
+    r"mesh_generation=(\d+) source_capture=(\d+) "
+    r"region_epoch=(\d+); GL owns the SDL window, NO Vulkan present\."
 )
 
 
@@ -145,6 +156,11 @@ def p05_live_gpu_evidence(log_text: str):
     invalid_gpu = 0
     completed = 0
     camera_completed = 0
+    coupled_receipts = 0
+    coupled_confirmed = 0
+    last_coupled_frame = 0
+    last_coupled_visible_swaps = 0
+    pending_coupled = None
     visible = 0
     capacity = 0
     lit_pixels = 0
@@ -153,6 +169,9 @@ def p05_live_gpu_evidence(log_text: str):
         if P05_SESSION.search(line):
             seen_session, world_started, epoch, latest = True, False, None, None
             accepted = invalid_gpu = completed = camera_completed = visible = 0
+            coupled_receipts = coupled_confirmed = last_coupled_frame = 0
+            last_coupled_visible_swaps = 0
+            pending_coupled = None
             capacity = 0
             lit_pixels = mean_luminance = 0
             last_capture_id = last_gpu_frame_id = 0
@@ -167,6 +186,9 @@ def p05_live_gpu_evidence(log_text: str):
             epoch = new_epoch if new_epoch>0 else None
             latest = None
             accepted = invalid_gpu = completed = camera_completed = visible = 0
+            coupled_receipts = coupled_confirmed = last_coupled_frame = 0
+            last_coupled_visible_swaps = 0
+            pending_coupled = None
             capacity = 0
             lit_pixels = mean_luminance = 0
             continue
@@ -181,6 +203,9 @@ def p05_live_gpu_evidence(log_text: str):
                 # A newer scanner receipt supersedes even a successful
                 # older GPU result. Never report stale meshes as current.
                 completed = camera_completed = visible = 0
+                coupled_receipts = coupled_confirmed = last_coupled_frame = 0
+                last_coupled_visible_swaps = 0
+                pending_coupled = None
                 capacity = 0
                 lit_pixels = mean_luminance = 0
                 accepted += 1
@@ -202,28 +227,61 @@ def p05_live_gpu_evidence(log_text: str):
             lit=int(gpu.group(10)) if gpu.group(10) else 0
             mean=int(gpu.group(11)) if gpu.group(11) else 0
             permitted={(32,32),(128,96),(256,144),(512,288)}
-            if (epoch is None or cap_epoch!=epoch or latest is None or
-                cap_id!=latest[0] or generation!=latest[1] or
+            if (not world_started or epoch is None or cap_epoch!=epoch or
+                latest is None or cap_id!=latest[0] or
+                generation!=latest[1] or
                 frames<=0 or frames<=last_gpu_frame_id or
                 cameras>frames or (width,height) not in permitted or
                 pixels>width*height or lit>pixels or mean>765 or
-                (lit>0 and mean==0)):
+                (lit>0 and mean==0) or
+                (source=="present-coupled" and pixels==0)):
                 invalid_gpu += 1
                 continue
             last_gpu_frame_id=frames
             completed+=1
             if source=="camera-tick":
                 camera_completed+=1
+            if source=="present-coupled":
+                coupled_receipts+=1
+                # Only the next corresponding visible-world-swap
+                # acknowledgment establishes the confirmed private draw.
+                pending_coupled=(cap_epoch,cap_id,generation,frames)
+            else:
+                pending_coupled=None
             visible=pixels
             capacity=width*height
             lit_pixels=lit
             mean_luminance=mean
+            continue
+        world_swap=P05_WORLD_SWAP.search(line)
+        if world_swap:
+            visible_swaps, private_frames, suppressed, mesh, capture, region = (
+                world_swap.groups())
+            visible_swaps=int(visible_swaps)
+            private_frames=int(private_frames)
+            mesh=int(mesh)
+            capture=int(capture)
+            region=int(region)
+            if (not world_started or pending_coupled is None or
+                latest is None or epoch!=region or
+                (region,capture,mesh)!=pending_coupled[:3] or
+                (capture,mesh)!=latest[:2] or
+                private_frames<=last_coupled_frame or
+                visible_swaps<=last_coupled_visible_swaps):
+                invalid_gpu+=1
+                continue
+            coupled_confirmed+=1
+            last_coupled_frame=private_frames
+            last_coupled_visible_swaps=visible_swaps
+            pending_coupled=None
     if not seen_session:
         status="no_deferred_evidence_session"
     elif not world_started:
         status="world_entry_not_observed"
     elif latest is None:
         status="no_current_region_capture"
+    elif coupled_confirmed:
+        status="visible_world_swap_private_gpu_confirmed"
     elif completed==0:
         status="capture_accepted_gpu_pending"
     else:
@@ -234,6 +292,8 @@ def p05_live_gpu_evidence(log_text: str):
         "accepted_capture_events":accepted,
         "completed_gpu_frames":completed,
         "camera_gpu_frames":camera_completed,
+        "present_coupled_gpu_receipts":coupled_receipts,
+        "confirmed_world_swap_private_gpu_frames":coupled_confirmed,
         "last_nonclear_pixels":visible,
         "last_pixel_capacity":capacity,
         "last_lit_pixels":lit_pixels,
@@ -287,6 +347,13 @@ def report():
         print("P05 source-qualified private GPU frames:",
               evidence["completed_gpu_frames"],
               "of which camera-only:", evidence["camera_gpu_frames"])
+        print("P05 visible-world-swap private Vulkan GPU:",
+              evidence["confirmed_world_swap_private_gpu_frames"],
+              "confirmed of", evidence["present_coupled_gpu_receipts"],
+              "coupled receipts; no Vulkan window present")
+        if evidence["status"]=="no_deferred_evidence_session":
+            print("P05 live GPU developer opt-in: no evidence session "
+                  "recorded; live Vulkan world draw NOT proven")
         if evidence["completed_gpu_frames"]:
             print("P05 last private GPU non-clear pixels:",
                   evidence["last_nonclear_pixels"], "of",

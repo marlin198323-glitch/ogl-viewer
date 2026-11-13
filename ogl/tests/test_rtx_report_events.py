@@ -421,6 +421,89 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(result["last_lit_pixels"],17000)
         self.assertEqual(result["last_mean_luminance"],327)
 
+    def p05_coupled(self):
+        return ("P05 deferred evidence session: begin=1\n"
+                "STATE_STARTED\n"
+                "P05 deferred region boundary: epoch=2\n"
+                "P05 deferred capture receipt: epoch=2 capture=3 "
+                "triangles=300 mesh_generation=11\n"
+                "P05 deferred GPU receipt: epoch=2 capture=3 "
+                "mesh_generation=11 source=present-coupled frames=1 "
+                "camera_frames=0 nonclear_pixels=200 width=32 height=32 "
+                "lit_pixels=180 mean_luminance=234 status=completed\n"
+                "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
+                "visible_swaps=121 completed_private_frames=1 "
+                "suppressed_retries=0 mesh_generation=11 "
+                "source_capture=3 region_epoch=2; "
+                "GL owns the SDL window, NO Vulkan present.\n")
+
+    def test_p05_real_world_swap_coupled_success_requires_confirmation(self):
+        result=module.p05_live_gpu_evidence(self.p05_coupled())
+        self.assertEqual(result["status"],"visible_world_swap_private_gpu_confirmed")
+        self.assertEqual(result["completed_gpu_frames"],1)
+        self.assertEqual(result["present_coupled_gpu_receipts"],1)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],1)
+        self.assertEqual(result["last_nonclear_pixels"],200)
+
+    def test_p05_coupled_receipt_without_real_swap_is_not_confirmed(self):
+        log=self.p05_coupled().split("P05 REAL GL-world-swap")[0]
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"deferred_source_gpu_completed")
+        self.assertEqual(result["present_coupled_gpu_receipts"],1)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+
+    def test_p05_coupled_rejects_clear_images(self):
+        log=self.p05_coupled().replace("nonclear_pixels=200", "nonclear_pixels=0")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["present_coupled_gpu_receipts"],0)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+        self.assertEqual(result["rejected_receipt_events"],2)
+
+    def test_p05_coupled_rejects_bad_confirmation_and_duplicate(self):
+        log=self.p05_coupled()
+        split=log.split("P05 REAL GL-world-swap")
+        for old,new in (("source_capture=3","source_capture=4"),
+                        ("region_epoch=2","region_epoch=1"),
+                        ("mesh_generation=11","mesh_generation=12"),
+                        ("visible_swaps=121","visible_swaps=0")):
+            bad="P05 REAL GL-world-swap"+split[1].replace(old,new)
+            result=module.p05_live_gpu_evidence(split[0]+bad)
+            self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+            self.assertEqual(result["rejected_receipt_events"],1)
+        result=module.p05_live_gpu_evidence(log+log.splitlines()[-1]+"\n")
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],1)
+        self.assertEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_coupled_never_revives_old_region_or_capture(self):
+        log=self.p05_coupled()
+        prefix,suffix=log.split("P05 REAL GL-world-swap")
+        for extra in ("P05 deferred region boundary: epoch=3\n",
+                      "P05 deferred capture receipt: epoch=2 capture=4 "
+                      "triangles=200 mesh_generation=12\n"):
+            result=module.p05_live_gpu_evidence(
+                prefix+extra+"P05 REAL GL-world-swap"+suffix)
+            self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+            self.assertGreaterEqual(result["rejected_receipt_events"],1)
+
+    def test_p05_coupled_rejects_prelogin_gpu_even_after_start(self):
+        log=self.p05_coupled().replace("STATE_STARTED\n", "")+"STATE_STARTED\n"
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+        self.assertEqual(result["completed_gpu_frames"],0)
+        self.assertEqual(result["rejected_receipt_events"],2)
+
+    def test_p05_coupled_rejects_stale_session_after_restart(self):
+        log=self.p05_coupled()+"P05 deferred evidence session: begin=1\n"
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"world_entry_not_observed")
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+
+    def test_p05_coupled_supports_older_log_without_retry_telemetry(self):
+        log=self.p05_coupled().replace("suppressed_retries=0 ","")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],1)
+
     def test_p05_receipts_exclude_private_identity(self):
         log=self.p05_example() + (
             "user=PRIVATE-AVATAR grid=PRIVATE-REGION account=PRIVATE\n"
@@ -429,6 +512,8 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(set(result),{
             "status","current_region_epoch","accepted_capture_events",
             "completed_gpu_frames","camera_gpu_frames",
+            "present_coupled_gpu_receipts",
+            "confirmed_world_swap_private_gpu_frames",
             "last_nonclear_pixels","last_pixel_capacity",
             "last_lit_pixels","last_mean_luminance",
             "rejected_receipt_events",

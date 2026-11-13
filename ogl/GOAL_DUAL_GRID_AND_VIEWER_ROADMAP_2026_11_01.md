@@ -1205,6 +1205,8 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 
 **P05/3 Live-GPU-Wiederanlauf 13.11.2026 (noch keine Abnahme):** Wiederholte Fehlversuche der opt-in Vulkan-GPU-Offscreen-Diagnose nach echten GL-Weltframes werden auf 120/240/480/maximal 960 Welt-Swaps gestaffelt; erfolgreicher Draw bzw. Modul-/Regionswechsel resetten die Fehlerserie. Portable C++-Negativtests und Linux-Vollviewer mit 407 Python-/41 nativen Tests, X11-GPU-Regressionsläufe erfolgreich. Kein bestätigter authentifizierter Vulkan-Live-World-Present, keine exklusive Fensterübernahme; **P05 weiter 2/20**.
 
+**P05/3 World-Swap-GPU-Nachweis 13.11.2026 (in Arbeit):** Der vorhandene lokale Testreport berücksichtigt jetzt `source=present-coupled` nur mit nachfolgender, passender sichtbarer GL-Welt-Swap-Bestätigung. Er weist Pre-Login, veraltete Region-/Capture-/Mesh-Quellen, leere GPU-Bilder und doppelte Bestätigungen zurück. 8 neue Reporttests, 415 Python-/41 native CTests und Linux-Vollviewer-/X11-GPU-Regressionen bestanden; vorhandener echter Nutzerlog ohne Vulkan-Live-Opt-in, somit kein positiver Live-Welt-GPU-Frame. Die GPU-Ausgabe bleibt privat; **P05 weiter 2/20, echte Vulkan-Fensterübernahme offen**.
+
 **P05 Vorarbeit 04.11.2026:** Im vorhandenen Vulkan-Modul wird nur per explizitem Entwickler-Opt-in ein persistentes VkInstance/VkDevice mit Grafik-VkQueue erstellt, geprüft und freigegeben. Die neue additive ABI meldet nur Device-Bereitstellung. Linux-Vollviewer, 321 Python-/41 CTests und zwei isolierte GL-GUI-Starts erfolgreich. Die wirkliche SDL-Vulkan-Window-Surface, Present-Queue-Prüfung, Swapchain und Welt-Pipeline fehlen. Vulkan bleibt im Grafikmenü deaktiviert; formal P05 0/20, keine fiktive Phasenfreigabe.
 
 **P05 Block 1 abgeschlossen (04.11.2026):**

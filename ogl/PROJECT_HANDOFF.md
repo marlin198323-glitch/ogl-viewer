@@ -334,6 +334,25 @@ Ausgabe, keine Backoff-Warnungen und 0 ERROR/FATAL. Keine
 authentifizierte OpenSim-GPU-Fehlerserie/Window-Ownership-
 Abnahme, P05 weiter 2/20. Alle 20 Schritte oben in Status.
 
+13.11.2026 /goal-20er-Runde P05/3: Bestehender
+`ogl/scripts/ogl-test-report.py` war für den echten
+`source=present-coupled`-Vulkan-GPU-Host-Pfad blind.
+Er wertet jetzt die private GPU-Quittung nur mit
+nachfolgender passender realer GL-Welt-Swap-Meldung,
+aktueller Region-/Deferred-/Mesh-Provenienz,
+positiven Pixeln und monotonen Zählern als bestätigt.
+Neue Sitzung, neue Aufnahme, Regionwechsel, Pre-Login,
+Duplikate, leere Bilder und gefälschte Bestätigungen
+fail-closed; altes Logformat kompatibel.
+53 Reporttests (8 neue), 415 Python- und 41 native
+CTests sowie Linux-Vollviewer-Build erfolgreich;
+X11-GPU-16/32-Clear/World/Depth, Rotation und Barrier
+grün. Aktueller echter Nutzerlog: ohne Entwickler-
+Opt-in, daher 0 private Live-GPU-Receipts. Isolierter
+SDL-Login trotz opt-in korrekt ohne World-Beweis.
+Kein authentifizierter Vulkan-World-Present, P05 2/20.
+Alle 20 Schritte am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

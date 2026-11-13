@@ -6,6 +6,73 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: echten World-Swap-Vulkan-Receipt im lokalen Logreport qualifizieren (13.11.2026)
+
+**Funktionslücke behoben:** Der bestehende, lokale
+`ogl/scripts/ogl-test-report.py` wertete bisher echte Vulkan-
+Deferred-GPU-Receipts nur für `source=mesh-rebind` und
+`source=camera-tick` aus. Der bereits implementierte,
+**an den sichtbaren GL-Welt-Swap gekoppelte** `source=present-coupled`
+war im Report nicht erkennbar. Damit konnten tatsächlich
+qualifizierte private Vulkan-Frames aus angemeldeten Weltsitzungen
+bei der Projektabnahme nicht eindeutig von der normalen
+Kamera-/Mesh-Probe getrennt werden.
+
+Jetzt unterscheidet der bestehende Report die dritte Quelle und
+prüft zusätzlich die nach einem erfolgreichen Welt-Swap
+protokollierte Meldung
+`P05 REAL GL-world-swap -> Vulkan offscreen GPU`.
+Ein `source=present-coupled`-Receipt allein wird **nicht** als
+bestätigter Swap-gebundener Erfolg gezählt. Dafür müssen eine
+aktuelle Deferred-Capture, nichtleere GPU-Pixel, Region, Mesh-
+und Capture-Identität, monoton steigende private Frame- und
+sichtbare Swap-Zähler sowie die passende spätere
+Swap-Bestätigung vorhanden sein. Ohne `STATE_STARTED`, nach
+einem Modul-/Sitzungsneustart, einem Regionswechsel, einer
+neueren Capture, bei Duplikaten oder inkonsistenten Zahlen
+wird die Bestätigung zurückgewiesen. Frühere Meldungen ohne
+`suppressed_retries`-Statistik werden weiterhin akzeptiert.
+Der Report gibt nur numerische Kennzahlen und feste Statuswerte
+aus; keine URLs, Konto-/Regionsnamen, IDs oder Inhalte des
+Viewerbildes. **Auch ein bestätigtes privates GPU-Bild ist
+kein sichtbarer Vulkan-Window-Present und kein unabhängiger
+Beweis einer authentifizierten Anmeldung.**
+
+**20 tatsächlich ausgeführte Entwicklungs-/Prüfschritte:**
+
+01. Sauberen Branch `ogl-develop` mit Ausgangscommit `0cfb8a93` überprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap gelesen.
+03. GitHub-CI für `0cfb8a93` als vollständig erfolgreich verifiziert.
+04. Den echten 13.11.-OpenSim-Viewerlog auf erfolgreiche OpenGL-Welt, fehlendes Vulkan-Live-Receipt und Simulator-HTTP-502-Warnungen untersucht.
+05. Vorhandenen Report-Code und 45 historische Report-Vertragstests analysiert.
+06. Fehler identifiziert: `P05_GPU` akzeptierte bisher nur Mesh- und Kameraquellen.
+07. Dritten festen, erlaubten Source-Typ `present-coupled` im bestehenden Report aufgenommen.
+08. Separate numerische `P05_WORLD_SWAP`-Bestätigung aus realem Host-Log in den Parser eingebaut.
+09. Private GPU-Quellbestätigung an dieselbe Region und neueste Deferred-Capture gebunden.
+10. Mesh-Generation der Bestätigung mit der letzten gültigen Capture abgeglichen.
+11. GPU-Receipts vor tatsächlichem `STATE_STARTED` zurückgewiesen.
+12. Für `present-coupled` mindestens ein nichtleeres Offscreen-GPU-Pixel gefordert.
+13. Monoton ansteigende private GPU- und sichtbare Swap-Zähler validiert; doppelte Bestätigungen verworfen.
+14. Ausstehende Bestätigungen bei neuer Sitzung, Regionswechsel oder neuer Capture verfallen lassen.
+15. Alten Logmodus ohne `suppressed_retries`-Statistik kompatibel erhalten.
+16. Zwei neue rein numerische Report-Zähler sowie einen von normalem Vulkan-Window-Present getrennten Status ausgegeben.
+17. Acht konkrete positive/negative Python-Regressionstests einschließlich alter Logmodi, gefälschter Meldungen, Pre-Login, Sessions/Regionen und leerer Bilder ergänzt: 53/53 Reporttests grün.
+18. Gesamte Python-Testserie 415/415, natives Vulkan-Modul und 41/41 CTests bestanden; `git diff --check` bestanden.
+19. Linux-Vollviewer-Build und native X11-Clear-/World-/Depth-GPU-Regressionen je 16/32 Frames sowie Mesh-Rotation und Region-Barrier erfolgreich geprüft.
+20. Echten vorhandenen Nutzerlog mit Report ausgewertet: `no_deferred_evidence_session`, 0 echte private World-Swap-Receipts; zusätzlich neuen isolierten SDL/Xvfb-Viewer mit Dev-Gates bis `STATE_LOGIN_WAIT` gestartet: `world_entry_not_observed`, 0 falsche World-Frames, 0 vorzeitige GPU-Receipts, 0 ERROR/FATAL.
+
+**Abgrenzung:** Es wurde kein Nutzerkonto für einen Test
+angemeldet. Die Positivfälle des neuen Report-Parsers sind
+anonymisierte numerische Test-Fixtures, **kein** tatsächlich
+gemessener positiver OpenSim-`present-coupled`-Frame.
+Die tatsächlichen 16/32-Frame-Vulkan-Regressionen verwenden
+synthetische native GPU-Szenen. Der isolierte Viewer wurde per
+Timeout beendet (Exit 124, kein regulärer Quit-Nachweis).
+Keine Nutzerprofile oder laufenden Nutzerprozesse verändert;
+keine Serveränderungen, Secrets oder neuen Repository-Dateien.
+**P05 bleibt 2/20, P05/3 offen: keine dauerhafte Vulkan-SDL-
+Window-Ownership, keine vollständige Vulkan-Welt/GUI.**
+
 ## P05/3 – /goal 20 Teilblöcke: private Vulkan-GPU-Fehler mit begrenztem Wiederanlauf absichern (13.11.2026)
 
 **Implementiert:** Der streng opt-in an den echten sichtbaren OpenGL-
