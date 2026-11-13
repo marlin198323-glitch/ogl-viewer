@@ -1878,6 +1878,30 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_real_swap_requires_current_nonclear_gpu_pixel_evidence(self):
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn('present_coupled_gpu_evidence_current(',policy)
+        for marker in ('before_epoch==current_epoch',
+                       'before_receipt==current_receipt',
+                       'before_mesh==current_capture_mesh',
+                       'present_coupled_source_current(',
+                       'before_frame<UINT64_MAX',
+                       'after_frame==before_frame+1u',
+                       'nonclear_pixels>0u',
+                       'static_cast<uint64_t>(width)*height'):
+            self.assertIn(marker,policy)
+        a=host.index('bool ogl_firestorm_offscreen_gpu_sample(')
+        b=host.index('// The private GPU world shader consumes',a)
+        fn=host[a:b]
+        self.assertIn('std::strcmp(source,"present-coupled")==0',fn)
+        self.assertIn('const bool gpu_completed=world_render_offscreen_scene()==1',fn)
+        self.assertIn('ogl::present_coupled_gpu_evidence_current(',fn)
+        self.assertLess(fn.index('world_render_offscreen_scene()==1'),
+                        fn.index('present_coupled_gpu_evidence_current('))
+        self.assertLess(fn.index('present_coupled_gpu_evidence_current('),
+                        fn.index('++live_deferred_gpu_frames;'))
+
     def test_p05_present_coupled_module_reload_resets_all_source_state(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
         a=host.index('void ogl_reset_present_coupled_state(bool module_lifecycle)')

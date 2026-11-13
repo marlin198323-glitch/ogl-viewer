@@ -21,6 +21,32 @@ int main() {
     assert(ogl::present_coupled_needs_redraw(true,3,3,11,11,4,4,false));
     assert(!ogl::present_coupled_needs_redraw(true,3,3,11,11,4,4,true));
     assert(!ogl::present_coupled_needs_redraw(false,3,3,11,11,0,0,false));
+    // GPU proof is stricter than a successful VkQueueSubmit: same
+    // source across the draw, bounded dimensions, and non-clear pixels.
+    const auto evidence=[](uint64_t old_epoch,uint64_t old_receipt,
+        uint64_t old_mesh,uint64_t epoch,uint64_t capture_epoch,
+        uint64_t receipt,uint64_t capture_mesh,uint64_t gpu_mesh,
+        uint64_t camera_mesh,uint64_t before,uint64_t after,
+        uint32_t width,uint32_t height,uint32_t pixels) {
+        return ogl::present_coupled_gpu_evidence_current(
+            old_epoch,old_receipt,old_mesh,epoch,capture_epoch,receipt,
+            capture_mesh,gpu_mesh,camera_mesh,before,after,
+            width,height,pixels);
+    };
+    assert(evidence(3,4,11,3,3,4,11,11,11,9,10,32,32,500));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,9,10,32,32,0));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,9,10,32,32,1025));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,9,10,7,32,50));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,9,10,32,0,50));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,9,10,4097,32,50));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,9,9,32,32,50));
+    assert(!evidence(3,4,11,3,3,4,11,11,11,UINT64_MAX,0,32,32,50));
+    assert(!evidence(3,4,11,4,4,4,11,11,11,9,10,32,32,50));
+    assert(!evidence(3,4,11,3,3,5,11,11,11,9,10,32,32,50));
+    assert(!evidence(3,4,11,3,3,4,12,12,12,9,10,32,32,50));
+    assert(!evidence(3,4,11,3,3,4,11,11,12,9,10,32,32,50));
+    assert(!evidence(3,4,11,3,2,4,11,11,11,9,10,32,32,50));
+    assert(!evidence(3,0,11,3,3,0,11,11,11,9,10,32,32,50));
     ogl_rtx_frame_state frame{};
     frame.struct_size=sizeof(frame);
     frame.frame_version=OGL_RTX_FRAME_VERSION;

@@ -712,9 +712,27 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
         world_mesh_generation()==0 ||
         world_camera_mesh_generation()!=world_mesh_generation())
         return false;
+    const bool coupled_source=source &&
+        std::strcmp(source,"present-coupled")==0;
+    const auto source_epoch=live_world_region_epoch;
+    const auto source_receipt=live_deferred_receipts;
+    const auto source_mesh=live_deferred_mesh_generation;
     const auto old_count=world_offscreen_scene_frames();
-    const bool rendered=world_render_offscreen_scene()==1 &&
-        world_offscreen_scene_frames()==old_count+1;
+    const bool gpu_completed=world_render_offscreen_scene()==1 &&
+        old_count<UINT64_MAX && world_offscreen_scene_frames()==old_count+1;
+    // Require positive, bounded, SOURCE-CURRENT pixel proof for frames
+    // attributed to the REAL GL-world-swap. A cleared image, a stale scene
+    // after an in-flight region change or a bad readback is NOT evidence.
+    const bool rendered=gpu_completed && (!coupled_source ||
+        (world_offscreen_scene_width && world_offscreen_scene_height &&
+         ogl::present_coupled_gpu_evidence_current(
+             source_epoch,source_receipt,source_mesh,
+             live_world_region_epoch,live_deferred_receipt_epoch,
+             live_deferred_receipts,live_deferred_mesh_generation,
+             world_mesh_generation(),world_camera_mesh_generation(),
+             old_count,world_offscreen_scene_frames(),
+             world_offscreen_scene_width(),world_offscreen_scene_height(),
+             world_offscreen_scene_pixels())));
     if (!rendered) ++world_offscreen_scene_failures;
     else {
         ++live_deferred_gpu_frames;

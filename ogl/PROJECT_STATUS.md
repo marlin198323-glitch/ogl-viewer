@@ -6,6 +6,68 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: echte GPU-Pixelevidenz und in-flight Quellenbindung (13.11.2026)
+
+**Implementiert:** Der an den echten Firestorm-Welt-Swap gebundene
+Vulkan-Offscreen-Prototyp meldet ein privates GPU-Bild nicht mehr
+als erfolgreiches `source=present-coupled`-Live-Ergebnis, nur weil
+die Vulkan-Funktion erfolgreich zurückkehrt und ihr Framezähler
+steigt. Ein neuer **plattformneutraler, nativer CPU-Guard**
+`ogl::present_coupled_gpu_evidence_current(...)` validiert,
+dass **dieselbe echte Deferred-Aufnahme** mit derselben Region-
+Epoch, Capture-Receipt- und GPU-Mesh-/Kamera-Generation **vor
+und nach** der GPU-Ausgabe gültig ist. Darüber hinaus verlangt
+er genau ein zusätzlich abgeschlossenes Offscreen-Frame und
+mindestens ein verifiziertes, nicht gelöschtes Pixel innerhalb
+eines plausiblen, begrenzten privaten Bildes (8–4096 Pixel je
+Seite; `nonclear_pixels <= width*height`).
+
+Der vorhandene Host `ogl_firestorm_offscreen_gpu_sample(...)`
+zieht die Quell-Snapshots **vor** `world_render_offscreen_scene()`
+und prüft beim `present-coupled`-Modus die tatsächlichen GPU-
+Bildkennzahlen **danach**. Leere, ungültige, in-flight veraltete
+oder inkonsistente Ergebnisse erhöhen den vorhandenen
+Fehlerzähler, generieren **kein** qualifiziertes GPU-Receipt und
+aktualisieren den bestätigten erfolgreichen Welt-Swap-Cache
+nicht. Andere unabhängige Offscreen-Diagnosequellen sowie die
+produktive OpenGL-Welt bleiben funktional unverändert. Das
+Vulkan-Fenster bleibt ausdrücklich **nicht** produktiv übernommen.
+
+**20 tatsächlich bearbeitete Entwicklungs-/Prüfschritte:**
+
+01. `ogl-develop`-Branch und sauberen Arbeitsbaum auf `384cbfbb` kontrolliert.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und verbindliche P05-Roadmap erneut gelesen.
+03. Letzte GitHub-Workflow-Ergebnisse einschließlich des bestandenen Windows-UTF-8-Fixes ausgewertet.
+04. Realen GL-World-Swap-Hook und dessen separat freigegebene GPU-Diagnose analysiert.
+05. Host-Provenienz-Gates für echte Deferred-Quelle, Kamerabindung und Mesh-Revision überprüft.
+06. Bisherigen GPU-Erfolgsnachweis auf leere Pixel und während der Berechnung wechselnde Quellen geprüft.
+07. Vor-GPU-Snapshot von Region-Epoch, Deferred-Receipt und Mesh-Revision eingeführt.
+08. Nach-GPU-Validierung gegen unveränderte Region-Epoch und aktuelle Capture-Epoch umgesetzt.
+09. Quell-Receipt-Veränderung während der GPU-Arbeit zur Ablehnung geführt.
+10. Mesh- und GPU-Kamera-Generation nach der Arbeit erneut gegen die Aufnahme verglichen.
+11. Sicherung gegen Framezähler-Überlauf (`UINT64_MAX`) und fehlendes Einzel-Frame-Inkrement ergänzt.
+12. Minimale und maximale private Bildbreite/-höhe mit 8–4096 Pixeln abgesichert.
+13. Positive Nicht-Hintergrundpixelzahl und `nonclear_pixels <= width*height` gefordert.
+14. Plattformneutralen Guard in der bestehenden `ogl_world_shadow_policy.h` implementiert, ohne neue Datei.
+15. Guard an den echten `ogl_firestorm_offscreen_gpu_sample("present-coupled")`-Aufruf vor Receipt-Inkrement gebunden.
+16. Fehlerhafte oder leere Ergebnisse auf bestehenden Fehlerpfad geleitet; keine unberechtigte positive Erfolgsmeldung.
+17. Ausführbaren nativen C++-Regressionstest um 14 positive/negative GPU-Provenienz- und Pixel-Grenzfälle ergänzt.
+18. Python-Quellcode-Regression für Post-GPU-Validierung, Quellenmodus und Reihenfolge ergänzt: 93/93 Grafiktests; 41/41 native CTests grün.
+19. Linux-Vollviewer neu gebaut: 405/405 Python-Tests, 41/41 native CTests und X11-Vulkan-Clear-/World-/Depth-GPU-Regressionen mit 16/32 Frames sowie Mesh-Rotation und Region-Barrier erfolgreich.
+20. Frisch gebauten SDL/Xvfb-Viewer mit temporärem Profil und Opt-in-Flags gestartet: OpenGL-Login `STATE_LOGIN_WAIT`, kein unberechtigter Pre-Login-GPU-Receipt, 0 ERROR/FATAL; `git diff --check` bestanden.
+
+**Offene Abnahme:** Der Testviewer wurde kontrolliert per
+`timeout` beendet (Exit 124, kein regulärer Quit-Nachweis).
+Echte positive `source=present-coupled`-GPU-Pixel im
+**angemeldeten OpenSim-Weltbetrieb** wurden nicht geprüft;
+die negativen Guard-Fälle sind durch den ausgeführten C++-
+Test, die bisherigen normalen GPU-Pfade durch X11-Lavapipe-
+Regressionen nachgewiesen. Kein produktiver Vulkan-Present,
+keine SDL-Vulkan-Exklusiv-Window-Ownership und keine
+vollständige Welt-/UI-Pipeline. Windows/macOS-Vollviewer
+nicht lokal gebaut. Keine Benutzerprofile, Nutzerprozesse,
+Secrets oder Server geändert. **P05 bleibt 2/20, P05/3 offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: Live-Swap-Aufnahmen bei Modul-Reload und Materialwechsel korrekt binden (13.11.2026)
 
 **Funktionaler Fehler behoben:** Im neuen, opt-in an den tatsächlichen

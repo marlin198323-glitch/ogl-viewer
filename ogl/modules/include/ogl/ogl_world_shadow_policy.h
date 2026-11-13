@@ -21,6 +21,33 @@ inline bool present_coupled_source_current(
            gpu_camera_mesh==gpu_mesh;
 }
 
+// A private Vulkan image counts as evidence for the *visible-world-swap*
+// integration only when the actual GPU draw completed, the original
+// source receipt/region/mesh survived the draw unchanged, and readback
+// contains bounded non-clear pixels. Otherwise a blank or stale private
+// image must never be reported as a new world-rendering success.
+inline bool present_coupled_gpu_evidence_current(
+    uint64_t before_epoch, uint64_t before_receipt, uint64_t before_mesh,
+    uint64_t current_epoch, uint64_t current_capture_epoch,
+    uint64_t current_receipt, uint64_t current_capture_mesh,
+    uint64_t current_gpu_mesh, uint64_t current_camera_mesh,
+    uint64_t before_frame, uint64_t after_frame,
+    uint32_t width, uint32_t height, uint32_t nonclear_pixels) noexcept {
+    constexpr uint32_t max_private_extent = 4096u;
+    return before_receipt!=0 && before_mesh!=0 &&
+        before_epoch==current_epoch && before_receipt==current_receipt &&
+        before_mesh==current_capture_mesh &&
+        present_coupled_source_current(current_epoch,current_capture_epoch,
+            current_receipt,current_capture_mesh,current_gpu_mesh,
+            current_camera_mesh) &&
+        before_frame<UINT64_MAX && after_frame==before_frame+1u &&
+        width>=8u && height>=8u &&
+        width<=max_private_extent && height<=max_private_extent &&
+        nonclear_pixels>0u &&
+        static_cast<uint64_t>(nonclear_pixels)<=
+            static_cast<uint64_t>(width)*height;
+}
+
 // Identical pose and mesh do NOT prove that the captured real-world
 // material/source data stayed unchanged: the deferred receipt also matters.
 inline bool present_coupled_needs_redraw(

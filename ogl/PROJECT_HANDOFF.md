@@ -282,6 +282,23 @@ Wait: kein unerlaubtes Pre-Login-GPU-Receipt, 0 Fatal.
 Keine authentifizierte Vulkan-Welt, SDL bleibt GL-owned.
 P05 operativ 2/20. Details PROJECT_STATUS.md ganz oben.
 
+13.11.2026 /goal-20er-Runde P05/3: Der echte GL-World-
+Swap-gebundene, private Vulkan-GPU-Nachweis verlangt jetzt
+Post-GPU-Unverändertheit der Region-/Deferred-Capture-/Mesh-/
+Kamera-Provenienz sowie tatsächlich positive, begrenzte
+Nicht-Hintergrundpixel. Leere/stale private Bilder gelten
+nicht mehr als erfolgreiches source=present-coupled-Receipt;
+keine Veränderung des produktiven OpenGL-Fenster-Owners.
+Neue portable CPU-Guard-Funktion in bestehender
+`ogl_world_shadow_policy.h`, 14 native C++-Grenzfälle,
+93 Grafik-, 405 Python- und 41 native CTests erfolgreich;
+Linux-Vollviewer-Build und reale X11-16-/32-Frame-GPU-
+Regressionen grün. Isolierter Viewer mit Dev-Gates:
+OpenGL LOGIN_WAIT, 0 Pre-Login-Receipts, 0 ERROR/FATAL.
+Keine positive authentifizierte In-World-Probe und kein
+sichtbarer Vulkan-Present: P05 weiter 2/20. Siehe
+PROJECT_STATUS.md ganz oben für 20 konkrete Schritte.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**
