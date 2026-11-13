@@ -22,6 +22,25 @@ int main() {
     assert(!visible_world(true,true,false,false,false,true,true,false));
     assert(!visible_world(true,true,false,false,false,false,false,false));
     assert(!visible_world(true,true,false,false,false,false,true,true));
+    // Real-world Vulkan sampling uses an exponential recovery throttle.
+    // The visible OpenGL swap never enters this policy.
+    assert(ogl::present_coupled_retry_delay(0)==0);
+    assert(ogl::present_coupled_retry_delay(1)==120);
+    assert(ogl::present_coupled_retry_delay(2)==240);
+    assert(ogl::present_coupled_retry_delay(3)==480);
+    assert(ogl::present_coupled_retry_delay(4)==960);
+    assert(ogl::present_coupled_retry_delay(1000)==960);
+    assert(ogl::present_coupled_retry_due(1,0,0));
+    assert(!ogl::present_coupled_retry_due(120,1,1));
+    assert(ogl::present_coupled_retry_due(121,1,1));
+    assert(!ogl::present_coupled_retry_due(360,121,2));
+    assert(ogl::present_coupled_retry_due(361,121,2));
+    assert(!ogl::present_coupled_retry_due(840,361,3));
+    assert(ogl::present_coupled_retry_due(841,361,3));
+    assert(!ogl::present_coupled_retry_due(1800,841,4));
+    assert(ogl::present_coupled_retry_due(1801,841,4));
+    assert(!ogl::present_coupled_retry_due(10,50,3));
+    assert(ogl::present_coupled_retry_due(10,50,0));
     // These are the actual native, platform-neutral gates consumed by the
     // post-visible-world-swap Vulkan worker; no live user session needed.
     assert(ogl::present_coupled_source_current(3,3,1,11,11,11));

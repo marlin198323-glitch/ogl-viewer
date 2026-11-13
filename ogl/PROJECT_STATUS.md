@@ -6,6 +6,70 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: private Vulkan-GPU-Fehler mit begrenztem Wiederanlauf absichern (13.11.2026)
+
+**Implementiert:** Der streng opt-in an den echten sichtbaren OpenGL-
+Welt-Swap gebundene Vulkan-GPU-Offscreen-Prototyp hatte bisher
+bei einer gescheiterten privaten GPU-Probe keine besondere
+Fehlerrückstellung. Der nächste Versuch konnte regelmäßig alle
+120 qualifizierten World-Swaps erneut die synchronen Vulkan-
+Readbacks auslösen. Das ist insbesondere bei instabilen Vulkan-
+Treibern oder unter Speicherdruck unerwünscht.
+
+Nun hält der bestehende Host den Zähler aufeinanderfolgender
+Fehler sowie den Welt-Swap des letzten fehlgeschlagenen Versuchs
+vor. Ein neuer plattformneutraler C++-Guard in der bestehenden
+`ogl_world_shadow_policy.h` staffelt den **zusätzlichen** Abstand
+bis zum nächsten privaten GPU-Versuch auf 120, 240, 480 und
+maximal 960 sichtbare OpenGL-Weltframes. Der normale
+120-Frame-Grundtakt bleibt bestehen; Wiederholungen erfolgen
+nur, wenn der Abstand wirklich abgelaufen ist. Der Fehlerschritt
+sperrt nie das GL-`swapBuffers()` und deaktiviert Vulkan nicht
+endgültig. Ein erfolgreicher privater GPU-Durchlauf setzt
+Fehlerzähler und Zeitpunkt zurück. Modul-Init, Modul-Shutdown
+und Regionswechsel resetten sie ebenso über die bestehende
+Lifecycle-Resetfunktion. Das vorhandene, validierte Deferred-
+Quell-/Kamera-/Mesh-Gating, die überprüften positiven GPU-
+Receipts und die exklusive OpenGL-Fenster-Ownership bleiben
+unverändert. Fehlversuche erzeugen höchstens drei zusätzliche
+Diagnosewarnungen je Fehlerfolge, keine wiederkehrende Warnflut.
+
+**20 tatsächlich ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. Sauberen `ogl-develop`-Arbeitsbaum und Ausgangscommit `5e1834b1` geprüft.
+02. `AGENTS.md`, Projektübergabe, aktuellen Status und Hauptroadmap erneut gelesen.
+03. GitHub-CI des vorigen Commits `5e1834b1` mit `success` abgeglichen.
+04. Echten GL-Welt-Swap-Gate und nachgeschalteten Vulkan-Opt-in-Host analysiert.
+05. Bestehende 120-Swap-Taktung und den synchronen GPU-Readback-Pfad geprüft.
+06. Fehlende Begrenzung wiederholter GPU-Fehlschläge identifiziert.
+07. Eigenständigen, plattformneutralen `present_coupled_retry_delay`-Guard eingeführt.
+08. Fehlerfreie erste GPU-Probe ohne Wartezeit erlaubt.
+09. Ersten Fehlschlag auf 120-Welt-Swaps Rückstellung begrenzt.
+10. Zweiten Fehlschlag auf 240-Welt-Swaps Rückstellung erweitert.
+11. Dritten Fehlschlag auf 480-Welt-Swaps Rückstellung erweitert.
+12. Weitere Fehler auf maximal 960-Welt-Swaps gedeckelt (keine permanente Deaktivierung).
+13. Swap-Differenz zur Verhinderung vorzeitiger Wiederholungen und Rückwärts-Zählerstände geprüft.
+14. Laufzeitfelder für Fehlerfolge, letzten Fehlversuch und unterdrückte Wiederholungen ergänzt.
+15. Vor dem echten `ogl_firestorm_offscreen_gpu_sample` die neue Wiederholungsprüfung eingebaut.
+16. Nach fehlgeschlagenem GPU-Sample den Versuchspunkt gesetzt und Warnungen auf die ersten drei Fehler beschränkt.
+17. Nach erfolgreichem GPU-Sample Fehlerfolge und letzten Fehlerzeitpunkt zurückgesetzt; erfolgreichen Quellen-Cache unverändert beibehalten.
+18. Reset bei Regionwechsel und Modul-Init/-Shutdown gesichert; 17 native positive/negative C++-Grenzprüfungen sowie einen Python-Quellcode-Regressionsfall ergänzt, 95/95 Grafiktests bestanden.
+19. Vollständigen Linux-Viewer neu gebaut: 407/407 Python- und 41/41 native CTests; echte X11-Vulkan-Clear-/World-/Depth-Regressionen mit jeweils 16/32 Frames, Mesh-Rotation und Region-Barrier bestanden.
+20. Frisch gebauten SDL/Xvfb-Viewer mit separatem temporären Testprofil und Vulkan-Live-Opt-ins bis `STATE_LOGIN_WAIT` gestartet: 0 falsche GL-Weltframe-Logs, 0 unerlaubte private Vulkan-Live-Frames, 0 Backoff-Warnungen vor Login und 0 ERROR/FATAL; `git diff --check` bestanden.
+
+**Testgrenzen:** Die native Backoff-Policy wurde ausführbar mit
+Erfolgs-/Fehler-/Überlauf-/Rückwärts- und Sättigungsfällen
+geprüft, eine gezielte Fehlerserie **innerhalb einer
+angemeldeten OpenSim-Welt** wurde nicht provoziert. Der
+isolierte Viewer endete per `timeout` (Exit 124), nicht
+über regulären Quit. Windows/macOS-Vollviewer lokal nicht
+gebaut. Die neuen Schutzmechanismen sind nur bei expliziter
+Vulkan-Entwicklerfreigabe aktiv; normale OpenGL-Anwender
+bleiben unberührt. Keine Userprofile, Credentials, Server
+oder Nutzerprozesse verändert; keine neuen Repo-Dateien.
+**P05 bleibt 2/20, P05/3 weiter offen: kein vollständiger
+Vulkan-Window-World-Present.**
+
 ## P05/3 – /goal 20 Teilblöcke: echte Welt-Swaps von Login/Teleport/Logout unterscheiden (13.11.2026)
 
 **Funktionalen Real-Viewer-Fehler korrigiert:** `llviewerdisplay.cpp::swap()`

@@ -24,6 +24,25 @@ inline bool visible_world_swap_eligible(
         window_visible && !window_minimized;
 }
 
+// Bound private Vulkan diagnostics after repeated in-world GPU failures.
+// This is a recovery throttle, NOT a change to OpenGL world frame pacing.
+// Base cadence remains one eligible GPU attempt per 120 visible swaps.
+// Failed attempts back off 120 -> 240 -> 480 -> 960 world swaps and
+// remain retryable; a new module/region resets the failure state.
+inline uint32_t present_coupled_retry_delay(uint32_t failures) noexcept {
+    if (!failures) return 0u;
+    const uint32_t capped=std::min(failures,4u);
+    return 120u << (capped-1u);
+}
+inline bool present_coupled_retry_due(
+    uint64_t current_world_swaps, uint64_t last_failed_swap,
+    uint32_t failures) noexcept {
+    return failures==0u ||
+        (current_world_swaps>=last_failed_swap &&
+         current_world_swaps-last_failed_swap>=
+             present_coupled_retry_delay(failures));
+}
+
 // P05/3: source-identity guards at the actual GL-world-swap boundary.
 // This is a CPU-only policy; no GL/Vulkan window ownership is implied.
 // Every rendered GPU sample must belong to a genuine deferred receipt,

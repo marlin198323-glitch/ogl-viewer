@@ -317,6 +317,23 @@ Opt-ins: Login-Wait, 0 fälschliche Weltframe-Meldungen,
 Keine angemeldete OpenSim-Region getestet; P05 bleibt 2/20.
 Details am Anfang von PROJECT_STATUS.md.
 
+13.11.2026 /goal-20er-Runde P05/3: Der echte
+GL-World-Swap-gebundene private Vulkan-Offscreen-GPU-
+Pfad begrenzt wiederholte synchron scheiternde GPU-Readbacks
+jetzt mit abgestuftem Wiederanlauf nach 120/240/480/max.
+960 sichtbaren Weltframes. Pure portable C++-Guard-Funktion;
+Fehlerzähler, letzter Fehlschlag, Suppressionsstatistik;
+bei erfolgreichem Sample und bei Modul-/Regions-Lifecycle
+vollständig zurückgesetzt. 17 native C++-Grenzfälle,
+95/95 Grafik-, 407/407 Python- und 41/41 native CTests
+sowie Linux-Vollbuild bestanden. Reale X11-Vulkan-GPU-
+Clear/World/Depth-16-/32-Frame-Tests, Rotation und Barrier
+grün. Isolierter SDL-Login mit Dev-Opt-ins bis LOGIN_WAIT:
+keine falschen World-Frames, keine private Pre-Login-GPU-
+Ausgabe, keine Backoff-Warnungen und 0 ERROR/FATAL. Keine
+authentifizierte OpenSim-GPU-Fehlerserie/Window-Ownership-
+Abnahme, P05 weiter 2/20. Alle 20 Schritte oben in Status.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

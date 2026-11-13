@@ -144,6 +144,9 @@ std::uint64_t live_present_coupled_gpu_frames = 0;
 std::uint64_t live_present_coupled_region_epoch = 0;
 std::uint64_t live_present_coupled_mesh_generation = 0;
 std::uint64_t live_present_coupled_capture_receipt = 0;
+std::uint32_t live_present_coupled_consecutive_failures = 0;
+std::uint64_t live_present_coupled_last_failed_swap = 0;
+std::uint64_t live_present_coupled_suppressed_retries = 0;
 ogl_rtx_frame_state live_present_coupled_pose{};
 bool live_present_coupled_pose_valid = false;
 void ogl_reset_present_coupled_state(bool module_lifecycle) {
@@ -153,6 +156,9 @@ void ogl_reset_present_coupled_state(bool module_lifecycle) {
     live_present_coupled_region_epoch=0;
     live_present_coupled_mesh_generation=0;
     live_present_coupled_capture_receipt=0;
+    live_present_coupled_consecutive_failures=0;
+    live_present_coupled_last_failed_swap=0;
+    live_present_coupled_suppressed_retries=0;
     if (module_lifecycle) live_present_coupled_gpu_frames=0;
 }
 ogl_rtx_frame_state live_world_last_offscreen_pose{};
@@ -899,7 +905,31 @@ void ogl_rtx_after_visible_world_swap() {
             live_present_coupled_capture_receipt,live_deferred_receipts,
             ogl_same_world_camera_pose(live_present_coupled_pose,
                                        last_live_world_camera))) return;
-    if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) return;
+    if (!ogl::present_coupled_retry_due(
+            live_visible_world_swaps,live_present_coupled_last_failed_swap,
+            live_present_coupled_consecutive_failures)) {
+        ++live_present_coupled_suppressed_retries;
+        return;
+    }
+    if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) {
+        // A repeatedly failing synchronous GPU readback must not starve
+        // the existing visible OpenGL world. Keep occasional retries and
+        // allow recovery when either the scene or GPU becomes usable.
+        live_present_coupled_consecutive_failures=std::min(
+            live_present_coupled_consecutive_failures+1u,4u);
+        live_present_coupled_last_failed_swap=live_visible_world_swaps;
+        if (live_present_coupled_consecutive_failures<=3)
+            LL_WARNS("OGLRenderer")
+                << "P05 private Vulkan GPU failure: consecutive="
+                << live_present_coupled_consecutive_failures
+                << " retry_after_world_swaps="
+                << ogl::present_coupled_retry_delay(
+                    live_present_coupled_consecutive_failures)
+                << "; OpenGL remains active." << LL_ENDL;
+        return;
+    }
+    live_present_coupled_consecutive_failures=0;
+    live_present_coupled_last_failed_swap=0;
     live_present_coupled_pose=last_live_world_camera;
     live_present_coupled_pose_valid=true;
     live_present_coupled_region_epoch=live_world_region_epoch;
@@ -912,6 +942,7 @@ void ogl_rtx_after_visible_world_swap() {
             << "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
             << "visible_swaps=" << live_visible_world_swaps
             << " completed_private_frames=" << live_present_coupled_gpu_frames
+            << " suppressed_retries=" << live_present_coupled_suppressed_retries
             << " mesh_generation=" << mesh_generation
             << " source_capture=" << live_present_coupled_capture_receipt
             << " region_epoch=" << live_world_region_epoch

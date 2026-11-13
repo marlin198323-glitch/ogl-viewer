@@ -1878,6 +1878,33 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_repeated_live_gpu_failures_backoff_without_stopping_gl(self):
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn('inline uint32_t present_coupled_retry_delay(',policy)
+        self.assertIn('inline bool present_coupled_retry_due(',policy)
+        self.assertIn('std::min(failures,4u)',policy)
+        self.assertIn('current_world_swaps>=last_failed_swap',policy)
+        self.assertIn('live_present_coupled_suppressed_retries=0;',host)
+        self.assertIn('live_present_coupled_consecutive_failures=0;',host)
+        self.assertIn('live_present_coupled_last_failed_swap=0;',host)
+        a=host.index('void ogl_rtx_after_visible_world_swap()')
+        b=host.index('// The region UUID is compared',a)
+        fn=host[a:b]
+        for marker in ('ogl::present_coupled_retry_due(',
+                       '++live_present_coupled_suppressed_retries;',
+                       'if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) {',
+                       'live_present_coupled_last_failed_swap=live_visible_world_swaps;',
+                       'live_present_coupled_consecutive_failures=0;',
+                       'OpenGL remains active.'):
+            self.assertIn(marker,fn)
+        self.assertLess(fn.index('ogl_vulkan_camera_tick_due(live_visible_world_swaps)'),
+                        fn.index('ogl::present_coupled_retry_due('))
+        self.assertLess(fn.index('ogl::present_coupled_retry_due('),
+                        fn.index('ogl_firestorm_offscreen_gpu_sample("present-coupled")'))
+        self.assertIn('ogl_reset_present_coupled_state(false);',host)
+        self.assertEqual(host.count('ogl_reset_present_coupled_state(true);'),2)
+
     def test_p05_real_gl_swap_ignores_login_teleport_logout_restore(self):
         display=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
