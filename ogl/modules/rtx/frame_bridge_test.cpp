@@ -1269,6 +1269,7 @@ int main(int argc, char** argv) {
             setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
         bool persistent_ok=true,persistent_resized=true;
         bool persistent_unmapped=true,persistent_remapped=true;
+        bool persistent_suboptimal=true,persistent_recovered=true;
         if (test_persistent) {
             setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE","1",1);
             XResizeWindow(display,window,640,360);
@@ -1380,12 +1381,38 @@ int main(int argc, char** argv) {
             persistent_remapped=persistent_remapped &&
                 persistent_count()==0 && persistent_releases()==4 &&
                 persistent_idles()==4;
+            // A real present succeeds, then QA marks that result suboptimal.
+            // The existing attachment may not submit a second frame.
+            const bool suboptimal_attach=window_attach(
+                display,static_cast<uint64_t>(window),544,336)==1;
+            setenv("OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11","1",1);
+            const bool suboptimal_frame=suboptimal_attach &&
+                persistent_clear(1)==1 && persistent_count()==1 &&
+                persistent_builds()==5 && front_matches(0,272,168);
+            unsetenv("OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11");
+            persistent_suboptimal=suboptimal_frame &&
+                persistent_clear(1)==0 && persistent_count()==1 &&
+                persistent_idles()==4;
+            window_detach();
+            persistent_suboptimal=persistent_suboptimal &&
+                persistent_count()==0 && persistent_releases()==5 &&
+                persistent_idles()==5;
+            const bool recovered_attach=window_attach(
+                display,static_cast<uint64_t>(window),544,336)==1;
+            persistent_recovered=recovered_attach &&
+                persistent_clear(1)==1 && persistent_count()==1 &&
+                persistent_builds()==6 && front_matches(0,272,168);
+            window_detach();
+            persistent_recovered=persistent_recovered &&
+                persistent_count()==0 && persistent_releases()==6 &&
+                persistent_idles()==6;
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
             if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             std::fprintf(stdout,
-                "P05 persistent X11 WSI: frames=%d resized=%d unmapped=%d remapped=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
+                "P05 persistent X11 WSI: frames=%d resized=%d unmapped=%d remapped=%d suboptimal=%d recovered=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
                 persistent_ok?1:0,persistent_resized?1:0,
                 persistent_unmapped?1:0,persistent_remapped?1:0,
+                persistent_suboptimal?1:0,persistent_recovered?1:0,
                 persistent_builds(),persistent_releases(),persistent_idles(),
                 persistent_frames);
         }
@@ -2885,7 +2912,8 @@ int main(int argc, char** argv) {
                 !persistent_world_moved || !persistent_world_immutable ||
                 !persistent_world_resize)) ||
             (test_persistent && (!persistent_ok || !persistent_resized ||
-                !persistent_unmapped || !persistent_remapped)) ||
+                !persistent_unmapped || !persistent_remapped ||
+                !persistent_suboptimal || !persistent_recovered)) ||
             (test_world_depth && (!world_depth_near ||
                                   !world_depth_control ||
                                   !world_depth_moved ||

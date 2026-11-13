@@ -3117,6 +3117,10 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         p.blocked=true;
         return 0;
     }
+    // VK_SUBOPTIMAL_KHR can still return a signaled acquire semaphore.
+    // Complete that frame rather than abandoning the acquired image, but
+    // require a new swapchain before accepting another GPU submission.
+    const bool acquire_suboptimal=acquired==VK_SUBOPTIMAL_KHR;
     const VkFence image_fence=p.image_in_flight[image_index];
     if (image_fence && image_fence!=slot_fence &&
         vkWaitForFences(world_device.device,1,&image_fence,
@@ -3198,6 +3202,17 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     }
     ++p.frame_count;
     ++world_device.persistent_total_presents;
+    // This fault injection happens only AFTER an actual successful GPU
+    // present, under two independent native-X11 QA permissions. Never
+    // simulate a successful present or affect normal SDL/GL startup.
+    const char* native_qa=std::getenv("OGL_VULKAN_PRESENT_TEST_X11");
+    const char* force_suboptimal=std::getenv(
+        "OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11");
+    const bool injected_suboptimal=native_qa &&
+        std::strcmp(native_qa,"1")==0 && force_suboptimal &&
+        std::strcmp(force_suboptimal,"1")==0;
+    if (acquire_suboptimal || presented==VK_SUBOPTIMAL_KHR ||
+        injected_suboptimal) p.blocked=true;
     // Crucially NO vkQueueWaitIdle in the frame function.
     return 1;
 #else

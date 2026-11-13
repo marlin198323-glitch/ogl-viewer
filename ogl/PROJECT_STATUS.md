@@ -6,6 +6,60 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: VK_SUBOPTIMAL_KHR erzwingt neuen GPU-Swapchain-Attach (13.11.2026)
+
+**Implementiert:** Die persistente X11-Vulkan-Entwickler-WSI
+behandelt `VK_SUBOPTIMAL_KHR` nun als Signal, den laufenden
+Swapchain-Attach nicht für weitere Frames zu verwenden. Ein
+beim Acquire suboptimal gemeldetes Image wird dennoch über die
+gewöhnlichen GPU-Fence-/Semaphore-/Queue-Submit-Schritte
+vollständig präsentiert; anschließend bleibt `p.blocked=true`.
+Dasselbe gilt für ein suboptimales `vkQueuePresentKHR`.
+Andernfalls würde die bereits signalisierte Acquire-Semaphore
+unerlaubt ungenutzt bleiben oder auf einer suboptimalen
+Swapchain unbegrenzt weitergerendert. Ein kontrollierter
+Detach und Re-Attach sind erforderlich. Der neue native
+X11-Faultmodus kann nach einem **wirklich erfolgreichen**
+`vkQueuePresentKHR` eine suboptimale Rückgabe simulieren.
+Er ist ausschließlich mit zwei unabhängigen Entwickler-
+Freigaben aktiv und kann die normale SDL/OpenGL-Anmeldung
+nicht beeinflussen.
+
+**20 konkret bearbeitete Entwicklungs-/QA-Teilschritte:**
+
+01. Sauberen Git-Arbeitsbaum `ogl-develop`, Commit `71eef75e` kontrolliert.
+02. `AGENTS.md`, Handoff, Status und verbindliche P05-Roadmap erneut gelesen.
+03. GitHub-CI für `71eef75e` geprüft (bei Abfrage noch `queued`).
+04. Persistent-Swapchain-Fence-/Semaphore-Lifetime im vorhandenen Modul analysiert.
+05. `VK_SUBOPTIMAL_KHR`-Verhalten für Image-Acquire und Queue-Present verglichen.
+06. Ungeschützte Wiederverwendung nach suboptimalem GPU-Present identifiziert.
+07. Suboptimalen Image-Acquire per `acquire_suboptimal` festgehalten.
+08. Bereits erworbenes Image weiter korrekt bis Submit und Present geführt.
+09. Nach erfolgreichem Present die normale Framezählung beibehalten.
+10. Bei suboptimaler Acquire- oder Present-Rückgabe den Attach für Folgeframes gesperrt.
+11. Native X11-Faultinjektion nur mit `OGL_VULKAN_PRESENT_TEST_X11=1` und `OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11=1` ergänzt.
+12. Faultinjektion erst nach einem tatsächlich erfolgreichen GPU-Present ausgewertet.
+13. Im bestehenden nativen X11-Clear-Test ein neues WSI-Attach für Suboptimal-/Blocked-Prüfung ergänzt.
+14. Nach suboptimalem Frame die Unterdrückung des zweiten GPU-Submits anhand des Framezählers nachgewiesen.
+15. Detach nach dem gesperrten Attach mit vollständiger GPU-Ressourcenfreigabe überprüft.
+16. Einen weiteren WSI-Re-Attach mit erfolgreichem Real-GPU-Present und Pixelverifikation ergänzt; sechs Build-/Release-/Idle-Zyklen nachgewiesen.
+17. Python-Grafikregression für Eventreihenfolge, getrennte QA-Freigaben und Neu-Attach ergänzt: 85/85 Grafiktests bestanden.
+18. C++-Module gebaut und 41/41 native CTests bestanden; echte X11-Clear-/World-/Depth-GPU-Regressionsläufe mit 16/32 Frames erfolgreich.
+19. Native Mesh-Rotation und Region-Barrier erneut getestet; vollständigen Linux-Viewer erfolgreich gebaut und 397/397 Python- sowie 41/41 native Tests bestanden.
+20. Frisch gebauten SDL/X11-Viewer in isoliertem temporärem Profil geprüft: 20/20 Pre-GL-World-/Depth-Presents, 100/100 Pixelproben über drei Fenstergrößen, OpenGL `STATE_LOGIN_WAIT`; `git diff --check` bestanden.
+
+**Grenzen:** Eine echte Treiberrückgabe `VK_SUBOPTIMAL_KHR`
+wurde nicht ausgelöst, sondern das Ereignis erst nach einem
+realen erfolgreichen GPU-Present im separaten nativen QA-Modus
+simuliert. Der echte SDL-Start blieb synthetisch und wurde
+nach dem Login-Wartezustand per Timeout beendet (Exit 124,
+kein regulärer Shutdown-Nachweis). Keine Anmeldung in eine
+OpenSim-Welt; kein produktiver Vulkan-In-World-Renderer.
+Windows und macOS nicht lokal vollständig getestet. Keine
+Änderungen an Benutzerprofilen, Secrets oder fremden Prozessen;
+keine neuen Repository-Dateien. **P05 formal 2/20;
+Block 3 echte Live-Welt-Window-Ownership weiter offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: laufende Vulkan-Surface-Capabilities vor jedem Present prüfen (13.11.2026)
 
 **Implementiert:** Der persistente Entwickler-WSI-Pfad überprüft

@@ -191,6 +191,21 @@ Keine gezielte Vulkan-Driver-Fault-Injektion; keine
 angemeldete OpenSim-Welt. P05 bleibt 2/20. Alle 20
 Schritte am Anfang von PROJECT_STATUS.md.
 
+13.11.2026 /goal-20er-Runde: native persistente
+Vulkan-X11-Swapchain behandelt `VK_SUBOPTIMAL_KHR` von
+Image-Acquire oder Queue-Present nun als Re-Attach-
+Pflicht. Acquired Image wird korrekt submitted/presented;
+anschließend keine weiteren Frames dieses Attachs.
+Mit zwei nativen Testfreigaben nach realem GPU-Present
+simulierte Suboptimal-Meldung, blockierter Folgeframe,
+Detach und erfolgreicher Re-Attach geprüft: sechs
+Ressourcenzyklen, echte 16-/32-Frame-GPU-Regressionen.
+397/397 Python-, 85/85 Grafik-, 41/41 native Tests;
+Linux-Vollbuild erfolgreich. Frischer SDL-Pre-GL-Viewer
+20/20 Frames, 100 Pixel, drei Größen, anschließend GL
+`STATE_LOGIN_WAIT`. Keine authentifizierte OpenSim-Welt,
+P05 formal 2/20. 20 Schritte am Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

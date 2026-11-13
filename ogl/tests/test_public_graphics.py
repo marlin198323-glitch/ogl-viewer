@@ -1859,6 +1859,28 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
 
+    def test_p05_suboptimal_present_requires_new_swapchain_attachment(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        a=module.index('uint32_t present_persistent_clear_frame(')
+        b=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',a)
+        frame=module[a:b]
+        for marker in ('const bool acquire_suboptimal=acquired==VK_SUBOPTIMAL_KHR;',
+                       'const VkResult presented=vkQueuePresentKHR(world_device.queue,&present);',
+                       'OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11',
+                       'std::strcmp(native_qa,"1")==0',
+                       'acquire_suboptimal || presented==VK_SUBOPTIMAL_KHR ||',
+                       'injected_suboptimal) p.blocked=true;'):
+            self.assertIn(marker,frame)
+        self.assertLess(frame.index('++world_device.persistent_total_presents;'),
+                        frame.index('injected_suboptimal) p.blocked=true;'))
+        for marker in ('setenv("OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11","1",1)',
+                       'unsetenv("OGL_VULKAN_PERSISTENT_SUBOPTIMAL_TEST_X11")',
+                       'persistent_suboptimal=suboptimal_frame &&',
+                       'persistent_recovered=recovered_attach &&',
+                       '!persistent_suboptimal || !persistent_recovered'):
+            self.assertIn(marker,native)
+
     def test_p05_live_surface_capabilities_remain_compatible_with_swapchain(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('VkSurfaceTransformFlagBitsKHR swapchain_transform',module)
