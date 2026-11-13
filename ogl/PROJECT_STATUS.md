@@ -6,6 +6,76 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – Diagnose der echten Viewer-Logs und klarer Live-Test-Blocker (13.11.2026, 23:04 MEZ)
+
+**Nur Diagnose, kein abgeschlossener Vulkan-Meilenstein.** Das lokale
+`~/.local/share/ogl-firestorm-test/logs/OGL.log` der aktuellen
+Nutzersitzung begann um 23:03 MEZ, erreichte `STATE_STARTED`
+und bestätigte einen echten OpenGL-3D-Weltframe. GPU
+NVIDIA RTX 4070 SUPER: Vulkan/RTX-Hardware bereit,
+`rendering_active=0`, produktive Engine OpenGL 4.6.
+`python3 ogl/scripts/ogl-test-report.py` meldete
+`no_deferred_evidence_session`, null Deferred-/GPU-Receipts
+und null `present-coupled`-World-Swap-Vulkan-Frames.
+Das vorherige Log zeigte ebenfalls keinen Live-Vulkan-Receipt.
+
+**Ursache ermittelt:** Der aktuelle, tatsächlich angemeldete
+Viewerprozess wurde **ohne** alle P05-Live-Entwicklerflags
+gestartet. Ein Startzeit-Opt-in lässt sich nicht in der bereits
+laufenden Session nachträglich setzen. Fünf andere
+Viewerprozesse laufen mit isolierten temporären Testprofilen;
+zwei davon haben alle sieben Live-Flags, erreichten aber keinen
+Weltstart. Diese Testprozesse laufen teils als verwaiste
+Nachfahren früherer `timeout`-/SDL-Starts und belegen RAM/CPU.
+Beim Audit war der Gesamtswap von 2 GiB vollständig belegt.
+**Kein Prozess beendet oder laufendes Nutzerprofil geändert.**
+
+Für den nächsten **ausdrücklich freigegebenen und bewusst
+begonnenen** Live-Abnahmelauf zuerst vorhandene Test-Viewer
+kontrolliert beenden und den aktuell angemeldeten Viewer
+normal schließen; keinesfalls mit demselben Profil parallel
+starten. Anschließend vom Linux-Mint-Terminal im vorhandenen
+OGL-Repository (keine neuen Dateien) starten:
+
+```bash
+cd /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm
+OGL_VULKAN_WORLD_BOOTSTRAP=1 \
+OGL_VULKAN_WORLD_MESH_UPLOAD=1 \
+OGL_VULKAN_WORLD_CAMERA_PROBE=1 \
+OGL_VULKAN_OFFSCREEN_FRAME_PROBE=1 \
+OGL_VULKAN_WORLD_OFFSCREEN_RASTER=1 \
+OGL_VULKAN_LIVE_WORLD_OFFSCREEN=1 \
+OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN=1 \
+bash ogl/scripts/run-viewer-test.sh
+```
+
+In dieser **neuen** Session ohne Weitergabe von Zugangsdaten
+normal in ein autorisiertes OpenSim-Grid anmelden, eine
+3D-Welt öffnen und die vorhandene `OGL.log` mit
+`python3 ogl/scripts/ogl-test-report.py` prüfen. Nach
+`STATE_STARTED` müssen die Kette `P05 deferred evidence
+session`, `P05 deferred capture receipt`, quellgebundener
+`P05 deferred GPU receipt source=present-coupled` und
+passender `P05 REAL GL-world-swap -> Vulkan offscreen GPU`
+nachvollziehbar sein. Wenn ein Schritt fehlt, dessen
+Ursache im jeweiligen Source-/GPU-Gate gezielt untersuchen;
+keinen Erfolg ohne positive Beweise deklarieren.
+
+Der aktuelle Logreport meldete 652 Warnungen, darunter
+fehlende Asset-/Texturabrufe (HTTP 404), CAPS-Vorläufe,
+Zertifikatswarnungen und HTTP 502 bei `/CE/<uuid>`.
+Gemäß OpenGenesisLINK-
+`doc/NexVerse/MESH_UPLOAD_EVENTQUEUE_502_DIAGNOSTICS.md`
+kann letzteres ein absichtliches Ende einer leeren
+EventQueue-Long-Poll-Abfrage sein und beweist für sich
+**keinen** defekten Upload-/Proxy-Pfad.
+
+**Wichtig:** Selbst ein später bestätigter privater
+`present-coupled`-GPU-Frame wäre **noch keine**
+vollständige Vulkan-Weltpräsentation oder Vulkan-SDL-
+Window-Ownership. P05/3 bleibt offen, P05 weiterhin 2/20;
+Serverzeit-Clock-v1/Pacific-Ablösung separat P08/P13 offen.
+
 ## P05/3 – /goal 20 Teilblöcke: Kamerasnapshot und GPU-Pixelstatistiken am echten Welt-Swap schützen (13.11.2026)
 
 **Implementiert:** Die strikt opt-in private Vulkan-GPU-Diagnose

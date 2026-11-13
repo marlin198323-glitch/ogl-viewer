@@ -46,6 +46,26 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+13.11.2026, 23:04 MEZ – P05/3 LIVE LOG-AUDIT (nicht
+abgenommen): aktuelle OGL-Testprofil-Nutzersitzung nach
+`STATE_STARTED` mit echter OpenGL-3D-Welt, RTX 4070 SUPER
+bereit, jedoch **ohne** benötigte Live-Vulkan-Env-Gates.
+Der Report zeigt `no_deferred_evidence_session`, 0
+Deferred- und `present-coupled`-GPU-Receipts. Fünf
+verwaiste isolierte SDL-Testviewer laufen zusätzlich;
+zwei davon mit Dev-Gates, aber ohne `STATE_STARTED`.
+2-GiB-Swap voll. Keine laufenden Prozesse verändert.
+**Nächster P05/3-Schritt:** zunächst kontrollierte
+Testprozess-Bereinigung und normale Beendigung der
+angemeldeten Nutzersitzung, dann den Viewer EINMAL mit
+den sieben Env-Flags aus dem P05/3-Logaudit in
+`PROJECT_STATUS.md` neu starten, selbst anmelden,
+Welt betreten und `ogl-test-report.py` auswerten.
+Nur echte GPU-Receipt-Kette als Beleg; kein positives
+Live-Vulkan-World-Present behaupten. 502 auf `/CE/`
+kann gemäß Serverdokumentation normales EventQueue-
+Long-Poll-Ende sein. P05 formal weiter 2/20.
+
 13.11.2026 /goal 20er-Runde P05/3: Echt an sichtbaren
 OpenGL-/OpenSim-Welt-Swap gebundene private Vulkan-GPU-
 Receipts verifizieren jetzt zusätzlich die echte
