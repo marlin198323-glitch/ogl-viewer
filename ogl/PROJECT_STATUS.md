@@ -6,6 +6,97 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: Firestorm-Kamerabasis auf echtem SDL-Vulkan-Fenster präsentieren (13.11.2026)
+
+**Implementiert und unabhängig GPU-geprüft:** Der bereits bestehende,
+streng opt-in **vor** dem OpenGL-Kontext laufende
+`ogl_probe_real_sdl_window_before_gl()`-Entwicklerpfad
+auf dem tatsächlichen SDL/X11-Viewerfenster kann nun
+eine eigenständig freigegebene realistische
+Firestorm-Kamerabasis testen: `forward=+X`,
+`right=-getLeftAxis()=-Y`, `up=+Z`. Die vorherigen
+synthetischen SDL-World-Tests verwendeten `right=+Y`.
+Das neue zusätzliche Flag
+`OGL_VULKAN_SDL_PREGL_FIRESTORM_BASIS_PROBE=1`
+verlangt **vor Vulkan-Modulladen** alle bestehenden
+separaten Raster-/Mesh-/Kamera-/World-/Depth-Gates;
+für die Multi-Frame-Sequenz sind darüber hinaus beide
+expliziten Persistent-World-/Persistent-Clear-Gate-Paare
+zwingend. Fehlende oder falsche Flags führen zu
+**keinem** Vulkan-Present, sondern normalem OpenGL-Start.
+Ohne neuen Basis-Opt-in bleibt die alte +Y-Regression
+unverändert. Beide Kameraaufbauten (1 Frame bzw.
+20 Frames über 3 wechselnde Fenstergrößen) verwenden
+die korrekte Basis. Die Anzeige enthält den gesonderten
+numerik-/profilfreien Status `firestorm-basis=verified`
+und markiert keine ungetestete Konfiguration als Erfolg.
+
+**Echte GPU-/SDL-Nachweise auf separatem Xvfb-X11:**
+Der frisch vollständig gebaute OGL-Linux-Viewer
+präsentierte **20/20** persistente echte Vulkan-
+World-/Depth-Frames im **echten SDL-Fenster** mit
+`right=-Y`, **100/100** tatsächlich aus X11
+ausgelesene Pixel und 3 extents (initial/resize/restore),
+inklusive erfolgreicher kompletter Vulkan-Detach-
+und GL-Kontext-Rückgabe. Eine zweite Variante
+bestätigte zusätzlich `dual-sync=verified` mit
+2 GPU-Submissions vor bounded fence wait und
+identischen 20/20 Frames. Außerdem bestanden:
+**1/1** Einzel-Frame mit 5/5 Pixeln bei Firestorm-
+Basis; unveränderte +Y-Baseline mit **20/20** Frames;
+unvollständiger Firestorm-Gate-Versuch mit **0**
+Vulkan-Presents und sauberem `STATE_LOGIN_WAIT` unter
+OpenGL. In allen fünf isolierten Runs
+`World backend: OpenGL`, Login-Wartezustand und
+0 `FATAL`. Xvfb-Testviewer wurden per Test-
+Termination beendet, nicht per normalem Logout.
+Native Vulkan-X11-Tests: Clear 16/32,
+World/Depth 16/32, Mesh-Rotation,
+Region-Barrier und echte Firestorm-Kamerabasis
+(`firestorm_right=1`) bestanden. Linux-Vollviewer-
+Build, **422/422 Python-Tests**, darunter **100/100
+Grafik-Vertragstests**, und **41/41 native CTests**
+bestanden.
+
+**20 tatsächlich ausgeführte Code-, Integrations- und Prüfschritte:**
+
+01. Auf `ogl-develop` den sauberen Ausgangscommit `f1a541a3` und Remote-Synchronität verifiziert.
+02. Verbindliche `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Hauptroadmap gelesen.
+03. GitHub-CI des vorherigen Kamera-Fixes `95b486ba` und der OpenSim-Beleg-Dokumentation `f1a541a3` als `success` verifiziert.
+04. OpenGenesisLINK-`main` und Stable-Tag `v0.9.4.0` auf unveränderte SHA `ee15af8e...` geprüft; kein `gen1-updates`-Release gefunden.
+05. Offene externe PRs #448 (HGSP2-Sicherheit, WIP), #447 (AssetService-S3, opt-in), #443 (Installer) getrennt von veröffentlichtem Stable eingeordnet; keine unverifizierte Viewer-API-Änderung übernommen.
+06. Vorhandenen echten positiven `present-coupled`-OpenSim-Vulkan-GPU-Lognachweis als Quelle für den nächsten Integrationsschritt berücksichtigt.
+07. Existierende `llwindowsdl2.cpp`-Vor-GL-SDL-Window-Ownership, Flag-Gates und Wiederherstellung auf reale Vulkan-WSI-Schnittstellen geprüft.
+08. Native Vulkan-Welt-/Depth-Framepipeline auf `vkAcquireNextImageKHR`, `vkQueueSubmit`, `vkQueuePresentKHR` und per-Image-Semaphoren/Fences geprüft.
+09. Bisherige synthetische SDL-Kamerabasis +Y gegen echten Firestorm-`right=-getLeftAxis()`/−Y abgeglichen.
+10. Separaten Opt-in `OGL_VULKAN_SDL_PREGL_FIRESTORM_BASIS_PROBE` in bestehendem SDL-Integrationspfad eingeführt.
+11. Strikte Raster-, Mesh-, World-, Kamera- und Depth-Gate-Vollständigkeitsprüfung **vor** Vulkan-Modulladen eingeführt.
+12. Zusätzliche Persistent-Clear-/World-Gatepflicht bei mehrfachem Vulkan-Present geprüft und umgesetzt.
+13. Beide echten SDL-Kameradatenaufbauten auf optionales `right=-Y` umgestellt, Legacy-+Y ohne Opt-in erhalten.
+14. Gesondertes `firestorm-basis=verified/failed/not-requested`-Protokoll und Python-Regression für Sicherung/Code-Reihenfolge ergänzt: 100 Grafiktests grün.
+15. Vollständige 422-Python-/41-native-CTest-Suite sowie erfolgreichen Linux-C++-Vollviewer-Build ausgeführt.
+16. Isolierten SDL/Xvfb-Vulkan-World-/Depth-Multiframe-Test mit echter Firestorm-Basis durchgeführt: 20/20 GPU-Presents, 100/100 Pixel, 3 Extents und OpenGL-Login erfolgreich.
+17. Gleiches Testfenster mit Dual-Fence-Opt-in ausgeführt: `dual-sync=verified`, 20/20 Frames und saubere Vulkan/GL-Fensterübergabe.
+18. Single-Frame-Firestorm-Basis mit echter GPU-X11-Pixelprüfung bestanden: 1/1, 5/5 Pixel, danach OpenGL-Login.
+19. Legacy-+Y-Multiframe-SDL-Pfad 20/20 sowie nicht vollständig freigegebenen Firestorm-Basisversuch (0 Vulkan-Presents, OpenGL-Login) geprüft.
+20. Native Vulkan-GPU-Regressionen Clear/World/Depth je 16/32, Kamera-Projektion mit `firestorm_right=1`, Mesh-Rotation, Region-Barrier und `git diff --check` erfolgreich abgeschlossen.
+
+**Kritische Abgrenzung:** Das sind echte Fenster-
+Swapchain-Presents mit **synthetischer, Firestorm-
+ausgerichteter** Geometrie vor dem GL-Start.
+Der beim Nutzer zuvor nachgewiesene private
+`source=present-coupled`-OpenSim-GPU-Pfad ist davon
+getrennt. Es gibt **noch keinen gemeinsamen,
+dauerhaften authentifizierten SDL-Vulkan-Weltrenderer**,
+keine vollständige Terrain-/Avatar-/Material-/UI-
+Darstellung und keinen sicheren In-World-Wechsel der
+Fenster-Ownership. Vulkan wird vor der GL-Initialisierung
+vollständig freigegeben; OpenGL bleibt produktiver Owner.
+Keine fremden Profile, Passwörter oder laufenden
+Nutzerprozesse verändert. Die separate servergesteuerte
+MEZ/MESZ-Uhr bleibt Pflicht P08/P13.
+**P05 formal 2/20, P05/3 Window-World-Present weiter offen.**
+
 ## P05/3 – erste echte gekoppelte OpenSim-Vulkan-GPU-Frames bestätigt (13.11.2026, 23:30 MEZ)
 
 **Live-Integrationsmeilenstein endlich positiv verifiziert:** Nach

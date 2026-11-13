@@ -404,6 +404,32 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(fn.index('const bool sequence=sequence_requested'),
                         fn.index('if (sequence && count)'))
 
+    def test_p05_sdl_firestorm_basis_requires_real_world_and_depth(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        a=win.index('void ogl_probe_real_sdl_window_before_gl(')
+        b=win.index('} // namespace',a)
+        fn=win[a:b]
+        self.assertIn('OGL_VULKAN_SDL_PREGL_FIRESTORM_BASIS_PROBE',fn)
+        self.assertIn('const bool firestorm_basis=',fn)
+        self.assertIn('if (firestorm_basis &&',fn)
+        self.assertIn('P05 SDL Firestorm-basis QA requires complete Vulkan world/depth permissions',fn)
+        for flag in ('OGL_VULKAN_SDL_PREGL_GEOMETRY_PROBE',
+                     'OGL_VULKAN_SDL_PREGL_WORLD_PROJECTION_PROBE',
+                     'OGL_VULKAN_SDL_PREGL_DEPTH_PROBE',
+                     'OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE',
+                     'OGL_VULKAN_EXCLUSIVE_WORLD_PROBE',
+                     'OGL_VULKAN_WORLD_CAMERA_PROBE',
+                     'OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE',
+                     'OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE'):
+            self.assertIn('ogl_pre_gl_flag("'+flag+'")',fn)
+        self.assertLess(fn.index('if (firestorm_basis &&'),
+                        fn.index('SDL_LoadObject("./lib/ogl_rtx.so")'))
+        self.assertEqual(fn.count('camera.camera_right[1]=firestorm_basis ? -1.f : 1.f;'),2)
+        self.assertIn('firestorm-basis=" << (firestorm_basis',fn)
+        self.assertIn('detach();\n            stop();',fn)
+        self.assertLess(win.index('ogl_probe_real_sdl_window_before_gl(mWindow);'),
+                        win.index('mContext = SDL_GL_CreateContext( mWindow );'))
+
     def test_p05_actual_sdl_three_extent_multiframe_probe_contract(self):
         win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
         self.assertIn('const bool sequence=sequence_requested && sequence_permitted;',win)

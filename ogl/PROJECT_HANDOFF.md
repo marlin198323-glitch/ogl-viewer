@@ -46,6 +46,33 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+13.11.2026 – /goal 20 P05/3 SDL-Vulkan-Window-
+Integration: `llwindowsdl2.cpp` besitzt jetzt den
+zusätzlichen, *streng opt-in*
+`OGL_VULKAN_SDL_PREGL_FIRESTORM_BASIS_PROBE=1`.
+Nur bei vollständig freigegebenen World+Depth-Gates
+(bei Multiframe auch beide Persistent-World/Clear-
+Paare) rendert der pre-GL SDL/X11-Diagnosepfad
+mit **Firestorm-orientierter Basis** forward +X,
+right -Y, up +Z. Legacy-Basis +Y bleibt unverändert.
+Echte Xvfb-SDL-Window-Presents 20/20, 100/100
+X11-Pixel und drei Größen; Dual-Fence-20/20,
+Single-Frame 1/1, Legacy-20/20 und verweigerte
+partielle Freigaben mit 0 Vulkan-Frames; alle
+kehren vor dem Login nach OpenGL zurück.
+Linux-Vollbuild, 422 Python-/100 Grafik-/41 native
+CTests grün; X11-16-/32-Frame-Clear/World/Depth,
+Rotation/Region-Barrier sowie Firestorm-GPU-Basis
+bestanden. Server-G1 Stable unverändert; offene
+PRs #448/#447/#443 noch nicht in Stable übernommen.
+**WICHTIG:** Dies ist kein dauerhafter SDL-Vulkan-
+In-World-Renderer, sondern ein pre-GL Test mit
+synthetischem Weltmesh und echten GPU-Presents.
+Der separate echte private `present-coupled`-OpenSim-
+Readback wurde vorher positiv gemessen.
+P05 weiterhin formal 2/20, P05/3 offen.
+20 Schritte stehen am Anfang von PROJECT_STATUS.md.
+
 13.11.2026, 23:30 MEZ – P05/3 positiver ECHTER
 OpenSim-Welt-GPU-Beleg nach Kamera-Fix `95b486ba`:
 Nutzer-Report `visible_world_swap_private_gpu_confirmed`,

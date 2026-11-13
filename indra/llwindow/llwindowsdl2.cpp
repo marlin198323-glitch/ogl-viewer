@@ -174,6 +174,32 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // The real Firestorm LLViewerCamera has forward=+X, LEFT=+Y, up=+Z.
+    // This optional integration QA must pass right=-getLeftAxis() to the
+    // actual SDL/X11 Vulkan presentation path, including depth and all
+    // three resize extents. Require the FULL world+depth permission chain:
+    // a partial flag request cannot silently run a weaker clear test.
+    const bool firestorm_basis=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_FIRESTORM_BASIS_PROBE");
+    if (firestorm_basis &&
+        (!ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_GEOMETRY_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_WORLD_MESH_UPLOAD") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_WORLD_PROJECTION_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_DEPTH_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE") ||
+         (sequence_requested &&
+          (!ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE") ||
+           !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE") ||
+           !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE") ||
+           !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE"))))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL Firestorm-basis QA requires complete Vulkan world/depth permissions; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -489,7 +515,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         camera.camera_position[1]=20.f;
                         camera.camera_position[2]=30.f;
                         camera.camera_forward[0]=1.f;
-                        camera.camera_right[1]=1.f;
+                        camera.camera_right[1]=firestorm_basis ? -1.f : 1.f;
                         camera.camera_up[2]=1.f;
                         camera.sun_direction[2]=1.f;
                         camera.vertical_fov_radians=1.57079632679f;
@@ -711,7 +737,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         camera.camera_position[1]=20.f;
                         camera.camera_position[2]=30.f;
                         camera.camera_forward[0]=1.f;
-                        camera.camera_right[1]=1.f;
+                        camera.camera_right[1]=firestorm_basis ? -1.f : 1.f;
                         camera.camera_up[2]=1.f;
                         camera.sun_direction[2]=1.f;
                         camera.vertical_fov_radians=1.57079632679f;
@@ -746,6 +772,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ", groups=" << attempted_groups <<
         ", raster=" << (raster ? (raster_verified ? "verified" : "failed")
                               : "not-requested") <<
+        ", firestorm-basis=" << (firestorm_basis
+            ? (world_verified && depth_verified ? "verified" : "failed")
+            : "not-requested") <<
         ", camera=" << (world ? (world_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", depth=" << (depth ? (depth_verified ? "verified" : "failed")
