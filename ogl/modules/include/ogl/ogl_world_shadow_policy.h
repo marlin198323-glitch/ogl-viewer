@@ -95,6 +95,18 @@ inline bool present_coupled_gpu_evidence_current(
             static_cast<uint64_t>(width)*height;
 }
 
+// Private Vulkan GPU readbacks must not claim pixels with internally
+// inconsistent renderer statistics. The P05 logfile validator already
+// requires these same ranges; reject malformed evidence at its source.
+// A nonclear pixel is not necessarily lit (unlit materials are valid).
+inline bool present_coupled_pixel_stats_valid(
+    uint32_t nonclear_pixels, uint32_t lit_pixels,
+    uint32_t mean_luminance) noexcept {
+    return nonclear_pixels>0u && lit_pixels<=nonclear_pixels &&
+           mean_luminance<=765u &&
+           (lit_pixels==0u || mean_luminance>0u);
+}
+
 // Identical pose and mesh do NOT prove that the captured real-world
 // material/source data stayed unchanged: the deferred receipt also matters.
 inline bool present_coupled_needs_redraw(

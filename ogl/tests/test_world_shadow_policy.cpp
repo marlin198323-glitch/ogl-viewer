@@ -76,6 +76,18 @@ int main() {
     assert(ogl::present_coupled_needs_redraw(true,3,3,11,11,4,4,false));
     assert(!ogl::present_coupled_needs_redraw(true,3,3,11,11,4,4,true));
     assert(!ogl::present_coupled_needs_redraw(false,3,3,11,11,0,0,false));
+    // Source GPU statistics must match the downstream log parser:
+    // impossible lit-pixel and brightness telemetry cannot count as a
+    // successfully validated frame even when VkQueueSubmit returned 1.
+    assert(ogl::present_coupled_pixel_stats_valid(500,200,234));
+    assert(ogl::present_coupled_pixel_stats_valid(500,0,0));
+    assert(ogl::present_coupled_pixel_stats_valid(500,500,765));
+    assert(!ogl::present_coupled_pixel_stats_valid(0,0,0));
+    assert(!ogl::present_coupled_pixel_stats_valid(500,501,234));
+    assert(!ogl::present_coupled_pixel_stats_valid(500,200,766));
+    assert(!ogl::present_coupled_pixel_stats_valid(500,1,0));
+    assert(!ogl::present_coupled_pixel_stats_valid(0,1,1));
+    assert(!ogl::present_coupled_pixel_stats_valid(100,UINT32_MAX,10));
     // GPU proof is stricter than a successful VkQueueSubmit: same
     // source across the draw, bounded dimensions, and non-clear pixels.
     const auto evidence=[](uint64_t old_epoch,uint64_t old_receipt,
@@ -115,6 +127,25 @@ int main() {
     frame.aspect_ratio=16.f/9.f;
     frame.near_clip_m=0.1f;
     frame.far_clip_m=1024.f;
+    // A genuine camera snapshot must remain byte-value-identical in all
+    // geometry-relevant fields across a synchronous GPU readback.
+    auto live_camera_snapshot=frame;
+    assert(ogl::same_rt_frame(live_camera_snapshot,frame));
+    auto moved_camera=frame;
+    moved_camera.camera_position[0]+=1.f;
+    assert(!ogl::same_rt_frame(live_camera_snapshot,moved_camera));
+    moved_camera=frame;
+    moved_camera.sun_direction[0]+=0.25f;
+    assert(!ogl::same_rt_frame(live_camera_snapshot,moved_camera));
+    moved_camera=frame;
+    moved_camera.vertical_fov_radians+=0.05f;
+    assert(!ogl::same_rt_frame(live_camera_snapshot,moved_camera));
+    moved_camera=frame;
+    moved_camera.aspect_ratio+=0.1f;
+    assert(!ogl::same_rt_frame(live_camera_snapshot,moved_camera));
+    moved_camera=frame;
+    moved_camera.frame_version++;
+    assert(!ogl::same_rt_frame(live_camera_snapshot,moved_camera));
     ogl_rtx_world_shadow_sample sample{};
     sample.struct_size=sizeof(sample);
     sample.version=OGL_RTX_WORLD_SHADOW_VERSION;

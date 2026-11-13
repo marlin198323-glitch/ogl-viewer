@@ -6,6 +6,76 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: Kamerasnapshot und GPU-Pixelstatistiken am echten Welt-Swap schützen (13.11.2026)
+
+**Implementiert:** Die strikt opt-in private Vulkan-GPU-Diagnose
+nach echtem sichtbarem OpenGL-/OpenSim-Welt-Swap validierte
+bislang GPU-Framezähler, Deferred-Capture, Region, Mesh-
+Generation und Nicht-Hintergrundpixel, aber nicht explizit
+die **Kamerapose über den synchronen Vulkan-GPU-Durchlauf**
+oder die Plausibilität der zusätzlich gemeldeten
+`lit_pixels`-/`mean_luminance`-Werte. Der vorhandene
+Logreport verlangte letztere zwar, der echte Host konnte
+jedoch inkonsistente Angaben trotzdem als erfolgreichen
+GPU-Receipt protokollieren.
+
+Jetzt kopiert der echte Host vor `world_render_offscreen_scene()`
+die aktuelle Firestorm-Kamera in einen lokalen Snapshot.
+Ein `source=present-coupled`-Frame zählt nur, wenn danach
+weiterhin eine gültige Deferred-Capture und Kamera vorliegen,
+`ogl::same_rt_frame()` **sämtliche** relevanten Kamera-, FOV-,
+Clipping- und Sonnenwerte mit dem ursprünglichen Snapshot
+als identisch und endlich bestätigt sowie die gelieferten
+GPU-Statistiken plausibel sind. Die neue portable C++-
+Policy `ogl::present_coupled_pixel_stats_valid()` verlangt
+`nonclear_pixels>0`, `lit_pixels<=nonclear_pixels`, die
+RGB-Helligkeitssumme `mean_luminance<=765` und bei
+positiven lit-Pixeln auch eine positive Helligkeit.
+Der bestehende `present_coupled_gpu_evidence_current()`-
+Beleg muss weiterhin unabhängig bestehen. Ein leerer
+oder null-`source`-String wird früh abgewiesen, bevor
+ein `strcmp` oder ein Log ihn dereferenziert. Ungültige
+private Vulkan-Evidenz führt wie zuvor zu einem
+Fehlversuch/Backoff; **OpenGL bleibt unverändert aktiv**.
+Kamera-/Pixel-Gates gelten nur für die echte World-Swap-
+Quelle, nicht für alte Mesh-/Kamera-Diagnose-Opt-ins.
+
+**20 tatsächlich ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. `ogl-develop`, sauberen Git-Zustand und Ausgangscommit `2def7b97` geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md`, P05-Hauptroadmap und aktive P05/3-Vorgaben gelesen.
+03. GitHub-CI des Ausgangscommits `2def7b97` mit `success` verifiziert.
+04. OpenGenesisLINK-`main` read-only mit zuletzt geprüftem `ee15af8e728ac024c4ab6beb8bd195f3662850eb` abgeglichen: unverändert.
+05. Server-Stable-Tag `v0.9.4.0` als unverändert geprüft; noch kein `gen1-updates`-Tag/Release.
+06. Die dokumentierte verbindliche OGL-Clock-v1-/MEZ-/MESZ-Pflichtaufgabe für P08/P13 beibehalten; keine voreilige Zeitumstellung in P05.
+07. Echten GPU-Erfolgs-/Fehlerpfad in `oglrtxhost.cpp`, Quelle, Frame- und Pixel-Receipt-Protokoll untersucht.
+08. Vorhandenen tragfähigen plattformneutralen Kamera-Vergleich `ogl::same_rt_frame()` überprüft.
+09. Fehlende Kamera-Bestätigung nach synchronem GPU-Readback als zusätzliche Evidenzlücke identifiziert.
+10. Snapshot der echten Firestorm-Weltkamera unmittelbar vor dem GPU-Aufruf ergänzt.
+11. Bestehende Live-Capture- und Kameragültigkeit nach GPU-Abschluss zusätzlich verlangt.
+12. Kamera-Positions-/Orientierungs-, FOV-/Aspect-/Clipping-/Sonnen-Konstanz nach Vulkan-Durchlauf über `ogl::same_rt_frame()` geprüft.
+13. Portable Pixelstatistik-Policy `present_coupled_pixel_stats_valid()` hinzugefügt.
+14. Host-Erfolgsbestätigung für echte World-Swap-Frames an verfügbare Statistikfunktionen und die Pixel-Policy gebunden.
+15. Null-/Leer-Source gegen ungültiges `strcmp()` vor GPU-Arbeit abgesichert.
+16. Neun native Positiv-/Negativtests für Pixelstatistiken und sechs native Kamera-Snapshot-Grenzfälle ergänzt.
+17. Neuen Python-Grafik-Vertragstest für Reihenfolge, Kamera- und GPU-Pixel-Konsistenz ergänzt: 98/98 Grafiktests bestanden.
+18. Nativen Vulkan-Modul-Build samt 41/41 native CTests bestanden; `git diff --check` erfolgreich.
+19. Vollständigen Linux-Viewer neu gebaut: 420/420 Python- und 41/41 native CTests; reale Vulkan-X11-Clear-/World-/Depth-Regressionen in 16/32-Frame-Szenarien, Mesh-Rotation und Regionswechsel bestanden.
+20. Frisch gebauten SDL-Viewer mit isoliertem Xvfb-Testprofil und Vulkan-Live-Opt-ins bis `STATE_LOGIN_WAIT` gestartet: 0 falsche Weltframe-Meldungen, 0 Pre-Login-private GPU-Receipts, 0 ERROR/FATAL, Report `world_entry_not_observed`; Test nach 18 Sekunden per Timeout beendet.
+
+**Grenzen:** Die neuen Kameramismatch-Fälle und
+Statistikfehler wurden im vorhandenen nativen C++-Test
+synthetisch nachgestellt; ein echter Vulkan-Fehlreadback
+nach **authentifizierter OpenSim-Anmeldung** wurde nicht
+provoziert. Die realen Vulkan-X11-Tests benutzen
+synthetische GPU-Szenen. Der isolierte Viewer wurde per
+Timeout (Exit 124) beendet, nicht durch regulären Logout.
+Windows-/macOS-Vollviewer wurden lokal nicht gebaut;
+keine Nutzerprozesse, Profile, Credentials, Server oder
+neuen Repo-Dateien verändert. **P05 weiterhin 2/20;
+P05/3 echte SDL-Vulkan-Window-Ownership und vollständiger
+Vulkan-Welt-/UI-Present weiter offen.**
+
 ## Server-Clock-v1 / Pacific-Time-Ablösung – verbindlicher offener Auftrag (13.11.2026)
 
 Beim Quellenabgleich mit OpenGenesisLINK `main` wurden zusätzlich

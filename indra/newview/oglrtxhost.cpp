@@ -708,6 +708,9 @@ bool ogl_live_offscreen_developer_enabled() {
 
 bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
 #if LL_LINUX || LL_WINDOWS
+    // The ABI is also called by developer-only camera and mesh paths.
+    // Never allow a malformed source string to reach strcmp()/logging.
+    if (!source || !*source) return false;
     if (!ogl_live_offscreen_developer_enabled() ||
         // Only actual Firestorm deferred world captures, never a generic
         // externally submitted or prelogin synthetic triangle batch.
@@ -725,6 +728,10 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
     const auto source_epoch=live_world_region_epoch;
     const auto source_receipt=live_deferred_receipts;
     const auto source_mesh=live_deferred_mesh_generation;
+    // Snapshot the actual Firestorm camera at this real GL-world-swap.
+    // A successful GPU counter alone is not proof that an asynchronous
+    // backend kept the same pose while doing the private readback.
+    const auto source_camera=last_live_world_camera;
     const auto old_count=world_offscreen_scene_frames();
     const bool gpu_completed=world_render_offscreen_scene()==1 &&
         old_count<UINT64_MAX && world_offscreen_scene_frames()==old_count+1;
@@ -732,7 +739,13 @@ bool ogl_firestorm_offscreen_gpu_sample(const char* source) {
     // attributed to the REAL GL-world-swap. A cleared image, a stale scene
     // after an in-flight region change or a bad readback is NOT evidence.
     const bool rendered=gpu_completed && (!coupled_source ||
-        (world_offscreen_scene_width && world_offscreen_scene_height &&
+        (live_deferred_capture_valid && last_live_world_camera_valid &&
+         ogl::same_rt_frame(source_camera,last_live_world_camera) &&
+         world_offscreen_scene_width && world_offscreen_scene_height &&
+         world_offscreen_lit_pixels && world_offscreen_mean_luminance &&
+         ogl::present_coupled_pixel_stats_valid(
+             world_offscreen_scene_pixels(),
+             world_offscreen_lit_pixels(),world_offscreen_mean_luminance()) &&
          ogl::present_coupled_gpu_evidence_current(
              source_epoch,source_receipt,source_mesh,
              live_world_region_epoch,live_deferred_receipt_epoch,

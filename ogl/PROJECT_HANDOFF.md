@@ -46,6 +46,26 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+13.11.2026 /goal 20er-Runde P05/3: Echt an sichtbaren
+OpenGL-/OpenSim-Welt-Swap gebundene private Vulkan-GPU-
+Receipts verifizieren jetzt zusätzlich die echte
+Firestorm-Kamera **vor und nach** dem GPU-Durchlauf
+mithilfe des bestehenden `ogl::same_rt_frame()` sowie
+die plausible Anzahl `lit_pixels` und RGB-Helligkeit
+mit neuer portable C++-Pixelstats-Policy. Null/Leer-
+GPU-Quellen werden früh abgewiesen. Kein Verschieben
+der OpenGL-SDL-Window-Ownership. Server-`main`/Stable
+`ee15af8e...` unverändert, kein `gen1-updates`-Release.
+Die gesonderte verpflichtende MEZ-/MESZ-/UTC-Clock-v1-
+Umstellung bleibt offen P08/P13. Linux-Vollbuild,
+420/420 Python-, 98/98 Grafik- und 41/41 native CTests;
+reale native X11-Vulkan-GPU-Clear/World/Depth 16/32,
+Rotation/Region-Barrier erfolgreich. Isolierter SDL-
+Login mit Dev-Opt-ins: `STATE_LOGIN_WAIT`, 0 falsche
+Welt-/Vulkan-Live-GPU-Receipts und 0 ERROR/FATAL.
+Keine authentifizierte Vulkan-Welt-Darstellung, P05 2/20.
+Alle 20 Schritte am Anfang von PROJECT_STATUS.md.
+
 Teststart: bash ogl/scripts/run-viewer-test.sh
 Build und Tests: bash ogl/scripts/build-test.sh
 

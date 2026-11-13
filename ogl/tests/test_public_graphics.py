@@ -1878,6 +1878,31 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_world_swap_gpu_receipt_requires_camera_and_pixel_consistency(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        start=host.index('bool ogl_firestorm_offscreen_gpu_sample(const char* source)')
+        end=host.index('// The private GPU world shader',start)
+        fn=host[start:end]
+        self.assertIn('if (!source || !*source) return false;',fn)
+        self.assertIn('const auto source_camera=last_live_world_camera;',fn)
+        self.assertIn('ogl::same_rt_frame(source_camera,last_live_world_camera)',fn)
+        self.assertIn('live_deferred_capture_valid && last_live_world_camera_valid',fn)
+        self.assertIn('world_offscreen_lit_pixels && world_offscreen_mean_luminance',fn)
+        self.assertIn('ogl::present_coupled_pixel_stats_valid(',fn)
+        self.assertIn('ogl::present_coupled_gpu_evidence_current(',fn)
+        self.assertLess(fn.index('const auto source_camera='),
+                        fn.index('world_render_offscreen_scene()==1'))
+        self.assertLess(fn.index('world_render_offscreen_scene()==1'),
+                        fn.index('ogl::same_rt_frame(source_camera,last_live_world_camera)'))
+        self.assertLess(fn.index('ogl::present_coupled_pixel_stats_valid('),
+                        fn.index('ogl::present_coupled_gpu_evidence_current('))
+        self.assertLess(fn.index('const bool rendered='),
+                        fn.index('++live_deferred_gpu_frames;'))
+        self.assertIn('inline bool present_coupled_pixel_stats_valid(',policy)
+        self.assertIn('lit_pixels<=nonclear_pixels',policy)
+        self.assertIn('mean_luminance<=765u',policy)
+
     def test_p05_first_valid_world_swap_can_sample_without_120_frame_delay(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
