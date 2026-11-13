@@ -71,6 +71,17 @@ if(OGL_VULKAN_HEADER_DIR AND EXISTS "${OGL_VULKAN_HEADER_DIR}/vulkan/vulkan_core
     target_compile_features(ogl_rtx_module PRIVATE cxx_std_17)
     find_package(Threads REQUIRED)
     target_link_libraries(ogl_rtx_module PRIVATE Threads::Threads)
+    # This module now queries the borrowed X11 window geometry before GPU
+    # present. Link Xlib only on Linux when its development target exists;
+    # non-X11 and non-Linux builds must retain the OpenGL fallback.
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(X11 QUIET)
+        if(X11_FOUND)
+            target_include_directories(ogl_rtx_module PRIVATE ${X11_INCLUDE_DIR})
+            target_link_libraries(ogl_rtx_module PRIVATE ${X11_LIBRARIES})
+            target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)
+        endif()
+    endif()
     if(CMAKE_DL_LIBS)
         target_link_libraries(ogl_rtx_module PRIVATE ${CMAKE_DL_LIBS})
     endif()

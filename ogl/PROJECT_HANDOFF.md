@@ -143,6 +143,23 @@ Kein Live-OpenSim-
 Vulkan-In-World-Renderer. P05 formal weiter 2/20.
 Details am Anfang von PROJECT_STATUS.md.
 
+13.11.2026 /goal-20er-Runde: WSI prüft vor jedem
+persistierenden Vulkan-Present neben Surface-Caps auch
+`XGetWindowAttributes` des SDL-geliehenen X11-Drawables.
+Damit werden stale VkSwapchains selbst bei variablen
+Vulkan-`currentExtent`-Werten vor Acquire/Submit
+abgewiesen. Window-/Display-Borrowing endet beim
+Detach. Xlib nur bei Linux/X11 per CMake verlinkt;
+ursprüngliche `undefined symbol XGetWindowAttributes`-
+Regression korrigiert. 394/394 Python-, 82 Grafik-
+und 41/41 native Tests grün. Native 16-/32-Frame-
+Clear- und World/Depth-GPU-QA, Mesh-Rotation,
+Region-Barrier erfolgreich. Realer SDL-Pre-GL-Viewer:
+20/20 World/Depth-Frames, 100 Pixel, drei Größen,
+OpenGL `STATE_LOGIN_WAIT`; per Timeout beendet.
+Alle 20 Schritte am Anfang von PROJECT_STATUS.md.
+Keine authentifizierte Vulkan-OpenSim-Welt; P05 2/20.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

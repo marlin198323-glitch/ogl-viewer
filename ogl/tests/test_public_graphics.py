@@ -1852,6 +1852,36 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('persistent_count()==persistent_frames',native)
         self.assertIn('persistent_clear(1)==0',native)
 
+    def test_p05_xlib_geometry_module_requires_linked_x11(self):
+        cmake=(ROOT/"ogl/modules/CMakeLists.txt").read_text()
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn('target_link_libraries(ogl_rtx_module PRIVATE ${X11_LIBRARIES})',cmake)
+        self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
+        self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
+
+    def test_p05_variable_extent_uses_borrowed_x11_drawable_geometry(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn('Display* borrowed_xlib_display = nullptr;',module)
+        self.assertIn('Window borrowed_xlib_window = 0;',module)
+        self.assertIn('borrowed_xlib_display = nullptr;',module)
+        self.assertIn('borrowed_xlib_window = 0;',module)
+        self.assertIn('world_device.borrowed_xlib_display=static_cast<Display*>(native_display);',module)
+        self.assertIn('world_device.borrowed_xlib_window=static_cast<Window>(native_window);',module)
+        begin=module.index('uint32_t present_persistent_clear_frame(')
+        end=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',begin)
+        frame=module[begin:end]
+        for marker in ('XWindowAttributes drawable{};',
+                       'XGetWindowAttributes(world_device.borrowed_xlib_display,',
+                       'world_device.borrowed_xlib_window,&drawable)',
+                       'static_cast<uint32_t>(drawable.width)!=world_device.swapchain_extent.width',
+                       'static_cast<uint32_t>(drawable.height)!=world_device.swapchain_extent.height',
+                       'p.blocked=true;'):
+            self.assertIn(marker,frame)
+        self.assertLess(frame.index('XGetWindowAttributes(world_device.borrowed_xlib_display,'),
+                        frame.index('vkAcquireNextImageKHR(world_device.device,'))
+        self.assertLess(frame.index('XGetWindowAttributes(world_device.borrowed_xlib_display,'),
+                        frame.index('vkQueueSubmit(world_device.queue,'))
+
     def test_p05_x11_gpu_resize_before_detach_is_rejected(self):
         native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
         self.assertIn('XResizeWindow(display,window,544,336);',native)

@@ -6,6 +6,59 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Schritte: X11-Drawable-Größe auch bei variablen Vulkan-Extents validieren (13.11.2026)
+
+**Implementiert:** Die persistente Entwickler-WSI rendert jetzt nur,
+wenn die tatsächlichen Abmessungen des geliehenen SDL/X11-
+Clientfensters weiterhin mit `swapchain_extent` übereinstimmen.
+Das ergänzt die vorhandene Vulkan-`VkSurfaceCapabilitiesKHR`-
+Prüfung, deren `currentExtent` bei manchen Treibern beide
+Dimensionen als `UINT32_MAX` (variable Größe) melden kann.
+`XGetWindowAttributes` wird VOR Image-Acquire und GPU-Submit
+verwendet; bei abweichender, fehlender oder ungültiger
+Fenstergeometrie wird die bestehende Swapchain bis zum
+Detach fail-closed gesperrt. X11-Display und Window-XID bleiben
+fremdes SDL-Eigentum, ihre geliehenen Identitäten werden erst
+nach erfolgreichem WSI-Attach gespeichert und beim Detach
+verworfen. Die neue Abhängigkeit `libX11` wird auf Linux nur
+bei gefundenem X11-Entwicklungspaket eingebunden und das
+optionale Xlib-Modul damit verknüpft; ohne X11 bleibt
+OpenGL beziehungsweise der plattformneutrale Modulpfad.
+
+**20 tatsächlich ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. Sauberes `ogl-develop`, Ausgangscommit `04926a5d` und jüngste Git-Historie geprüft.
+02. Verbindliche `AGENTS.md`, Handoff, Status und aktive P05-Roadmap erneut gelesen.
+03. CI des Ausgangscommits `04926a5d` mit Ergebnis `success` verifiziert.
+04. Vulkan-Xlib-Swapchain-Attach sowie ihre bisherigen Fixed-Extent-Grenzen analysiert.
+05. Variablen `currentExtent=UINT32_MAX` als verbleibenden Resize-Blindfleck identifiziert.
+06. Vorhandenes SDL-Window-Borrowing und Lifecycle beim Detach geprüft.
+07. Zwei Xlib-Window-Identitätsfelder nur für den optionalen Linux-Xlib-Build ergänzt.
+08. Geliehenes X11-Display und XID erst nach erfolgreich validiertem Swapchain-Attach gespeichert.
+09. Beide geliehenen Identitäten beim Window-Detach wieder auf null gesetzt.
+10. Vor persistenten Presents `XGetWindowAttributes` auf dem echten SDL/X11-Fenster eingeführt.
+11. Fehlende/ungültige Window-Attribute und inkonsistente native Fenstergrößen fail-closed abgewiesen.
+12. X11-Check vor `vkAcquireNextImageKHR` und `vkQueueSubmit` angeordnet, bestehende Vulkan-Caps-Prüfung beibehalten.
+13. Xlib-Abhängigkeit im vorhandenen Modul-CMake Linux-spezifisch ergänzt; keine Xlib-Zwangsabhängigkeit für Windows/macOS.
+14. Plattform-Compile-Gate an `OGL_XLIB_LINKED` gekoppelt, damit fehlende X11-Entwicklungsbibliotheken keinen unaufgelösten Xlib-Symbolverweis erzeugen.
+15. Zwei neue Python-Grafikregressionen für native Drawable-Größe, Lifetime, CMake-Linking und Reihenfolge ergänzt; 82/82 Grafiktests bestanden.
+16. Anfängliche Linkregression entdeckt (`XGetWindowAttributes` nicht aufgelöst), durch explizites `libX11`-Linking behoben; `ldd -r` ohne undefinierte Symbole verifiziert.
+17. Alle 41/41 nativen CTests nach Linkkorrektur bestanden.
+18. Echte X11-GPU-Regressionen: 16/16 und 32/32 persistente Clear- und World/Depth-Frames sowie Resize ohne Detach bestanden.
+19. Echte GPU-Regressionsläufe für Mesh-Rotation und Region-Barrier sowie vollständigen Linux-Viewer-Neubuild bestanden: 394/394 Python- und 41/41 native Tests.
+20. Frisch gebauten SDL/X11-Viewer in separatem temporärem Profil getestet: 20/20 Pre-GL-World-/Depth-GPU-Presents, 100/100 Pixelproben, drei Fenstergrößen, Vulkan vollständig vor GL-Kontext freigegeben, danach OpenGL `STATE_LOGIN_WAIT`; `git diff --check` erfolgreich.
+
+**Abgrenzung:** Die 16-/32-Frame-GPU-Szenarien und der
+SDL-Pre-GL-Test verwenden synthetische Szenen, keine
+authentifizierte OpenSim-Welt. Der SDL-Test wurde nach dem
+Login-Wartezustand per `timeout` beendet (Exit 124, kein
+regulärer Quit-Nachweis). Unter Windows und macOS ist
+kein lokaler Vollviewer-Test erfolgt. Keine neuen
+Projektdateien und keine Änderungen an Benutzerprofilen
+oder Secrets. **P05 operativ unverändert 2/20;
+P05/3 echte dauerhafte Vulkan-World-/Window-Ownership
+offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: veraltete Vulkan-Surface nach Resize verweigern (13.11.2026)
 
 **Implementiert:** Der persistente Entwickler-WSI-Renderer fragt vor

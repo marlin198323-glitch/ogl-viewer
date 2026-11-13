@@ -10,7 +10,7 @@
 #include "ogl/ogl_async_gpu_queue.h"
 // Linux/X11 WSI is optional at compile time. Windows/macOS and builds
 // without Xlib headers continue to support the existing Vulkan GPU probe.
-#if defined(__linux__) && __has_include(<X11/Xlib.h>)
+#if defined(__linux__) && defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)
 #  include <X11/Xlib.h>
 #  define VK_USE_PLATFORM_XLIB_KHR 1
 #  define OGL_HAS_XLIB_WSI 1
@@ -209,6 +209,10 @@ struct WorldGraphicsDevice {
     PFN_vkDestroyDevice destroy_device = nullptr;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+#if defined(OGL_HAS_XLIB_WSI)
+    Display* borrowed_xlib_display = nullptr;
+    Window borrowed_xlib_window = 0;
+#endif
     PFN_vkDestroySurfaceKHR destroy_surface = nullptr;
     PFN_vkDestroySwapchainKHR destroy_swapchain = nullptr;
     bool xlib_surface_extension = false;
@@ -528,6 +532,10 @@ struct WorldGraphicsDevice {
         if (surface && destroy_surface && instance)
             destroy_surface(instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
+#if defined(OGL_HAS_XLIB_WSI)
+        borrowed_xlib_display = nullptr;
+        borrowed_xlib_window = 0;
+#endif
     }
     void close() {
         // Complete and release the private GL-independent GPU target
@@ -944,6 +952,10 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
         world_device.detach_window();
         return false;
     }
+    // Store borrowed X11 identity ONLY after successful WSI validation.
+    // Never own or destroy the SDL/X11 display/window from this module.
+    world_device.borrowed_xlib_display=static_cast<Display*>(native_display);
+    world_device.borrowed_xlib_window=static_cast<Window>(native_window);
     world_device.swapchain_probe_ready=true;
     world_device.swapchain_format=format.format;
     world_device.swapchain_extent=extent;
@@ -3037,6 +3049,20 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     // developer-only swapchain. Never submit to a known stale fixed extent.
     // The caller must detach/recreate; this path deliberately cannot recover
     // ownership behind SDL's back. A variable extent remains driver-owned.
+    // Even when WSI reports a variable currentExtent (UINT32_MAX), the
+    // actual SDL-owned X11 drawable must still match this swapchain.
+    // Its borrowed XID is valid only while SDL retains window ownership.
+    XWindowAttributes drawable{};
+    if (!world_device.borrowed_xlib_display ||
+        !world_device.borrowed_xlib_window ||
+        !XGetWindowAttributes(world_device.borrowed_xlib_display,
+                              world_device.borrowed_xlib_window,&drawable) ||
+        drawable.width<=0 || drawable.height<=0 ||
+        static_cast<uint32_t>(drawable.width)!=world_device.swapchain_extent.width ||
+        static_cast<uint32_t>(drawable.height)!=world_device.swapchain_extent.height) {
+        p.blocked=true;
+        return 0;
+    }
     const auto get_live_caps=reinterpret_cast<
         PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(
             world_device.instance_proc(world_device.instance,
