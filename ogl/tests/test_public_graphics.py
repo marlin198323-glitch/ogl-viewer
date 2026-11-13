@@ -46,7 +46,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         # Vulkan world rendering until the actual P05 pipeline exists.
         panel=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text()
         self.assertIn('name="ogl_renderer_engine"',panel)
-        self.assertIn('label="Vulkan (not implemented)"',panel)
+        self.assertIn('label="Vulkan (P05 - not available yet)"',panel)
 
     def test_p04_backend_contract_is_fail_closed_and_platform_neutral(self):
         header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
@@ -1858,6 +1858,25 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('target_link_libraries(ogl_rtx_module PRIVATE ${X11_LIBRARIES})',cmake)
         self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
+
+    def test_p05_renderer_ui_describes_actual_world_pipeline_limit(self):
+        de=(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_graphics1.xml").read_text()
+        en=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn('Test-Swapchains funktionieren',de)
+        self.assertIn('3D-Weltdarstellung nach dem Login fehlt',de)
+        self.assertIn('persistent 3D world rendering after login is not implemented',en)
+        self.assertIn('caps.vulkan_world_pipeline_complete = false;',host)
+        self.assertIn('name="vulkan" label="Vulkan (P05 – noch nicht verfügbar)"',de)
+
+    def test_p05_linux_system_font_directory_is_detected(self):
+        font=(ROOT/"indra/llrender/llfontgl.cpp").read_text()
+        self.assertIn('#include "llfile.h"',font)
+        self.assertIn('#elif LL_LINUX',font)
+        self.assertIn('"/usr/share/fonts/"',font)
+        self.assertIn('"/usr/local/share/fonts/"',font)
+        self.assertIn('LLFile::isdir(path)',font)
+        self.assertIn('LL_WARNS_ONCE("Font")',font)
 
     def test_p05_persistent_live_present_queue_and_fifo_capabilities(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()

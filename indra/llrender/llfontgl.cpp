@@ -40,6 +40,7 @@
 #include "v4color.h"
 #include "lltexture.h"
 #include "lldir.h"
+#include "llfile.h"
 #include "llstring.h"
 
 // Third party library includes
@@ -1370,9 +1371,21 @@ std::string LLFontGL::getFontPathSystem()
         LL_INFOS() << "from SHGetKnownFolderPath(): " << fontpath << LL_ENDL;
         return fontpath;
     }
+#elif LL_LINUX
+    // Linux Mint and other desktop distributions normally install system
+    // fonts under /usr/share/fonts. A real directory check avoids emitting
+    // repeated warnings on every font fallback lookup. Keep the trailing
+    // slash: LLFontRegistry appends the font filename directly.
+    for (const char* path : {"/usr/share/fonts/", "/usr/local/share/fonts/"})
+    {
+        if (LLFile::isdir(path))
+        {
+            return path;
+        }
+    }
 #endif
 
-    LL_WARNS() << "Could not determine system fonts path" << LL_ENDL;
+    LL_WARNS_ONCE("Font") << "Could not determine system fonts path" << LL_ENDL;
     return {};
 }
 

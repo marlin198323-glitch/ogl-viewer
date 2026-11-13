@@ -955,7 +955,7 @@
       <text name="ogl_renderer_explanation" left="20" top="58" right="-20" height="48"
        follows="top|left|right" layout="topleft" font="SansSerifSmall">
         OpenGL is the active, compatible world renderer.
-        Vulkan is planned but not selectable until the complete 3D pipeline and swapchain exist.
+        Vulkan is still in development (P05). Test swapchains work, but persistent 3D world rendering after login is not implemented.
       </text>
       <text name="ogl_renderer_label" left="20" top="117" right="-20" height="20"
        follows="top|left|right" layout="topleft" font="SansSerifSmallBold">
@@ -964,7 +964,7 @@
       <combo_box name="ogl_renderer_engine" left="20" top="143" width="290" height="25"
        follows="left|top" layout="topleft">
         <combo_box.item name="opengl" label="OpenGL (active)" value="opengl"/>
-        <combo_box.item name="vulkan" label="Vulkan (not implemented)" value="vulkan"/>
+        <combo_box.item name="vulkan" label="Vulkan (P05 - not available yet)" value="vulkan"/>
       </combo_box>
       <text name="ogl_renderer_gpu" left="20" top="191" right="-20" height="65"
        follows="top|left|right" word_wrap="true" layout="topleft" font="SansSerifSmall">

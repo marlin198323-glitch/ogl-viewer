@@ -239,6 +239,19 @@ Kein echter Treiber-FIFO-Verlust injiziert; keine
 angemeldete OpenSim-Welt. P05 formal 2/20.
 Alle 20 Schritte in PROJECT_STATUS.md.
 
+13.11.2026 aktuelle Live-Log-/UI-Überprüfung:
+Stadt-NexVerse-Login und OpenGL-World-Frame bestätigt;
+Vulkan-Weltpipeline weiterhin explizit nicht implementiert.
+Renderer-Hinweis in de/en korrigiert: Vulkan-Test-
+Swapchains existieren, dauerhaftes World-Rendering fehlt.
+Linux-Systemfonts werden jetzt erkannt; isolierter Viewer-
+Smoke mit 0 Font-Pfad-Warnungen und GL Login-Wait bestanden.
+89 Grafik-, 401 Python-, 41 CTests und Linux-Build grün.
+Offen: Simulator HTTP502, fehlende Texturen HTTP404,
+Zertifikate, CEF-Sandbox und System-RAM unter multiplen
+Viewerprozessen (keine Server-/Prozessänderungen).
+P05 bleibt 2/20; Details am Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

@@ -6,6 +6,43 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## 13.11.2026 – Live-Viewer-Logprüfung und Grafikmenü-Klarstellung (kein abgeschlossener P05-Block)
+
+Beim laufenden OpenSim-Live-Viewer wurde eine erfolgreiche
+Anmeldung und ein **echter OpenGL-World-Present** bestätigt.
+`oglrtxhost.cpp` meldet `vulkan_world_pipeline_complete=false`,
+`rendering_active=0`; die im Grafikmenü deaktivierte Vulkan-
+Option ist daher korrekt und darf nicht blind freigeschaltet
+werden. Linux-Vulkan-WSI-/GPU-Proben laufen bislang nur in
+separaten, vor dem OpenGL-Start freigegebenen Entwicklerpfaden.
+Die deutsche und englische Renderer-Beschreibung benennt nun
+explizit die noch fehlende dauerhafte In-World-3D-Pipeline
+anstelle der irreführenden Aussage, es gebe noch keine
+Swapchain. Vulkan bleibt bis zum vollwertigen Renderer
+**gesperrt**. `getFontPathSystem()` erkennt unter Linux jetzt
+vorhandene System-Fontverzeichnisse über `LLFile::isdir` und
+warnt nur einmal, wenn keines existiert.
+
+**Prüfung:** 89/89 Python-Grafiktests, vollständiger Linux-
+Viewer-Build und 401/401 Python- sowie 41/41 native CTests
+bestanden. Isolierter Linux-Xvfb-Viewerstart: Login-Wartezustand
+erreicht, `Could not determine system fonts path` **0 Mal**;
+OpenGL mit Mesa-Fallback funktioniert. Testende per Timeout
+124, kein normaler Exit nachgewiesen. Bestehende Nutzerprozesse
+und Benutzerprofile nicht verändert.
+
+**Offen (nicht als lokal behoben markieren):** Beim realen
+Stadt-NexVerse-Weltstart wurden 502-Antworten eines Simulator-
+Caps-Endpunkts, 404-Texturen, dreimal `CertExpired`,
+CEF-`chrome-sandbox`-Fehlkonfiguration und Druck auf
+physischen RAM mit mehreren parallelen Viewerprozessen
+protokolliert. Zertifikate, HTTP-Routing und fehlende Assets
+müssen auf ihren zuständigen Servern diagnostiziert werden.
+CEF-Sandbox-Berechtigungen erfordern sicheren Installer-/
+Paketierungsweg, **kein** unkontrolliertes `chmod u+s`.
+Keine Benutzerprozesse beendet, keine Server geändert.
+**P05 formal weiterhin 2/20; Live-Vulkan-World-Window-Ownership offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: laufende Vulkan-Present-Queue/FIFO-Eignung absichern (13.11.2026)
 
 **Implementiert:** Vor jedem persistenten Entwickler-GPU-Frame
