@@ -46,6 +46,29 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+13.11.2026, 23:30 MEZ – P05/3 positiver ECHTER
+OpenSim-Welt-GPU-Beleg nach Kamera-Fix `95b486ba`:
+Nutzer-Report `visible_world_swap_private_gpu_confirmed`,
+1/1 source-qualifizierte `present-coupled`-Receipts
+nach realem OpenGL-Welt-Swap, 2 akzeptierte
+Deferred-Quellen, 32x32 GPU-Bild mit 800/1024
+Nicht-Hintergrundpixeln; lokaler späterer Logcheck
+zeigt mehrere Erfolge über mindestens 5 private
+GPU-Frames mit `visible_swaps=1/121/241/361/481`
+und aufeinanderfolgenden Mesh-Generationen.
+`P05 live Firestorm camera accepted` und gekoppelter
+Mesh-/GPU-Input nun sichtbar. `face-lit pixels=0`
+ist im Default-Depth-Debug ohne Lambert/PBR
+**erwartbar**, RGB-Mittelwert-Summe 260 ist keine
+Beleuchtungsabnahme. Report setzt aktuelle Counts
+bei neuer Capture-Generation absichtlich zurück.
+**Unterproblem echter OpenSim-Source-to-Vulkan-Readback
+positiv live bestätigt; formale P05/3-Window-Present-
+Abnahme weiterhin NICHT erfüllt.** Vulkan/GL dürfen
+niemals gemeinsam die SDL-Surface übernehmen.
+P05 weiter 2/20. Kein Nutzerprozess angefasst;
+Details oben in PROJECT_STATUS.md.
+
 13.11.2026, 23:11 MEZ – P05/3 ROOT CAUSE ERMITTELT
 UND CODE BEHOBEN: Live-Nutzerstart nun tatsächlich mit
 allen sieben Opt-ins, `STATE_STARTED`, echte Deferred-Captures

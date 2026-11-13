@@ -6,6 +6,81 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – erste echte gekoppelte OpenSim-Vulkan-GPU-Frames bestätigt (13.11.2026, 23:30 MEZ)
+
+**Live-Integrationsmeilenstein endlich positiv verifiziert:** Nach
+Fix `95b486ba` für die echte Firestorm-Kamera-Händigkeit
+wurde der frisch gebaute Viewer mit den sieben dokumentierten
+Entwickler-Opt-ins in eine reale OpenSim-3D-Welt gestartet.
+Das lokale `ogl/scripts/ogl-test-report.py` meldete erstmals
+`visible_world_swap_private_gpu_confirmed`: zunächst
+2 gültige Deferred-Capture-Receipts, mindestens 1
+source-qualifizierter GPU-Frame und **1/1** unmittelbar
+gekoppelter `P05 REAL GL-world-swap`-Abschluss. Der
+spätere schreibgeschützte Logcheck bestätigte mehrere
+weitere vollständige Quellketten (GPU-Frames 1 bis
+mindestens 5, reale Capture-/Mesh-Revisionen 1 bis 3,
+`visible_swaps=1/121/241/361/481`,
+`source=present-coupled`, Region-Epoch 1), ohne
+Fehler-Backoff. Jedes Ereignis ist in den vorhandenen
+numerischen Quell- und Completion-Logs nachgewiesen;
+keine Benutzerdaten, Region-UUIDs oder Pixel exportiert.
+Der vorher fehlende Eintrag
+`P05 live Firestorm camera accepted by Vulkan world-matrix
+ABI` sowie
+`P05 live Firestorm camera + actual captured OpenSim mesh
+paired as Vulkan GPU inputs` ist jetzt im Log vorhanden.
+**Die reale Kamera-/Mesh-/GPU-Verkettung ist damit positiv
+validiert.**
+
+**GPU-Nachweisumfang:** Private Vulkan-Bilder haben
+32×32 Pixel; der erste bestätigte Frame enthielt 823
+von 1024 Nicht-Hintergrundpixeln, weitere beispielsweise
+803/800/798. Die GPU-Telemetrie nennt
+`lit_pixels=0`, `mean_luminance=260`. Das bedeutet
+**nicht**, dass die GPU leer oder falsch ist: Im normalen
+Depth-Debug-Modus (`shading_mode=0`) werden nur
+Nicht-Clear-Pixel und RGB-Summen gezählt; die
+speziellen grün-dominanten Beleuchtungspixel zählen
+nur in aktivierten Shading-Modi. Es ist **kein** Beleg
+für fertige Face-/PBR-/Sunlight-Beleuchtung. Der
+Report setzt die **aktuellen** GPU-Zähler bei jedem
+neu angenommenen Capture-/Mesh-Receipt bewusst zurück,
+daher können seine Werte 1/1, 2/2 etc. niedriger als
+die über die gesamte Session beobachteten GPU-Ereignisse
+sein. Der Quellnachweis bleibt gültig.
+
+**Qualitätsgrenzen:** Der finale OpenGL-Swap hat weiterhin
+das reale SDL-Fenster im Besitz; Vulkan schreibt nur in
+ein privates GPU-VkImage und liest Pixel zur Verifikation.
+Es existiert weiterhin **keine produktive Vulkan-Window-
+Ownership, Vulkan-Welt-Präsentation, Terrain-/Avatar-
+Rendering, Material-/PBR-Vollpipeline oder UI-Compositing**.
+Der Report weist selbst darauf hin, dass die Logprovenienz
+allein keine unabhängige Authentifizierungsbestätigung ist;
+der Nachweis betrifft ausdrücklich das gestartete
+OpenSim-Viewer-Weltframe plus gekoppelte private GPU-Pfade.
+Der erfolgreiche 3D-Weltstart und die CPU-GPU-Quelle
+stammen aus dem realen Nutzerlauf. Die Log-Sitzung
+lief während des Audits; Viewer und Server wurden
+nicht verändert oder neu gestartet.
+
+**Abnahme:** Den bisherigen Blocker „keine echte OpenSim-
+Deferred-/Kamera-/GPU-Quelle“ als **behoben / live
+verifiziert** bewerten. **P05/3 formal weiterhin offen**:
+Für einen abgeschlossenen Block 3 nach bestehendem
+Projektplan werden echter Vulkan-Swapchain-Acquire,
+QueuePresent auf dem SDL-Weltfenster und zuverlässige
+Frame-/Present-Synchronisierung inklusive
+OpenGL-Fallback benötigt. **P05 weiterhin 2/20**.
+Nächster Entwicklungsfokus: die vorhandenen nativen
+Vulkan-X11-Present-/World-Tests vom getrennten
+Testfenster in einen tatsächlichen, exklusiv
+Vulkan-eigenen SDL-Viewer-Window-Frame-Lifecycle
+integrieren; nie gleichzeitig OpenGL und Vulkan an
+dieselbe Surface präsentieren. Erst dann Welt/
+UI-Renderer und Plattform-Fallbacks vollständig bauen.
+
 ## P05/3 – echter OpenSim-Live-Log: Kamera-Händigkeit verhindert Vulkan-GPU-Nachweis (13.11.2026, 23:11 MEZ)
 
 **Neue positive Nutzer-Evidenz:** Die echte OpenSim-Sitzung mit
