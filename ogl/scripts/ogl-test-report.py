@@ -267,6 +267,7 @@ def p05_live_gpu_evidence(log_text: str):
                 (region,capture,mesh)!=pending_coupled[:3] or
                 (capture,mesh)!=latest[:2] or
                 private_frames<=last_coupled_frame or
+                private_frames>pending_coupled[3] or
                 visible_swaps<=last_coupled_visible_swaps):
                 invalid_gpu+=1
                 continue

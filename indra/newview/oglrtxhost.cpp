@@ -936,18 +936,21 @@ void ogl_rtx_after_visible_world_swap() {
     live_present_coupled_mesh_generation=mesh_generation;
     live_present_coupled_capture_receipt=live_deferred_receipts;
     ++live_present_coupled_gpu_frames;
-    if (live_present_coupled_gpu_frames<=3 ||
-        live_present_coupled_gpu_frames%64==0)
-        LL_INFOS("OGLRenderer")
-            << "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
-            << "visible_swaps=" << live_visible_world_swaps
-            << " completed_private_frames=" << live_present_coupled_gpu_frames
-            << " suppressed_retries=" << live_present_coupled_suppressed_retries
-            << " mesh_generation=" << mesh_generation
-            << " source_capture=" << live_present_coupled_capture_receipt
-            << " region_epoch=" << live_world_region_epoch
-            << "; GL owns the SDL window, NO Vulkan present."
-            << LL_ENDL;
+    // Emit the numeric completion for EVERY successfully source-qualified
+    // world-swap GPU receipt. The old first-3/every-64 log sampling made
+    // later real frames invisible to the P05 log validator. This already
+    // runs at most every 120 eligible world swaps, with further GPU-error
+    // backoff, and contains no user/region/object identifiers or pixels.
+    LL_INFOS("OGLRenderer")
+        << "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
+        << "visible_swaps=" << live_visible_world_swaps
+        << " completed_private_frames=" << live_present_coupled_gpu_frames
+        << " suppressed_retries=" << live_present_coupled_suppressed_retries
+        << " mesh_generation=" << mesh_generation
+        << " source_capture=" << live_present_coupled_capture_receipt
+        << " region_epoch=" << live_world_region_epoch
+        << "; GL owns the SDL window, NO Vulkan present."
+        << LL_ENDL;
 #endif
 }
 

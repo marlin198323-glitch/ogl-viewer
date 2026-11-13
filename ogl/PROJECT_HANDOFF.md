@@ -353,6 +353,26 @@ SDL-Login trotz opt-in korrekt ohne World-Beweis.
 Kein authentifizierter Vulkan-World-Present, P05 2/20.
 Alle 20 Schritte am Anfang von PROJECT_STATUS.md.
 
+13.11.2026 /goal-20er-Runde P05/3: Echte Host-/Report-
+Inkonsistenz korrigiert. Der bereits an sichtbare GL-
+OpenSim-Welt-Swaps gebundene private Vulkan-GPU-Pfad
+protokollierte bisher positive GPU-Abschlussquittungen nur
+für die ersten drei und danach jeden 64. Erfolg; der neue
+Report verlangte für JEDE positive private GPU-Quelle
+eine passende Bestätigung. Viewer loggt nun bei jedem
+ERFOLGREICHEN `present-coupled`-Sample anonymisierte
+Zähler/Provenienz, weiterhin höchstens nach jedem 120.
+qualifizierten Welt-Swap und nur mit Dev-Opt-ins.
+Report prüft zudem private GPU-Framezähler gegen globalen
+GPU-Framezähler. Zwei neue Reporttests für neun erfolgreiche
+Frames und ungültige Zähler sowie ein neuer Host-Quelltest.
+418 Python-/55 Report-/41 native CTests, Linux-Vollbuild,
+X11-Vulkan-GPU-Clear/World/Depth 16/32, Rotation/Barrier
+bestanden. Isolierter SDL-Login ohne angemeldetes Konto:
+0 falsche Weltframes, 0 private Vulkan-Live-GPU-Receipts,
+0 ERROR/FATAL. Noch kein echter Live-Vulkan-Welt-Present;
+P05 bleibt 2/20. Alle 20 Schritte in PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

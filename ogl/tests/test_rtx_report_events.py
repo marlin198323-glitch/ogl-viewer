@@ -504,6 +504,35 @@ class RTXSceneLogTests(unittest.TestCase):
         result=module.p05_live_gpu_evidence(log)
         self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],1)
 
+    def test_p05_many_consecutive_post_swap_gpu_frames_are_confirmed(self):
+        # Historically the host logged only the first three successful
+        # samples, then the 64th. All later private GPU draws must have
+        # individual source-checked acknowledgements.
+        log=self.p05_coupled()
+        for frame in range(2,10):
+            log += (
+                "P05 deferred GPU receipt: epoch=2 capture=3 "
+                f"mesh_generation=11 source=present-coupled frames={frame} "
+                "camera_frames=0 nonclear_pixels=200 width=32 height=32 "
+                "lit_pixels=180 mean_luminance=234 status=completed\n"
+                "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
+                f"visible_swaps={frame*120+1} completed_private_frames={frame} "
+                "suppressed_retries=0 mesh_generation=11 "
+                "source_capture=3 region_epoch=2; "
+                "GL owns the SDL window, NO Vulkan present.\n")
+        evidence=module.p05_live_gpu_evidence(log)
+        self.assertEqual(evidence["present_coupled_gpu_receipts"],9)
+        self.assertEqual(evidence["confirmed_world_swap_private_gpu_frames"],9)
+        self.assertEqual(evidence["rejected_receipt_events"],0)
+
+    def test_p05_world_swap_log_rejects_private_counter_ahead_of_gpu(self):
+        log=self.p05_coupled().replace("completed_private_frames=1",
+                                       "completed_private_frames=2")
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["present_coupled_gpu_receipts"],1)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+        self.assertEqual(result["rejected_receipt_events"],1)
+
     def test_p05_receipts_exclude_private_identity(self):
         log=self.p05_example() + (
             "user=PRIVATE-AVATAR grid=PRIVATE-REGION account=PRIVATE\n"

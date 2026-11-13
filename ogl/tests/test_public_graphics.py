@@ -1878,6 +1878,26 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_live_gpu_receipt_always_has_matching_post_swap_log(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        a=host.index('void ogl_rtx_after_visible_world_swap()')
+        b=host.index('// The region UUID is compared',a)
+        fn=host[a:b]
+        self.assertIn('++live_present_coupled_gpu_frames;',fn)
+        self.assertIn('P05 REAL GL-world-swap -> Vulkan offscreen GPU:',fn)
+        self.assertNotIn('live_present_coupled_gpu_frames<=3',fn)
+        self.assertNotIn('live_present_coupled_gpu_frames%64',fn)
+        self.assertLess(fn.index('if (!ogl_firestorm_offscreen_gpu_sample('),
+                        fn.index('++live_present_coupled_gpu_frames;'))
+        self.assertLess(fn.index('++live_present_coupled_gpu_frames;'),
+                        fn.index('P05 REAL GL-world-swap -> Vulkan offscreen GPU:'))
+        for marker in ('"visible_swaps=" << live_visible_world_swaps',
+                       '" completed_private_frames=" << live_present_coupled_gpu_frames',
+                       '" source_capture=" << live_present_coupled_capture_receipt',
+                       '" region_epoch=" << live_world_region_epoch'):
+            self.assertIn(marker,fn)
+        self.assertIn('if (!ogl_vulkan_camera_tick_due(',fn)
+
     def test_p05_repeated_live_gpu_failures_backoff_without_stopping_gl(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

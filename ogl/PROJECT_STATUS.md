@@ -6,6 +6,80 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: Live-World-Swap-GPU-Quittungen vollständig protokollieren (13.11.2026)
+
+**Funktionaler Fehler zwischen echtem Viewer und Live-Diagnose behoben:**
+Der bereits vorhandene Host
+`indra/newview/oglrtxhost.cpp::ogl_rtx_after_visible_world_swap()`
+veröffentlicht positive `source=present-coupled`-GPU-Receipts
+für private Vulkan-Bilder nur nach erfolgreich qualifiziertem
+OpenGL-Welt-Swap. Dessen zusätzliche numerische Welt-Swap-
+Bestätigung wurde bisher jedoch nur für die **ersten drei**
+erfolgreichen GPU-Proben und danach **alle 64** protokolliert.
+Der im vorherigen Commit implementierte `ogl-test-report.py`
+braucht hingegen für **jedes** GPU-Receipt die zugehörige
+Welt-Swap-Bestätigung. Dadurch konnte er reale spätere
+Erfolge trotz gültiger Quell- und Pixel-Evidenz nicht
+als bestätigt zählen.
+
+Der echte Viewer schreibt jetzt **für jede erfolgreich
+abgeschlossene** `present-coupled`-GPU-Probe genau eine
+anonymisierte Abschlussmeldung mit sichtbarem Welt-Swap-
+Zähler, privatem Framezähler, Suppressionsstatistik,
+Mesh-Generation, Quell-Receipt und Region-Epoch. Die Meldung
+folgt erst nach positivem GPU-Readback, Quell-/Pixelevidenz,
+Fehlerrückstellung und Aktualisierung des bestätigten
+Live-Caches. Der Pfad ist weiterhin nur mit den expliziten
+Entwicklerfreigaben aktiv und liegt mindestens 120
+qualifizierte Welt-Swaps zwischen regulären GPU-Versuchen;
+zusätzliche Fehler-Backoff-Gates gelten weiterhin. Es werden
+keine URLs, Namen, Account-/Regions-UUIDs, Kamera-Koordinaten,
+Bildinhalte oder Texturdaten geloggt. **Die Vulkan-Ausgabe
+bleibt ein privates Offscreen-Bild; OpenGL behält die SDL-
+Fenster-Ownership.**
+
+Der bestehende numerische Report validiert außerdem jetzt,
+dass `completed_private_frames` niemals größer sein darf
+als der aus derselben Deferred-Quelle nachgewiesene globale
+GPU-Framezähler. Die bisherige Quell-/Region-/Mesh-
+Provenienz, monotone Welt-Swap-/Framezähler und die
+Bestätigungspflicht bleiben erhalten.
+
+**20 tatsächlich ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. Git-Branch `ogl-develop`, sauberen Arbeitsbaum und Ausgangscommit `07d5ca1e` verifiziert.
+02. `AGENTS.md`, `ogl/PROJECT_HANDOFF.md`, `ogl/PROJECT_STATUS.md` und P05-Hauptroadmap gelesen.
+03. GitHub-CI des vorherigen Commits `07d5ca1e` mit vollständigem `success` geprüft.
+04. Echten `ogl_rtx_after_visible_world_swap()` auf Erfolgs- und Fehlerrückstellungsreihenfolge untersucht.
+05. Numerischen Live-GPU-Receipt-Parser und seine Welt-Swap-Quittungslogik geprüft.
+06. Inkonsistenz zwischen jedem positiven GPU-Receipt und nur ersten drei/jeder 64. Host-Meldung identifiziert.
+07. Bestehende Entwickler-Opt-in- und 120-World-Swap-Grundtakt-Gates kontrolliert.
+08. Unvollständige Bestätigungs-Taktung im echten Host entfernt.
+09. Numerische Welt-Swap-Abschlussmeldung für jeden erfolgreich abgeschlossenen privaten GPU-Frame aktiviert.
+10. Geloggte Felder auf numerische Swap-, Frame-, Capture-, Mesh- und Epoch-Zähler beschränkt.
+11. Sicherung der Meldungsreihenfolge nach tatsächlichem positivem GPU-Sample und Cache-Aktualisierung beibehalten.
+12. Report um einen Plausibilitäts-Guard gegen private Framezähler oberhalb der globalen GPU-Frames ergänzt.
+13. Python-Grafik-Regressionstest für bedingungslose Quittungen und Abfolge nach GPU-Erfolg ergänzt.
+14. Report-Langzeittest für neun einzeln bestätigte, aufeinanderfolgende private GPU-Frames ergänzt.
+15. Negativtest für überhöhte private GPU-Framezähler implementiert.
+16. Bestehende Daten- und Stale-Capture-Parserregressionen geprüft: 418/418 Python-Tests einschließlich 55/55 Reporttests bestanden.
+17. Nativen Vulkan-Modulbuild und 41/41 native CTests erfolgreich durchgeführt.
+18. Linux-Vollviewer erfolgreich gebaut und sämtliche 418 Python-/41 CTests erneut bestanden.
+19. Reale native X11-Vulkan-GPU-Clear-/World-/Depth-Läufe für jeweils 16/32 Frames sowie Mesh-Rotation/Region-Barrier bestanden; vorhandenen Nutzerlog geprüft: `no_deferred_evidence_session` statt fälschlichem Vulkan-Live-Erfolg.
+20. Frisch gebauten Viewer unter isoliertem SDL/Xvfb-Testprofil mit Live-Vulkan-Opt-ins bis `STATE_LOGIN_WAIT` geprüft: 0 falsche Weltframes, 0 Pre-Login-Vulkan-Live-GPU-Receipts, 0 ERROR/FATAL, Report `world_entry_not_observed`; `git diff --check` erfolgreich.
+
+**Testgrenzen:** Der Report-Langzeittest verwendet ausschließlich
+anonymisierte synthetische numerische Receipt-Folgen. Die
+native Vulkan-X11-GPU-Szene ist ebenfalls synthetisch.
+Ein echter erfolgreicher `present-coupled`-GPU-Frame nach
+authentifiziertem OpenSim-Login wurde nicht durchgeführt.
+Der isolierte SDL-Viewer wurde nach 18 Sekunden per Timeout
+(Exit 124) beendet und hat keinen regulären Quit-Nachweis.
+Die produktive Welt bleibt OpenGL; Windows/macOS-Vollviewer
+lokal nicht gebaut. Kein Nutzerprofil, laufender Viewer,
+Secret oder Server verändert, keine neue Repository-Datei.
+**P05 formal weiterhin 2/20; P05/3 nicht abgenommen.**
+
 ## P05/3 – /goal 20 Teilblöcke: echten World-Swap-Vulkan-Receipt im lokalen Logreport qualifizieren (13.11.2026)
 
 **Funktionslücke behoben:** Der bestehende, lokale
