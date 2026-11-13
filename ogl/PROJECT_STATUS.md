@@ -6,6 +6,61 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: aktive Swapchain auf Live-Farbraum und Composite-Alpha prüfen (13.11.2026)
+
+**Umgesetzt:** Der persistente Vulkan-X11-QA-Present-Pfad
+sichert das konkrete Swapchain-`VkFormat` nun zusammen mit
+dem ursprünglichen `VkColorSpaceKHR` und der bei Attach
+ausgewählten `VkCompositeAlphaFlagBitsKHR`. Vor jedem
+weiteren GPU-Image-Acquire wird anhand der erneut abgefragten
+`vkGetPhysicalDeviceSurfaceFormatsKHR`-Liste geprüft, ob das
+Format-Farbraum-Paar noch für dieselbe Surface gültig ist.
+Eine abweichende ColorSpace trotz gleichem VkFormat ist kein
+Ersatz. Der von Vulkan erlaubte Sonderfall, dass die Surface
+**genau ein** `VK_FORMAT_UNDEFINED` meldet, bleibt erlaubt,
+sofern der Farbraum identisch ist. Auch die Kompatibilität des
+ausgewählten Composite-Alpha-Bits mit den aktuellen
+Surface-Capabilities wird geprüft. Fehlerhafte, fehlende,
+überlange oder instabile Formate-Enumerationen sperren den
+Attach **vor** GPU-Acquire und Queue-Submit. Der gespeicherte
+Farbraum/Alpha-Zustand wird beim Detach zurückgesetzt.
+
+**20 tatsächlich ausgeführte Entwicklungs-/QA-Teilblöcke:**
+
+01. Sauberen `ogl-develop`-Arbeitsbaum und Ausgangscommit `acf1cfdf` verifiziert.
+02. Verbindliche `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap erneut gelesen.
+03. GitHub-CI-Stand einschließlich der noch laufenden vorherigen Commits geprüft.
+04. Bestehende `VkSurfaceFormatKHR`- und `VkCompositeAlpha`-Auswahl beim Attach analysiert.
+05. Aktuellen persistenten Surface-Capability-Check und Frame-Acquire-Ablauf überprüft.
+06. Fehlende erneute Prüfung der Farbformat-/Farbraum-Kombination zur Laufzeit identifiziert.
+07. Originalen Swapchain-Farbraum als separates Feld im bestehenden Vulkan-Modul ergänzt.
+08. Originalen Swapchain-Composite-Alpha-Modus als separates Feld ergänzt.
+09. Bei erfolgreichem WSI-Attach beide tatsächlichen Konfigurationswerte gesichert.
+10. Beim Window-Detach beide Werte auf gültige Ausgangswerte zurückgesetzt.
+11. Live-`supportedCompositeAlpha` gegen das bereits gewählte Bit geprüft.
+12. `vkGetPhysicalDeviceSurfaceFormatsKHR` vor GPU-Acquire dynamisch abgefragt.
+13. Fehlende Formate, unplausible Anzahl über 256 und fehlgeschlagene Queries fail-closed behandelt.
+14. Bei veränderter zweiter Format-Enumeration einen weiteren Present verweigert.
+15. Das konkrete ursprüngliche `VkFormat`-`VkColorSpaceKHR`-Paar mit allen aktuellen Einträgen verglichen.
+16. Vulkan-Sonderfall einer einzigen `VK_FORMAT_UNDEFINED`-Antwort bei gleichem Farbraum erhalten.
+17. Python-Grafikregression für neue gespeicherte Felder, Paarkompatibilität und Prüfung vor Acquire ergänzt: 86/86 Grafiktests bestanden.
+18. Vulkan-C++-Modul erfolgreich gebaut, 41/41 native CTests und reale X11-Clear-/World-/Depth-16-/32-Frame-GPU-Regressionsläufe bestanden.
+19. Native Mesh-Rotation und Region-Barrier erneut geprüft; vollständigen Linux-Vollviewer erfolgreich gebaut: 398/398 Python- und 41/41 native Tests.
+20. Frisch gebautes SDL/X11-Viewerprogramm in isoliertem temporärem Profil gestartet: 20/20 World-/Depth-Pre-GL-Presents, 100/100 Pixelproben bei drei Größen, danach OpenGL `STATE_LOGIN_WAIT`; `git diff --check` bestanden.
+
+**Grenzen:** Ein nachträglicher Treiberwechsel des Format-
+Farbraum-Paares wurde über den Python-Quellcodevertrag,
+aber nicht durch manipulierte echte ICD-Antworten geprüft;
+die echten GPU-Tests belegen die weiterhin funktionierenden
+zulässigen Formate und bekannten Resize-/Unmap-Fehlerfälle.
+Der SDL-Test wurde per Timeout nach Login-Wait beendet
+(Exit 124, kein normaler Shutdown-Nachweis). Es gibt weiterhin
+keinen authentifizierten Vulkan-In-World-Frame; GL rendert die
+Welt. Windows/macOS-Vollviewer nicht lokal getestet.
+Keine Nutzerprofile, Secrets oder fremde Prozesse verändert;
+keine neuen Repository-Dateien. **P05 formal 2/20;
+Block 3 dauerhafte Vulkan-World-Window-Ownership offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: VK_SUBOPTIMAL_KHR erzwingt neuen GPU-Swapchain-Attach (13.11.2026)
 
 **Implementiert:** Die persistente X11-Vulkan-Entwickler-WSI

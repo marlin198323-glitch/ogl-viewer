@@ -206,6 +206,23 @@ Linux-Vollbuild erfolgreich. Frischer SDL-Pre-GL-Viewer
 `STATE_LOGIN_WAIT`. Keine authentifizierte OpenSim-Welt,
 P05 formal 2/20. 20 Schritte am Anfang PROJECT_STATUS.md.
 
+13.11.2026 weitere /goal-20er-Runde: persistente
+Vulkan-X11-Swapchain prüft vor jedem GPU-Acquire
+das beim Attach gewählte Surface-Format+ColorSpace-
+Paar sowie das ursprüngliche Composite-Alpha-Bit
+auf weiterhin gültige Live-Surface-Unterstützung.
+Der erlaubte Einzel-VK_FORMAT_UNDEFINED-Fall bleibt.
+Ungültige/instabile Live-Enumerationen sperren den
+WSI-Attach. 398/398 Python-, 86/86 Grafik- und
+41/41 native CTests sowie Linux-Vollviewer-Build grün.
+Reale X11-Clear-/World-/Depth-16-/32-Frame-QA,
+Mesh-Rotation und Region-Barrier bestanden; echter
+isolierter SDL-Pre-GL-Viewer 20/20 World-/Depth-
+Frames, 100/100 Pixel und GL `STATE_LOGIN_WAIT`.
+Kein aktiver Treiber-Farbformatwechsel injiziert;
+keine authentifizierte OpenSim-Welt. P05 weiter 2/20.
+20 Schritte am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

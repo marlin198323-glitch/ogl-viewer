@@ -220,6 +220,9 @@ struct WorldGraphicsDevice {
     bool exclusive_present_used = false;
     uint32_t exclusive_present_count = 0; // bounded, QA-only completed presents
     VkFormat swapchain_format = VK_FORMAT_UNDEFINED;
+    VkColorSpaceKHR swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    VkCompositeAlphaFlagBitsKHR swapchain_composite_alpha =
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     VkExtent2D swapchain_extent{};
     VkSurfaceTransformFlagBitsKHR swapchain_transform =
         VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -530,6 +533,8 @@ struct WorldGraphicsDevice {
         exclusive_present_used = false;
         exclusive_present_count = 0;
         swapchain_format = VK_FORMAT_UNDEFINED;
+        swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        swapchain_composite_alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         swapchain_extent = {};
         swapchain_transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
         if (surface && destroy_surface && instance)
@@ -961,6 +966,8 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
     world_device.borrowed_xlib_window=static_cast<Window>(native_window);
     world_device.swapchain_probe_ready=true;
     world_device.swapchain_format=format.format;
+    world_device.swapchain_color_space=format.colorSpace;
+    world_device.swapchain_composite_alpha=composite;
     world_device.swapchain_extent=extent;
     world_device.swapchain_transform=caps.currentTransform;
     // A camera belonging to a DIFFERENT viewport aspect must never
@@ -3077,6 +3084,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         get_live_caps(world_device.physical_device,world_device.surface,
                       &live_caps)!=VK_SUCCESS ||
         !(live_caps.supportedUsageFlags&VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) ||
+        !(live_caps.supportedCompositeAlpha&world_device.swapchain_composite_alpha) ||
         !live_caps.maxImageArrayLayers ||
         !live_caps.minImageCount ||
         p.image_count<live_caps.minImageCount ||
@@ -3095,6 +3103,39 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         (live_caps.currentExtent.width!=UINT32_MAX &&
          (live_caps.currentExtent.width!=world_device.swapchain_extent.width ||
           live_caps.currentExtent.height!=world_device.swapchain_extent.height))) {
+        p.blocked=true;
+        return 0;
+    }
+    // A valid extent alone does not guarantee that this swapchain's color
+    // format and color space are STILL advertised for this Vulkan surface.
+    // Validate the pair as one unit; a format with a different color space
+    // must never be accepted as an equivalent attachment.
+    const auto get_live_formats=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>(
+            world_device.instance_proc(world_device.instance,
+                "vkGetPhysicalDeviceSurfaceFormatsKHR"));
+    uint32_t live_format_count=0;
+    if (!get_live_formats ||
+        get_live_formats(world_device.physical_device,world_device.surface,
+                         &live_format_count,nullptr)!=VK_SUCCESS ||
+        !live_format_count || live_format_count>256) {
+        p.blocked=true;
+        return 0;
+    }
+    std::vector<VkSurfaceFormatKHR> live_formats(live_format_count);
+    const uint32_t expected_live_formats=live_format_count;
+    if (get_live_formats(world_device.physical_device,world_device.surface,
+                         &live_format_count,live_formats.data())!=VK_SUCCESS ||
+        live_format_count!=expected_live_formats ||
+        !std::any_of(live_formats.begin(),live_formats.end(),
+            [expected_live_formats](const VkSurfaceFormatKHR& available) {
+                // Vulkan allows a sole VK_FORMAT_UNDEFINED to mean that
+                // the app may retain its concrete format in this color space.
+                return (available.format==world_device.swapchain_format ||
+                    (expected_live_formats==1 &&
+                     available.format==VK_FORMAT_UNDEFINED)) &&
+                    available.colorSpace==world_device.swapchain_color_space;
+            })) {
         p.blocked=true;
         return 0;
     }

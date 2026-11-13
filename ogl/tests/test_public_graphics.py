@@ -1859,6 +1859,26 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
 
+    def test_p05_persistent_live_surface_format_and_composite_alpha(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn('VkColorSpaceKHR swapchain_color_space',module)
+        self.assertIn('VkCompositeAlphaFlagBitsKHR swapchain_composite_alpha',module)
+        self.assertIn('world_device.swapchain_color_space=format.colorSpace;',module)
+        self.assertIn('world_device.swapchain_composite_alpha=composite;',module)
+        a=module.index('uint32_t present_persistent_clear_frame(')
+        b=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',a)
+        fn=module[a:b]
+        for marker in ('live_caps.supportedCompositeAlpha&world_device.swapchain_composite_alpha',
+                       'PFN_vkGetPhysicalDeviceSurfaceFormatsKHR',
+                       'live_format_count>256',
+                       'live_format_count!=expected_live_formats',
+                       'available.format==world_device.swapchain_format',
+                       'available.format==VK_FORMAT_UNDEFINED',
+                       'available.colorSpace==world_device.swapchain_color_space'):
+            self.assertIn(marker,fn)
+        self.assertLess(fn.index('get_live_formats(world_device.physical_device'),
+                        fn.index('vkAcquireNextImageKHR(world_device.device,'))
+
     def test_p05_suboptimal_present_requires_new_swapchain_attachment(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
