@@ -26,6 +26,24 @@ Build-/Release-Abgrenzung in Hauptroadmap (Abschnitt
 „Verbindliche externe Server-Kompatibilitätsquelle“).
 Nicht behaupten, die installierten Server entsprächen GitHub;
 keine Übernahme von Servercode/Server-Secrets/Updater-Binaries.
+
+13.11.2026 – Verbindliche zusätzliche Serveranweisung für den
+OGL-Viewer gelesen: `doc/NexVerse/OGL_VIEWER_CLOCK.md` und
+`LOGIN_DST_BERLIN.md`. Sichtbares Pacific/SLT/PST/PDT im
+OGL-Firestorm-Fork soll durch eine serverautoritativ
+berechnete zivile Uhr ersetzt werden: `GET /ogl/v1/grid-info`
+mit `clock.schema=org.opengenesislink.viewer.clock.v1`,
+`unix_time`, `timezone=Europe/Berlin`, `utc_offset_seconds`,
+`abbreviation=MEZ/MESZ`. Vertrauenswürdige Pinned-Discovery,
+Schema-/Grid-/Zeitvalidierung, monotone Laufuhr, ca. 1-min
+Refresh und explizites UTC-Fallback; keine Prozess-/Sim-
+Zeitzonenänderung. OGL `llstatusbar.cpp`, EN/DE-XUI und
+`strings.xml` enthalten noch `datetime, slt`, Pacific-
+Text/PST. Dies ist eine echte offene Implementierungs-
+und UI-Abnahmeaufgabe P08/P13, NICHT bereits fertig.
+Detaillierte Kriterien in der Hauptroadmap im Abschnitt
+„Verbindlicher P08-/UI-Auftrag: Pacific-Time-/SLT-Uhr“.
+
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
 Teststart: bash ogl/scripts/run-viewer-test.sh

@@ -14,6 +14,12 @@ auf neue Commits prüfen. Erste geprüfte Server-Baseline vom
 Viewerwirkung in die bestehende OGL-Roadmap übernehmen;
 keine Serveränderung, keine unfreigegebene automatische
 Aktualisierung und keine ungeprüfte Compiler-/API-Anpassung.
+PFLICHT: OGL-Uhr darf künftig kein sichtbares SLT/PST/PDT
+mehr verwenden. Der Server liefert Clock-v1 über die pinned
+`/ogl/v1/grid-info`-Discovery: Europe/Berlin, MEZ/MESZ,
+sonst vertrauenswürdig UTC. Nur zivile Wanduhr, niemals
+Simulator-Tageszeiten/LSL/OS-Zeit/Logins verändern.
+Diese Umstellung ist im OGL-Viewer noch OFFEN (P08/P13).
 Genauer Ablauf, 20 Kompatibilitäts-Prüfpunkte und Original-
 Quellen stehen in
 ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md

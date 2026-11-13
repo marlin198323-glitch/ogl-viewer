@@ -6,6 +6,31 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## Server-Clock-v1 / Pacific-Time-Ablösung – verbindlicher offener Auftrag (13.11.2026)
+
+Beim Quellenabgleich mit OpenGenesisLINK `main` wurden zusätzlich
+`doc/NexVerse/OGL_VIEWER_CLOCK.md`, `LOGIN_DST_BERLIN.md` und
+`OGL_VIEWER_DISCOVERY.md` gelesen. Der serverautoritative zivile
+Uhrzeitvertrag fordert `Europe/Berlin` mit MEZ/MESZ über die
+optionale `clock`-Sektion von `/ogl/v1/grid-info` (Schema
+`org.opengenesislink.viewer.clock.v1`), frischen UTC-Sekunden,
+Offset, vollständiger IANA-Zone und Abkürzung; Refresh ~1 Minute,
+monotone Zeitfortschreibung und UTC statt PST bei fehlender/
+inkompatibler Quelle. Bestehende Firestorm-/Legacy-Logins und
+Simulator-/LSL-Tageszeiten bleiben unabhängig.
+
+Istzustand OGL: `indra/newview/llstatusbar.cpp` enthält
+`datetime, slt` in `mClockFormatChoices` und im aktuellen
+`updateClockDisplay`, das EN-Statusleisten-XUI „Current time
+(Pacific)“ und „PST“, die EN-/DE-Statusleisten und Strings
+weitere SLT-Formate. Kein lokaler Clock-v1-/G1-Discovery-
+Parser nachgewiesen. Die vollständige **sichtbare** Pacific-
+Zeitablösung ist als Pflichtaufgabe für P08/P13 mit
+Sicherheits-, DST-, UTC-Fallback- und DE-/EN-GUI-Testfällen
+in der Hauptroadmap festgehalten. **Nur Dokumentation /
+Quellenanalyse, noch keine Viewer-Implementierung oder
+Live-Clock-Abnahme; P05 weiter 2/20.**
+
 ## Server-Repository-Verknüpfung und Änderungsbaseline – 13.11.2026
 
 Externes Quellrepo `opengenesislink/opengenesislinkserver` als
