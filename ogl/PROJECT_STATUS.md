@@ -6,6 +6,65 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: Live-Swap-Aufnahmen bei Modul-Reload und Materialwechsel korrekt binden (13.11.2026)
+
+**Funktionaler Fehler behoben:** Im neuen, opt-in an den tatsächlichen
+`llviewerdisplay.cpp::swap()` gebundenen Vulkan-Offscreen-Pfad
+blieben die nach Erfolg zwischengespeicherten Kamera- und
+Framezustände beim vollständigen Vulkan-Modul-Reload erhalten.
+Der Host löscht jetzt Quelle, Pose, Region-, Mesh- und Aufnahme-
+Revision sowie den 120-Frame-Zähler **bei Modul-Initialisierung,
+Modul-Shutdown und jedem echten Regionswechsel**. Die kumulative
+Erfolgszählung bleibt nur über Regionswechsel derselben Sitzung
+erhalten und wird bei Neuinitialisierung zurückgesetzt.
+
+**Neue echte Quellenabsicherung:** Der erfolgreiche Vulkan-GPU-Frame
+speichert nun auch die laufende Quellaufnahmenummer des realen
+OpenSim-Deferred-Scanners (`live_deferred_receipts`). Identische
+Kamerapose und GPU-Mesh-Revision rechtfertigen **kein** Überspringen,
+wenn die Deferred-Quelle seither erneut erfasst wurde (z. B.
+andere Material-/Quelldaten). Zwei CPU-only, plattformneutrale
+Prüfregeln in der vorhandenen `ogl_world_shadow_policy.h` lehnen
+Null-Receipts, abweichende Region-Epochen, alte Mesh-Daten oder
+falsch gebundene Kamera-Generationen ab. Ihre Entscheidungen
+werden von der realen Host-Funktion verwendet und zusätzlich
+in einem ausführbaren C++-Test mit positiven/negativen Fällen
+getestet. OpenGL bleibt der exklusive SDL-Fenster-Renderer.
+
+**20 ausgeführte Entwicklungs- und Prüfschritte:**
+
+01. Sauberen Git-Branch `ogl-develop`, Ausgangscommit `697f133c` und Remote-Synchronisierung geprüft.
+02. Verbindliche `AGENTS.md`, Projektstatus, Handoff und P05-Roadmap erneut gelesen.
+03. GitHub-CI-Status des vorherigen Windows-UTF-8-Testfixes abgefragt.
+04. Den echten `swap()`-Hook auf In-World- und Opt-in-Gates kontrolliert.
+05. Modulinitialisierung, Modulentladung und Regionswechsel auf zurückbleibende Live-Swap-Caches geprüft.
+06. Unzurückgesetzte Kamera-/Framezustände bei erneutem Modulstart als Lifecycle-Fehler identifiziert.
+07. Gemeinsame, modulinterne Resetfunktion für Pose, Source-Receipt, Mesh- und Region-Revision eingeführt.
+08. Reset dieser Caches und der Zähler bei vollständiger Vulkan-Modulinitialisierung eingebaut.
+09. Identischen Reset vor beziehungsweise bei vollständiger Vulkan-Modulfreigabe ergänzt.
+10. Regionswechsel-Reset integriert; kumulative Erfolgszählung innerhalb einer Sitzung erhalten.
+11. Eigene `live_present_coupled_capture_receipt` für die letzte erfolgreiche Deferred-Aufnahme eingeführt.
+12. Neuen GPU-Frame an ein vorhandenes, von der Deferred-Pipeline stammendes Nonzero-Receipt gebunden.
+13. Prüfung eingeführt, dass Region-Epoch der Capture-Epoch entspricht.
+14. GPU-Mesh-Revision mit ursprünglicher Deferred-Mesh-Revision abgeglichen.
+15. Vulkan-GPU-Kamera-Mesh-Revision auf dieselbe aktuelle Mesh-Generation festgelegt.
+16. Den Redraw-Entscheid um den Source-Receipt-Wechsel trotz gleicher Pose/Mesh-Revision erweitert.
+17. C++-Native-Test um 13 positive und negative Guard-/Redraw-Fälle ergänzt; 41/41 native CTests bestanden.
+18. Zwei fokussierte Python-Vertragstests für Modul-Reload-Reset und Quellversionsidentität ergänzt; 92/92 Grafiktests bestanden.
+19. Linux-Vollviewer neu gebaut: 404/404 Python-Tests und 41/41 native CTests; reale X11-Vulkan-Clear- und World-/Depth-GPU-Regressionen mit jeweils 16/32 Frames bestanden.
+20. Isolierten SDL/Xvfb-Viewer ohne Nutzerkonto mit vorhandenen GPU-Entwickler-Opt-ins gestartet: OpenGL `STATE_LOGIN_WAIT`, 0 unerlaubte Pre-Login-Live-GPU-Receipts, 0 Fehler/Fatal-Meldungen; `git diff --check` bestanden.
+
+**Abgrenzung:** Der Xvfb-Viewer wurde nach 18 Sekunden per Timeout
+(Exit 124) beendet; kein regulärer Quit oder authentifizierter
+OpenSim-Live-World-GPU-Frame ist damit nachgewiesen. Die nativen
+Vulkan-X11-Tests verwenden synthetische Geometrie. Der neue
+Quellversionsvergleich wird von echten Host-Pfaden verwendet,
+aber die tatsächliche Live-Region benötigt gesonderte Abnahme.
+Windows/macOS-Vollviewer lokal nicht gebaut. **Keine dauerhafte
+Vulkan-Window-Ownership und kein Vollwelt-Renderer; P05 weiter
+2/20, P05/3 noch nicht abgeschlossen.** Keine neuen Repo-Dateien,
+Benutzerprofile oder laufenden Nutzerviewer verändert.
+
 ## P05/3 – In-World-Swap an echte Vulkan-Deferred-Quelle gekoppelt (13.11.2026; Teilfortschritt, keine Freigabe)
 
 **Codeintegration statt weiterer Pre-GL-Tests:** Der echte Firestorm-

@@ -9,6 +9,30 @@
 // Independent CPU pre-composition guards for a future real GPU->OpenGL
 // shadow pass. No OpenGL/Vulkan; rejects any unbound/mismatched snapshot.
 namespace ogl {
+// P05/3: source-identity guards at the actual GL-world-swap boundary.
+// This is a CPU-only policy; no GL/Vulkan window ownership is implied.
+// Every rendered GPU sample must belong to a genuine deferred receipt,
+// a matching region epoch and the same GPU mesh/camera generation.
+inline bool present_coupled_source_current(
+    uint64_t region_epoch, uint64_t capture_epoch, uint64_t capture_receipt,
+    uint64_t capture_mesh, uint64_t gpu_mesh, uint64_t gpu_camera_mesh) noexcept {
+    return capture_receipt!=0 && region_epoch==capture_epoch &&
+           gpu_mesh!=0 && capture_mesh==gpu_mesh &&
+           gpu_camera_mesh==gpu_mesh;
+}
+
+// Identical pose and mesh do NOT prove that the captured real-world
+// material/source data stayed unchanged: the deferred receipt also matters.
+inline bool present_coupled_needs_redraw(
+    bool old_pose_valid, uint64_t old_epoch, uint64_t current_epoch,
+    uint64_t old_mesh, uint64_t current_mesh,
+    uint64_t old_receipt, uint64_t current_receipt,
+    bool same_pose) noexcept {
+    return current_receipt!=0 &&
+        (!old_pose_valid || old_epoch!=current_epoch ||
+         old_mesh!=current_mesh || old_receipt!=current_receipt || !same_pose);
+}
+
 // A native Vulkan ray query can be a valid *diagnostic* even when its
 // output cannot be trusted as a world-shadow sample. Keep those decisions
 // independent: never disable the GPU worker solely because a new rendering

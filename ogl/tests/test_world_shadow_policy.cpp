@@ -6,6 +6,21 @@
 #include <cmath>
 #include <limits>
 int main() {
+    // These are the actual native, platform-neutral gates consumed by the
+    // post-visible-world-swap Vulkan worker; no live user session needed.
+    assert(ogl::present_coupled_source_current(3,3,1,11,11,11));
+    assert(!ogl::present_coupled_source_current(3,3,0,11,11,11));
+    assert(!ogl::present_coupled_source_current(3,4,1,11,11,11));
+    assert(!ogl::present_coupled_source_current(3,3,1,10,11,11));
+    assert(!ogl::present_coupled_source_current(3,3,1,11,0,0));
+    assert(!ogl::present_coupled_source_current(3,3,1,11,11,10));
+    assert(ogl::present_coupled_needs_redraw(false,3,3,11,11,4,4,true));
+    assert(ogl::present_coupled_needs_redraw(true,2,3,11,11,4,4,true));
+    assert(ogl::present_coupled_needs_redraw(true,3,3,10,11,4,4,true));
+    assert(ogl::present_coupled_needs_redraw(true,3,3,11,11,3,4,true));
+    assert(ogl::present_coupled_needs_redraw(true,3,3,11,11,4,4,false));
+    assert(!ogl::present_coupled_needs_redraw(true,3,3,11,11,4,4,true));
+    assert(!ogl::present_coupled_needs_redraw(false,3,3,11,11,0,0,false));
     ogl_rtx_frame_state frame{};
     frame.struct_size=sizeof(frame);
     frame.frame_version=OGL_RTX_FRAME_VERSION;

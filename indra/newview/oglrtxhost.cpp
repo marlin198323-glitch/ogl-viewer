@@ -143,8 +143,18 @@ std::uint64_t live_visible_world_swaps = 0;
 std::uint64_t live_present_coupled_gpu_frames = 0;
 std::uint64_t live_present_coupled_region_epoch = 0;
 std::uint64_t live_present_coupled_mesh_generation = 0;
+std::uint64_t live_present_coupled_capture_receipt = 0;
 ogl_rtx_frame_state live_present_coupled_pose{};
 bool live_present_coupled_pose_valid = false;
+void ogl_reset_present_coupled_state(bool module_lifecycle) {
+    live_visible_world_swaps=0;
+    live_present_coupled_pose={};
+    live_present_coupled_pose_valid=false;
+    live_present_coupled_region_epoch=0;
+    live_present_coupled_mesh_generation=0;
+    live_present_coupled_capture_receipt=0;
+    if (module_lifecycle) live_present_coupled_gpu_frames=0;
+}
 ogl_rtx_frame_state live_world_last_offscreen_pose{};
 bool live_world_last_offscreen_pose_valid = false;
 std::uint64_t live_world_last_offscreen_mesh_generation = 0;
@@ -400,6 +410,7 @@ void ogl_init_rtx_module() {
     live_world_last_offscreen_pose_valid=false;
     live_world_last_offscreen_mesh_generation=0;
     live_world_last_offscreen_region_epoch=0;
+    ogl_reset_present_coupled_state(true);
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     world_device_ready = reinterpret_cast<ogl_world_device_ready_fn>(
@@ -618,6 +629,7 @@ void ogl_shutdown_rtx_module() {
     live_world_last_offscreen_pose_valid=false;
     live_world_last_offscreen_mesh_generation=0;
     live_world_last_offscreen_region_epoch=0;
+    ogl_reset_present_coupled_state(true);
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     world_device_ready = nullptr;
@@ -850,27 +862,31 @@ void ogl_rtx_after_visible_world_swap() {
         return flag && std::strcmp(flag,"1")==0;
     }();
     if (!opted_in || !ogl_live_offscreen_developer_enabled() ||
-        !live_deferred_capture_valid ||
-        live_deferred_receipt_epoch!=live_world_region_epoch ||
-        !last_live_world_camera_valid || !world_input_ready ||
-        !world_mesh_generation || !world_camera_mesh_generation ||
-        world_input_ready()!=1 || world_mesh_generation()==0 ||
-        world_camera_mesh_generation()!=world_mesh_generation() ||
-        live_deferred_mesh_generation!=world_mesh_generation()) return;
+        !live_deferred_capture_valid || !last_live_world_camera_valid ||
+        !world_input_ready || !world_mesh_generation ||
+        !world_camera_mesh_generation || world_input_ready()!=1) return;
+    const auto mesh_generation=world_mesh_generation();
+    const auto camera_mesh_generation=world_camera_mesh_generation();
+    if (!ogl::present_coupled_source_current(
+            live_world_region_epoch,live_deferred_receipt_epoch,
+            live_deferred_receipts,live_deferred_mesh_generation,
+            mesh_generation,camera_mesh_generation)) return;
     ++live_visible_world_swaps;
     // Bound blocking GPU readback to one of every 120 visible GL frames.
     if (!ogl_vulkan_camera_tick_due(live_visible_world_swaps)) return;
-    const auto mesh_generation=world_mesh_generation();
-    if (live_present_coupled_pose_valid &&
-        live_present_coupled_region_epoch==live_world_region_epoch &&
-        live_present_coupled_mesh_generation==mesh_generation &&
-        ogl_same_world_camera_pose(live_present_coupled_pose,
-                                   last_live_world_camera)) return;
+    if (!ogl::present_coupled_needs_redraw(
+            live_present_coupled_pose_valid,
+            live_present_coupled_region_epoch,live_world_region_epoch,
+            live_present_coupled_mesh_generation,mesh_generation,
+            live_present_coupled_capture_receipt,live_deferred_receipts,
+            ogl_same_world_camera_pose(live_present_coupled_pose,
+                                       last_live_world_camera))) return;
     if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) return;
     live_present_coupled_pose=last_live_world_camera;
     live_present_coupled_pose_valid=true;
     live_present_coupled_region_epoch=live_world_region_epoch;
     live_present_coupled_mesh_generation=mesh_generation;
+    live_present_coupled_capture_receipt=live_deferred_receipts;
     ++live_present_coupled_gpu_frames;
     if (live_present_coupled_gpu_frames<=3 ||
         live_present_coupled_gpu_frames%64==0)
@@ -879,6 +895,7 @@ void ogl_rtx_after_visible_world_swap() {
             << "visible_swaps=" << live_visible_world_swaps
             << " completed_private_frames=" << live_present_coupled_gpu_frames
             << " mesh_generation=" << mesh_generation
+            << " source_capture=" << live_present_coupled_capture_receipt
             << " region_epoch=" << live_world_region_epoch
             << "; GL owns the SDL window, NO Vulkan present."
             << LL_ENDL;
@@ -908,11 +925,7 @@ bool ogl_rtx_on_region_transition() {
     live_world_last_offscreen_pose_valid=false;
     live_world_last_offscreen_mesh_generation=0;
     live_world_last_offscreen_region_epoch=0;
-    live_visible_world_swaps=0;
-    live_present_coupled_pose={};
-    live_present_coupled_pose_valid=false;
-    live_present_coupled_region_epoch=0;
-    live_present_coupled_mesh_generation=0;
+    ogl_reset_present_coupled_state(false);
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     // New region may arrive while old Vulkan frames still reference

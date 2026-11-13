@@ -267,6 +267,21 @@ Receipt und ohne Fatal. Authentifizierter OpenSim-Live-
 GPU-Test und Vulkan Window Ownership bleiben offen;
 P05 weiter 2/20. Details oben in PROJECT_STATUS.md.
 
+13.11.2026 /goal-20er-Teilrunde P05/3: Neuer echter
+GL-world-swap-gebundener Offscreen-Vulkan-Host setzte
+beim Modul-Reload bisher keine Caches/Zähler zurück.
+Neue gemeinsame Reset-Funktion in Init/Shutdown/Region-
+Transition; neue Quell-Receipt-Revision unterscheidet
+frische Deferred-Aufnahmen auch bei identischer Kamera und
+Mesh-Revision. Portable Native-C++-Source-Guard-/Redraw-
+Regeln mit 13 Validierungsfällen, 2 neuen Python-Grafiktests.
+Linux-Vollbuild und 404 Python-/92 Grafik-/41 native CTests
+erfolgreich, echte X11-GPU-Clear/World-Depth 16/32 grün.
+Isolierter GL-Viewerstart mit Entwickler-Opt-ins bis Login-
+Wait: kein unerlaubtes Pre-Login-GPU-Receipt, 0 Fatal.
+Keine authentifizierte Vulkan-Welt, SDL bleibt GL-owned.
+P05 operativ 2/20. Details PROJECT_STATUS.md ganz oben.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

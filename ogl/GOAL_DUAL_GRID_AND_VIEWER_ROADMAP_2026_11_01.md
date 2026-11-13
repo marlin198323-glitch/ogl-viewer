@@ -1197,6 +1197,8 @@ sowie Status aktualisiert; keine Benutzerabnahme erforderlich.
 ### /goal P05 – Vulkan als vollständige auswählbare 3D-Engine
 
 **Status:** aktiv; 2/20 operative Blöcke abgeschlossen. Block 1: Vulkan Device/Queue und echte X11-WSI-Validierung. Block 2: opt-in persistente X11-Swapchain mit SDL-Resize-/Window-Destroy-Lifecycle. Block 3: Vulkan-GPU-Frame-Synchronisation und tatsächliches Present noch offen.
+**P05/3 Live-Frame-Integrationsstand 13.11.2026 (noch keine Abnahme):** Nach echtem sichtbarem `llviewerdisplay::swap()` kann ein streng opt-in privater Vulkan-GPU-Frame mit echter OpenSim-Deferred-Quelle erfolgen. Ergänzt: Quell-Receipt-Identität gegen gleiche Pose/Revision sowie Cache-Lebensdauer bei Modul-Reload und Regionswechsel. 404 Python-/41 native Tests und Linux-Vollviewer-Build grün; ohne Login kein GPU-Receipt. Noch **keine** dauerhafte Vulkan-Window-Ownership, kein vollständiger authentifizierter Vulkan-In-World-Present. P05 bleibt **2/20**.
+
 **P05 Vorarbeit 04.11.2026:** Im vorhandenen Vulkan-Modul wird nur per explizitem Entwickler-Opt-in ein persistentes VkInstance/VkDevice mit Grafik-VkQueue erstellt, geprüft und freigegeben. Die neue additive ABI meldet nur Device-Bereitstellung. Linux-Vollviewer, 321 Python-/41 CTests und zwei isolierte GL-GUI-Starts erfolgreich. Die wirkliche SDL-Vulkan-Window-Surface, Present-Queue-Prüfung, Swapchain und Welt-Pipeline fehlen. Vulkan bleibt im Grafikmenü deaktiviert; formal P05 0/20, keine fiktive Phasenfreigabe.
 
 **P05 Block 1 abgeschlossen (04.11.2026):**

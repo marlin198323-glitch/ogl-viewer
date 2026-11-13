@@ -1878,6 +1878,34 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_present_coupled_module_reload_resets_all_source_state(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        a=host.index('void ogl_reset_present_coupled_state(bool module_lifecycle)')
+        b=host.index('ogl_rtx_frame_state live_world_last_offscreen_pose{};',a)
+        helper=host[a:b]
+        for marker in ('live_visible_world_swaps=0;',
+                       'live_present_coupled_pose={};',
+                       'live_present_coupled_pose_valid=false;',
+                       'live_present_coupled_region_epoch=0;',
+                       'live_present_coupled_mesh_generation=0;',
+                       'live_present_coupled_capture_receipt=0;',
+                       'if (module_lifecycle) live_present_coupled_gpu_frames=0;'):
+            self.assertIn(marker,helper)
+        self.assertEqual(host.count('ogl_reset_present_coupled_state(true);'),2)
+        self.assertEqual(host.count('ogl_reset_present_coupled_state(false);'),1)
+
+    def test_p05_present_coupled_receipt_is_part_of_redraw_identity(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        self.assertIn('present_coupled_source_current(',policy)
+        self.assertIn('capture_receipt!=0',policy)
+        self.assertIn('capture_mesh==gpu_mesh',policy)
+        self.assertIn('gpu_camera_mesh==gpu_mesh',policy)
+        self.assertIn('old_receipt!=current_receipt',policy)
+        self.assertIn('live_present_coupled_capture_receipt=live_deferred_receipts;',host)
+        self.assertIn('source_capture=" << live_present_coupled_capture_receipt',host)
+        self.assertIn('ogl::present_coupled_needs_redraw(',host)
+
     def test_p05_real_world_swap_couples_source_qualified_vulkan_offscreen(self):
         display=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
@@ -1897,10 +1925,11 @@ class PublicGraphicsContracts(unittest.TestCase):
         for marker in ('OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN',
                        'ogl_live_offscreen_developer_enabled()',
                        'live_deferred_capture_valid',
-                       'live_deferred_receipt_epoch!=live_world_region_epoch',
-                       'world_camera_mesh_generation()!=world_mesh_generation()',
+                       'ogl::present_coupled_source_current(',
+                       'live_deferred_receipts,live_deferred_mesh_generation,',
                        'ogl_vulkan_camera_tick_due(live_visible_world_swaps)',
-                       'live_present_coupled_region_epoch==live_world_region_epoch',
+                       'ogl::present_coupled_needs_redraw(',
+                       'live_present_coupled_capture_receipt,live_deferred_receipts,',
                        'ogl_same_world_camera_pose(',
                        'ogl_firestorm_offscreen_gpu_sample("present-coupled")'):
             self.assertIn(marker,fn)
