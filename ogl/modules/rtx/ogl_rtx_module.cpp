@@ -4502,7 +4502,14 @@ int set_world_projection_camera(const ogl_rtx_frame_state* frame) {
     const double cross_z=double(right[0])*up[1]-double(right[1])*up[0];
     const double handedness=cross_x*forward[0]+cross_y*forward[1]+
                             cross_z*forward[2];
-    if (!std::isfinite(handedness) || handedness<0.9 || handedness>1.1)
+    // Firestorm's LLCoordFrame axes are forward=+X, LEFT=+Y, up=+Z.
+    // The real viewer supplies right=-getLeftAxis(), so its basis has
+    // handedness -1, unlike the earlier synthetic GPU fixtures (+1).
+    // Accept either orthonormal sign without flipping the supplied right
+    // vector (which would mirror actual Vulkan world pixels). The
+    // signed magnitude check still rejects degenerate/skewed bases.
+    if (!std::isfinite(handedness) ||
+        std::fabs(std::fabs(handedness)-1.0)>0.1)
         return 0;
     const double fy=1.0/std::tan(double(frame->vertical_fov_radians)*0.5);
     const double fx=fy/double(frame->aspect_ratio);

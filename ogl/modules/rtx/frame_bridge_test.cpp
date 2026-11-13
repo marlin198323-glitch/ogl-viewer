@@ -524,14 +524,30 @@ int main(int argc, char** argv) {
         assert(camera_ready()==1 && live_inputs()==1 &&
                camera_mesh_generation()==mesh_generation() &&
                camera_updates()==1);
+        // Real LLViewerCamera: forward +X, left +Y, up +Z;
+        // pipeline passes right=-left. The previous +1-only handedness
+        // check silently rejected ALL genuine Firestorm camera frames.
+        auto firestorm_camera=live_frame;
+        firestorm_camera.camera_right[1]=-1.f;
+        assert(world_camera(&firestorm_camera)==1);
+        assert(camera_ready()==1 && live_inputs()==1 &&
+               camera_mesh_generation()==mesh_generation() &&
+               camera_updates()==2);
+        auto invalid_basis=firestorm_camera;
+        invalid_basis.camera_right[1]=0.f;
+        assert(world_camera(&invalid_basis)==0);
+        assert(camera_ready()==0 && live_inputs()==0);
+        assert(world_camera(&firestorm_camera)==1 &&
+               camera_ready()==1 && live_inputs()==1 &&
+               camera_updates()==3);
         live_frame.aspect_ratio=2.f;
         assert(world_camera(&live_frame)==0); // invalid input clears camera
         assert(camera_ready()==0 && live_inputs()==0 &&
                camera_mesh_generation()==0 &&
-               camera_updates()==1);
+               camera_updates()==3);
         live_frame.aspect_ratio=4.f/3.f;
         assert(world_camera(&live_frame)==1 && live_inputs()==1 &&
-               camera_updates()==2);
+               camera_updates()==4);
         const uint64_t old_mesh=mesh_generation();
         assert(world_upload(&world_triangle,1)==1); // new scene invalidates pose
         assert(mesh_generation()==old_mesh+1 &&
@@ -539,7 +555,7 @@ int main(int argc, char** argv) {
                camera_ready()==0 && live_inputs()==0 && mesh_uploads()==2);
         assert(world_camera(&live_frame)==1 && live_inputs()==1 &&
                camera_mesh_generation()==mesh_generation() &&
-               camera_updates()==3);
+               camera_updates()==5);
         auto bad=world_triangle;
         bad.position[0]=std::numeric_limits<float>::quiet_NaN();
         assert(world_upload(&bad,1)==0);
@@ -557,7 +573,7 @@ int main(int argc, char** argv) {
         assert(world_gpu_count()==0); // region-clear frees GPU buffers
         assert(camera_ready()==0 && live_inputs()==0 &&
                camera_mesh_generation()==0 &&
-               mesh_uploads()==3 && camera_updates()==3);
+               mesh_uploads()==3 && camera_updates()==5);
         unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
     } else {
         assert(world_gpu_count()==0);
@@ -1087,6 +1103,7 @@ int main(int argc, char** argv) {
         const bool test_world_depth=world_depth_env &&
                                   std::strcmp(world_depth_env,"1")==0;
         bool world_depth_near=false,world_depth_control=false;
+        bool world_depth_firestorm_camera=false;
         bool world_depth_moved=false,world_depth_resized=false;
         bool world_depth_aspect=false;
         bool world_depth_invalid=false,world_depth_cleared=false;
@@ -1161,6 +1178,26 @@ int main(int argc, char** argv) {
                 read_rgb(256,192,237,48,38) &&
                 read_rgb(26,26,20,54,115);
             window_detach();
+
+            // Actual LLViewerCamera's right=-left is a reflected basis
+            // relative to older synthetic fixtures. The Vulkan projection
+            // must render the SAME real world center and depth on the GPU,
+            // not just accept the CPU camera data or silently mirror it.
+            auto firestorm_projection=projection;
+            firestorm_projection.camera_right[1]=-1.f;
+            const bool firestorm_camera_ok=world_camera(&firestorm_projection)==1 &&
+                camera_ready()==1 && live_inputs()==1;
+            const bool firestorm_attached=firestorm_camera_ok &&
+                window_attach(display,static_cast<uint64_t>(window),512,384)==1;
+            world_depth_firestorm_camera=firestorm_attached &&
+                exclusive_present(1)==1 &&
+                read_rgb(256,192,237,48,38) &&
+                read_rgb(26,26,20,54,115);
+            if (firestorm_attached) window_detach();
+            const bool old_projection_restored=world_camera(&projection)==1 &&
+                camera_ready()==1 && live_inputs()==1;
+            world_depth_firestorm_camera=world_depth_firestorm_camera &&
+                old_projection_restored;
 
             // Exact same shader, XYZ buffers and camera, but NO depth image.
             unsetenv("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE");
@@ -1246,9 +1283,10 @@ int main(int argc, char** argv) {
             unsetenv("OGL_VULKAN_WORLD_CAMERA_PROBE");
             unsetenv("OGL_VULKAN_WORLD_MESH_UPLOAD");
             std::fprintf(stdout,
-                "P05 Vulkan projected world depth: near=%d no_depth_far=%d "
-                "moved=%d resized=%d aspect=%d invalid=%d clear=%d\n",
-                world_depth_near?1:0,world_depth_control?1:0,
+                "P05 Vulkan projected world depth: near=%d firestorm_right=%d "
+                "no_depth_far=%d moved=%d resized=%d aspect=%d invalid=%d clear=%d\n",
+                world_depth_near?1:0,world_depth_firestorm_camera?1:0,
+                world_depth_control?1:0,
                 world_depth_moved?1:0,world_depth_resized?1:0,
                 world_depth_aspect?1:0,
                 world_depth_invalid?1:0,world_depth_cleared?1:0);
@@ -2943,6 +2981,7 @@ int main(int argc, char** argv) {
                 !persistent_suboptimal || !persistent_recovered ||
                 !persistent_lost_support || !persistent_support_recovered)) ||
             (test_world_depth && (!world_depth_near ||
+                                  !world_depth_firestorm_camera ||
                                   !world_depth_control ||
                                   !world_depth_moved ||
                                   !world_depth_resized ||

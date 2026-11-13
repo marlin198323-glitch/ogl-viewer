@@ -46,6 +46,29 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+13.11.2026, 23:11 MEZ – P05/3 ROOT CAUSE ERMITTELT
+UND CODE BEHOBEN: Live-Nutzerstart nun tatsächlich mit
+allen sieben Opt-ins, `STATE_STARTED`, echte Deferred-Captures
+(erst 1, im Folge-Log 5; jeweils 8192 Dreiecke), aber
+keine Vulkan-Kamera-/GPU-Receipts. `pipeline.cpp` liefert
+Firestorms echte Basis `right=-getLeftAxis()`, sodass
+`dot(cross(right,up),forward)=-1`; die GPU-Kameravalidierung
+in `ogl_rtx_module.cpp` ließ bisher nur +1 zu.
+Jetzt beide gültigen signierten ±1-Basen akzeptiert,
+Basis nicht gespiegelt; degenerierte Vektoren bleiben
+abgewiesen. Native Firestorm-Basis-ABI-Tests, neuer echter
+X11-/Vulkan-GPU-Pixelreadback `firestorm_right=1`,
+421 Python-/41 CTests, Linux-Vollbuild und 16/32-
+Frame-Vulkan-GPU-Regressionen erfolgreich. Für die
+Live-Wiederholung muss der Nutzer seine aktuelle Sitzung
+normal schließen und den frisch gebauten Viewer mit
+den gleichen sieben Flags neu starten: alte laufende
+Prozesse verwenden noch alten Code. Separates
+`OGL_VULKAN_LIVE_CAMERA_REBIND=1` ist optional.
+Kein positiver authentifizierter private Vulkan-GPU-
+World-Swap gemessen, **P05 bleibt 2/20, P05/3 offen**.
+Details ganz oben in PROJECT_STATUS.md.
+
 13.11.2026, 23:04 MEZ – P05/3 LIVE LOG-AUDIT (nicht
 abgenommen): aktuelle OGL-Testprofil-Nutzersitzung nach
 `STATE_STARTED` mit echter OpenGL-3D-Welt, RTX 4070 SUPER

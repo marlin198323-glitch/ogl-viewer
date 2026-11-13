@@ -6,6 +6,81 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – echter OpenSim-Live-Log: Kamera-Händigkeit verhindert Vulkan-GPU-Nachweis (13.11.2026, 23:11 MEZ)
+
+**Neue positive Nutzer-Evidenz:** Die echte OpenSim-Sitzung mit
+den sieben ausdrücklich gesetzten P05/3-Flags startete bis
+`STATE_STARTED`, präsentierte eine OpenGL-3D-Welt, initialisierte
+ein echtes Vulkan-GPU-Device und erzeugte `P05 deferred evidence
+session: begin=1`. Das lokale Report-Sample des Nutzers ergab
+`capture_accepted_gpu_pending` (1 echte Deferred-Capture,
+0 GPU-Receipts). Ein späterer Read-only-Logcheck fand **fünf**
+echte `P05 deferred capture receipt`-Meldungen mit jeweils
+8192 Dreiecken und fortschreitenden Meshgenerationen; weiterhin
+**keine** Meldung `P05 live Firestorm camera accepted`,
+`source=present-coupled` oder GPU-Readback. Die Eingangsdaten
+kommen also an, der Kamera-/Welt-GPU-Handshake nicht.
+
+**Reproduzierbare Codeursache behoben:** Der tatsächliche
+Firestorm-`LLCoordFrame` liefert `getAtAxis()=+X`,
+`getLeftAxis()=+Y`, `getUpAxis()=+Z`; der vorhandene
+`pipeline.cpp`-Adapter übergibt korrekterweise
+`right=-getLeftAxis()`. Eine gültige Firestorm-Kamera hat
+damit in der bisherigen Vulkan-Validierung
+`dot(cross(right,up),forward)=-1`. Die Validierung in
+`ogl_rtx_module.cpp::set_world_projection_camera()`
+verlangte jedoch strikt **+1**, weil alle bisherigen
+synthetischen nativen Tests eine `right=+Y`-Kamera
+benutzten. Damit wies der Vulkan-World-Host bei echter
+Firestorm-Orientierung die Projektionskamera ab und
+`world_camera_mesh_generation()`/`world_input_ready()`
+blieben nicht qualifiziert; eine World-Swap-GPU-Probe war
+folglich nicht möglich.
+
+Die Händigkeit wird jetzt als endlicher Einheitsbetrag
+(±1 mit bisheriger Toleranz) akzeptiert. Die rechte
+Kameraachse selbst wird **nicht** negiert oder ersetzt:
+Die Vulkan-Projektion verwendet die vom Viewer tatsächlich
+übergebene Blickrichtung und Bildschirm-Rechtsachse,
+um Spiegelung zu vermeiden. Degenerierte, schiefe und
+nichtendliche Kamerabasisen werden weiterhin verworfen.
+
+Native ABI-Regressionen verwenden nun zusätzlich die
+**reale Firestorm-Basis** (`forward=+X`, `right=-Y`, `up=+Z`)
+und einen unzulässigen Null-Rechtsvektor. Ein neuer
+**echter X11-/Vulkan-World-Depth-GPU-Test** projiziert
+mit `right=-Y` einen privaten Weltframe auf ein
+Vulkan-Swapchain-Testfenster, liest tatsächliche Pixel
+zurück und bestätigt Vordergrund/Tiefenbild **und**
+Hintergrundfarbe (`firestorm_right=1`). Das ist ein
+synthetischer nativer GPU-Test und **keine** authentifizierte
+OpenSim-Welt oder produktive Vulkan-Fensterübernahme.
+
+**Bestätigte Prüfungen:** 421/421 Python-Tests einschließlich
+99/99 Grafik-Vertragstests, 41/41 native CTests,
+Linux-Vollviewer-Build, X11-Vulkan-World/Depth/Projection-
+GPU-Test mit realer Firestorm-Achsenkonvention sowie
+16-/32-Frame-Clear-/World-Regressionen, Mesh-Rotation und
+Regions-Barrier bestanden; `git diff --check` grün.
+Kein bestehender Nutzerprozess beendet, kein Profil oder
+Server geändert, keine neuen Repository-Dateien.
+
+**Nächster unabhängiger Live-Beleg:** Laufende Nutzer-Viewer
+zuerst **normal schließen**; der neue Build ist auf Datenträger
+fertig, wird aber nicht in einen alten Prozess nachgeladen.
+Mit den **gleichen sieben** in der früheren
+`P05/3 – Diagnose der echten Viewer-Logs`-Sektion
+aufgeführten Entwicklerflags neu starten, in die echte
+OpenSim-Welt anmelden und `ogl-test-report.py` erneut
+lesen. `OGL_VULKAN_LIVE_CAMERA_REBIND=1` ist ein
+**zusätzlicher optionaler** Opt-in für dieselbe-Frame-
+Camera-Neubindung nach Mesh-Upload, kein zwingender
+achter Parameter für den Post-Swap-Quellpfad. Erst
+`source=present-coupled` plus passende `P05 REAL GL-world-swap`
+und positive Pixelquittung bestätigt die private GPU-Probe.
+**P05 bleibt formal 2/20; P05/3 und exklusives Vulkan-
+Window-Present weiterhin offen.**
+
 ## P05/3 – Diagnose der echten Viewer-Logs und klarer Live-Test-Blocker (13.11.2026, 23:04 MEZ)
 
 **Nur Diagnose, kein abgeschlossener Vulkan-Meilenstein.** Das lokale
