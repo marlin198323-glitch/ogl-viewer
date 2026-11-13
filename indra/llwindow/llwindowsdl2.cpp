@@ -200,6 +200,22 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // An independent motion test models a camera that changes EVERY
+    // presented world frame, not only on initial attach and resize.
+    // Incomplete permissions fail before SDL window borrowing/module load.
+    const bool camera_motion=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE");
+    if (camera_motion &&
+        (!firestorm_basis || !sequence_requested || !sequence_permitted ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE"))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL moving-camera QA requires persistent Firestorm world/depth permissions; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -237,6 +253,15 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_LoadFunction(library,"ogl_vulkan_world_set_projection_camera"));
     const auto camera_ready=reinterpret_cast<MeshCount>(
         SDL_LoadFunction(library,"ogl_vulkan_world_projection_camera_ready"));
+    using Counter64 = uint64_t (*)();
+    const auto camera_updates=reinterpret_cast<Counter64>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_camera_updates"));
+    const auto camera_mesh_generation=reinterpret_cast<Counter64>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_camera_mesh_generation"));
+    const auto camera_matches_swapchain=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_camera_matches_swapchain"));
+    const auto live_inputs_ready=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_live_inputs_ready"));
     const auto upload=reinterpret_cast<Upload>(
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_triangles"));
     const auto mesh_count=reinterpret_cast<MeshCount>(
@@ -272,6 +297,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool persistent_verified=false;
     bool mesh_rotation_verified=false;
     bool region_barrier_verified=false;
+    bool camera_motion_verified=false;
+    uint32_t moving_camera_frames=0;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
     // A separate explicit opt-in permits a 20-frame/three-extent acceptance
@@ -347,7 +374,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     const bool region_barrier=region_barrier_requested &&
         region_barrier_permission && persistent_world && sequence &&
         !mesh_rotation;
-    if (region_barrier_requested!=region_barrier_permission ||
+    if ((camera_motion && (!persistent_world ||
+         !camera_updates || !camera_mesh_generation ||
+         !camera_matches_swapchain || !live_inputs_ready)) ||
+        region_barrier_requested!=region_barrier_permission ||
         (region_barrier_requested && !region_barrier) ||
         mesh_rotation_requested!=mesh_rotation_permission ||
         (mesh_rotation_requested && !mesh_rotation) ||
@@ -404,6 +434,11 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                 // camera-projected test mesh ONCE. It is immutable while GPU
                 // submissions may still refer to its VkBuffers.
                 bool persistent_world_uploaded=true;
+                // Older/unmatched Vulkan modules may not expose the mesh
+                // generation ABI. Never dereference a null symbol during
+                // per-frame camera motion; fail closed before any present.
+                if (camera_motion && !mesh_generation)
+                    persistent_world_uploaded=false;
                 if (mesh_rotation && (!mesh_generation ||
                     !mesh_retire_waits || !mesh_retire_failures))
                     persistent_world_uploaded=false;
@@ -591,6 +626,24 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     set_camera(&camera)==1 &&
                                     camera_ready()==1;
                             }
+                            if (good && camera_motion) {
+                                // Genuine Firestorm frame cadence: move the
+                                // world camera on every present, retaining
+                                // the mesh buffers and validated viewport.
+                                // A successful GPU frame must use the new
+                                // camera and the CURRENT mesh generation.
+                                const uint64_t before=camera_updates();
+                                camera.camera_position[1]=20.f +
+                                    0.025f*float(moving_camera_frames);
+                                good=set_camera(&camera)==1 &&
+                                     camera_ready()==1 &&
+                                     camera_updates()==before+1 &&
+                                     camera_matches_swapchain()==1 &&
+                                     live_inputs_ready()==1 &&
+                                     camera_mesh_generation()==
+                                         mesh_generation();
+                                if (good) ++moving_camera_frames;
+                            }
                             if (!good || selected_present(1)!=1 ||
                                 !verified_visible_pixel(width,height,frame) ||
                                 (count && count()!=frame+1)) {
@@ -671,6 +724,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         restored_height==original_height &&
                         x11_extent_matches(original_width,original_height);
                     pixel_verified=sequence_verified;
+                    if (camera_motion)
+                        camera_motion_verified=sequence_verified &&
+                            moving_camera_frames==20;
                     if (persistent) persistent_verified=
                         persistent_verified && sequence_verified;
                     if (persistent_world) {
@@ -775,6 +831,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ", firestorm-basis=" << (firestorm_basis
             ? (world_verified && depth_verified ? "verified" : "failed")
             : "not-requested") <<
+        ", camera-motion=" << (camera_motion
+            ? (camera_motion_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", camera-motion-frames=" << moving_camera_frames <<
         ", camera=" << (world ? (world_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", depth=" << (depth ? (depth_verified ? "verified" : "failed")

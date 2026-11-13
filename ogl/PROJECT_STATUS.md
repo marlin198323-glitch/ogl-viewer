@@ -6,6 +6,111 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: SDL-Vulkan-Weltframe mit bewegter Firestorm-Kamera (13.11.2026)
+
+**Echte neue Integration:** Die vorhandene streng opt-in
+Vulkan-WSI-Prüfung im *tatsächlichen SDL/X11-Viewerfenster*
+hat bislang pro Fenstergröße nur **eine** synthetische
+Kameramatrix erstellt und danach 8/8/4 Frames damit
+präsentiert. Beim späteren echten OpenSim-GPU-Readback
+waren bereits neu gebundene Firestorm-Kameraposen zu sehen,
+doch der SDL-Window-Present-Prototyp prüfte diese
+pro-Frame-Kameraaktualisierung noch nicht.
+
+Mit dem **zusätzlichen** und standardmäßig inaktiven
+`OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE=1`
+ist jetzt ein per-Frame-Update für die **reale Firestorm-
+Kamerahändigkeit** `forward=+X/right=-Y/up=+Z`
+im bestehenden vor-GL-Testpfad integriert. Vor
+SDL-X11-Handle-/Vulkan-Modulladen muss die vollständige
+Firestorm-World-/Depth-/Persistent-Genehmigungskette
+vorliegen, außerdem das separat autorisierte
+20-Frame-Sequenzpaar. Ungültige/fehlende Berechtigungen
+führen zu **0 Vulkan-Presents** und normalem OpenGL-Login.
+
+Vor jedem Frame verschiebt die Testschleife die
+Kameraposition kontrolliert lateral (`+0.025` m je
+bereits akzeptiertem Camera-Frame). Ein Frame wird
+**nicht** präsentiert, bevor `set_camera()` die neue
+Pose angenommen, `camera_updates` genau um 1
+zugenommen, `camera_matches_swapchain()==1`,
+`live_inputs_ready()==1` und die aktuelle
+Kamera-Mesh-Generation der tatsächlich hochgeladenen
+GPU-Meshgeneration entspricht. Erfordert vier
+vorhandene Modul-ABI-Symbole plus sichere
+`mesh_generation`-Funktion; fehlende Symbole
+verhindern das Präsentieren. Nach Mesh-Rotation oder
+simulierter Region-Barrier wird erneut gebunden;
+bei Resize wird die neue Kamera ans geänderte
+Seitenverhältnis angepasst. Neue Logfelder
+`camera-motion=verified/failed/not-requested` und
+`camera-motion-frames=N` enthalten ausschließlich
+aggregierte QA-Zähler, keine Spielerposition/Region.
+
+**Erfolgreiche echte SDL/X11-Testläufe** auf eigenem Xvfb,
+mit jeweils isoliertem HOME/XDG-Profil und automatisch
+beendeter Test-Prozessgruppe:
+
+- Kamerabewegung + zwei unabhängige GPU-Fences:
+  **20/20 Vulkan-Window-Presents**, 100/100 X11-
+  Pixelprüfungen, 3 Größen, `camera-motion-frames=20`,
+  `dual-sync=verified`, nach Detach OpenGL `STATE_LOGIN_WAIT`.
+- Kamerabewegung ohne Zusatz-Dual-Sync: 20/20 Presents,
+  100/100 Pixel, 3 Größen, 20 Kamera-Rebinds, GL-Login.
+- Firestorm-Basis ohne Kamerabewegungsflag (Regression):
+  20/20 Presents, `camera-motion=not-requested`, 0 Rebinds.
+- Unvollständige Kamera-Freigabe: **kein** Vulkan-Present,
+  nur Warnung + funktionierender GL-Login.
+- Kombinierte Kamerabewegung + GPU-Mesh-Rotation:
+  **20/20** Presents, 100/100 Pixel,
+  `mesh-rotation=verified`, 20 Camera-Rebinds.
+- Kombinierte Kamerabewegung + Region-Barrier:
+  **20/20** Presents, 100/100 Pixel,
+  `region-barrier=verified`, 20 Camera-Rebinds.
+- Absichtlich injizierter Fehler ab Frame 3:
+  **3/20** zuvor echte Presents, danach
+  `camera-motion=failed`, `Vulkan fully detached BEFORE
+  SDL_GL_CreateContext`, normaler OpenGL-Login;
+  keine falsche Erfolgsmeldung oder FATAL.
+
+**20 tatsächlich ausgeführte Entwicklungs-/QA-Schritte:**
+
+01. `ogl-develop` auf sauberem Ausgangscommit `9df2e582` und Remote-Synchronität geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Hauptroadmap gelesen.
+03. GitHub-CI des vorherigen SDL-Basis-Commits und des ersten OpenSim-GPU-Live-Nachweises geprüft (beide erfolgreich).
+04. OpenGenesisLINK-G1-`main` und unveränderlichen Stable-Tag `v0.9.4.0` gegen `ee15af8e...` read-only abgeglichen: gleich; kein Updatekanal-Release.
+05. Offene externe Server-PRs #448 (HGSP2-Sicherheit), #447 (AssetService/S3), #443 (Installer) erfasst und nicht als Stable übernommen.
+06. Reale OpenSim-`present-coupled`-GPU-Belegkette als getrennten bisherigen Teilmeilenstein geprüft.
+07. Bestehende SDL-Vulkan-Window-Ownership-/20-Frame-Lifecyclepfade auf echte `vkQueuePresentKHR`- und GL-Detach-Grenzen untersucht.
+08. Schwäche der bisherigen ausschließlich pro Fenstergröße gebundenen SDL-Kamera gegenüber pro-Frame-Bewegung identifiziert.
+09. Strikt neuen eigenständigen `OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE`-Opt-in eingeführt.
+10. Vormodulprüfung: Firestorm-Kamerabasis, Sequenz- und vollständige Persistent-Gate-Kette gemeinsam erforderlich.
+11. Vorhandene Modul-ABI-Funktionen für Kamera-Update-Zähler und gebundene Meshgeneration abgerufen.
+12. Vorhandene ABI-Abfrage zur exakten Bindung der Kameraprojektion an die aktuelle Swapchaingröße integriert.
+13. Vorhandenen Live-Input-Handshake als zwingende Vorbedingung jedes Present ergänzt.
+14. Fehlende/ältere `mesh_generation`-Exports vor Gebrauch abgesichert, kein Null-Funktionsaufruf.
+15. Vor **jedem** GPU-Present laterale Kamerabewegung und atomare Rebind-/Zähler-/Generation-Qualifikation implementiert.
+16. Erfolg/Fehler-Logfelder ohne private Spielerkoordinaten und statischen Python-Regressionsvertrag ergänzt.
+17. Vollständige Python-Suite 423/423, Grafik-Tests 101/101, native CTests 41/41 und Linux-C++-Viewer-Build erfolgreich.
+18. Isolierte SDL-Xvfb-Proben: Kamera+Dual-Fence und Kamera ohne Dual-Fence jeweils 20/20, 100/100 Pixel, 3 Größen; alte statische Basis unverändert.
+19. Negativtest fehlende Basis-Freigabe mit **0** Vulkan-Presents und normalem GL-Login; Kombination Kamera+Meshrotation sowie Kamera+Region-Barrier jeweils 20/20 GPU-Frames.
+20. Kontrollierter Frame-3-Abbruch: 3/20 echte Frames, korrekte Fail-Telemetrie, vollständige Vulkan-Freigabe vor OpenGL; Git-Diff auf Whitespacefehler geprüft.
+
+**Grenzen / noch offene P05-Abnahme:** Dieser
+GPU-verifizierte Window-Frame-Lifecycle verwendet
+synthetische World-/Depth-Triangles und startet
+**vor** der OpenGL-Initialisierung. Der positive
+echte OpenSim-`present-coupled`-GPU-Readback des
+vorherigen Nutzerlaufs ist ein **anderer**, noch
+nicht mit diesem Window-Present verbundener Pfad.
+Keine dauerhafte Vulkan-In-World-Fenster-Ownership,
+Avatare/UI/Materialien/Texture-/Terrain-Vollständigkeit
+oder Windows/macOS-Version nachgewiesen. Kein
+Nutzer-Viewer, Nutzerprofil, Server oder Credentials
+verändert, keine neuen Repository-Dateien. P08/P13
+Server-Clock-v1 mit MEZ/MESZ/UTC bleibt verbindlich.
+**P05 unverändert 2/20, P05/3 weiter offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: Firestorm-Kamerabasis auf echtem SDL-Vulkan-Fenster präsentieren (13.11.2026)
 
 **Implementiert und unabhängig GPU-geprüft:** Der bereits bestehende,

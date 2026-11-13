@@ -430,6 +430,38 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(win.index('ogl_probe_real_sdl_window_before_gl(mWindow);'),
                         win.index('mContext = SDL_GL_CreateContext( mWindow );'))
 
+    def test_p05_sdl_per_frame_camera_motion_is_generation_and_extent_bound(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        a=win.index('void ogl_probe_real_sdl_window_before_gl(')
+        b=win.index('} // namespace',a)
+        fn=win[a:b]
+        self.assertIn('OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE',fn)
+        self.assertIn('if (camera_motion &&',fn)
+        self.assertIn('!firestorm_basis || !sequence_requested || !sequence_permitted',fn)
+        self.assertIn('P05 SDL moving-camera QA requires persistent Firestorm world/depth permissions',fn)
+        self.assertLess(fn.index('if (camera_motion &&'),
+                        fn.index('SDL_LoadObject("./lib/ogl_rtx.so")'))
+        for api in ('ogl_vulkan_world_camera_updates',
+                    'ogl_vulkan_world_camera_mesh_generation',
+                    'ogl_vulkan_world_camera_matches_swapchain',
+                    'ogl_vulkan_world_live_inputs_ready'):
+            self.assertIn('SDL_LoadFunction(library,"'+api+'")',fn)
+        self.assertIn('const uint64_t before=camera_updates();',fn)
+        self.assertIn('camera.camera_position[1]=20.f +',fn)
+        self.assertIn('camera_updates()==before+1',fn)
+        self.assertIn('camera_matches_swapchain()==1',fn)
+        self.assertIn('live_inputs_ready()==1',fn)
+        self.assertIn('camera_mesh_generation()==',fn)
+        self.assertIn('if (camera_motion && !mesh_generation)',fn)
+        self.assertIn('mesh_generation();',fn)
+        self.assertIn('if (good) ++moving_camera_frames;',fn)
+        self.assertLess(fn.index('if (good && camera_motion) {'),
+                        fn.index('if (!good || selected_present(1)!=1 ||'))
+        self.assertIn('moving_camera_frames==20',fn)
+        self.assertIn('camera-motion=" << (camera_motion',fn)
+        self.assertIn('camera-motion-frames=" << moving_camera_frames',fn)
+        self.assertIn('detach();\n            stop();',fn)
+
     def test_p05_actual_sdl_three_extent_multiframe_probe_contract(self):
         win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
         self.assertIn('const bool sequence=sequence_requested && sequence_permitted;',win)

@@ -46,6 +46,34 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+13.11.2026 – /goal 20 P05/3 SDL-Kamera pro GPU-Frame:
+`llwindowsdl2.cpp` implementiert separat opt-in
+`OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE=1` mit
+vollständigen Firestorm-/World-/Depth-/Persistent-
+Flags; fehlende Permissions -> 0 Vulkan-Presents,
+regulärer GL-Login. Neu: 20 echte per-Frame-
+Kameraneubindungen in der schon vorhandenen
+20-Frame-WSI-/SDL-Swapchain-Prüfung, nach jedem
+Rebind Checks `camera_updates++`, Camera-/Mesh-
+Generation, `camera_matches_swapchain()==1`
+und `live_inputs_ready()==1`. Kein neuer Vulkan-
+Window-/GL-Owner im normalen Viewer. Eigenes Xvfb:
+20/20 Vulkan-Presents, 100/100 echte X11-Pixel,
+3 Größen und korrekter GL-Login in Varianten mit
+Dual-Fence, ohne Dual-Fence, Mesh-Rotation und
+Region-Barrier. Legacy ohne Motion weiter 20/20;
+fehlende Freigaben 0 Presents, injizierter Frame-
+3-Fehler 3/20 + korrektes failed + GL-Fallback.
+Linux-Vollbuild/423 Python-/101 Grafik-/41 native
+CTests grün. Server-`main`/Stable weiterhin
+`ee15af8e...`, separate offene Server-PRs #448/
+#447/#443 nicht in Stable. **Noch synthetischer
+Pre-GL-SDL-Weltframe:** Er beweist NICHT dauerhaften
+authentifizierten Vulkan-Welt-/UI-Present. Echte
+OpenSim-Privat-GPU-Kette aus früherem Nutzerlog
+bleibt separat positiv. P05 formal 2/20, P05/3
+noch offen. 20 Schritte oben in PROJECT_STATUS.md.
+
 13.11.2026 – /goal 20 P05/3 SDL-Vulkan-Window-
 Integration: `llwindowsdl2.cpp` besitzt jetzt den
 zusätzlichen, *streng opt-in*
