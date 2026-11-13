@@ -3057,6 +3057,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         !world_device.borrowed_xlib_window ||
         !XGetWindowAttributes(world_device.borrowed_xlib_display,
                               world_device.borrowed_xlib_window,&drawable) ||
+        drawable.map_state!=IsViewable ||
         drawable.width<=0 || drawable.height<=0 ||
         static_cast<uint32_t>(drawable.width)!=world_device.swapchain_extent.width ||
         static_cast<uint32_t>(drawable.height)!=world_device.swapchain_extent.height) {

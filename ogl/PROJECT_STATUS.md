@@ -6,6 +6,52 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: X11-Window-Unmap und GPU-Present-Rückkehr (13.11.2026)
+
+**Umgesetzt:** Die persistente Vulkan-Xlib-Entwickler-WSI
+prüft jetzt zusätzlich, ob das von SDL geliehene X11-Fenster
+mit `XGetWindowAttributes().map_state==IsViewable` tatsächlich
+sichtbar/gemappt ist. Bei `IsUnmapped` oder einer sonstigen
+nicht sichtbaren Window-State wird VOR Acquire und Submit
+`p.blocked=true` gesetzt und der Present verweigert. Das
+bestehende fail-closed-Protokoll verlangt danach Detach und
+neuen Attach; die Vulkan-Ressourcen bleiben nicht an ein
+vorübergehend ausgehängtes SDL-Fenster gebunden. Der normale
+OpenGL-Login bleibt erhalten.
+
+**20 konkret ausgeführte Schritte:**
+
+01. `ogl-develop`-Arbeitsbaum und letzten Commit `8f15a9f1` geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und aktive P05-Roadmap erneut gelesen.
+03. GitHub-CI für `8f15a9f1` auf `success` kontrolliert.
+04. SDL-Pre-GL-Fensterlebensdauer und bestehende Xlib-Drawable-Größenvalidierung analysiert.
+05. Vulkan-Persistent-Frame-Clear-/World-/Depth-Acquire-, Submit- und Present-Reihenfolge geprüft.
+06. `XGetWindowAttributes`-Abfrage als vorhandenen sicheren Checkpunkt vor GPU-Acquire identifiziert.
+07. Das bisher nicht geprüfte X11-Mapping (`map_state`) als Window-Lifecycle-Lücke abgegrenzt.
+08. Sichtbarkeitsprüfung mit `IsViewable` im vorhandenen Vulkan-Modul implementiert.
+09. Sperre durch den bestehenden `p.blocked=true`-Pfad bei ausgehängtem Fenster beibehalten.
+10. Kontrolliert, dass die zusätzliche Prüfung vor `vkAcquireNextImageKHR` und `vkQueueSubmit` stattfindet.
+11. Bereits vorhandenen nativen Persistent-Clear-X11-Test um ein drittes WSI-Attach nach Resize/Stale-Reject erweitert.
+12. Im echten X11-Testfenster `XUnmapWindow` und `XGetWindowAttributes(...).map_state==IsUnmapped` verifiziert.
+13. GPU-Present im nicht gemappten Zustand abgewiesen, unveränderten Framezähler nachgewiesen.
+14. Vulkan-Window-Detach und anschließendes `XMapWindow` in den Regressionstest integriert.
+15. Viertes WSI-Attach mit erneuter GPU-Pixelverifikation sowie vier Build-/Release-/Idle-Lebenszyklen nachgewiesen.
+16. Python-Grafikquellcodetest für Unmap, Remap, Sichtbarkeitscheck und GPU-Checkreihenfolge ergänzt: 83/83 Grafiktests bestanden.
+17. Vulkan-Modul neu gebaut, alle 41/41 nativen CTests bestanden.
+18. Echte X11-16-/32-Frame-Clear- und World-/Depth-GPU-Regressionsläufe bestanden, inklusive Unmap/Remap im Clear-Test.
+19. Echte X11-Mesh-Rotation-/Fence- und Region-Barrier-Tests sowie vollständigen Linux-Viewer-Build bestanden: 395/395 Python-Tests und 41/41 native CTests.
+20. Frisch gebauten SDL-Viewer mit isoliertem temporärem Xvfb-Profil geprüft: 20/20 World-/Depth-Pre-GL-Frames, 100/100 Pixelproben, drei Fenstergrößen und anschließend GL `STATE_LOGIN_WAIT`; `git diff --check` bestanden.
+
+**Grenzen:** Die neue Window-Unmap-Regressionsprüfung nutzt
+ein echtes X11-Fenster und die persistenten GPU-Testpresents,
+nicht eine authentifizierte OpenSim-Welt. Der SDL-Test wurde
+per Timeout nach dem Login-Wartezustand beendet (Exit 124;
+kein regulärer Shutdown-Nachweis). Windows/macOS-Vollviewer
+nicht lokal ausgeführt. Keine Benutzerprofile, Credentials
+oder bestehenden Nutzerviewer-Prozesse verändert und keine
+neuen Repository-Dateien angelegt. **P05 weiterhin 2/20;
+dauerhafte Vulkan-In-World-Window-Ownership nicht fertig.**
+
 ## P05/3 – /goal 20 Schritte: X11-Drawable-Größe auch bei variablen Vulkan-Extents validieren (13.11.2026)
 
 **Implementiert:** Die persistente Entwickler-WSI rendert jetzt nur,

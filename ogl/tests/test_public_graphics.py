@@ -1859,6 +1859,25 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
 
+    def test_p05_unmapped_x11_drawable_blocks_present_until_reattach(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        a=module.index('uint32_t present_persistent_clear_frame(')
+        b=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',a)
+        frame=module[a:b]
+        self.assertIn('drawable.map_state!=IsViewable',frame)
+        self.assertLess(frame.index('drawable.map_state!=IsViewable'),
+                        frame.index('vkAcquireNextImageKHR(world_device.device,'))
+        for marker in ('XUnmapWindow(display,window);',
+                       'unmap_attrs.map_state==IsUnmapped',
+                       'const bool unmap_attach=window_attach(',
+                       'persistent_unmapped=before_unmap && unmap_confirmed',
+                       'XMapWindow(display,window);',
+                       'const bool remap_attach=window_attach(',
+                       'persistent_remapped=remap_attach &&',
+                       '!persistent_unmapped || !persistent_remapped'):
+            self.assertIn(marker,native)
+
     def test_p05_variable_extent_uses_borrowed_x11_drawable_geometry(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('Display* borrowed_xlib_display = nullptr;',module)

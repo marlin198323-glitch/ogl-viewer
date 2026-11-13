@@ -160,6 +160,22 @@ OpenGL `STATE_LOGIN_WAIT`; per Timeout beendet.
 Alle 20 Schritte am Anfang von PROJECT_STATUS.md.
 Keine authentifizierte Vulkan-OpenSim-Welt; P05 2/20.
 
+13.11.2026 neue /goal-20er-Runde: persistente
+Vulkan-X11-Window-Surface verweigert GPU-Present,
+sobald `XGetWindowAttributes().map_state` nicht
+`IsViewable` ist. Native X11-QA mit echtem Window-
+Unmap während aktivem VkSwapchain-Attach, Fail-Closed,
+Detach und Remap/Neu-Attach (4 GPU-Ressourcenzyklen)
+bestanden. 16-/32-Frame-Clear-/World-/Depth-Test,
+Mesh-Rotation und Region-Barrier grün. Vollständiger
+Linux-Viewer-Build 395/395 Python-, 83/83 Grafik- und
+41/41 native Tests bestanden. Tatsächlicher isolierter
+SDL-Viewerstart: 20/20 Pre-GL-World/Depth-Presents,
+100 Pixel, 3 Größen, danach OpenGL Login-Wait.
+Kein normaler Quit (Timeout). P05 weiter 2/20;
+authentifizierte Vulkan-OpenSim-Welt weiterhin offen.
+20 Schritte am Anfang PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

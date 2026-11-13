@@ -1268,6 +1268,7 @@ int main(int argc, char** argv) {
         if (test_persistent && long_run)
             setenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE","1",1);
         bool persistent_ok=true,persistent_resized=true;
+        bool persistent_unmapped=true,persistent_remapped=true;
         if (test_persistent) {
             setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE","1",1);
             XResizeWindow(display,window,640,360);
@@ -1348,11 +1349,43 @@ int main(int argc, char** argv) {
             persistent_resized=resized_draw && stale_clear_rejected &&
                 persistent_releases()==2 && persistent_idles()==2 &&
                 persistent_count()==0;
+            // Distinct lifecycle regression: same extent, mapped ->
+            // unmapped without SDL detach. Even with valid Surface caps,
+            // no GPU submission is allowed to an invisible X11 drawable.
+            const bool unmap_attach=window_attach(
+                display,static_cast<uint64_t>(window),544,336)==1;
+            const bool before_unmap=unmap_attach &&
+                persistent_clear(1)==1 && persistent_count()==1 &&
+                persistent_builds()==3 && front_matches(0,272,168);
+            XUnmapWindow(display,window);
+            XSync(display,False);
+            XWindowAttributes unmap_attrs{};
+            const bool unmap_confirmed=XGetWindowAttributes(
+                display,window,&unmap_attrs) &&
+                unmap_attrs.map_state==IsUnmapped;
+            persistent_unmapped=before_unmap && unmap_confirmed &&
+                persistent_clear(1)==0 && persistent_count()==1;
+            window_detach();
+            XMapWindow(display,window);
+            XSync(display,False);
+            persistent_unmapped=persistent_unmapped &&
+                persistent_count()==0 && persistent_releases()==3 &&
+                persistent_idles()==3;
+            const bool remap_attach=window_attach(
+                display,static_cast<uint64_t>(window),544,336)==1;
+            persistent_remapped=remap_attach &&
+                persistent_clear(1)==1 && persistent_count()==1 &&
+                persistent_builds()==4 && front_matches(0,272,168);
+            window_detach();
+            persistent_remapped=persistent_remapped &&
+                persistent_count()==0 && persistent_releases()==4 &&
+                persistent_idles()==4;
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
             if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             std::fprintf(stdout,
-                "P05 persistent X11 WSI: frames=%d resized=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
+                "P05 persistent X11 WSI: frames=%d resized=%d unmapped=%d remapped=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
                 persistent_ok?1:0,persistent_resized?1:0,
+                persistent_unmapped?1:0,persistent_remapped?1:0,
                 persistent_builds(),persistent_releases(),persistent_idles(),
                 persistent_frames);
         }
@@ -2851,7 +2884,8 @@ int main(int argc, char** argv) {
             (test_persistent_world && (!persistent_world_ok ||
                 !persistent_world_moved || !persistent_world_immutable ||
                 !persistent_world_resize)) ||
-            (test_persistent && (!persistent_ok || !persistent_resized)) ||
+            (test_persistent && (!persistent_ok || !persistent_resized ||
+                !persistent_unmapped || !persistent_remapped)) ||
             (test_world_depth && (!world_depth_near ||
                                   !world_depth_control ||
                                   !world_depth_moved ||
