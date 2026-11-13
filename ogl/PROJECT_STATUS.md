@@ -6,6 +6,84 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: erste valide Vulkan-GPU-Probe sofort nach echtem Welt-Swap (13.11.2026)
+
+**Funktionale Live-Integrationsverbesserung:** Der bereits opt-in an
+einen echten, sichtbaren OpenSim/OpenGL-Welt-Swap gekoppelte
+Vulkan-Offscreen-GPU-Pfad wartete bislang auf den **120.**
+qualifizierten sichtbaren Weltframe, bevor er die erste
+private Vulkan-Probe ausführte. Selbst wenn ein echter
+Firestorm-Deferred-Mesh-Receipt und die passende GPU-
+Kamera schon bereit waren, konnte der erste Source-/Pixel-
+Nachweis bei langsam ladenden oder niedrig-FPS-OpenSim-
+Regionen lange ausbleiben.
+
+Der bestehende plattformneutrale
+`ogl_world_shadow_policy.h` enthält jetzt die neue reine
+C++-Regel `ogl::present_coupled_sample_due(...)`: **Beim
+ersten tatsächlich source-, mesh-, kamera- und region-
+qualifizierten OpenGL-Welt-Swap darf sofort genau ein
+privater Vulkan-Offscreen-GPU-Versuch gestartet werden.**
+Alle **späteren** synchronen GPU-Versuche, unabhängig davon,
+ob die vorige Probe erfolgreich war oder scheiterte,
+bleiben mindestens **120 tatsächlich sichtbare Welt-Swaps**
+voneinander entfernt. Überlauf-/Rückwärtszählung und
+Nullframes sind ausgeschlossen. Aufeinanderfolgende
+GPU-Fehlversuche müssen **zusätzlich** die bestehende
+Backoff-Regel (120/240/480/maximal 960 Frames) erfüllen.
+Die letzte *tatsächliche* Attempt-Frame-Nummer wird erst
+nach sämtlichen bestehenden Entwickler-Opt-ins, realen
+Deferred-Quellprüfungen, GPU-Pose-/Mesh-/Kamera-Gates und
+Fehler-Backoff **vor dem privaten GPU-Aufruf** gespeichert.
+Beim Modul-Init/-Shutdown bzw. echten Regionswechsel wird
+auch sie über den vorhandenen zentralen Reset zurückgesetzt.
+
+**Abgrenzung:** Die neue Möglichkeit gehört ausschließlich
+zur ausdrücklichen privaten Vulkan-Entwicklerdiagnose.
+Die normale sichtbare OpenGL-Grafik, deren Frame-Pacing,
+Login und SDL-Swapchain bleiben unangetastet; Vulkan
+wird weiterhin **nicht** im Viewerfenster präsentiert.
+Der erste GPU-Versuch könnte im opt-in Entwicklermodus
+eine einmalige synchrone GPU-Last verursachen; es ist
+keine gemessene FPS-Verbesserung und kein fertiger Vulkan-
+Weltrenderer. Ein erfolgreicher authentifizierter positiver
+`present-coupled`-Vulkan-Frame wurde nicht beobachtet.
+
+**20 tatsächlich ausgeführte Implementierungs- und Prüfschritte:**
+
+01. `ogl-develop` auf `c7293ef6`, sauberen Git-Working-Tree und Remote-Synchronität geprüft.
+02. Verbindliche `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und Hauptroadmap P05 erneut gelesen.
+03. GitHub-CI `43508213219` des Ausgangscommits als vollständig `success` verifiziert.
+04. Echten `llviewerdisplay.cpp::swap()`-gekoppelten GPU-Pfad und OpenGL-Window-Owner abgeglichen.
+05. Bisherige starre `ogl_vulkan_camera_tick_due(live_visible_world_swaps)`-Wartezeit von 120 qualifizierten Frames ermittelt.
+06. Bestehende echte Firestorm-Deferred-Capture-/Region-/Mesh-/Kamera-Quellgates nachvollzogen.
+07. Aufeinanderfolgende Fehlschläge und 120/240/480/960-Frame-Retry-Regel auf Wechselwirkung geprüft.
+08. Neue CPU-only-Policy `present_coupled_sample_due` im bestehenden Header für die sofortige erste Probe eingeführt.
+09. Null-Frame- sowie rückläufige sichtbare Welt-Swap-Zähler im neuen Guard abgewiesen.
+10. Weitere GPU-Versuche nach dem ersten auf mindestens 120 sichtbare Welt-Swaps Abstand begrenzt.
+11. `live_present_coupled_last_attempt_swap` als expliziten letzten tatsächlich versuchten GPU-Welt-Swap eingeführt.
+12. Initialisierungs-, Shutdown- und Regionswechsel-Reset auf diesen neuen Attempt-Zähler erweitert.
+13. Die bisherige starre `%120`-ähnliche Frame-Grenze durch den neuen ersten-Swap-/Folgeabstand-Guard ersetzt.
+14. Letzten GPU-Attempt erst nach positivem Quellen-/Redraw-/Backoff-Gating und unmittelbar vor realem GPU-Aufruf eingetragen.
+15. Bestehenden Quellen-/Pixelnachweis, Failure-Backoff, individuellen GPU-Receipt-Log und OpenGL-Fallback unverändert erhalten.
+16. Neue native C++-Validierungsfälle für Erstversuch, spätere 120-Frame-Abstände, rückläufige Zähler, uint64-Grenzen und Failure-Backoff ergänzt.
+17. Neuen Python-Grafik-Vertragstest für echten Host-Pfad, genaue Reihenfolge und unveränderte Entwicklerfreigaben ergänzt: 97/97 Grafiktests grün.
+18. Native Vulkan-Modulkompilierung und 41/41 CTests bestanden; `git diff --check` erfolgreich.
+19. Vollständigen Linux-Viewer-Build mit 419/419 Python- und 41/41 nativen CTests bestanden; X11-Vulkan-Clear-/World-/Depth-GPU-Läufe mit jeweils 16/32 Frames, Mesh-Rotation und Region-Barrier bestanden.
+20. Frisch gebauten SDL/Xvfb-Viewer mit isoliertem Profil und echten Opt-in-Flags bis `STATE_LOGIN_WAIT` gestartet: 0 falsche Weltframe-Logs, 0 private Vulkan-GPU-Receipts vor Login, 0 ERROR/FATAL; Report `world_entry_not_observed`.
+
+**Testgrenzen:** Native 16/32-Frame-Vulkan-Tests verwenden
+synthetische GPU-Testgeometrie. Der tatsächliche positive
+OpenSim-In-World-GPU-Versuch kann nur bei einer autorisierten
+angemeldeten Sitzung getestet werden; **kein** Benutzerkonto
+oder bestehender Nutzerprozess wurde angefasst. Der
+isolierte Viewer wurde per Timeout 124 beendet (kein
+regulärer Shutdown-Nachweis). Windows-/macOS-Vollviewer
+lokal nicht gebaut, keine Server-/Credential-/Profil-
+Änderungen, keine neue Repo-Datei. **P05 weiterhin 2/20;
+P05/3 und vollständige Vulkan-SDL-World-Present-/UI-
+Pipeline bleiben offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: Live-World-Swap-GPU-Quittungen vollständig protokollieren (13.11.2026)
 
 **Funktionaler Fehler zwischen echtem Viewer und Live-Diagnose behoben:**

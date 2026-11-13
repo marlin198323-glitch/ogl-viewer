@@ -373,6 +373,27 @@ bestanden. Isolierter SDL-Login ohne angemeldetes Konto:
 0 ERROR/FATAL. Noch kein echter Live-Vulkan-Welt-Present;
 P05 bleibt 2/20. Alle 20 Schritte in PROJECT_STATUS.md.
 
+13.11.2026 /goal 20er-Runde P05/3: Echte
+`present-coupled`-Vulkan-GPU-Proben aus validierten
+OpenSim-Deferred-Captures warteten bislang bis zum
+120. tatsächlichen GL-Welt-Swap. Die CPU-only-
+Policy `ogl::present_coupled_sample_due()` erlaubt
+jetzt den ERSTEN opt-in GPU-Offscreen-Versuch sofort
+nach dem ersten wirklich qualifizierten sichtbaren
+Welt-Swap, danach mindestens 120 echte Welt-Swaps
+zwischen den Folgeversuchen. Bestehendes Fail-Backoff
+zusätzlich aktiv; ein neuer last-attempt-Zähler wird
+nur nach Source-/Redraw-/Backoff-Gates gesetzt und bei
+Modul/Regions-Reset gelöscht. Keine zusätzliche
+GL-/Vulkan-Swapchain-Ownership. 97/97 Grafiktests,
+419/419 Python-/41/41 native CTests und Linux-Vollbuild
+grün, X11-GPU-Clear/World/Depth 16/32, Rotation/Barrier
+bestanden. SDL/Xvfb-Login mit Dev-Flags ohne Konto:
+0 unerlaubte GPU-Frames, keine ERROR/FATAL. Noch kein
+authentifizierter echter positiver In-World-Vulkan-GPU-
+Receipt und kein Vulkan Window-Present; P05 bleibt 2/20.
+20 Schritte in PROJECT_STATUS.md ganz oben.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

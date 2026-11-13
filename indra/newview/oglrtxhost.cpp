@@ -146,6 +146,7 @@ std::uint64_t live_present_coupled_mesh_generation = 0;
 std::uint64_t live_present_coupled_capture_receipt = 0;
 std::uint32_t live_present_coupled_consecutive_failures = 0;
 std::uint64_t live_present_coupled_last_failed_swap = 0;
+std::uint64_t live_present_coupled_last_attempt_swap = 0;
 std::uint64_t live_present_coupled_suppressed_retries = 0;
 ogl_rtx_frame_state live_present_coupled_pose{};
 bool live_present_coupled_pose_valid = false;
@@ -158,6 +159,7 @@ void ogl_reset_present_coupled_state(bool module_lifecycle) {
     live_present_coupled_capture_receipt=0;
     live_present_coupled_consecutive_failures=0;
     live_present_coupled_last_failed_swap=0;
+    live_present_coupled_last_attempt_swap=0;
     live_present_coupled_suppressed_retries=0;
     if (module_lifecycle) live_present_coupled_gpu_frames=0;
 }
@@ -896,8 +898,13 @@ void ogl_rtx_after_visible_world_swap() {
             live_deferred_receipts,live_deferred_mesh_generation,
             mesh_generation,camera_mesh_generation)) return;
     ++live_visible_world_swaps;
-    // Bound blocking GPU readback to one of every 120 visible GL frames.
-    if (!ogl_vulkan_camera_tick_due(live_visible_world_swaps)) return;
+    // Try the FIRST source-qualified visible world swap immediately; an
+    // OpenSim world running at low FPS must not wait 120 frames to prove
+    // its first real private Vulkan GPU draw. All later attempts remain
+    // >=120 actual world swaps apart, regardless of success or failure.
+    if (!ogl::present_coupled_sample_due(
+            live_visible_world_swaps,live_present_coupled_last_attempt_swap))
+        return;
     if (!ogl::present_coupled_needs_redraw(
             live_present_coupled_pose_valid,
             live_present_coupled_region_epoch,live_world_region_epoch,
@@ -911,6 +918,7 @@ void ogl_rtx_after_visible_world_swap() {
         ++live_present_coupled_suppressed_retries;
         return;
     }
+    live_present_coupled_last_attempt_swap=live_visible_world_swaps;
     if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) {
         // A repeatedly failing synchronous GPU readback must not starve
         // the existing visible OpenGL world. Keep occasional retries and

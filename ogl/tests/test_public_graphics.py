@@ -1878,6 +1878,28 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_first_valid_world_swap_can_sample_without_120_frame_delay(self):
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        self.assertIn('inline bool present_coupled_sample_due(',policy)
+        self.assertIn('current_world_swaps==0u',policy)
+        self.assertIn('last_attempt_swap>current_world_swaps',policy)
+        self.assertIn('last_attempt_swap==0u ||',policy)
+        self.assertIn('current_world_swaps-last_attempt_swap>=120u',policy)
+        self.assertIn('live_present_coupled_last_attempt_swap=0;',host)
+        a=host.index('void ogl_rtx_after_visible_world_swap()')
+        b=host.index('// The region UUID is compared',a)
+        fn=host[a:b]
+        self.assertIn('ogl::present_coupled_sample_due(',fn)
+        self.assertIn('live_present_coupled_last_attempt_swap=live_visible_world_swaps;',fn)
+        self.assertNotIn('ogl_vulkan_camera_tick_due(live_visible_world_swaps)',fn)
+        self.assertLess(fn.index('ogl::present_coupled_source_current('),
+                        fn.index('ogl::present_coupled_sample_due('))
+        self.assertLess(fn.index('ogl::present_coupled_retry_due('),
+                        fn.index('live_present_coupled_last_attempt_swap=live_visible_world_swaps;'))
+        self.assertLess(fn.index('live_present_coupled_last_attempt_swap=live_visible_world_swaps;'),
+                        fn.index('ogl_firestorm_offscreen_gpu_sample("present-coupled")'))
+
     def test_p05_live_gpu_receipt_always_has_matching_post_swap_log(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
         a=host.index('void ogl_rtx_after_visible_world_swap()')
@@ -1896,7 +1918,7 @@ class PublicGraphicsContracts(unittest.TestCase):
                        '" source_capture=" << live_present_coupled_capture_receipt',
                        '" region_epoch=" << live_world_region_epoch'):
             self.assertIn(marker,fn)
-        self.assertIn('if (!ogl_vulkan_camera_tick_due(',fn)
+        self.assertIn('if (!ogl::present_coupled_sample_due(',fn)
 
     def test_p05_repeated_live_gpu_failures_backoff_without_stopping_gl(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
@@ -1918,7 +1940,7 @@ class PublicGraphicsContracts(unittest.TestCase):
                        'live_present_coupled_consecutive_failures=0;',
                        'OpenGL remains active.'):
             self.assertIn(marker,fn)
-        self.assertLess(fn.index('ogl_vulkan_camera_tick_due(live_visible_world_swaps)'),
+        self.assertLess(fn.index('ogl::present_coupled_sample_due('),
                         fn.index('ogl::present_coupled_retry_due('))
         self.assertLess(fn.index('ogl::present_coupled_retry_due('),
                         fn.index('ogl_firestorm_offscreen_gpu_sample("present-coupled")'))
@@ -2026,7 +2048,8 @@ class PublicGraphicsContracts(unittest.TestCase):
                        'live_deferred_capture_valid',
                        'ogl::present_coupled_source_current(',
                        'live_deferred_receipts,live_deferred_mesh_generation,',
-                       'ogl_vulkan_camera_tick_due(live_visible_world_swaps)',
+                       'ogl::present_coupled_sample_due(',
+                       'live_visible_world_swaps,live_present_coupled_last_attempt_swap',
                        'ogl::present_coupled_needs_redraw(',
                        'live_present_coupled_capture_receipt,live_deferred_receipts,',
                        'ogl_same_world_camera_pose(',

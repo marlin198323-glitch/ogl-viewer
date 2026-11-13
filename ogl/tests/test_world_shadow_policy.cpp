@@ -22,6 +22,26 @@ int main() {
     assert(!visible_world(true,true,false,false,false,true,true,false));
     assert(!visible_world(true,true,false,false,false,false,false,false));
     assert(!visible_world(true,true,false,false,false,false,true,true));
+    // Live source may become valid at arbitrarily low FPS. The first
+    // qualified GL world swap can trigger the private GPU immediately;
+    // subsequent synchronous attempts obey a >=120 world-swap gap.
+    assert(!ogl::present_coupled_sample_due(0,0));
+    assert(ogl::present_coupled_sample_due(1,0));
+    assert(ogl::present_coupled_sample_due(119,0));
+    assert(ogl::present_coupled_sample_due(120,0));
+    assert(!ogl::present_coupled_sample_due(1,1));
+    assert(!ogl::present_coupled_sample_due(2,1));
+    assert(!ogl::present_coupled_sample_due(120,1));
+    assert(ogl::present_coupled_sample_due(121,1));
+    assert(!ogl::present_coupled_sample_due(240,121));
+    assert(ogl::present_coupled_sample_due(241,121));
+    assert(!ogl::present_coupled_sample_due(100,101));
+    assert(ogl::present_coupled_sample_due(UINT64_MAX,UINT64_MAX-120u));
+    assert(!ogl::present_coupled_sample_due(UINT64_MAX,UINT64_MAX-119u));
+    assert(ogl::present_coupled_sample_due(1,0) &&
+           ogl::present_coupled_retry_due(1,0,0));
+    assert(!ogl::present_coupled_retry_due(121,1,2));
+    assert(ogl::present_coupled_retry_due(241,1,2));
     // Real-world Vulkan sampling uses an exponential recovery throttle.
     // The visible OpenGL swap never enters this policy.
     assert(ogl::present_coupled_retry_delay(0)==0);

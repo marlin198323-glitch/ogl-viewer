@@ -24,6 +24,19 @@ inline bool visible_world_swap_eligible(
         window_visible && !window_minimized;
 }
 
+// The first REAL world-swap with validated deferred geometry must not wait
+// for 120 more visible frames: on slow OpenSim worlds that could postpone
+// the first opt-in GPU receipt for minutes. Subsequent synchronous GPU
+// attempts (successful OR failed) remain separated by 120 world swaps.
+// A failed attempt is also subject to the longer failure-backoff below.
+inline bool present_coupled_sample_due(
+    uint64_t current_world_swaps, uint64_t last_attempt_swap) noexcept {
+    if (current_world_swaps==0u || last_attempt_swap>current_world_swaps)
+        return false;
+    return last_attempt_swap==0u ||
+        current_world_swaps-last_attempt_swap>=120u;
+}
+
 // Bound private Vulkan diagnostics after repeated in-world GPU failures.
 // This is a recovery throttle, NOT a change to OpenGL world frame pacing.
 // Base cadence remains one eligible GPU attempt per 120 visible swaps.
