@@ -1270,6 +1270,7 @@ int main(int argc, char** argv) {
         bool persistent_ok=true,persistent_resized=true;
         bool persistent_unmapped=true,persistent_remapped=true;
         bool persistent_suboptimal=true,persistent_recovered=true;
+        bool persistent_lost_support=true,persistent_support_recovered=true;
         if (test_persistent) {
             setenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE","1",1);
             XResizeWindow(display,window,640,360);
@@ -1406,13 +1407,39 @@ int main(int argc, char** argv) {
             persistent_recovered=persistent_recovered &&
                 persistent_count()==0 && persistent_releases()==6 &&
                 persistent_idles()==6;
+            // Simulate a queue/FIFO capability loss only AFTER presenting
+            // a real first frame. The next submit must fail closed.
+            const bool lost_support_attach=window_attach(
+                display,static_cast<uint64_t>(window),544,336)==1;
+            const bool before_support_loss=lost_support_attach &&
+                persistent_clear(1)==1 && persistent_count()==1 &&
+                persistent_builds()==7 && front_matches(0,272,168);
+            setenv("OGL_VULKAN_PERSISTENT_PRESENT_SUPPORT_LOST_TEST_X11","1",1);
+            persistent_lost_support=before_support_loss &&
+                persistent_clear(1)==0 && persistent_count()==1 &&
+                persistent_idles()==6;
+            unsetenv("OGL_VULKAN_PERSISTENT_PRESENT_SUPPORT_LOST_TEST_X11");
+            window_detach();
+            persistent_lost_support=persistent_lost_support &&
+                persistent_count()==0 && persistent_releases()==7 &&
+                persistent_idles()==7;
+            const bool support_recovered_attach=window_attach(
+                display,static_cast<uint64_t>(window),544,336)==1;
+            persistent_support_recovered=support_recovered_attach &&
+                persistent_clear(1)==1 && persistent_count()==1 &&
+                persistent_builds()==8 && front_matches(0,272,168);
+            window_detach();
+            persistent_support_recovered=persistent_support_recovered &&
+                persistent_count()==0 && persistent_releases()==8 &&
+                persistent_idles()==8;
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
             if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             std::fprintf(stdout,
-                "P05 persistent X11 WSI: frames=%d resized=%d unmapped=%d remapped=%d suboptimal=%d recovered=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
+                "P05 persistent X11 WSI: frames=%d resized=%d unmapped=%d remapped=%d suboptimal=%d recovered=%d lost-support=%d support-recovered=%d builds=%u releases=%u teardown_idle=%u target=%u\n",
                 persistent_ok?1:0,persistent_resized?1:0,
                 persistent_unmapped?1:0,persistent_remapped?1:0,
                 persistent_suboptimal?1:0,persistent_recovered?1:0,
+                persistent_lost_support?1:0,persistent_support_recovered?1:0,
                 persistent_builds(),persistent_releases(),persistent_idles(),
                 persistent_frames);
         }
@@ -2913,7 +2940,8 @@ int main(int argc, char** argv) {
                 !persistent_world_resize)) ||
             (test_persistent && (!persistent_ok || !persistent_resized ||
                 !persistent_unmapped || !persistent_remapped ||
-                !persistent_suboptimal || !persistent_recovered)) ||
+                !persistent_suboptimal || !persistent_recovered ||
+                !persistent_lost_support || !persistent_support_recovered)) ||
             (test_world_depth && (!world_depth_near ||
                                   !world_depth_control ||
                                   !world_depth_moved ||

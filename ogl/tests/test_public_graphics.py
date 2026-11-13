@@ -1859,6 +1859,32 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
 
+    def test_p05_persistent_live_present_queue_and_fifo_capabilities(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        a=module.index('uint32_t present_persistent_clear_frame(')
+        b=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',a)
+        frame=module[a:b]
+        for marker in (
+            'PFN_vkGetPhysicalDeviceSurfaceSupportKHR',
+            'PFN_vkGetPhysicalDeviceSurfacePresentModesKHR',
+            'queue_still_supported!=VK_TRUE',
+            'live_mode_count>256',
+            'live_mode_count!=expected_modes',
+            'VK_PRESENT_MODE_FIFO_KHR)==active_modes.end()',
+            'OGL_VULKAN_PERSISTENT_PRESENT_SUPPORT_LOST_TEST_X11',
+            'std::strcmp(lost_native_qa,"1")==0'):
+            self.assertIn(marker,frame)
+        self.assertLess(frame.index('live_present_support(world_device.physical_device,'),
+                        frame.index('vkAcquireNextImageKHR(world_device.device,'))
+        for marker in (
+            'setenv("OGL_VULKAN_PERSISTENT_PRESENT_SUPPORT_LOST_TEST_X11","1",1)',
+            'unsetenv("OGL_VULKAN_PERSISTENT_PRESENT_SUPPORT_LOST_TEST_X11")',
+            'persistent_lost_support=before_support_loss &&',
+            'persistent_support_recovered=support_recovered_attach &&',
+            '!persistent_lost_support || !persistent_support_recovered'):
+            self.assertIn(marker,native)
+
     def test_p05_persistent_live_surface_format_and_composite_alpha(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         self.assertIn('VkColorSpaceKHR swapchain_color_space',module)

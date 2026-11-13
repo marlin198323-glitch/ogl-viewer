@@ -3139,6 +3139,52 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         p.blocked=true;
         return 0;
     }
+    // Native QA can simulate a surface losing queue/FIFO permission
+    // AFTER a real GPU present. This is never an SDL/UI setting.
+    const char* lost_native_qa=std::getenv("OGL_VULKAN_PRESENT_TEST_X11");
+    const char* lost_present_qa=std::getenv(
+        "OGL_VULKAN_PERSISTENT_PRESENT_SUPPORT_LOST_TEST_X11");
+    if (p.frame_count>0 && lost_native_qa &&
+        std::strcmp(lost_native_qa,"1")==0 && lost_present_qa &&
+        std::strcmp(lost_present_qa,"1")==0) {
+        p.blocked=true;
+        return 0;
+    }
+    // The FIFO present queue and surface support were valid at ATTACH,
+    // but a window-system transition can invalidate that capability while
+    // our pre-GL developer swapchain remains borrowed from SDL. Never
+    // acquire or submit with an unsupported present queue/mode.
+    const auto live_present_support=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
+            world_device.instance_proc(world_device.instance,
+                "vkGetPhysicalDeviceSurfaceSupportKHR"));
+    const auto live_present_modes=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(
+            world_device.instance_proc(world_device.instance,
+                "vkGetPhysicalDeviceSurfacePresentModesKHR"));
+    VkBool32 queue_still_supported=VK_FALSE;
+    uint32_t live_mode_count=0;
+    if (!live_present_support || !live_present_modes ||
+        live_present_support(world_device.physical_device,
+            world_device.queue_family,world_device.surface,
+            &queue_still_supported)!=VK_SUCCESS ||
+        queue_still_supported!=VK_TRUE ||
+        live_present_modes(world_device.physical_device,world_device.surface,
+            &live_mode_count,nullptr)!=VK_SUCCESS ||
+        !live_mode_count || live_mode_count>256) {
+        p.blocked=true;
+        return 0;
+    }
+    std::vector<VkPresentModeKHR> active_modes(live_mode_count);
+    const uint32_t expected_modes=live_mode_count;
+    if (live_present_modes(world_device.physical_device,world_device.surface,
+            &live_mode_count,active_modes.data())!=VK_SUCCESS ||
+        live_mode_count!=expected_modes ||
+        std::find(active_modes.begin(),active_modes.end(),
+                  VK_PRESENT_MODE_FIFO_KHR)==active_modes.end()) {
+        p.blocked=true;
+        return 0;
+    }
     const uint32_t slot=p.frame_count%2u;
     const VkFence slot_fence=p.submit_fences[slot];
     // Reuse a CPU frame slot only after its prior GPU submit completed.

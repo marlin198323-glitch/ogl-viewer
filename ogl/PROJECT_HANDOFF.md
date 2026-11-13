@@ -223,6 +223,22 @@ Kein aktiver Treiber-Farbformatwechsel injiziert;
 keine authentifizierte OpenSim-Welt. P05 weiter 2/20.
 20 Schritte am Anfang von PROJECT_STATUS.md.
 
+13.11.2026 weitere /goal-20er-Runde: persistenter
+Vulkan-X11-Frame prüft jetzt LIVE die Present-Eignung
+seiner Queue-Familie und den FIFO-Present-Modus vor
+Acquire/Submit. Separat gegateter nativer X11-GPU-Test:
+echter erster Present, simulierter Verlust der Queue-/
+FIFO-Eignung, blockierter Folgeframe, Detach und
+funktionierender Neu-Attach; 8 WSI-Ressourcenzyklen.
+399/399 Python-, 87/87 Grafik- und 41/41 native Tests;
+Linux-Vollbuild erfolgreich. X11-Clear-/World-/Depth-
+Tests mit je 16/32 Frames, Mesh-Rotation, Region-Barrier
+erfolgreich. Frischer SDL-Pre-GL-Viewer 20/20 Frames,
+100 Pixel, drei Größen, OpenGL `STATE_LOGIN_WAIT`.
+Kein echter Treiber-FIFO-Verlust injiziert; keine
+angemeldete OpenSim-Welt. P05 formal 2/20.
+Alle 20 Schritte in PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

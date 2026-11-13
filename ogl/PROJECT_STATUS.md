@@ -6,6 +6,57 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: laufende Vulkan-Present-Queue/FIFO-Eignung absichern (13.11.2026)
+
+**Implementiert:** Vor jedem persistenten Entwickler-GPU-Frame
+werden jetzt `vkGetPhysicalDeviceSurfaceSupportKHR` für die
+bereits verwendete Queue-Familie sowie die aktuelle Liste
+`vkGetPhysicalDeviceSurfacePresentModesKHR` geprüft.
+Ein Verlust der Queue-Present-Eignung oder des ursprünglich
+verwendeten `VK_PRESENT_MODE_FIFO_KHR`, eine unplausible
+Anzahl Modi und eine instabile zweite Enumeration führen
+fail-closed zu einem gesperrten WSI-Attach **vor**
+`vkAcquireNextImageKHR` und GPU-Submit. Ein separater,
+zweifach freigegebener nativer X11-GPU-Test simuliert die
+verlorene Present-Freigabe **nach einem wirklich präsentierten
+Frame** und verlangt vor dem nächsten Submit Detach und
+Re-Attach. Die normale SDL-/OpenGL-Startfolge bleibt
+unverändert.
+
+**20 tatsächlich ausgeführte Entwicklungs- und Prüfaktionen:**
+
+01. Sauberen Branch `ogl-develop` und Ausgangscommit `bd6104ea` geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap gelesen.
+03. GitHub-CI-Status der letzten vier Branch-Commits kontrolliert.
+04. Vulkan-Xlib-WSI-Attach auf initiale Queue- und FIFO-Prüfung untersucht.
+05. Persistenten Present-Pfad auf noch fehlende Live-Queue-/FIFO-Prüfung analysiert.
+06. Sicherung vor dem bestehenden Fence-/Acquire-/Submit-Pfad festgelegt.
+07. Live-Funktionsauflösung für `vkGetPhysicalDeviceSurfaceSupportKHR` hinzugefügt.
+08. Queue-Familie und bestehende Surface vor jedem neuen Frame erneut geprüft.
+09. Live-Funktionsauflösung für `vkGetPhysicalDeviceSurfacePresentModesKHR` hinzugefügt.
+10. Anzahl der Live-Present-Modi auf 1–256 begrenzt und Abfragefehler fail-closed behandelt.
+11. Zweite Present-Mode-Enumeration mit stabiler Anzahl validiert.
+12. Weiterhin verfügbaren `VK_PRESENT_MODE_FIFO_KHR` vor Image-Acquire verlangt.
+13. Native QA-Injektion mit zwei Freigaben nur ab dem zweiten Frame hinzugefügt, ohne produktive UI-Freigabe.
+14. Echten X11-Present mit anschließend simuliertem Freigabeverlust und blockiertem weiteren Submit ergänzt.
+15. GPU-Detach, Wiederherstellung per Re-Attach und sichtbare Pixelverifikation in bestehendem Native-Test ergänzt.
+16. Acht vollständige native Swapchain-Ressourcenaufbau-/Freigabe-/Queue-Idle-Zyklen nachgewiesen.
+17. Neuen Python-Grafikregressionstest für Queue-, FIFO-, QA-Gate- und Prüfungsreihenfolge ergänzt: 87/87 Grafiktests bestanden.
+18. Vulkan-Modul gebaut; 41/41 CTests und native X11-Clear/World-/Depth-Proben mit je 16/32 GPU-Frames bestanden.
+19. Native Mesh-Rotation und Region-Barrier geprüft; vollständigen Linux-Viewer gebaut: 399/399 Python-Tests und 41/41 native CTests bestanden.
+20. Frisch gebauten Viewer unter isoliertem Xvfb-Profil geprüft: 20/20 Vulkan-World-/Depth-Pre-GL-Presents, 100/100 Pixel bei drei Extents, danach OpenGL `STATE_LOGIN_WAIT`; `git diff --check` bestanden.
+
+**Grenzen:** Das negative Verlustszenario wurde gezielt nach
+einem echten GPU-Present im nativen X11-Test simuliert;
+eine tatsächlich vom Treiber verweigerte Present-Queue oder
+FIFO-Liste wurde nicht provoziert. Der SDL-Testviewer wurde
+per Timeout beendet (Exit 124, kein regulärer Quit-Beleg).
+Keine authentifizierte OpenSim-Welt, kein dauerhafter
+Vulkan-In-World-Renderer. Kein lokaler Windows-/macOS-
+Vollviewer-Test. Keine Änderungen an Benutzerdaten,
+Credentials, laufenden Nutzerprozessen und keine neuen
+Repository-Dateien. **P05 bleibt 2/20; P05/3 weiter offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: aktive Swapchain auf Live-Farbraum und Composite-Alpha prüfen (13.11.2026)
 
 **Umgesetzt:** Der persistente Vulkan-X11-QA-Present-Pfad
