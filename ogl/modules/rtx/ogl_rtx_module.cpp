@@ -221,6 +221,8 @@ struct WorldGraphicsDevice {
     uint32_t exclusive_present_count = 0; // bounded, QA-only completed presents
     VkFormat swapchain_format = VK_FORMAT_UNDEFINED;
     VkExtent2D swapchain_extent{};
+    VkSurfaceTransformFlagBitsKHR swapchain_transform =
+        VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     OglPersistentClearFrames persistent;
     OglOffscreenWorldCache offscreen_world_cache;
     uint32_t offscreen_world_builds=0;
@@ -529,6 +531,7 @@ struct WorldGraphicsDevice {
         exclusive_present_count = 0;
         swapchain_format = VK_FORMAT_UNDEFINED;
         swapchain_extent = {};
+        swapchain_transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
         if (surface && destroy_surface && instance)
             destroy_surface(instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
@@ -959,6 +962,7 @@ bool attach_world_xlib_window(void* native_display, uint64_t native_window,
     world_device.swapchain_probe_ready=true;
     world_device.swapchain_format=format.format;
     world_device.swapchain_extent=extent;
+    world_device.swapchain_transform=caps.currentTransform;
     // A camera belonging to a DIFFERENT viewport aspect must never
     // render into this swapchain after a resize, even when it is valid
     // for the same region/mesh. A new camera update is required.
@@ -3073,6 +3077,19 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         get_live_caps(world_device.physical_device,world_device.surface,
                       &live_caps)!=VK_SUCCESS ||
         !(live_caps.supportedUsageFlags&VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) ||
+        !live_caps.maxImageArrayLayers ||
+        !live_caps.minImageCount ||
+        p.image_count<live_caps.minImageCount ||
+        (live_caps.maxImageCount && p.image_count>live_caps.maxImageCount) ||
+        !(live_caps.supportedTransforms&world_device.swapchain_transform) ||
+        live_caps.currentTransform!=world_device.swapchain_transform ||
+        !live_caps.minImageExtent.width || !live_caps.minImageExtent.height ||
+        live_caps.minImageExtent.width>live_caps.maxImageExtent.width ||
+        live_caps.minImageExtent.height>live_caps.maxImageExtent.height ||
+        world_device.swapchain_extent.width<live_caps.minImageExtent.width ||
+        world_device.swapchain_extent.height<live_caps.minImageExtent.height ||
+        world_device.swapchain_extent.width>live_caps.maxImageExtent.width ||
+        world_device.swapchain_extent.height>live_caps.maxImageExtent.height ||
         ((live_caps.currentExtent.width==UINT32_MAX) !=
          (live_caps.currentExtent.height==UINT32_MAX)) ||
         (live_caps.currentExtent.width!=UINT32_MAX &&

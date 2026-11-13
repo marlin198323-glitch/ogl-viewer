@@ -176,6 +176,21 @@ Kein normaler Quit (Timeout). P05 weiter 2/20;
 authentifizierte Vulkan-OpenSim-Welt weiterhin offen.
 20 Schritte am Anfang PROJECT_STATUS.md.
 
+13.11.2026 /goal-20er-Runde: Vulkan-X11-
+Persistent-Present validiert jetzt vor jedem GPU-
+Acquire zusätzlich Live-Surface-Min/Max-ImageCount,
+MaxImageArrayLayers, min/maxExtent sowie identischen
+und weiterhin unterstützten Surface-Transform gegenüber
+der eingefrorenen Swapchain. Detach setzt Transform zurück.
+84 Grafiktests, 396 Python-, 41 native CTests grün;
+echte X11-Clear- und World-/Depth-GPU-QA je 16/32
+Frames, Unmap/Remap, Mesh-Rotation und Region-Barrier.
+Frisch gelinkter SDL/X11-Pre-GL-Viewer: 20/20 Frames,
+100 Pixel, 3 Größen, OpenGL `STATE_LOGIN_WAIT`.
+Keine gezielte Vulkan-Driver-Fault-Injektion; keine
+angemeldete OpenSim-Welt. P05 bleibt 2/20. Alle 20
+Schritte am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

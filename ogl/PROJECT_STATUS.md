@@ -6,6 +6,56 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: laufende Vulkan-Surface-Capabilities vor jedem Present prüfen (13.11.2026)
+
+**Implementiert:** Der persistente Entwickler-WSI-Pfad überprüft
+zusätzlich zum bestehenden X11-Sichtbarkeits- und Extent-Schutz
+vor jedem GPU-Acquire die aktuellen Vulkan-Surface-Capabilities
+gegen die beim Attach festgelegte VkSwapchain: tatsächliche
+Swapchain-Bildanzahl gegen neu gemeldete min/maxImageCount,
+maxImageArrayLayers, zulässige min/maxImageExtent, den
+unveränderten Surface-Transform und dessen weiter bestehende
+Unterstützung. Ein neuer, bei Attach eingefrorener
+`swapchain_transform` wird beim Detach zurückgesetzt. Eine
+geänderte/ungültige Surface wird fail-closed vor Acquire/Submit
+blockiert, nicht im laufenden Frame mit einem neuen Transform
+weitergerendert. Vulkan ist weiterhin ausschließlich QA vor GL.
+
+**20 tatsächlich bearbeitete Implementierungs- und Prüfschritte:**
+
+01. Sauberen Arbeitsbaum `ogl-develop` und Ausgangscommit `fce7538a` kontrolliert.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Hauptroadmap erneut gelesen.
+03. CI `43481846258` für `fce7538a` als erfolgreich abgeschlossen geprüft.
+04. Bestehenden Vulkan-X11-Attach und seine anfänglichen VkSurfaceCapabilities untersucht.
+05. Persistenten GPU-Frame-Lifecycle mit Fence-, Acquire- und Queue-Submit analysiert.
+06. Unterschied zwischen validierten anfänglichen und zur Laufzeit möglicherweise geänderten Surface-Grenzen identifiziert.
+07. `swapchain_transform` als während eines Window-Attach eingefrorenen VkSurfaceTransformFlagBitsKHR-Zustand eingeführt.
+08. Nach erfolgreichem WSI-Attach den ursprünglichen `caps.currentTransform` gesichert.
+09. Auf dem vorhandenen Detach-Pfad den gespeicherten Transform zurückgesetzt.
+10. Live-`minImageCount` und optionales `maxImageCount` gegen die tatsächliche persistent gebundene Bildanzahl abgesichert.
+11. Live-`maxImageArrayLayers` und gültige min/max Surface-Extents vor GPU-Acquire geprüft.
+12. Alte Swapchain-Extent auf weiterhin gültige minimale und maximale Surface-Bildgrößen geprüft.
+13. Geänderte Surface-Transformation bzw. verlorene Unterstützung der ursprünglichen Transformation vor dem GPU-Submit blockiert.
+14. Bisherige X11-Drawable-Sichtbarkeits-, Größen- und Fixed-Extent-Prüfungen erhalten.
+15. Python-Grafikregression für eingefrorenen Transform, Detach-Reset und die Reihenfolge der Live-Capability-Grenzen ergänzt: 84/84 Grafiktests bestanden.
+16. Bestehendes Vulkan-Modul erfolgreich kompiliert, native 41/41 CTests bestanden.
+17. Echte X11-Clear-GPU-Tests mit 16 und 32 Frames, Unmap/Remap, Resize und vier Ressourcen-Auf-/Abbauzyklen bestanden.
+18. Echte X11-World-/Depth-GPU-Tests mit 16 und 32 Frames, Kameraänderung, Resize und GPU-Fence-Regressionskontrollen bestanden.
+19. Native Mesh-Rotation-/Region-Barrier-Proben sowie Linux-Vollviewer-Build bestanden: 396/396 Python- und 41/41 native Tests.
+20. Frisch gebauten SDL/X11-Viewer mit isoliertem temporärem Profil geprüft: 20/20 Pre-GL-World-/Depth-Frames, 100/100 Pixelproben, drei Fenstergrößen, danach OpenGL `STATE_LOGIN_WAIT`; `git diff --check` erfolgreich.
+
+**Grenzen:** Die negativen geänderten Treiber-Capability-
+Antworten wurden als Quellcode-Grenzprüfungen, nicht durch
+manipulierte Treiber-/ICD-Antworten getestet. Die echten GPU-
+Proben bestätigen den unverändert gültigen Normalpfad und die
+bestehenden Resize-/Unmap-Regressionsszenarien. Der SDL-Viewer
+wurde nach Login-Wait mit Timeout 124 beendet (kein regulärer
+Quit-Nachweis). Keine authentifizierte OpenSim-Region und kein
+dauerhaftes Vulkan-In-World-Rendering. Windows/macOS nicht
+lokal voll getestet. Keine Nutzerprofile, Secrets oder
+laufende Userprozesse geändert, keine neuen Projektdateien.
+**P05 formal weiterhin 2/20; Live-Welt-Window-Ownership offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: X11-Window-Unmap und GPU-Present-Rückkehr (13.11.2026)
 
 **Umgesetzt:** Die persistente Vulkan-Xlib-Entwickler-WSI

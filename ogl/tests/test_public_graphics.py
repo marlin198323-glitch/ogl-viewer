@@ -1859,6 +1859,28 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('target_compile_definitions(ogl_rtx_module PRIVATE OGL_XLIB_LINKED=1)',cmake)
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
 
+    def test_p05_live_surface_capabilities_remain_compatible_with_swapchain(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        self.assertIn('VkSurfaceTransformFlagBitsKHR swapchain_transform',module)
+        self.assertIn('world_device.swapchain_transform=caps.currentTransform;',module)
+        self.assertIn('swapchain_transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;',module)
+        a=module.index('uint32_t present_persistent_clear_frame(')
+        b=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',a)
+        fn=module[a:b]
+        for marker in (
+            'p.image_count<live_caps.minImageCount',
+            'p.image_count>live_caps.maxImageCount',
+            'live_caps.maxImageArrayLayers',
+            'live_caps.supportedTransforms&world_device.swapchain_transform',
+            'live_caps.currentTransform!=world_device.swapchain_transform',
+            'world_device.swapchain_extent.width<live_caps.minImageExtent.width',
+            'world_device.swapchain_extent.height<live_caps.minImageExtent.height',
+            'world_device.swapchain_extent.width>live_caps.maxImageExtent.width',
+            'world_device.swapchain_extent.height>live_caps.maxImageExtent.height'):
+            self.assertIn(marker,fn)
+        self.assertLess(fn.index('p.image_count<live_caps.minImageCount'),
+                        fn.index('vkAcquireNextImageKHR(world_device.device,'))
+
     def test_p05_unmapped_x11_drawable_blocks_present_until_reattach(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
