@@ -1852,6 +1852,36 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('persistent_count()==persistent_frames',native)
         self.assertIn('persistent_clear(1)==0',native)
 
+    def test_p05_x11_gpu_resize_before_detach_is_rejected(self):
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        self.assertIn('XResizeWindow(display,window,544,336);',native)
+        self.assertIn('const bool stale_clear_rejected=resized_draw &&',native)
+        self.assertIn('persistent_resized=resized_draw && stale_clear_rejected &&',native)
+        self.assertIn('XResizeWindow(display,window,704,528);',native)
+        self.assertIn('const bool stale_world_rejected=persistent_world_resize &&',native)
+        self.assertIn('stale_world_rejected &&',native)
+        self.assertIn('persistent_clear(1)==0 && persistent_count()==1;',native)
+
+    def test_p05_persistent_present_rejects_stale_fixed_surface_extent(self):
+        module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        a=module.index('uint32_t present_persistent_clear_frame(')
+        b=module.index('// P05/3 foundation: exercise the REAL Vulkan graphics queue',a)
+        fn=module[a:b]
+        for marker in (
+            'PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR',
+            '"vkGetPhysicalDeviceSurfaceCapabilitiesKHR"',
+            'VkSurfaceCapabilitiesKHR live_caps{};',
+            'live_caps.currentExtent.width==UINT32_MAX',
+            'live_caps.currentExtent.height==UINT32_MAX',
+            'live_caps.currentExtent.width!=world_device.swapchain_extent.width',
+            'live_caps.currentExtent.height!=world_device.swapchain_extent.height',
+            'p.blocked=true;'):
+            self.assertIn(marker,fn)
+        self.assertLess(fn.index('get_live_caps(world_device.physical_device'),
+                        fn.index('vkAcquireNextImageKHR(world_device.device,'))
+        self.assertLess(fn.index('get_live_caps(world_device.physical_device'),
+                        fn.index('vkQueueSubmit(world_device.queue,'))
+
     def test_p05_persistent_frame_ceiling_is_frozen_per_swapchain(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         structure=module[module.index("struct OglPersistentClearFrames {"):

@@ -128,6 +128,21 @@ Linux-Vollviewer 390/390 Python-, 41/41 native und
 20 Schritte am Anfang PROJECT_STATUS.md; P05 bleibt
 2/20, echte OpenSim-In-World-Vulkan-Engine offen.
 
+13.11.2026 /goal-20er-Teilrunde: persistent Vulkan-X11
+fragt vor jedem Frame Live-Surface-Caps ab und
+blockiert eine nach Resize veraltete feste VkSwapchain
+vor Acquire/Submit. 80 Grafiktests, 41 native CTests;
+echte 16-/32-Frame-Clear-/World-Depth-Tests plus
+stale-Resize-Negativtest, Mesh-Rotation und Region-
+Barrier GPU-QA erfolgreich. Vollständiger Linux-
+Viewer-Neubau: 392 Python- und 41 native Tests grün.
+Frisch gelinkter SDL-Test: 20/20 World-/Depth-Presents,
+100 Pixel, drei Größen, OpenGL `STATE_LOGIN_WAIT`.
+Testviewer per Timeout beendet, kein Quit-Nachweis.
+Kein Live-OpenSim-
+Vulkan-In-World-Renderer. P05 formal weiter 2/20.
+Details am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

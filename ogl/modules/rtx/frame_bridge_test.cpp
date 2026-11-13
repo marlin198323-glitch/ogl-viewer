@@ -1338,8 +1338,14 @@ int main(int argc, char** argv) {
                 persistent_count()==1 &&
                 persistent_builds()==2 &&
                 front_matches(0,240,150);
+            // Deliberately resize the SAME native XID without detaching.
+            // The old fixed-extent swapchain must refuse another GPU frame.
+            XResizeWindow(display,window,544,336);
+            XSync(display,False);
+            const bool stale_clear_rejected=resized_draw &&
+                persistent_clear(1)==0 && persistent_count()==1;
             window_detach();
-            persistent_resized=resized_draw &&
+            persistent_resized=resized_draw && stale_clear_rejected &&
                 persistent_releases()==2 && persistent_idles()==2 &&
                 persistent_count()==0;
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE");
@@ -1489,8 +1495,13 @@ int main(int argc, char** argv) {
                 persistent_clear(1)==1 &&
                 persistent_builds()==build_before+1 &&
                 matches(320,240,237,48,38);
+            XResizeWindow(display,window,704,528);
+            XSync(display,False);
+            const bool stale_world_rejected=persistent_world_resize &&
+                persistent_clear(1)==0 && persistent_count()==1;
             window_detach();
             persistent_world_resize=persistent_world_resize &&
+                stale_world_rejected &&
                 world_upload(nullptr,0)==1 && live_inputs()==0;
             if (long_run) unsetenv("OGL_VULKAN_PERSISTENT_LONG_RUN_PROBE");
             unsetenv("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");

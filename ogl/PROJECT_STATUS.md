@@ -1,10 +1,61 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 10.11.2026
+Stand: 13.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3 – /goal 20 Teilblöcke: veraltete Vulkan-Surface nach Resize verweigern (13.11.2026)
+
+**Implementiert:** Der persistente Entwickler-WSI-Renderer fragt vor
+jedem GPU-Frame die aktuellen `VkSurfaceCapabilitiesKHR` ab.
+Bei fehlgeschlagener Abfrage, verlorener Color-Attachment-Eignung,
+inkonsistentem variable/fixed `currentExtent` oder einer
+**festen Surface-Größe, die nicht mehr mit der gebundenen
+Swapchain übereinstimmt**, wird der Present-Pfad dauerhaft
+für diesen Attach blockiert. Das passiert vor
+`vkAcquireNextImageKHR` und `vkQueueSubmit`, damit die
+alten Render-/Depth-Ressourcen nicht auf einer inzwischen
+vergrößerten SDL/X11-Surface benutzt werden. Ein neuer
+Detach und WSI-Attach sind erforderlich. Vulkan bleibt
+weiterhin Entwickler-QA vor OpenGL; der produktive
+OpenSim-Viewer verwendet unverändert OpenGL.
+
+**20 tatsächlich durchgeführte technische Entwicklungs- und Prüfschritte:**
+
+01. Aktuellen Branch `ogl-develop` und sauberen Arbeitsbaum bei `45105d9a` geprüft.
+02. `AGENTS.md`, Übergabe, Projektstatus und aktive P05-Roadmap erneut gelesen.
+03. GitHub-CI-Stand der jüngsten Commits kontrolliert; `45105d9a` war `success`.
+04. Persistent-Clear-/World-GPU-Present und Xlib-WSI-Surface-Capabilities analysiert.
+05. Bisher fehlende Vorabprüfung auf Surface-Resize während einer bestehenden VkSwapchain identifiziert.
+06. Vor jedem persistierenden GPU-Present `vkGetPhysicalDeviceSurfaceCapabilitiesKHR` ergänzt.
+07. Nicht verfügbare bzw. fehlgeschlagene Surface-Abfragen fail-closed behandelt.
+08. Fortbestehende COLOR_ATTACHMENT-Unterstützung vor Acquire geprüft.
+09. Widersprüchliche feste/variable Surface-Extent-Werte abgewiesen.
+10. Abweichende feste Surface-Größe gegen ursprüngliche Swapchain-Extent abgewiesen.
+11. Den Fehlerpfad bis zum Detach durch `p.blocked=true` gesperrt, ohne GPU-Arbeit anzustoßen.
+12. Ein fokussierter Python-Grafiktest prüft die Abbruchkriterien und die Reihenfolge vor Acquire/Submit.
+13. Bestehenden nativen X11-Clear-Test um einen absichtlichen Resize ohne Detach erweitert.
+14. Nativen World-/Depth-Test um dieselbe stale-Swapchain-Verweigerung ergänzt.
+15. `80/80` fokussierte Python-Grafiktests bestanden.
+16. C++-Module gebaut und `41/41` native CTests erfolgreich ausgeführt.
+17. Reale X11-Clear- und World-/Depth-Tests mit je 16 Frames und erzwungenem ungültigem Resize bestanden.
+18. Reale X11-Clear- und World-/Depth-Langläufe mit je 32 Frames und demselben Resize-Fehlerfall bestanden.
+19. Native Mesh-Rotation-/GPU-Fence- und Region-Barrier-/Stale-Camera-Regressionsläufe unter Xvfb bestanden.
+20. Vollständigen Linux-Vollviewer nach vollständigem Neuaufbau erfolgreich kompiliert (392/392 Python-Tests, 41/41 native CTests); danach frisch gelinkten SDL-X11-Viewer in getrenntem Testprofil geprüft: 20/20 GPU-World-/Depth-Presents, 100/100 Pixelproben, drei Größen und `STATE_LOGIN_WAIT` unter OpenGL.
+
+**Abgrenzung:** Die neuen Negativtests prüfen reales Xlib-Resize
+mit gültigem Vulkan-ICD, keine simulierte Treiberfehlermeldung.
+Die Native-GPU-World ist weiterhin eine synthetische
+Sicherheitsprobe und keine angemeldete OpenSim-Region.
+Windows/macOS-Vollviewer nicht lokal ausgeführt.
+Der SDL-Testprozess wurde nach dem Login-Wartezustand per
+Timeout 124 beendet; damit kein regulärer Shutdown-Nachweis.
+Keine Benutzerprofile oder Credentials geändert, keine neuen
+Quellprojektdateien angelegt. **P05 operativ bleibt 2/20;
+Block 3 mit dauerhafter exklusiver Live-Welt-Window-Ownership
+offen.**
 
 ## P05/3 – /goal 20 Teilblöcke: unveränderliches GPU-Frame-Budget je VkSwapchain (10.11.2026)
 

@@ -3033,6 +3033,27 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     }
 
     if (p.frame_count>=p.max_frames) return 0;
+    // A borrowed SDL/X11 window can resize without first detaching this
+    // developer-only swapchain. Never submit to a known stale fixed extent.
+    // The caller must detach/recreate; this path deliberately cannot recover
+    // ownership behind SDL's back. A variable extent remains driver-owned.
+    const auto get_live_caps=reinterpret_cast<
+        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(
+            world_device.instance_proc(world_device.instance,
+                "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"));
+    VkSurfaceCapabilitiesKHR live_caps{};
+    if (!get_live_caps ||
+        get_live_caps(world_device.physical_device,world_device.surface,
+                      &live_caps)!=VK_SUCCESS ||
+        !(live_caps.supportedUsageFlags&VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) ||
+        ((live_caps.currentExtent.width==UINT32_MAX) !=
+         (live_caps.currentExtent.height==UINT32_MAX)) ||
+        (live_caps.currentExtent.width!=UINT32_MAX &&
+         (live_caps.currentExtent.width!=world_device.swapchain_extent.width ||
+          live_caps.currentExtent.height!=world_device.swapchain_extent.height))) {
+        p.blocked=true;
+        return 0;
+    }
     const uint32_t slot=p.frame_count%2u;
     const VkFence slot_fence=p.submit_fences[slot];
     // Reuse a CPU frame slot only after its prior GPU submit completed.
