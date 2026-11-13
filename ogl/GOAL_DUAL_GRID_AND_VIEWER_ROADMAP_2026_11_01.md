@@ -114,6 +114,75 @@ Ein neuer Chat kann den Inhalt nicht allein wegen einer neuen
 Unterhaltung automatisch kennen; deshalb zuerst dieses
 GitHub-Repository und die genannten Dateien öffnen.
 
+## Verbindliche externe Server-Kompatibilitätsquelle: OpenGenesisLINK Generation 1
+
+**Quelle:** https://github.com/opengenesislink/opengenesislinkserver
+**Beziehung:** eigenständige C#/.NET-10-Serverplattform des Stadt-NexVerse-Grids; KEIN zweites OGL-Viewer-Quellrepo und keine Berechtigung zur automatischen Serveränderung.
+**Erste vollständige Git-Dateibaum-Inventur:** 13.11.2026, `main` / Release-Tag `v0.9.4.0` auf `ee15af8e728ac024c4ab6beb8bd195f3662850eb` (3.931 Git-Baumeinträge; Code- und Dokumentationsverzeichnisstruktur erfasst, relevante Viewer-Verträge ausgewertet; nicht jede Datei funktional auditiert).
+**Offizielles Release:** `OpenGenesisLINK Generation 1 (0.9.4.0) Stable`, veröffentlicht 12.11.2026, Linux-x64-ZIP und SHA256. Getesteter Code-Commit im Freigabeprotokoll: `bbc5c604e93742f773bd2227578235ff160df50a`, anschließender Dokumentations-/Release-Commit `ee15af8e...`. Betreiberfreigabe und CI sind dokumentiert; das ist **kein unabhängiger Nachweis eines vollständigen OGL-Viewer-End-to-End-Tests**.
+**Update-Politik:** Der stabile Tag `v0.9.4.0` bleibt unverändert, kompatible Folgeupdates sollen separat über das bewegliche, als Prerelease markierte `gen1-updates` (Commit-SHA, SHA256 und Build-Manifest) erscheinen. Am 13.11.2026 war **noch kein** `gen1-updates`-Release/Tag auffindbar; nur ein vorhandener, freigabegeschützter Workflow. `main`, Entwicklungsbranches, Release-Tags und installierte Produktivserver **nicht** gleichsetzen. Historischer `gen1-main` ist ein Dev-Snapshot.
+**Laufzeit:** .NET 10; dokumentierte Zielplattformen Linux x64/ARM64 und Windows x64, ROBUST plus Regionen/Simulatoren. Das Server-.NET-10-Buildschema ist **kein** neues C++-Compilerflag und keine Vorgabe, SSE2/LTO/FMOD im OGL-Viewer ohne eigene Prüfung umzuschalten.
+
+### Bei jeder `/goal`-Runde verpflichtend zuerst prüfen
+
+1. Neben `git status` des Viewer-Repos **read-only** den Server-`main`-HEAD, den unveränderlichen Stable-Tag und den `gen1-updates`-Tag/Release lesen. Die Referenz-SHA mit dem zuletzt hier dokumentierten Prüfstand vergleichen; neue SHA heißt **Änderungsanalyse nötig**, nicht automatisch Viewer-Neubau.
+2. Bei neuer SHA: GitHub-Compare, betroffene Verzeichnisse, Release-Notes, relevante Issues/PRs und CI-Status untersuchen; separat prüfen, ob die Änderungen überhaupt im freigegebenen Serverupdate liegen. Neue Entwicklungsbranches allein sind kein Release. Keine fremden Branches oder Quelltexte in den OGL-Viewer mergen.
+3. Für Protokolländerungen diese Aufstellung um SHA, Datum, betroffene Schnittstelle, kompatibel/Breaking/unklar, OGL-Aktion und Verifikation fortschreiben. Nur nach tatsächlicher Prüfung die geprüfte SHA aktualisieren. Bei unverändertem HEAD vermerken „keine Änderung“ und die OGL-/goal-Phase normal fortsetzen.
+4. Vor OGL-Login-/Upload-/Voice-/Rendering-/Update-Änderungen die hier referenzierten **aktuellen** Serververträge nachlesen. Niemals Loginpasswörter, OAuth-Tokens, private Asset-URLs, API-Keys oder Server-Secrets in Logs/Reports/Commits sammeln.
+5. Nur bei **nachgewiesener, viewerrelevanter** Änderung den passenden P05/P07/P08/P11/P12/P13-Testfall, Viewer-Build und CI anfordern; dokumentations- oder serverinterne .NET-/Datenbankänderungen erzwingen keinen OGL-Neubuild. System-/Serverdeployments bleiben ausdrücklich getrennt und genehmigungspflichtig.
+6. Auch wenn eine regelmäßige externe Erinnerung eingerichtet ist: **Jede neue `/goal`-Runde prüft eigenständig**, ob `main`, `gen1-updates` oder eine offizielle Version seit dem letzten dokumentierten Stand verändert wurden. Keine stillschweigende Serveraktualisierung.
+
+**Read-only-Basiskontrolle auf Linux Mint:**
+
+```bash
+git ls-remote https://github.com/opengenesislink/opengenesislinkserver.git HEAD refs/heads/main refs/tags/v0.9.4.0 refs/tags/gen1-updates
+# Bei Abweichung die betroffenen Commits und Dateien vergleichen, z. B.:
+# gh api repos/opengenesislink/opengenesislinkserver/compare/ALTE_SHA...NEUE_SHA
+# gh api repos/opengenesislink/opengenesislinkserver/releases/latest
+# gh api repos/opengenesislink/opengenesislinkserver/releases/tags/gen1-updates
+```
+
+### Technisch relevante, direkt geprüfte Quellverträge
+
+| Thema | Beleg im Serverrepo | Verbindliche OGL-Folgerung |
+| --- | --- | --- |
+| Release und Build | `README.md`, `VERSIONING.md`, `BUILDING.md`, `doc/OpenGenesisLINK/GEN1_STABLE_UPDATE_POLICY.md`, `doc/release-acceptance/GEN1_0.9.4.0.md` | Stabile Serverversion 0.9.4.0 von Commit-Build-ID unterscheiden; keine automatische Viewer-Übernahme aus `main`; Updates nur nach CI und Rollback-Plan. |
+| Zulässige Viewer | `doc/NexVerse/GEN1_APPROVED_VIEWERS.md`, `OpenSim/Framework/OglApprovedViewerPolicy.cs` | `OGL Viewer` bzw. `OpenGenesisLINK` mit passendem Channel/Versionspräfix bei ROBUST-Login, Hypergrid-Gatekeeper und Simulator-Regionseintritt testen. Copybot-/unbekannte Namen serverseitig abgewiesen; keine Whitelist umgehen. |
+| Login und Discovery | `doc/NexVerse/OGL_VIEWER_DISCOVERY.md`, `doc/NexVerse/LOGIN_DST_BERLIN.md` | Optionales `GET /ogl/v1/grid-info` (`org.opengenesislink.viewer.grid-info.v1`); klassische `/get_grid_info`, `/json_grid_info` und XML-RPC/LLSD-Logins bleiben. Kein produktiv behaupteter nativer OGL-Login; bei fremden Grids Legacy-Fallback. HTTP-Quellbeispiele nicht als Freigabe zum Senden von Passwörtern ohne TLS behandeln. Optionales `clock` Europe/Berlin nicht mit US/Pacific-Login-Flag verwechseln. |
+| Regions-/CAPS-/EventQueue | `OpenSim/Capabilities/*`, `OpenSim/Region/ClientStack/Linden/Caps/*`, `doc/NexVerse/MESH_UPLOAD_EVENTQUEUE_502_DIAGNOSTICS.md` | EventQueue `GET/POST /CE/<uuid>`: dokumentierte **502 bei gültiger, leerer Long-Poll-Queue** kann absichtlich sein; 404 bei unbekannter/geschlossener Queue. Nicht pauschal als Proxy-/Uploadfehler oder Vulkan-Bug markieren. Upload-Gebühren-LLSD und anschließende `uploader`-URL separat prüfen. |
+| Assets und Inventar | `OpenSim/Capabilities/Handlers/GetAssets`, `GetMesh`, `addons/OGLAssetService/*`, `doc/NexVerse/GEN1_DYNAMIC_TEXTURE_SMOOTH_REFRESH.md` | J2C/JPEG2000, Mesh, Materials/Asset-CAPS, Cache-Invalidierung, temporäre dynamische Texturen, Fehlerstatus und Rechte prüfen; fehlende Texturen nicht mit einem normalen CE-502 gleichsetzen. AssetService-Migration/World-API-Metriken teils Entwurf, keine pauschalen implementierten Endpunkte behaupten. |
+| PBR/glTF und LSL | `doc/OpenGenesisLINK/G1_DATA_INTEGRITY_PBR_GROUPS.md`, `doc/OpenGenesisLINK/G1_SL_RENDER_MATERIAL_LSL.md` | LLSD-PBR-Overrides (Factor 0..1), RenderMaterial/MaterialOvr/Face-Index, `PRIM_RENDER_MATERIAL=49`, UV-Overrides und Locale-unabhängige Zahlenerkennung testen. Nicht jede Code-Funktion als bereits live abgenommen deklarieren. |
+| Voice | `doc/NexVerse/OGLVOICE_FIRESTORM_MEDIA_BRIDGE.md`, `doc/NexVerse/GEN1_WOLFVOICE_COMPATIBILITY.md` | Firestorm-WebRTC CAPS `SimulatorFeatures`, `ProvisionVoiceAccountRequest`, `VoiceSignalingRequest` nur bei nachgewiesenem Provider; OGLVoice und wolfvoice verwenden **verschiedene** Protokolle und dürfen nicht einfach per URL getauscht oder gleichzeitig als Anbieter eingeblendet werden. Opt-in und no-voice-Fallback erhalten. |
+| Server-/World API | `doc/NexVerse/WORLD_API.md`, `addons/OGLAssetService/WORLD_API_CONTRACT.md` | World-API (u. a. `/api/v1/openapi.json`) hat separate Admin-/Operator-Scopes; alter Dokumentationsstand ist nicht automatisch aktiver Runtime-Vertrag. AssetService-Telemetrie-Routen im Vertragsentwurf nicht als real vorhanden darstellen. Keine API-Tokens in Viewer-/Diagnoseprotokollen. |
+| Betriebs- und Feature-Gates | `doc/NexVerse/GEN1_ASSET_EGRESS_LOCKDOWN.md`, `doc/NexVerse/OGL_VIEWER_ADVISOR.md`, Issue `#435` | Hypergrid-Export normalerweise erlaubt, globales Notfall-Lockdown opt-in; Viewer-Advisor standardmäßig aus; optionaler Profil-Feed vor abgeschlossenem Konto-Lösch-/Retention-Gate **default OFF**. Der Viewer darf keine deaktivierten Features als verfügbar ausweisen. |
+
+**Direkt dokumentierte Serverstände am 13.11.2026:** Main `ee15af8e728ac024c4ab6beb8bd195f3662850eb`; Stable `v0.9.4.0` auf derselben SHA; `gen1-updates` noch nicht veröffentlicht. Issue `#435` (Profil-Feed) und `#442` (ältere Staging-Checkliste) waren bei Prüfung offen; die Öffnung von `#442` ändert nichts an dem später veröffentlichten echten Stable-Release. Separater Locale-Fix `c28ad822...` für Mesh-LLSD/PBR liegt in der Historie vor Stable.
+
+### Geplanter serverseitiger OGL-Kompatibilitätsprüfsatz (20 Prüfpunkte, nicht als erledigte P05-Blöcke zählen)
+
+01. Server-`main`-HEAD gegen letzte geprüfte SHA abgleichen.
+02. Stable-Tag `v0.9.4.0` auf Unveränderlichkeit prüfen.
+03. Neuen/movierenden `gen1-updates`-Tag und Release-Manifest/SHA256 abgleichen.
+04. Neue Commits nach Protokoll-/UI-/Betriebsrelevanz klassifizieren.
+05. Relevante offene/geschlossene Issues und PRs samt CI prüfen.
+06. Viewer-Channel-/Versionserkennung gegen serverseitige Allowlist testen.
+07. ROBUST-Login sowie Ablehnungs- und Zertifikatsfälle prüfen.
+08. Öffentliche OGL-GridInfo-v1 und klassischen GridInfo-Fallback testen.
+09. Login-Clock/DST und unsichere URLs/Redirects prüfen.
+10. Gatekeeper/Hypergrid-Roundtrip und Regions-Crossing prüfen.
+11. Simulator-Features, CAPS und EventQueue-Long-Poll einschließlich 502/404 differenzieren.
+12. Upload-Kosten-LLSD, `uploader`-URL und Berechtigungsfehler testen.
+13. Mesh-/Asset-/J2C-/Texture-Cache-CAPS mit Fehler- und Timeoutfällen prüfen.
+14. PBR/glTF/MaterialOvr/LLSD-Zahlen und Rechte-/Locale-Grenzen prüfen.
+15. Dynamische Textur-UUID-Wechsel und Cache-Übergangsfenster prüfen.
+16. Legacy/OpenGL- und optionale Vulkan-Weltbilder nach Schemawechsel vergleichen.
+17. Voice-CAPS/WebRTC/wolfvoice nach aktivem Servermodus getrennt prüfen.
+18. Gruppen/Inventar/Offline-IM, Profile-Feed-Featureflag und Rechte prüfen.
+19. Nur viewerrelevante Änderungen als Tests/Build-Aufgaben der jeweiligen /goal-Phase zuordnen.
+20. Ergebnisse mit Quelle, Server-Commit, Gültigkeitsbereich, Tests, OGL-Commit und Restblockern dokumentieren; keine Serverdeployments oder stillen Versionswechsel.
+
+**Diese Prüfliste ist eine dauerhafte Queraufgabe in allen Phasen, nicht eine neue künstlich abgeschlossene Phase.** Der formale Vulkan-Stand P05 2/20 bleibt bestehen.
+
 ## Grundsätze
 
 - Ein Firestorm-basierter Quellcode für Linux, Windows und macOS.

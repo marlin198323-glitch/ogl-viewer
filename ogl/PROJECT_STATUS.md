@@ -6,6 +6,32 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## Server-Repository-Verknüpfung und Änderungsbaseline – 13.11.2026
+
+Externes Quellrepo `opengenesislink/opengenesislinkserver` als
+**dauerhafte, schreibgeschützte Kompatibilitätsreferenz** im
+OGL-Hauptprojektplan und `AGENTS.md` verankert. Git-Baum
+(3.931 Einträge), relevante Server-Dokumente, Releasehistorie,
+Prüfung der `main`-/Stable-Refs sowie Viewer-Allowlist,
+Login/Discovery, CAPS/EventQueue, Mesh/PBR, AssetService,
+Voice und Sicherheits-/Featureflags ausgewertet.
+
+Zuletzt geprüft: `main` = Stable `v0.9.4.0` =
+`ee15af8e728ac024c4ab6beb8bd195f3662850eb`;
+Release vom 12.11.2026, .NET 10, Linux x64. Separater
+`gen1-updates`-Kanal ist als Workflow vorbereitet, derzeit
+kein veröffentlichtes Update-Release gefunden. Externes
+Issue #435 bleibt offen (Profile Feed standardmäßig aus);
+`/CE/<uuid>` kann legitime EventQueue-502-Long-Polls liefern.
+
+**Nächste /goal-Runde:** Vor Coding `main`/Release/Update-
+SHA und relevante Issues erneut vergleichen. Nur
+nachgewiesene Viewer-Schnittstellenänderungen als neue
+Implementierungs-/Abnahmeblöcke planen. Server- und
+OGL-Versionen strikt getrennt halten. Dies war eine
+Dokumentations-/Quelleninventur, **keine** neue erfolgreich
+abgenommene Vulkan-Funktion; **P05 unverändert 2/20**.
+
 ## P05/3 – /goal 20 Teilblöcke: erste valide Vulkan-GPU-Probe sofort nach echtem Welt-Swap (13.11.2026)
 
 **Funktionale Live-Integrationsverbesserung:** Der bereits opt-in an

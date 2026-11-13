@@ -4,6 +4,21 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
+Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
+https://github.com/opengenesislink/opengenesislinkserver
+`main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`
+sowie relevante PRs/Issues vor Viewer-Protokolländerungen READ-ONLY
+auf neue Commits prüfen. Erste geprüfte Server-Baseline vom
+13.11.2026: ee15af8e728ac024c4ab6beb8bd195f3662850eb
+(Generation 1, 0.9.4.0 Stable, .NET 10). Nur Änderungen MIT
+Viewerwirkung in die bestehende OGL-Roadmap übernehmen;
+keine Serveränderung, keine unfreigegebene automatische
+Aktualisierung und keine ungeprüfte Compiler-/API-Anpassung.
+Genauer Ablauf, 20 Kompatibilitäts-Prüfpunkte und Original-
+Quellen stehen in
+ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
+unter „Verbindliche externe Server-Kompatibilitätsquelle“.
+
 Aktueller P05-Stand 09.11.2026 (Code a32e457e):
 20 neue echte technische Teilblöcke:
 optionaler Vulkan-HQ-Atlas ShaderMode8

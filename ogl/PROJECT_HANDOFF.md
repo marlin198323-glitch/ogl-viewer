@@ -8,6 +8,26 @@ Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm
 
+
+13.11.2026 – NEUE PFLICHTQUELLE für OGL:
+https://github.com/opengenesislink/opengenesislinkserver
+OpenGenesisLINK Generation 1 Stable 0.9.4.0, `main` und
+`v0.9.4.0` = `ee15af8e728ac024c4ab6beb8bd195f3662850eb`.
+Update-Kanal `gen1-updates` vorbereitet, bis zur Prüfung
+kein Tag/Release vorhanden; Stable unveränderlich.
+Vor JEDER /goal-Runde Server-HEAD, Updatekanal, Commits,
+relevante PRs/Issues und betroffene Viewer-Verträge read-only
+abgleichen und Abweichungen vor Änderungen klassifizieren.
+Beachte v. a. Login-/Viewer-Allowlist (`OGL Viewer`),
+`/ogl/v1/grid-info`, CAPS/EventQueue-/CE-502-Semantik,
+Mesh/PBR/J2C/Assets, Voice-Modi und World-API-
+Sicherheitsgrenzen. 20 dauerhafte Prüfungen, Quelllinks und
+Build-/Release-Abgrenzung in Hauptroadmap (Abschnitt
+„Verbindliche externe Server-Kompatibilitätsquelle“).
+Nicht behaupten, die installierten Server entsprächen GitHub;
+keine Übernahme von Servercode/Server-Secrets/Updater-Binaries.
+Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
+
 Teststart: bash ogl/scripts/run-viewer-test.sh
 Build und Tests: bash ogl/scripts/build-test.sh
 
