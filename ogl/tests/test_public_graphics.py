@@ -1878,6 +1878,34 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_real_gl_swap_ignores_login_teleport_logout_restore(self):
+        display=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        a=display.index('void swap()\n{')
+        b=display.index('void renderCoordinateAxes()',a)
+        fn=display[a:b]
+        self.assertIn('ogl::visible_world_swap_eligible(',fn)
+        for marker in ('LLStartUp::getStartupState()>=STATE_STARTED',
+                       'gAgent.getRegion()!=nullptr',
+                       'gTeleportDisplay',
+                       'LLAppViewer::instance()->logoutRequestSent()',
+                       'gRestoreGL', 'LLApp::isExiting()',
+                       'gViewerWindow->getActive()',
+                       'gViewerWindow->getWindow()->getVisible()',
+                       'gViewerWindow->getWindow()->getMinimized()'):
+            self.assertIn(marker,fn)
+        self.assertLess(fn.index('swapBuffers();'),
+                        fn.index('const bool real_world_visible='))
+        self.assertLess(fn.index('if (real_world_visible)'),
+                        fn.index('ogl_record_world_frame_presented();'))
+        self.assertLess(fn.index('if (real_world_visible)'),
+                        fn.index('ogl_rtx_after_visible_world_swap();'))
+        self.assertIn('inline bool visible_world_swap_eligible(',policy)
+        self.assertIn('startup_complete && has_world_region',policy)
+        self.assertIn('!teleport_overlay && !logout_pending',policy)
+        self.assertIn('!gl_restore_pending && !app_exiting',policy)
+        self.assertIn('window_visible && !window_minimized',policy)
+
     def test_p05_real_swap_requires_current_nonclear_gpu_pixel_evidence(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

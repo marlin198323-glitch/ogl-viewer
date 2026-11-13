@@ -6,6 +6,22 @@
 #include <cmath>
 #include <limits>
 int main() {
+    // The real SDL/OpenGL swap occurs for UI and world frames alike.
+    // Never mark last-working-engine or trigger Vulkan based on UI frames.
+    const auto visible_world=[](bool startup,bool region,bool teleport,
+        bool logout,bool restore,bool exiting,bool visible,bool minimized) {
+        return ogl::visible_world_swap_eligible(startup,region,teleport,
+            logout,restore,exiting,visible,minimized);
+    };
+    assert(visible_world(true,true,false,false,false,false,true,false));
+    assert(!visible_world(false,true,false,false,false,false,true,false));
+    assert(!visible_world(true,false,false,false,false,false,true,false));
+    assert(!visible_world(true,true,true,false,false,false,true,false));
+    assert(!visible_world(true,true,false,true,false,false,true,false));
+    assert(!visible_world(true,true,false,false,true,false,true,false));
+    assert(!visible_world(true,true,false,false,false,true,true,false));
+    assert(!visible_world(true,true,false,false,false,false,false,false));
+    assert(!visible_world(true,true,false,false,false,false,true,true));
     // These are the actual native, platform-neutral gates consumed by the
     // post-visible-world-swap Vulkan worker; no live user session needed.
     assert(ogl::present_coupled_source_current(3,3,1,11,11,11));

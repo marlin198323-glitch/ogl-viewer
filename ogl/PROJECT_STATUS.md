@@ -6,6 +6,65 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Teilblöcke: echte Welt-Swaps von Login/Teleport/Logout unterscheiden (13.11.2026)
+
+**Funktionalen Real-Viewer-Fehler korrigiert:** `llviewerdisplay.cpp::swap()`
+rief bislang `ogl_record_world_frame_presented()` bei JEDEM
+OpenGL-Buffer-Swap auf, einschließlich des Loginbildschirms.
+Dadurch wurde `OGLWorldLastWorkingEngine=opengl` ohne bestätigten
+Weltstart gesetzt und das Log meldete fälschlich einen
+„OpenGL world frame presented“. Der nachgeschaltete, streng
+opt-in Vulkan-Offscreen-Hook kontrollierte nur `STATE_STARTED`,
+nicht aber Teleport, Logout, GL-Wiederherstellung, Sichtbarkeit,
+Minimierung oder Regionsverfügbarkeit.
+
+Beide Aufrufe sind jetzt hinter **einem gemeinsamen, nach
+`swapBuffers()` ausgewerteten** `real_world_visible`-Guard
+zusammengefasst. Dieser verlangt tatsächlich gestartete Welt,
+vorhandene Region, keinen Teleport-Bildschirm, keinen angefragten
+Logout, keine GL-Wiederherstellung, keinen Programm-Exit sowie
+ein aktives, sichtbares, nicht minimiertes Viewerfenster.
+Die Bedingungen sind in der vorhandenen plattformneutralen
+`ogl_world_shadow_policy.h` als pure C++-Funktion
+`ogl::visible_world_swap_eligible(...)` implementiert und
+mit ausführbaren nativen Negativfällen geprüft. OpenGL bleibt
+Fensterinhaber, Vulkan bleibt nur separate GPU-Diagnose; kein
+neues Feature im Grafikmenü freigeschaltet.
+
+**20 tatsächlich durchgeführte Entwicklungs- und Prüfschritte:**
+
+01. Sauberen Git-Branch `ogl-develop` und Ausgangscommit `5a31dd38` verifiziert.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap erneut gelesen.
+03. GitHub-CI des letzten Commits `5a31dd38` mit `success` geprüft.
+04. Echten `llviewerdisplay.cpp::swap()` und `ogl_record_world_frame_presented()` untersucht.
+05. Fälschliche Weltframe-/Einstellungsschreibfolge bereits bei GL-Login-Swaps identifiziert.
+06. Bisherige Vulkan-Post-Swap-Prüfung auf alleinige `STATE_STARTED`-Abhängigkeit analysiert.
+07. Teleport-/Logout-/Restore- und Anzeigezustände des realen `display()`-Pfades abgeglichen.
+08. Plattformneutrale C++-Weltframe-Qualifizierungsfunktion im bestehenden Policy-Header ergänzt.
+09. Ausdrückliche `STATE_STARTED`- und aktive-Region-Gates in die Qualifizierung übernommen.
+10. Teleport-Progress- und Logout-Progress-Bilder ausgeschlossen.
+11. GL-Restore- und Programm-Exit-Frames ausgeschlossen.
+12. Nicht aktive, unsichtbare oder minimierte Viewerfenster ausgeschlossen.
+13. Vorhandenen OpenGL `swapBuffers()` unverändert und an erster Stelle belassen.
+14. Weltframe-Erfolgsreport erst innerhalb `if (real_world_visible)` ausgeführt.
+15. Neuen Post-Swap-Vulkan-Diagnosehook hinter exakt denselben Weltframe-Guard gesetzt.
+16. Neun positive/negative Fallprüfungen in vorhandenen nativen C++-Policy-Test eingebaut.
+17. Python-Grafikvertragstest für Login-/Teleport-/Logout-/Restore-/Exit-Gates und korrekte Aufrufreihenfolge ergänzt: 94/94 Grafiktests bestanden.
+18. Nativen Modulbuild und alle 41/41 native CTests bestanden.
+19. Linux-Vollviewer kompiliert und 406/406 Python-Tests bestanden; native GPU-X11-Clear-/World-/Depth-16-/32-Frame- sowie Mesh-Rotation-/Regionswechsel-Regressionsläufe bestanden.
+20. Frisch gebauten Viewer unter isoliertem Xvfb-Testprofil mit allen vorhandenen Live-Vulkan-Opt-ins bis `STATE_LOGIN_WAIT` gestartet: 0 falsche Weltframe-Meldungen, 0 unerlaubte `present-coupled`-GPU-Ausgaben, 0 ERROR/FATAL; `git diff --check` bestanden.
+
+**Grenzen:** Der isolierte Viewer wurde per Timeout beendet
+(Exit 124, kein regulärer Shutdown). Die Negativfälle der
+Weltzustände wurden nativ im CPU-Guard geprüft; ein echter
+angemeldeter Teleport-/Logout- oder OpenSim-Vulkan-Weltbetrieb
+wurde nicht durchgeführt. Der erfolgreiche OpenGL-Login in der
+Smoke-Prüfung ist keine Vulkan-In-World-Abnahme. Windows/macOS-
+Vollviewer lokal nicht getestet. Keine Userprozesse, Profile,
+Zugangsdaten oder Server geändert. **P05 weiterhin 2/20;
+dauerhafte Vulkan-SDL-Window-Ownership und Vollwelt-Present
+bleiben offen.**
+
 ## P05/3 – /goal 20 Teilblöcke: echte GPU-Pixelevidenz und in-flight Quellenbindung (13.11.2026)
 
 **Implementiert:** Der an den echten Firestorm-Welt-Swap gebundene

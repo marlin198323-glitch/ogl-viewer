@@ -299,6 +299,24 @@ Keine positive authentifizierte In-World-Probe und kein
 sichtbarer Vulkan-Present: P05 weiter 2/20. Siehe
 PROJECT_STATUS.md ganz oben für 20 konkrete Schritte.
 
+13.11.2026 /goal-20er-Runde P05/3: Realer
+`llviewerdisplay.cpp::swap()` markierte bislang schon den
+OpenGL-LOGIN-Swap als erfolgreichen WORLD-Present und
+setzte `OGLWorldLastWorkingEngine`. Korrektur: nach dem
+unveränderten echten GL-Swap ein gemeinsamer Welt-Guard
+vor `ogl_record_world_frame_presented()` und dem privaten
+Vulkan-GPU-Post-Swap-Hook: gestartete Welt + gültige Region,
+kein Teleport/Logout/GL-Restore/Exit und aktives sichtbares
+nicht minimiertes Fenster. Neuer plattformneutraler C++-
+Policy-Guard mit neun nativen Positiv-/Negativfällen.
+Linux-Vollviewer, 406/406 Python-, 94/94 Grafik- und
+41/41 native CTests sowie reale 16-/32-Frame-X11-GPU-
+Regressionen bestanden. Isolierter Xvfb-Viewer mit Vulkan-
+Opt-ins: Login-Wait, 0 fälschliche Weltframe-Meldungen,
+0 private Live-GPU-Receipts vor Login, 0 ERROR/FATAL.
+Keine angemeldete OpenSim-Region getestet; P05 bleibt 2/20.
+Details am Anfang von PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

@@ -9,6 +9,21 @@
 // Independent CPU pre-composition guards for a future real GPU->OpenGL
 // shadow pass. No OpenGL/Vulkan; rejects any unbound/mismatched snapshot.
 namespace ogl {
+// The viewer performs GL swaps for login, teleport, logout and recovery
+// screens too. Only a truly visible, authenticated, non-transitioning
+// world frame may establish the last-working world renderer OR trigger a
+// private post-swap Vulkan sample. This guard never selects Vulkan.
+inline bool visible_world_swap_eligible(
+    bool startup_complete, bool has_world_region,
+    bool teleport_overlay, bool logout_pending,
+    bool gl_restore_pending, bool app_exiting,
+    bool window_visible, bool window_minimized) noexcept {
+    return startup_complete && has_world_region &&
+        !teleport_overlay && !logout_pending &&
+        !gl_restore_pending && !app_exiting &&
+        window_visible && !window_minimized;
+}
+
 // P05/3: source-identity guards at the actual GL-world-swap boundary.
 // This is a CPU-only policy; no GL/Vulkan window ownership is implied.
 // Every rendered GPU sample must belong to a genuine deferred receipt,

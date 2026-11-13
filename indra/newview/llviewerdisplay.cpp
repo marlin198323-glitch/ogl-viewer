@@ -28,6 +28,7 @@
 
 #include "llviewerdisplay.h"
 #include "oglrtxhost.h"
+#include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h"
 
 #include <array>
 #include <chrono>
@@ -1729,11 +1730,24 @@ void swap()
     if (gDisplaySwapBuffers)
     {
         gViewerWindow->getWindow()->swapBuffers();
-        ogl_record_world_frame_presented();
-        if (LLStartUp::getStartupState()>=STATE_STARTED)
+        // Login/progress/recovery screens also swap GL buffers. They are
+        // NOT authenticated world frames; never mark OpenGL as a confirmed
+        // world backend or schedule Vulkan world work for those surfaces.
+        const bool real_world_visible=ogl::visible_world_swap_eligible(
+            LLStartUp::getStartupState()>=STATE_STARTED,
+            gAgent.getRegion()!=nullptr,
+            gTeleportDisplay,
+            LLAppViewer::instance()->logoutRequestSent(),
+            gRestoreGL,
+            LLApp::isExiting(),
+            gViewerWindow->getActive() &&
+                gViewerWindow->getWindow()->getVisible(),
+            gViewerWindow->getWindow()->getMinimized());
+        if (real_world_visible)
         {
-            // Developer-only Vulkan private GPU sample is coupled to the
-            // REAL in-world GL swap, never the login or synthetic pre-GL WSI.
+            ogl_record_world_frame_presented();
+            // The experimental Vulkan PRIVATE-GPU sample is coupled only
+            // to a real world swap, never to login, teleport, or logout.
             ogl_rtx_after_visible_world_swap();
         }
     }
