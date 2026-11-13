@@ -137,6 +137,14 @@ std::uint64_t live_deferred_camera_gpu_frames = 0;
 std::uint64_t live_world_camera_tick_calls = 0;
 std::uint64_t live_world_camera_tick_attempts = 0;
 std::uint64_t live_world_camera_tick_unchanged = 0;
+// P05/3: only developer-opted-in private Vulkan sampling AFTER an actual
+// GL world swap. The real SDL window remains owned by GL until P05 ships.
+std::uint64_t live_visible_world_swaps = 0;
+std::uint64_t live_present_coupled_gpu_frames = 0;
+std::uint64_t live_present_coupled_region_epoch = 0;
+std::uint64_t live_present_coupled_mesh_generation = 0;
+ogl_rtx_frame_state live_present_coupled_pose{};
+bool live_present_coupled_pose_valid = false;
 ogl_rtx_frame_state live_world_last_offscreen_pose{};
 bool live_world_last_offscreen_pose_valid = false;
 std::uint64_t live_world_last_offscreen_mesh_generation = 0;
@@ -831,6 +839,52 @@ void ogl_rtx_after_region_camera_tick() {
 #endif
 }
 
+// P05/3: real displayed-frame boundary, not the pre-login SDL probe.
+// This is deliberately an OFFSCREEN Vulkan GPU draw, never a second present
+// to the OpenGL-owned SDL surface. It proves synchronization with the real
+// in-world frame lifecycle without pretending that Vulkan owns the window.
+void ogl_rtx_after_visible_world_swap() {
+#if LL_LINUX || LL_WINDOWS
+    static const bool opted_in=[] {
+        const char* flag=std::getenv("OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN");
+        return flag && std::strcmp(flag,"1")==0;
+    }();
+    if (!opted_in || !ogl_live_offscreen_developer_enabled() ||
+        !live_deferred_capture_valid ||
+        live_deferred_receipt_epoch!=live_world_region_epoch ||
+        !last_live_world_camera_valid || !world_input_ready ||
+        !world_mesh_generation || !world_camera_mesh_generation ||
+        world_input_ready()!=1 || world_mesh_generation()==0 ||
+        world_camera_mesh_generation()!=world_mesh_generation() ||
+        live_deferred_mesh_generation!=world_mesh_generation()) return;
+    ++live_visible_world_swaps;
+    // Bound blocking GPU readback to one of every 120 visible GL frames.
+    if (!ogl_vulkan_camera_tick_due(live_visible_world_swaps)) return;
+    const auto mesh_generation=world_mesh_generation();
+    if (live_present_coupled_pose_valid &&
+        live_present_coupled_region_epoch==live_world_region_epoch &&
+        live_present_coupled_mesh_generation==mesh_generation &&
+        ogl_same_world_camera_pose(live_present_coupled_pose,
+                                   last_live_world_camera)) return;
+    if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) return;
+    live_present_coupled_pose=last_live_world_camera;
+    live_present_coupled_pose_valid=true;
+    live_present_coupled_region_epoch=live_world_region_epoch;
+    live_present_coupled_mesh_generation=mesh_generation;
+    ++live_present_coupled_gpu_frames;
+    if (live_present_coupled_gpu_frames<=3 ||
+        live_present_coupled_gpu_frames%64==0)
+        LL_INFOS("OGLRenderer")
+            << "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
+            << "visible_swaps=" << live_visible_world_swaps
+            << " completed_private_frames=" << live_present_coupled_gpu_frames
+            << " mesh_generation=" << mesh_generation
+            << " region_epoch=" << live_world_region_epoch
+            << "; GL owns the SDL window, NO Vulkan present."
+            << LL_ENDL;
+#endif
+}
+
 // The region UUID is compared by the actual Firestorm pipeline. No UUID
 // or position is exported to diagnostics; only invalidate the cached pose.
 // Called AFTER the pipeline has detected a genuine OpenSim region change,
@@ -854,6 +908,11 @@ bool ogl_rtx_on_region_transition() {
     live_world_last_offscreen_pose_valid=false;
     live_world_last_offscreen_mesh_generation=0;
     live_world_last_offscreen_region_epoch=0;
+    live_visible_world_swaps=0;
+    live_present_coupled_pose={};
+    live_present_coupled_pose_valid=false;
+    live_present_coupled_region_epoch=0;
+    live_present_coupled_mesh_generation=0;
     world_camera_live_logged=false;
     world_inputs_live_logged=false;
     // New region may arrive while old Vulkan frames still reference

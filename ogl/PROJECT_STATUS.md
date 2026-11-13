@@ -6,6 +6,51 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – In-World-Swap an echte Vulkan-Deferred-Quelle gekoppelt (13.11.2026; Teilfortschritt, keine Freigabe)
+
+**Codeintegration statt weiterer Pre-GL-Tests:** Der echte Firestorm-
+Renderer ruft im bestehenden `llviewerdisplay.cpp::swap()`
+**nach** `swapBuffers()` und der OpenGL-World-Frame-Meldung,
+**nur bei** `STATE_STARTED`, den neuen Host-
+Einstiegspunkt `ogl_rtx_after_visible_world_swap()` auf.
+Dieser ist ausschließlich mit `OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN=1`
+und den bereits bestehenden separaten Offscreen-/Mesh-/Kamera-
+Entwicklerfreigaben aktiv. Er akzeptiert nur Quellen, die der
+authentifizierte OpenSim-Deferred-Pipeline-Scan tatsächlich
+mit gültiger Region-Epoch, Mesh-Revision und gebundener Kamera
+übertragen hat. Es gibt **keine** synthetischen Dreiecke im
+neuen Live-Hook, keinen GL-Framebuffer-Readback und keine
+Weitergabe von Nutzerbildern oder Regionskennungen.
+
+Der Hook führt maximal beim ersten und jedem 120. qualifizierten
+sichtbaren Swap eine private Vulkan-GPU-Offscreen-Probe durch;
+bei gleicher Mesh-Revision und unveränderter Kamerapose wird
+übersprungen. Ein Regionwechsel invalidiert die neue Pose-
+und Mesh-Verknüpfung. Erst ein erfolgreicher privater GPU-Draw
+liefert `source=present-coupled` und eine Bestätigung im Log.
+**Die tatsächliche SDL-Swapchain bleibt weiterhin allein im
+Eigentum von OpenGL**; die neue Vulkan-Ausgabe wird nicht in
+das Fenster präsentiert. Das ist ein überprüfbarer
+Integrationsschritt zu P05/3, **kein** erfüllter P05/3-Block.
+
+**Abnahme dieser Codeeinheit:** 90/90 fokussierte Grafiktests;
+402/402 Python-Regressionen und 41/41 native CTests mit
+vollständigem Linux-Viewer-Build erfolgreich. Isolierter
+SDL/Xvfb-Viewer ohne Benutzerkonto mit gesetztem neuen
+Opt-in startet weiterhin bis `STATE_LOGIN_WAIT` und meldet
+`UNAUTHORIZED_GPU=0`, `FATAL=0`. Der Test endet per Timeout
+124; regulärer Logout nicht geprüft. **Kein realer OpenSim-
+GPU-Receipt wurde ohne Anmeldung behauptet**; das benötigt
+einen gesonderten autorisierten Live-Test mit echtem Deferred-
+Material und Kamera. Vulkan-Menü bleibt deaktiviert.
+
+**Noch für P05/3 erforderlich:** vollständige In-World-
+Renderpass-Szene/Materialien, echte SDL-Vulkan-Window-
+Exklusivübernahme nach Login, UI-Kompositing, Resize-/
+Region-/Teleport-/Logout-Lebensdauer und Fallback ohne
+OpenGL-/Vulkan-Simultan-Present; Windows/macOS-Backend und
+Live-Abnahme. **P05 formal weiterhin 2/20.**
+
 ## 13.11.2026 – Live-Viewer-Logprüfung und Grafikmenü-Klarstellung (kein abgeschlossener P05-Block)
 
 Beim laufenden OpenSim-Live-Viewer wurde eine erfolgreiche

@@ -252,6 +252,21 @@ Zertifikate, CEF-Sandbox und System-RAM unter multiplen
 Viewerprozessen (keine Server-/Prozessänderungen).
 P05 bleibt 2/20; Details am Anfang PROJECT_STATUS.md.
 
+13.11.2026 P05/3 echter Frame-Grenzen-Fortschritt:
+`llviewerdisplay.cpp::swap()` ruft nur bei STATE_STARTED,
+nach dem tatsächlichen GL-Welt-Present den optionalen
+`ogl_rtx_after_visible_world_swap()` auf. Nur mit zusätzlichem
+OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN=1 UND den bestehenden
+Live-Deferred-/GPU-Opt-ins; nur echte Deferred-Quelle mit
+Region-Epoch/Mesh-/Kamera-Gleichheit, begrenzt auf 1/120
+sichtbare Weltframes und nur bei geänderter Kamera/Geometrie.
+Private Vulkan-Offscreen-Ausgabe; GL bleibt SDL-Window-Present-
+Owner. 402 Python-/90 Grafik-/41 native Tests und Linux-
+Vollbuild grün, isolierter GL-Login-Wait ohne in-world GPU-
+Receipt und ohne Fatal. Authentifizierter OpenSim-Live-
+GPU-Test und Vulkan Window Ownership bleiben offen;
+P05 weiter 2/20. Details oben in PROJECT_STATUS.md.
+
 ## Verbindliche Projektquellen
 
 - **Hauptprojektplan mit sämtlichen Arbeitsvorgaben:**

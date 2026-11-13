@@ -1878,6 +1878,35 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLFile::isdir(path)',font)
         self.assertIn('LL_WARNS_ONCE("Font")',font)
 
+    def test_p05_real_world_swap_couples_source_qualified_vulkan_offscreen(self):
+        display=(ROOT/"indra/newview/llviewerdisplay.cpp").read_text()
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        header=(ROOT/"indra/newview/oglrtxhost.h").read_text()
+        a=display.index('void swap()')
+        b=display.index('void renderCoordinateAxes()',a)
+        swap=display[a:b]
+        self.assertLess(swap.index('swapBuffers();'),
+                        swap.index('ogl_record_world_frame_presented();'))
+        self.assertLess(swap.index('ogl_record_world_frame_presented();'),
+                        swap.index('ogl_rtx_after_visible_world_swap();'))
+        self.assertIn('LLStartUp::getStartupState()>=STATE_STARTED',swap)
+        self.assertIn('void ogl_rtx_after_visible_world_swap();',header)
+        a=host.index('void ogl_rtx_after_visible_world_swap()')
+        b=host.index('// The region UUID is compared',a)
+        fn=host[a:b]
+        for marker in ('OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN',
+                       'ogl_live_offscreen_developer_enabled()',
+                       'live_deferred_capture_valid',
+                       'live_deferred_receipt_epoch!=live_world_region_epoch',
+                       'world_camera_mesh_generation()!=world_mesh_generation()',
+                       'ogl_vulkan_camera_tick_due(live_visible_world_swaps)',
+                       'live_present_coupled_region_epoch==live_world_region_epoch',
+                       'ogl_same_world_camera_pose(',
+                       'ogl_firestorm_offscreen_gpu_sample("present-coupled")'):
+            self.assertIn(marker,fn)
+        self.assertIn('live_present_coupled_pose_valid=false;',host)
+        self.assertNotIn('vkQueuePresentKHR',fn)
+
     def test_p05_persistent_live_present_queue_and_fifo_capabilities(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
         native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()

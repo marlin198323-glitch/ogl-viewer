@@ -1730,6 +1730,12 @@ void swap()
     {
         gViewerWindow->getWindow()->swapBuffers();
         ogl_record_world_frame_presented();
+        if (LLStartUp::getStartupState()>=STATE_STARTED)
+        {
+            // Developer-only Vulkan private GPU sample is coupled to the
+            // REAL in-world GL swap, never the login or synthetic pre-GL WSI.
+            ogl_rtx_after_visible_world_swap();
+        }
     }
     gDisplaySwapBuffers = true;
 }

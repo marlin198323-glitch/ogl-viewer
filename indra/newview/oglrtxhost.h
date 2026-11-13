@@ -322,6 +322,9 @@ static_assert(ogl_vulkan_camera_tick_due(241));
 // Only after the actual Firestorm region-UUID comparison: optionally
 // render a changed, validated camera using already-accepted GPU mesh.
 void ogl_rtx_after_region_camera_tick();
+// Optional source-qualified private Vulkan GPU sample AFTER a visible,
+// authenticated OpenGL world swap. Never swaps/presents Vulkan to SDL.
+void ogl_rtx_after_visible_world_swap();
 void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count);
 // Source-qualified world scanner entrypoint. Only LLPipeline invokes
 // this after checking current OpenSim region ID; do not call it from
