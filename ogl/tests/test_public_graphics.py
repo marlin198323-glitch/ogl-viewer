@@ -1860,8 +1860,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('defined(OGL_XLIB_LINKED) && __has_include(<X11/Xlib.h>)',module)
 
     def test_p05_renderer_ui_describes_actual_world_pipeline_limit(self):
-        de=(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_graphics1.xml").read_text()
-        en=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text()
+        de=(ROOT/"indra/newview/skins/default/xui/de/panel_preferences_graphics1.xml").read_text(encoding="utf-8")
+        en=(ROOT/"indra/newview/skins/default/xui/en/panel_preferences_graphics1.xml").read_text(encoding="utf-8")
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
         self.assertIn('Test-Swapchains funktionieren',de)
         self.assertIn('3D-Weltdarstellung nach dem Login fehlt',de)
