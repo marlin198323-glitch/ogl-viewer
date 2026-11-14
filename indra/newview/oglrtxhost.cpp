@@ -210,11 +210,173 @@ using OglWorldWindowDetach = void (*)();
 OglWorldWindowAttach rtx_wsi_attach = nullptr;
 OglWorldWindowDetach rtx_wsi_detach = nullptr;
 bool rtx_wsi_persistent = false;
+// P05: temporary SECOND SDL/X11 window with exclusive Vulkan ownership.
+// The main Firestorm window always remains GL-owned. This is an opt-in
+// source-qualified 16-frame world-geometry integration experiment, not the
+// full terrain/avatar/UI viewer. No native GL window may be used here.
+using OglPreviewPresent = std::uint32_t (*)(std::uint32_t);
+using OglPreviewCount = std::uint32_t (*)();
+OglWorldWindowAttach ogl_preview_attach=nullptr;
+OglWorldWindowDetach ogl_preview_detach=nullptr;
+OglPreviewPresent ogl_preview_present=nullptr;
+OglPreviewCount ogl_preview_frame_count=nullptr;
+bool ogl_preview_attempted=false;
+bool ogl_preview_attached=false;
+std::uint64_t ogl_preview_region_epoch=0;
+std::uint64_t ogl_preview_receipt=0;
+std::uint64_t ogl_preview_mesh_generation=0;
+std::uint32_t ogl_preview_frames=0;
+
+void ogl_x11_wsi_will_destroy();
+
+void ogl_live_preview_detach() {
+    // GPU submissions/present semaphores MUST retire before SDL/X11 window
+    // destruction, including logout, region change and viewer shutdown.
+    // Detached even after a partially failed VkSurface/VkSwapchain attach;
+    // this surface cannot be borrowed by the main GL context.
+    if (ogl_preview_detach)
+        ogl_preview_detach();
+    ogl_preview_attached=false;
+    LLWindowSDL::destroyOglVulkanPreviewWindow();
+    ogl_preview_attach=nullptr;
+    ogl_preview_detach=nullptr;
+    ogl_preview_present=nullptr;
+    ogl_preview_frame_count=nullptr;
+}
+
+void ogl_live_preview_world_swap() {
+    static const bool opted_in=[] {
+        const char* flag=std::getenv("OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW");
+        return flag && std::strcmp(flag,"1")==0;
+    }();
+    if (!opted_in || rtx_wsi_persistent) return;
+    if (!rtx_module_handle || !world_set_camera ||
+        !world_mesh_generation || !world_camera_mesh_generation ||
+        !world_input_ready || !last_live_world_camera_valid ||
+        !live_present_coupled_gpu_frames) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
+    auto flag_enabled=[](const char* name) {
+        const char* value=std::getenv(name);
+        return value && std::strcmp(value,"1")==0;
+    };
+    // Five independently authorized Vulkan world + depth + WSI pieces.
+    // No implicit enablement from the normal graphics selector.
+    if (!flag_enabled("OGL_VULKAN_WINDOW_SURFACE") ||
+        !flag_enabled("OGL_VULKAN_EXCLUSIVE_PRESENT_PROBE") ||
+        !flag_enabled("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE") ||
+        !flag_enabled("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE") ||
+        !flag_enabled("OGL_VULKAN_EXCLUSIVE_RASTER_PROBE") ||
+        !flag_enabled("OGL_VULKAN_EXCLUSIVE_WORLD_PROBE") ||
+        !flag_enabled("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE") ||
+        !flag_enabled("OGL_VULKAN_WORLD_MESH_UPLOAD") ||
+        !flag_enabled("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
+        !flag_enabled("OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN") ||
+        !flag_enabled("OGL_VULKAN_LIVE_WORLD_OFFSCREEN") ||
+        flag_enabled("OGL_VULKAN_WINDOW_PERSISTENT")) return;
+    // Require a real OpenSim source matching the last independent private
+    // Vulkan GPU completion. Never present a synthetic/old-region snapshot.
+    const auto revision=world_mesh_generation();
+    if (!live_deferred_capture_valid ||
+        !ogl::present_coupled_source_current(
+            live_world_region_epoch,live_deferred_receipt_epoch,
+            live_deferred_receipts,live_deferred_mesh_generation,
+            revision,world_camera_mesh_generation()) ||
+        live_present_coupled_region_epoch!=live_world_region_epoch ||
+        live_present_coupled_capture_receipt!=live_deferred_receipts ||
+        live_present_coupled_mesh_generation!=revision ||
+        world_input_ready()!=1) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
+    if (ogl_preview_attempted && !ogl_preview_attached) return;
+    if (!ogl_preview_attempted) {
+        ogl_preview_attempted=true;
+        ogl_preview_attach=reinterpret_cast<OglWorldWindowAttach>(
+            ogl_resolve_module(rtx_module_handle,
+                "ogl_vulkan_world_attach_x11_window"));
+        ogl_preview_detach=reinterpret_cast<OglWorldWindowDetach>(
+            ogl_resolve_module(rtx_module_handle,
+                "ogl_vulkan_world_detach_window"));
+        ogl_preview_present=reinterpret_cast<OglPreviewPresent>(
+            ogl_resolve_module(rtx_module_handle,
+                "ogl_vulkan_world_persistent_clear_frame"));
+        ogl_preview_frame_count=reinterpret_cast<OglPreviewCount>(
+            ogl_resolve_module(rtx_module_handle,
+                "ogl_vulkan_world_persistent_frame_count"));
+        if (!ogl_preview_attach || !ogl_preview_detach ||
+            !ogl_preview_present || !ogl_preview_frame_count) {
+            ogl_live_preview_detach();
+            return;
+        }
+        void* display=nullptr;
+        U64 xid=0;
+        int width=0,height=0;
+        if (!LLWindowSDL::createOglVulkanPreviewWindow(
+                &display,&xid,&width,&height) ||
+            width!=512 || height!=384 ||
+            ogl_preview_attach(display,xid,
+                static_cast<std::uint32_t>(width),
+                static_cast<std::uint32_t>(height))!=1) {
+            ogl_live_preview_detach();
+            return;
+        }
+        ogl_preview_attached=true;
+        ogl_preview_region_epoch=live_world_region_epoch;
+        ogl_preview_receipt=live_deferred_receipts;
+        ogl_preview_mesh_generation=revision;
+        LLWindowSDL::setOglWindowWillDestroyCallback(
+            ogl_x11_wsi_will_destroy);
+    }
+    if (LLWindowSDL::oglVulkanPreviewCloseRequested() ||
+        ogl_preview_region_epoch!=live_world_region_epoch ||
+        ogl_preview_receipt!=live_deferred_receipts ||
+        ogl_preview_mesh_generation!=revision ||
+        ogl_preview_frames>=16u) {
+        ogl_live_preview_detach();
+        return;
+    }
+    // Always project the REAL Firestorm camera onto this fixed-size preview
+    // viewport, then restore the main-GL-world camera immediately. This
+    // never changes the normal OpenGL pipeline viewport or framebuffer.
+    auto camera=last_live_world_camera;
+    camera.width=512u;
+    camera.height=384u;
+    camera.aspect_ratio=512.f/384.f;
+    const bool camera_ready=world_set_camera(&camera)==1 &&
+        world_input_ready()==1 &&
+        world_camera_mesh_generation()==revision;
+    const auto before=ogl_preview_frame_count();
+    const bool presented=camera_ready &&
+        ogl_preview_present(1u)==1u &&
+        ogl_preview_frame_count()==before+1u;
+    // Original Firestorm camera is reinstated for all future offscreen GPU
+    // operations, irrespective of success of the preview present.
+    const bool restored=world_set_camera(&last_live_world_camera)==1 &&
+        world_input_ready()==1;
+    if (!presented || !restored) {
+        LL_WARNS("OGLRenderer")
+            << "P05 exclusive Vulkan preview: GPU frame or camera restore failed; "
+               "detached, OpenGL world unchanged." << LL_ENDL;
+        ogl_live_preview_detach();
+        return;
+    }
+    ++ogl_preview_frames;
+    LL_INFOS("OGLRenderer")
+        << "P05 actual OpenSim Vulkan SDL preview frame: "
+        << "presented=" << ogl_preview_frames
+        << " limit=16 source=real-deferred gl_owner=separate-window; "
+           "NO full Vulkan viewer/UI." << LL_ENDL;
+    if (ogl_preview_frames==16u) ogl_live_preview_detach();
+}
+
 std::uint64_t rtx_wsi_xid = 0;
 int rtx_wsi_width = 0;
 int rtx_wsi_height = 0;
 
 void ogl_x11_wsi_will_destroy() {
+    ogl_live_preview_detach();
     // Called synchronously BEFORE SDL stops video or destroys/replaces XID.
     if (rtx_wsi_detach) rtx_wsi_detach();
     rtx_wsi_xid = 0;
@@ -583,6 +745,8 @@ void ogl_init_rtx_module() {
 
 void ogl_shutdown_rtx_module() {
 #if LL_LINUX && LL_X11 && LL_SDL2
+    ogl_preview_attempted=false;
+    ogl_preview_frames=0;
     LLWindowSDL::setOglWindowResizedCallback(nullptr);
     LLWindowSDL::setOglWindowWillDestroyCallback(nullptr);
     ogl_x11_wsi_will_destroy();
@@ -913,6 +1077,11 @@ void ogl_rtx_after_region_camera_tick() {
 // to the OpenGL-owned SDL surface. It proves synchronization with the real
 // in-world frame lifecycle without pretending that Vulkan owns the window.
 void ogl_rtx_after_visible_world_swap() {
+#if LL_LINUX && LL_X11 && LL_SDL2
+    // On every real visible swap: update or close the separate Vulkan
+    // preview even if no new private offscreen GPU receipt is scheduled.
+    ogl_live_preview_world_swap();
+#endif
 #if LL_LINUX || LL_WINDOWS
     static const bool opted_in=[] {
         const char* flag=std::getenv("OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN");
@@ -1075,6 +1244,9 @@ void ogl_rtx_after_visible_world_swap() {
 // Called AFTER the pipeline has detected a genuine OpenSim region change,
 // NOT when a partial geometry scan returns zero candidates.
 bool ogl_rtx_on_region_transition() {
+#if LL_LINUX && LL_X11 && LL_SDL2
+    ogl_live_preview_detach();
+#endif
 #if LL_LINUX || LL_WINDOWS
     last_live_world_camera={};
     last_live_world_camera_valid=false;

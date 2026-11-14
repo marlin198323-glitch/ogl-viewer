@@ -89,6 +89,18 @@ static bool ATIbug = false;
 // maintain in the constructor and destructor.  This assumes that there will
 // be only one object of this class at any time.  Currently this is true.
 static LLWindowSDL *gWindowImplementation = NULL;
+// A second SDL window is exclusively owned by Vulkan, and is never given
+// an OpenGL context. Only explicit OGL P05 live-world developer QA can
+// create it. The normal Firestorm SDL window remains the GL owner.
+#if LL_LINUX && LL_X11
+static SDL_Window* gOglVulkanPreviewWindow = nullptr;
+// Keep the SDL ID after destruction to discard queued close/focus events
+// from that secondary window, which must not reach the main GL UI.
+static Uint32 gOglVulkanPreviewWindowID = 0;
+static U64 gOglVulkanPreviewXid = 0;
+static bool gOglVulkanPreviewCloseRequested = false;
+#endif
+
 
 // Pre-GL developer smoke test: one, or explicitly 20 staged frames,
 // Vulkan owns the *actual SDL/X11 viewer window* before any OpenGL context.
@@ -246,6 +258,24 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // Separate SDL Window construction/present acceptance. This uses ONLY
+    // synthetic pre-login triangles; live real OpenSim geometry is fed
+    // exclusively by the later source-qualified viewer-host callback.
+    const bool secondary_window_probe=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SECONDARY_WINDOW_PROBE");
+    if (secondary_window_probe &&
+        (!firestorm_basis || sequence_requested || sequence_permitted ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_WORLD_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_CLEAR_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_PERSISTENT_CLEAR_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_DEPTH_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE"))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 secondary SDL Vulkan-window QA requires independent complete world/depth permissions; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -330,6 +360,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool camera_motion_verified=false;
     bool stale_camera_verified=false;
     bool motion_pixels_verified=false;
+    bool secondary_window_verified=false;
+    uint32_t secondary_window_stage=0;
     uint32_t motion_pixel_changes=0;
     uint32_t stale_camera_rejections=0;
     uint32_t moving_camera_frames=0;
@@ -931,6 +963,86 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     depth_verified=depth && uploaded && pixel_verified;
                     if (raster && upload) upload(nullptr,0);
                 }
+                if (secondary_window_probe && persistent_world &&
+                    upload && set_camera && persistent_present &&
+                    persistent_count) {
+                    // The original SDL viewer surface is already detached;
+                    // all rendering below targets a distinct SDL X11 window.
+                    detach();
+                    void* preview_display=nullptr;
+                    U64 preview_xid=0;
+                    int pw=0,ph=0;
+                    if (LLWindowSDL::createOglVulkanPreviewWindow(
+                            &preview_display,&preview_xid,&pw,&ph)) {
+                        secondary_window_stage=1;
+                        const ogl_rtx_triangle world_near{{
+                            12.5f,18.f,28.4f,
+                            12.5f,22.f,28.4f,
+                            12.5f,20.f,31.6f
+                        }};
+                        ogl_rtx_frame_state camera{};
+                        camera.struct_size=sizeof(camera);
+                        camera.frame_version=OGL_RTX_FRAME_VERSION;
+                        camera.width=static_cast<uint32_t>(pw);
+                        camera.height=static_cast<uint32_t>(ph);
+                        camera.camera_position[0]=10.f;
+                        camera.camera_position[1]=20.f;
+                        camera.camera_position[2]=30.f;
+                        camera.camera_forward[0]=1.f;
+                        camera.camera_right[1]=-1.f;
+                        camera.camera_up[2]=1.f;
+                        camera.sun_direction[2]=1.f;
+                        camera.vertical_fov_radians=1.57079632679f;
+                        camera.aspect_ratio=float(pw)/float(ph);
+                        camera.near_clip_m=2.f;
+                        camera.far_clip_m=10.f;
+                        const bool uploaded_secondary=upload(&world_near,1)==1;
+                        if (uploaded_secondary) secondary_window_stage=2;
+                        const bool attached_secondary=uploaded_secondary &&
+                            attach(preview_display,preview_xid,pw,ph)==1;
+                        if (attached_secondary) secondary_window_stage=3;
+                        const bool camera_secondary=attached_secondary &&
+                            set_camera(&camera)==1 && camera_ready()==1;
+                        if (camera_secondary) secondary_window_stage=4;
+                        if (camera_secondary && persistent_present(1)==1 &&
+                            persistent_count()==1) {
+                            secondary_window_stage=5;
+                            // X11 presentation is asynchronous. Confirm one
+                            // red front-facing triangle pixel at the center.
+                            auto* dpy=static_cast<Display*>(preview_display);
+                            for (int attempt=0;attempt<120;++attempt) {
+                                XSync(dpy,False);
+                                XImage* sample=XGetImage(dpy,
+                                    static_cast<Window>(preview_xid),
+                                    pw/2,ph/2,1,1,AllPlanes,ZPixmap);
+                                if (sample) {
+                                    const auto value=XGetPixel(sample,0,0);
+                                    auto channel=[value](unsigned long mask) {
+                                        if (!mask) return -1;
+                                        unsigned shift=0;
+                                        while (!(mask&1UL)) {mask>>=1;++shift;}
+                                        return static_cast<int>(
+                                            (((value>>shift)&mask)*255UL+mask/2)/mask);
+                                    };
+                                    const int red=channel(sample->red_mask);
+                                    const int green=channel(sample->green_mask);
+                                    XDestroyImage(sample);
+                                    if (red>=225 && green<90) {
+                                        secondary_window_verified=true;
+                                        secondary_window_stage=6;
+                                        break;
+                                    }
+                                }
+                                SDL_Delay(3);
+                            }
+                        }
+                        // Explicit retire-before-destroy, even if GPU or
+                        // window readback failed; never destroy borrowed XID.
+                        detach();
+                        LLWindowSDL::destroyOglVulkanPreviewWindow();
+                        upload(nullptr,0);
+                    }
+                }
             }
             detach();
             stop();
@@ -952,6 +1064,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             ? (camera_motion_verified ? "verified" : "failed")
             : "not-requested") <<
         ", camera-motion-frames=" << moving_camera_frames <<
+        ", secondary-window=" << (secondary_window_probe
+            ? (secondary_window_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-stage=" << secondary_window_stage <<
         ", stale-camera=" << (stale_camera_probe
             ? (stale_camera_verified ? "verified" : "failed")
             : "not-requested") <<
@@ -1011,6 +1127,71 @@ bool LLWindowSDL::getOglNativeWindowSize(int* width, int* height)
         !gWindowImplementation->mWindow) return false;
     SDL_GetWindowSize(gWindowImplementation->mWindow,width,height);
     return *width > 0 && *height > 0;
+}
+
+bool LLWindowSDL::createOglVulkanPreviewWindow(
+    void** display,U64* window,int* width,int* height)
+{
+#if LL_LINUX
+    if (!display || !window || !width || !height ||
+        gOglVulkanPreviewWindow || APP_NAME!="OGL") return false;
+    // In the isolated pre-GL constructor QA the LLWindowSDL singleton is
+    // deliberately not assigned until AFTER the first GL context exists.
+    // SDL video and the original window are already valid at that point.
+    // In the later in-world path the singleton exists as usual.
+    *display=nullptr;
+    *window=0;
+    *width=*height=0;
+    SDL_Window* preview=SDL_CreateWindow("OGL Vulkan world preview (developer)",
+        SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,512,384,
+        SDL_WINDOW_SHOWN);
+    if (!preview) return false;
+    SDL_SysWMinfo wm{};
+    SDL_VERSION(&wm.version);
+    if (!SDL_GetWindowWMInfo(preview,&wm) ||
+        wm.subsystem!=SDL_SYSWM_X11 || !wm.info.x11.display ||
+        !wm.info.x11.window) {
+        SDL_DestroyWindow(preview);
+        return false;
+    }
+    // Vulkan alone owns this secondary surface, no SDL_GL_CreateContext.
+    gOglVulkanPreviewWindow=preview;
+    gOglVulkanPreviewWindowID=SDL_GetWindowID(preview);
+    gOglVulkanPreviewXid=static_cast<U64>(wm.info.x11.window);
+    gOglVulkanPreviewCloseRequested=false;
+    *display=wm.info.x11.display;
+    *window=static_cast<U64>(wm.info.x11.window);
+    SDL_GetWindowSize(preview,width,height);
+    if (*width!=512 || *height!=384) {
+        destroyOglVulkanPreviewWindow();
+        *display=nullptr;*window=0;*width=*height=0;
+        return false;
+    }
+    return true;
+#else
+    (void)display;(void)window;(void)width;(void)height;
+    return false;
+#endif
+}
+
+bool LLWindowSDL::oglVulkanPreviewCloseRequested()
+{
+#if LL_LINUX
+    return !gOglVulkanPreviewWindow || gOglVulkanPreviewCloseRequested;
+#else
+    return true;
+#endif
+}
+
+void LLWindowSDL::destroyOglVulkanPreviewWindow()
+{
+#if LL_LINUX
+    if (gOglVulkanPreviewWindow) {
+        SDL_DestroyWindow(gOglVulkanPreviewWindow);
+        gOglVulkanPreviewWindow=nullptr;
+    }
+    gOglVulkanPreviewCloseRequested=false;
+#endif
 }
 #endif
 
@@ -2777,6 +2958,43 @@ void LLWindowSDL::gatherInput()
     // Handle all outstanding SDL events
     while (SDL_PollEvent(&event))
     {
+#if LL_LINUX && LL_X11
+        // The independent Vulkan window must NEVER generate mouse, key,
+        // focus, resize or close events for the main OpenGL viewer.
+        if (gOglVulkanPreviewWindowID) {
+            const Uint32 preview_id=gOglVulkanPreviewWindowID;
+            Uint32 target_id=0;
+            switch (event.type) {
+                case SDL_SYSWMEVENT:
+                    // Native X11 key events for this second surface must
+                    // not mutate the main viewer's AltGr state either.
+                    if (event.syswm.msg &&
+                        event.syswm.msg->subsystem==SDL_SYSWM_X11 &&
+                        static_cast<U64>(event.syswm.msg->msg.x11.event.xany.window)==
+                            gOglVulkanPreviewXid) continue;
+                    break;
+                case SDL_WINDOWEVENT: target_id=event.window.windowID; break;
+                case SDL_KEYDOWN: case SDL_KEYUP:
+                    target_id=event.key.windowID; break;
+                case SDL_TEXTINPUT: target_id=event.text.windowID; break;
+                case SDL_TEXTEDITING: target_id=event.edit.windowID; break;
+                case SDL_MOUSEMOTION: target_id=event.motion.windowID; break;
+                case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP:
+                    target_id=event.button.windowID; break;
+                case SDL_MOUSEWHEEL: target_id=event.wheel.windowID; break;
+                default: break;
+            }
+            if (target_id==preview_id) {
+                if (event.type==SDL_WINDOWEVENT &&
+                    event.window.event==SDL_WINDOWEVENT_CLOSE &&
+                    gOglVulkanPreviewWindow) {
+                    gOglVulkanPreviewCloseRequested=true;
+                    SDL_HideWindow(gOglVulkanPreviewWindow);
+                }
+                continue;
+            }
+        }
+#endif
         switch (event.type)
         {
             case SDL_SYSWMEVENT:

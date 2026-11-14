@@ -437,6 +437,36 @@ class RTXSceneLogTests(unittest.TestCase):
                 "source_capture=3 region_epoch=2; "
                 "GL owns the SDL window, NO Vulkan present.\n")
 
+    def test_p05_separate_vulkan_sdl_preview_is_real_source_qualified(self):
+        base=self.p05_coupled()
+        frames=lambda n: (
+            "P05 actual OpenSim Vulkan SDL preview frame: "
+            f"presented={n} limit=16 source=real-deferred "
+            "gl_owner=separate-window; NO full Vulkan viewer/UI.\n")
+        self.assertEqual(module.p05_live_preview_evidence(base,1),0)
+        self.assertEqual(module.p05_live_preview_evidence(base+frames(1),1),1)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+frames(1)+frames(2)+frames(3),1),3)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+frames(1)+frames(2)+frames(2),1),2)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+frames(1)+frames(17),1),1)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+frames(1),0),0)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+frames(1)+"P05 deferred region boundary: epoch=3\n",1),0)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+frames(1)+"P05 deferred capture receipt: epoch=2 capture=4 "
+            "triangles=100 mesh_generation=12\n",1),0)
+        self.assertEqual(module.p05_live_preview_evidence(
+            "STATE_STARTED\n"+frames(1),1),0)
+        self.assertEqual(module.p05_live_preview_evidence(
+            "P05 deferred evidence session: begin=1\nSTATE_STARTED\n"+
+            frames(1),1),0)
+        self.assertEqual(module.p05_live_preview_evidence(
+            base+"P05 actual SDL/X11 pre-GL Vulkan frame: secondary-window=verified\n",1),0)
+        self.assertIn('P05 separate Vulkan SDL world preview:',script.read_text())
+
     def test_p05_live_gpu_silhouette_evidence_strict_numeric_and_source_current(self):
         base=self.p05_coupled()
         record=("P05 live source-qualified Vulkan camera silhouette: "

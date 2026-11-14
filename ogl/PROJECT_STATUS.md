@@ -6,6 +6,139 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Arbeitsschritte: zweites SDL-Vulkan-Fenster für echten OpenSim-Weltquellpfad (14.11.2026)
+
+**Neuer Architektur-Meilenstein (Code + echte X11-GPU-Fensterabnahme,
+noch KEIN erfolgreicher authentifizierter OpenSim-Live-Lauf):**
+Der Firestorm-Viewer kann nun über das zusätzliche, standardmäßig
+**deaktivierte** `OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1` ein
+**zweites, ausschließlich Vulkan-eigenes SDL/X11-Fenster** mit
+512×384 Pixeln aufbauen. Das Haupt-SDL-Fenster und dessen
+OpenGL-Kontext bleiben vollständig getrennt, steuerbar und
+im Besitz des bestehenden Firestorm-Renderers. Es findet
+**keine** gleichzeitige GL-/Vulkan-Präsentation auf derselben
+Window-Surface statt. Dies ist eine *begrenzt laufende
+Entwickler-Vorschau*, noch keine auswählbare vollständige
+Vulkan-Engine mit Terrain/Avatar/UI.
+
+Die SDL-Seite (`llwindowsdl2.cpp/.h`) bietet dafür in
+**bestehenden Dateien** drei explizite, Linux-X11-begrenzte
+Schnittstellen: `createOglVulkanPreviewWindow`,
+`oglVulkanPreviewCloseRequested` und
+`destroyOglVulkanPreviewWindow`. Sie erzeugt genau ein
+zweites SDL-Fenster **ohne SDL_GL_CreateContext**,
+validiert per `SDL_GetWindowWMInfo` das echte X11-Display
+und XID und lässt dessen Tastatur-/Maus-/Fenster-/native
+X11-Events nicht an die GL-Viewersteuerung gelangen.
+Die Preview-ID und XID bleiben für die sichere Verwerfung
+verzögerter Eingabeereignisse nach dem SDL-Destroy bekannt.
+Bei Schließen durch den Nutzer wird die Vorschau nur
+versteckt und auf der nächsten Live-Frame-Grenze nach
+Vulkan-Detach freigegeben. Vulkan-Surface, Swapchain,
+GPU-Queue/Fences und Renderpass sind **vor** dem SDL-
+Fenster-Destroy abzubauen. Dasselbe gilt für Viewer-
+Shutdown und echten Regionswechsel.
+
+Auf der Live-Seite (`oglrtxhost.cpp`) werden die vorhandenen
+**echten** Deferred-Mesh-Vulkanbuffer und die aktuelle
+Firestorm-Kamerabasis (`forward=+X`, `right=-Y`, `up=+Z`)
+nur nach bereits abgeschlossenem `present-coupled`-GPU-
+Receipt und erneut vollständig validierter Region-Epoch,
+Meshgeneration, Capture-Receipt sowie `world_input_ready()`
+in diese zweite Vulkan-Swapchain übernommen. Neben den
+sieben bisherigen privaten Live-GPU-Opt-ins sind strikt
+**separate** Vulkan-WSI-, exklusiver Present-, World-/Depth-
+Raster- und Persistent-World-/Clear-Freigaben nötig.
+Wird parallel ein passiv persistenter VkSwapchain für das
+GL-Hauptfenster benutzt, verweigert der Host die zweite
+Vulkan-Surface. Die Vulkan-Swapchain zeichnet **höchstens
+16 echte Frames** (Vulkan 1.0-Semaphoren/Fences, FIFO);
+vor jedem `vkQueuePresentKHR` wird die reale Kamera
+auf das 512×384-Preview-Aspect gebunden, zur aktuellen
+Meshgeneration geprüft und nach dem Präsentieren die
+unveränderte Firestorm-Hauptkamera zurückgebunden.
+Ein Fehler, Schließen oder Quellwechsel führt zur
+kontrollierten vollständigen Vorschau-Freigabe,
+ohne den GL-Renderer zu übernehmen. Der 16-Frame-
+Grenzwert ist eine absichtliche QA-Sicherheitsgrenze,
+**keine** permanente Vulkan-Welt-Frame-Schleife.
+
+**End-to-End-Bestätigung ohne Benutzerlogin:** Zusätzlicher
+opt-in Pre-GL-Test
+`OGL_VULKAN_SDL_PREGL_SECONDARY_WINDOW_PROBE=1`
+nutzt denselben SDL-Fenster-Create-/Destroy-Pfad, ein
+**synthetisches** World-/Depth-Mesh mit echter Firestorm-
+Kamerahändigkeit und eine exklusive Vulkan-Swapchain im
+zweiten Fenster. Im tatsächlichen Linux-Mint-/Xvfb-
+Viewer wurde die gesamte Kette nachgewiesen:
+`secondary-window=verified`, `secondary-stage=6`
+(Create, GPU-Upload, X11-Attach, Kamera, `vkQueuePresentKHR`,
+**sichtbarer X11-Pixelbeleg**). Das erste, bisherige
+SDL-Fenster bestand weiterhin `1/1 presented` und
+`pixel=verified`; sämtliche Vulkan-Handles wurden
+**vor SDL_GL_CreateContext** freigegeben, OpenGL
+startete normal bis `STATE_LOGIN_WAIT`, 0 FATAL.
+Ein zunächst beobachtetes `secondary-stage=0` wurde
+korrekt auf einen zu frühen `gWindowImplementation`-
+Check während der Firestorm-SDL-Konstruktion
+zurückgeführt und durch lebenszyklusgerechte
+SDL-Sichtbarkeit behoben. Die echten letzten QA-
+Ergebnisse wurden **nach** diesem Fix erhoben.
+
+**4 unabhängige isolierte SDL-/Xvfb-QA-Fälle** bestanden:
+(1) echte zweite Vulkan-SDL-Surface inklusive Depth-
+Pixelprüfung; (2) bisheriger 1/1-World-/Depth-SDL-
+Startup ohne zweite Window-Flag, unverändert;
+(3) unvollständige Welt-/Depth-Freigaben – **kein**
+Vulkan-Present, GL-Login intakt; (4) gesamte explizite
+Live-Preview-Flagkette **ohne** OpenSim-Login – keine
+synthetisch als live ausgewiesenen Vulkan-Weltframes,
+keine Preview- oder GL-World-Swap-Falschmeldung, GL
+Login intakt. Alle vier Fälle 0 FATAL und
+`STATE_LOGIN_WAIT`. Der Testreport zählt echte
+Preview-Frame-Logs nun nur ab dem letzten aktuellen
+Region-/Capture-Receipt mit bestätigtem privaten
+Post-Swap-GPU-Beleg; maximal fortlaufende 16 von 16,
+nie synthetische Pre-GL-Frames oder ältere Region.
+
+**20 tatsächlich durchgeführte Entwicklungs-/Testschritte:**
+
+01. Linux-Mint-Repo `ogl-develop` auf Commit `d70c2d0c` und sauberen, mit Remote synchronisierten Arbeitsbaum geprüft.
+02. `AGENTS.md`, `ogl/PROJECT_HANDOFF.md`, `ogl/PROJECT_STATUS.md` und aktive P05-Roadmap vor Änderungen gelesen.
+03. GitHub-CI für Commit `d70c2d0c` als erfolgreich geprüft.
+04. OpenGenesisLINK-`main` / G1-Stable `v0.9.4.0` gegen SHA `ee15af8e...` read-only verglichen: keine Änderung.
+05. Externe G1-Release-/`gen1-updates`-Kanäle, PRs #448/#447/#443 und offene Issues auf Viewer-Vertragsänderung geprüft; keine WIP-Änderung übernommen.
+06. Vorhandenes echtes OpenSim-Deferred-Mesh-/Kamera-ABI und `ogl_rtx_after_visible_world_swap` als Quelle der neuen exklusiven Vulkan-Preview nachvollzogen.
+07. Native Vulkan-WSI-/Frame-Acquire-/Submit-/FIFO-Present-/Depth-/Fence-Lebensdauer auf sichere separate Surface untersucht.
+08. Normalen GL-Hauptfenster-WSI-Owner strikt von einer separaten SDL-Vulkan-Preview-Surface getrennt.
+09. Neue nur unter Linux/X11 kompilierte SDL-Preview-Schnittstellen in bestehenden `llwindowsdl2.h/.cpp` integriert.
+10. Eigenen SDL-X11-Window-Create-/Native-Handle-Check, feste 512×384-Größe und Vulkan-Detach-before-Destroy umgesetzt.
+11. SDL-Eventfilter gegen Preview-Fokus/Resize/Close, Mouse/Keyboard/Text und native X11-Events einschließlich verzögerter Events nach Fenster-Destroy ergänzt.
+12. Strikte Developer-Flag-Freigabe für echte Live-Preview, persistente World-/Depth-/Clear-Pipeline und Verbot paralleler GL-Main-Window-WSI-Ownership umgesetzt.
+13. Positive echte `present-coupled`-OpenSim-Receipt-/Region-/Mesh-/Kamera-Prüfung vor Vulkan-Preview-Erzeugung und pro Frame verknüpft.
+14. Vulkan-Kamera pro Preview-Frame auf echte Firestorm-Pose und 512×384-Aspekt gesetzt, Meshgeneration validiert und ursprüngliche Host-Kamera nach jedem Present zurückgesetzt.
+15. Maximal 16 Vulkan-Preview-Presents, GPU-Fehlerschutz sowie Teardown bei Nutzerclose, Regionwechsel und Viewer-Shutdown eingebaut.
+16. Isolierten Pre-GL-GPU-Test mit **zweitem echten SDL-Fenster** und synthetischer World-/Depth-Geometrie samt X11-Pixelreadback ergänzt.
+17. Erstes sekundäres SDL-Bootstrap-Problem (`gWindowImplementation` vor erstem GL-Kontext noch null) reproduziert, behoben und GPU-End-to-End-Test `secondary-stage=6` erfolgreich wiederholt.
+18. Neuen, source-/session-gefilterten 0–16-Frame-Preview-Report samt positiven und negativen Python-Tests integriert: insgesamt 431/431 Python-Tests erfolgreich.
+19. Linux-Vollviewer (inklusive SDL-/newview-Link) und native 41/41 CTests, Vulkan-X11-Clear/World/Depth-16/32, Mesh-Rotation, Region-Barrier und Firestorm-Kamera erfolgreich geprüft.
+20. Vier echte isolierte Viewer-X11-Smokes (zweites Fenster positiv, Legacy unverändert, unvollständige Flags fail-closed, Live-Flags ohne Login kein Falschbeleg) sowie `git diff --check` bestanden; Status/Übergabe/Roadmap aktualisiert.
+
+**Wichtigste Abnahmegrenze:** Nur die **synthetische**
+SDL-Preview hat erfolgreich auf dem zweiten Fenster
+präsentiert. Die neue source-qualifizierte Übergabe von
+**echten** OpenSim-Meshes an genau dieses zweite Vulkan-
+Fenster ist implementiert, aber **noch nicht durch einen
+angemeldeten Viewer-Weltlauf unabhängig bestätigt**.
+Die eigentliche produktive Vulkan-Engine fehlt weiterhin:
+permanente In-World-Fenster-Ownership des Haupt-SDL-
+Fensters, UI, Terrain, Avatare, Materialien, PBR sowie
+Windows/macOS-Tests. **P05 bleibt 2/20; P05/3 offen.**
+Kein aktiver Benutzer-Viewer beendet, keine Zugangsdaten,
+Produktivserver oder Benutzerprofile verändert, keine
+neuen Repository-Dateien. Die Pacific/PDT-Uhr-Umstellung
+bleibt weiterhin verbindliche separate P08/P13-Aufgabe.
+
 ## P05/3 – /goal 20 Blöcke: sicherer OpenSim-Kamera-Folgeframe zur GPU-Silhouettenprüfung (14.11.2026)
 
 **Technischer Engpass behoben, NEUER authentifizierter OpenSim-Livetest noch offen:**

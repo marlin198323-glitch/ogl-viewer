@@ -341,6 +341,42 @@ def p05_live_gpu_evidence(log_text: str):
     }
 
 
+# Numeric log proof from a DISTINCT SDL/X11 window. Never mistake this for
+# the pre-login synthetic QA or for a complete Vulkan viewer with UI.
+P05_LIVE_PREVIEW = re.compile(
+    r"P05 actual OpenSim Vulkan SDL preview frame: "
+    r"presented=(\d+) limit=16 source=real-deferred "
+    r"gl_owner=separate-window; NO full Vulkan viewer/UI\."
+)
+
+
+def p05_live_preview_evidence(log_text: str, confirmed_frames: int):
+    """Count sequential current-source separate-window GPU presents only."""
+    if confirmed_frames<=0:
+        return 0
+    session=log_text.rfind("P05 deferred evidence session: begin=1")
+    if session<0:
+        return 0
+    current=log_text[session:]
+    for pattern in (P05_REGION, P05_CAPTURE):
+        occurrences=list(pattern.finditer(current))
+        if occurrences:
+            current=current[occurrences[-1].start():]
+    # A genuine source-completed, confirmed visible-world GL swap must
+    # precede the preview. The renderer is still GL in the primary window.
+    acknowledged=False
+    count=0
+    for line in current.splitlines():
+        if P05_WORLD_SWAP.search(line):
+            acknowledged=True
+        frame=P05_LIVE_PREVIEW.search(line)
+        if frame and acknowledged:
+            number=int(frame.group(1))
+            if number==count+1 and number<=16:
+                count=number
+    return count
+
+
 def report():
     print("OGL Viewer – local Linux Mint test")
     print("Binary:", "present" if BINARY.is_file() else "missing")
@@ -395,6 +431,11 @@ def report():
         print("P05 private Vulkan camera silhouette:",silhouette["status"],
               "changed 8x8 samples:",silhouette["changed_samples"],
               "of 64; GPU offscreen only, no Vulkan window present")
+        preview=p05_live_preview_evidence(
+            text,evidence["confirmed_world_swap_private_gpu_frames"])
+        print("P05 separate Vulkan SDL world preview:",preview,
+              "of 16 source-qualified frame(s); separate window, "
+              "no Vulkan viewer UI")
         if evidence["status"]=="no_deferred_evidence_session":
             print("P05 live GPU developer opt-in: no evidence session "
                   "recorded; live Vulkan world draw NOT proven")

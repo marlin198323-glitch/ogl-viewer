@@ -168,6 +168,13 @@ public:
     // This also covers login, where in-world GL swap callbacks do not run.
     static void setOglWindowResizedCallback(OglWindowWillDestroyCallback callback);
     static bool getOglNativeWindowSize(int* width, int* height);
+    // P05 developer-only, separate SDL window. Never borrow the OpenGL
+    // main window for concurrent Vulkan presentation. Caller must detach
+    // the Vulkan swapchain BEFORE destroyOglVulkanPreviewWindow().
+    static bool createOglVulkanPreviewWindow(void** display, U64* window,
+                                              int* width, int* height);
+    static bool oglVulkanPreviewCloseRequested();
+    static void destroyOglVulkanPreviewWindow();
 #endif // LL_X11
 
 protected:

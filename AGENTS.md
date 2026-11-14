@@ -25,6 +25,23 @@ Quellen stehen in
 ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 unter „Verbindliche externe Server-Kompatibilitätsquelle“.
 
+P05/3 Architekturstand 14.11.2026: Separates
+Linux-X11-SDL-Fenster für strikt optionale
+Vulkan-Weltvorschau (`OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1`)
+mit realem OpenSim-Source-Receipt, eigenen 512x384-
+Swapchain/Depth/Fences, höchstens 16 GPU-Presents.
+Hauptfenster bleibt OpenGL-eigen; SDL-Events
+und Vulkan-Teardown voneinander getrennt.
+Synthetischer echter 2.-SDL-X11-GPU-End-to-End-
+Window-Test inkl. X11-Pixelreadback erfolgreich,
+4/4 isolierte Viewer-Smokes, 431 Python-/41
+native CTests und Linux-Build grün.
+**Realer authentifizierter OpenSim-In-World-Present
+im zweiten Fenster noch UNGETESTET.** P05=2/20.
+Kein produktiver Vulkan-Hauptfenster-Renderer mit UI,
+Terrain, Avataren; P05/3 offen. Die ausführlichen
+20 Einzelschritte stehen in PROJECT_STATUS.md.
+
 P05/3 Ergänzung 14.11.2026: Ein strikt opt-in
 `OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1` erlaubt
 jetzt genau EINE source-gleiche zusätzliche private

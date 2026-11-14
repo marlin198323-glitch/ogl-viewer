@@ -605,7 +605,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(win.index('if (raster && upload) upload(nullptr,0);'),
                         win.index('SDL_GL_CreateContext( mWindow );'))
         self.assertNotIn('OGL_VULKAN_EXCLUSIVE_RASTER_PROBE',
-                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text().split(
+                             'bool ogl_firestorm_offscreen_gpu_sample(')[1].split(
+                             '// The private GPU world shader')[0])
 
     def test_p05_vulkan_world_camera_projection_and_push_constant_contract(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
@@ -644,7 +646,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(win.index('world_verified=world && projected && pixel_verified;'),
                         win.index('SDL_GL_CreateContext( mWindow );'))
         self.assertNotIn('OGL_VULKAN_EXCLUSIVE_WORLD_PROBE',
-                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text().split(
+                             'bool ogl_firestorm_offscreen_gpu_sample(')[1].split(
+                             '// The private GPU world shader')[0])
 
     def test_p05_real_firestorm_camera_and_mesh_staging_pair_without_rtx(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
@@ -882,7 +886,9 @@ class PublicGraphicsContracts(unittest.TestCase):
                        "release_count","teardown_idles"):
             self.assertIn("ogl_vulkan_world_persistent_"+suffix,header)
         self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",
-                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text())
+                         (ROOT/"indra/newview/oglrtxhost.cpp").read_text().split(
+                             'bool ogl_firestorm_offscreen_gpu_sample(')[1].split(
+                             '// The private GPU world shader')[0])
 
     def test_p05_persistent_world_depth_pipeline_and_mesh_gpu_lifetime(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
@@ -1041,7 +1047,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("if (count==0) {\n            world_inputs_live_logged=false;",host)
         self.assertIn("if (!rtx_submit_geometry || !rtx_hardware_ready) return;",host)
         # It remains GL-owned after actual Firestorm scene capture.
-        self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
+        self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",
+                         host[host.index('bool ogl_firestorm_offscreen_gpu_sample('):
+                              host.index('// The private GPU world shader')])
 
     def test_p05_genuine_region_barrier_two_frame_slots_and_opengl_fallback(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
@@ -1107,7 +1115,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("region-barrier=",sdl)
         self.assertLess(sdl.index("region_barrier_verified=good &&"),
                         sdl.index("SDL_GL_CreateContext( mWindow );"))
-        self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",host)
+        self.assertNotIn("ogl_vulkan_world_persistent_clear_frame",
+                         host[host.index('bool ogl_firestorm_offscreen_gpu_sample('):
+                              host.index('// The private GPU world shader')])
 
     def test_p05_real_world_vulkan_offscreen_gpu_raster_without_gl_window_ownership(self):
         module=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
@@ -2066,6 +2076,55 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('offscreen_coverage_mask()!=0',native)
         self.assertIn('offscreen_coverage_mask()==0',native)
         self.assertIn('present_coupled_coverage_changed_samples(',policy)
+
+    def test_p05_real_opensim_vulkan_preview_uses_separate_sdl_x11_window(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        header=(ROOT/'indra/llwindow/llwindowsdl2.h').read_text()
+        a=host.index('void ogl_live_preview_world_swap()')
+        b=host.index('std::uint64_t rtx_wsi_xid',a)
+        fn=host[a:b]
+        for token in (
+            'OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW',
+            'live_present_coupled_gpu_frames',
+            'live_deferred_capture_valid',
+            'ogl::present_coupled_source_current(',
+            'live_present_coupled_capture_receipt!=live_deferred_receipts',
+            'OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE',
+            'OGL_VULKAN_EXCLUSIVE_DEPTH_PROBE',
+            'OGL_VULKAN_WORLD_CAMERA_PROBE',
+            'OGL_VULKAN_WINDOW_SURFACE',
+            'OGL_VULKAN_WINDOW_PERSISTENT',
+            'LLWindowSDL::createOglVulkanPreviewWindow(',
+            'ogl_vulkan_world_attach_x11_window',
+            'ogl_vulkan_world_persistent_clear_frame',
+            'camera.width=512u;', 'camera.height=384u;',
+            'world_set_camera(&last_live_world_camera)==1',
+            'ogl_preview_present(1u)==1u',
+            'ogl_preview_frames>=16u',
+            'if (ogl_preview_frames==16u) ogl_live_preview_detach();',
+            'NO full Vulkan viewer/UI.',
+        ):
+            self.assertIn(token,fn)
+        self.assertLess(fn.index('live_present_coupled_gpu_frames'),
+                        fn.index('LLWindowSDL::createOglVulkanPreviewWindow('))
+        self.assertLess(fn.index('ogl_preview_present(1u)'),
+                        fn.index('world_set_camera(&last_live_world_camera)'))
+        self.assertIn('ogl_live_preview_world_swap();',host)
+        self.assertIn('ogl_live_preview_detach();',host)
+        self.assertIn('SDL_CreateWindow("OGL Vulkan world preview (developer)"',sdl)
+        self.assertIn('SDL_GetWindowWMInfo(preview,&wm)',sdl)
+        self.assertIn('SDL_DestroyWindow(gOglVulkanPreviewWindow)',sdl)
+        self.assertIn('if (target_id==preview_id)',sdl)
+        self.assertIn('gOglVulkanPreviewCloseRequested=true;',sdl)
+        self.assertIn('gOglVulkanPreviewXid',sdl)
+        self.assertIn('event.syswm.msg->msg.x11.event.xany.window',sdl)
+        self.assertIn('createOglVulkanPreviewWindow(',header)
+        self.assertIn('destroyOglVulkanPreviewWindow();',header)
+        part=sdl[sdl.index('bool LLWindowSDL::createOglVulkanPreviewWindow('):
+                 sdl.index('bool LLWindowSDL::oglVulkanPreviewCloseRequested()')]
+        self.assertNotIn('SDL_GL_CreateContext',part.replace(
+            '// Vulkan alone owns this secondary surface, no SDL_GL_CreateContext.', ''))
 
     def test_p05_source_matched_motion_pair_is_one_shot_and_backoff_safe(self):
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

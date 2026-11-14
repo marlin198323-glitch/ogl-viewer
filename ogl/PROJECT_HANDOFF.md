@@ -46,6 +46,52 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+14.11.2026 – /goal 20 P05/3 sichtbare EXKLUSIVE
+Vulkan-SDL-Weltvorschau in EIGENEM Fenster:
+`llwindowsdl2.cpp/.h` kann unter Linux/X11 nun
+zweites SDL-Fenster ohne GL-Kontext mit sicherem
+X11-Handle, Ereignisfilter für Keyboard/Mouse/
+Window/X11 und kontrolliertem Destroy nach Vulkan-
+Detach erstellen. `oglrtxhost.cpp` enthält neuen
+strikt opt-in realen OpenSim-Bridge-Pfad
+`OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1`:
+erst nach POSITIVEM `present-coupled`-GPU-Quell-
+Receipt, exakt gleicher Region/Mesh/Capture und
+`live_inputs_ready`, PLUS vollständigen unabhängigen
+Vulkan-WSI-/Persistent-World-/Depth-/Present-
+Freigaben. GL besitzt weiterhin eigenes Hauptfenster;
+keine gleichzeitige Präsentation in dieselbe Surface.
+16 feste 512x384-Vulkan-Swapchain-World-Presents
+maximal; echte Kamerapose jeweils ans Preview-
+Aspect gebunden, danach originale Firestorm-Kamera
+wiederhergestellt. Regionwechsel, Userclose, Fehler
+und Shutdown: Vulkan-Handles VOR SDL-Window zerstören.
+Getrennter opt-in pre-GL-X11-GPU-Regressionstest
+`OGL_VULKAN_SDL_PREGL_SECONDARY_WINDOW_PROBE=1`:
+**zweites tatsächliches SDL/X11-Fenster**, echte
+Vulkan-World-/Depth-Swapchain, GPU-Present,
+X11-Pixelreadback `secondary-window=verified`,
+`secondary-stage=6`, danach OpenGL-Login.
+4/4 isolierte QA-Fälle erfolgreich (positiv,
+Legacy, unvollständige Flags, echte Liveflags
+OHNE Login). Linux-Fullbuild, 431 Python-/41
+native CTests, Vulkan-X11 16/32, Meshrotation,
+Region-Barrier, Kamera grün. `ogl-test-report.py`
+zeigt source-qualifizierte Preview-GPU-Frames
+nur mit bestätigtem OpenSim-Receipt, getrennt
+von pre-GL synthetischer GPU-Probe.
+OpenGenesisLINK Stable-HEAD `ee15af8e...`
+unverändert; kein `gen1-updates`-Tag; offene
+PRs keine übernommenen Stable-Protokollupdates.
+**Echte authentifizierte OpenSim-In-World-Preview
+NOCH NICHT live abgenommen.** Dauerhafter
+Vulkan-Renderer des Hauptfensters mit UI/Avataren/
+Terrain/PBR nicht implementiert. **P05 formal
+weiter 2/20, Block P05/3 offen.**
+20 Schritte siehe Anfang `ogl/PROJECT_STATUS.md`.
+Keine laufenden Userprozesse, Profile oder
+Produktivserver verändert; keine neuen Repo-Dateien.
+
 14.11.2026 – /goal 20 P05/3 source-identischer
 OpenSim-Private-Vulkan-Kamera-Zweitframe:
 Zuvor war nach dem ersten echten `present-coupled`
