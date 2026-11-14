@@ -6,6 +6,105 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Blöcke: sicherer OpenSim-Kamera-Folgeframe zur GPU-Silhouettenprüfung (14.11.2026)
+
+**Technischer Engpass behoben, NEUER authentifizierter OpenSim-Livetest noch offen:**
+Der bestehende `present-coupled`-Readback nach dem echten OpenGL-Welt-Swap
+konnte seinen **ersten** validierten Vulkan-GPU-Frame sofort erzeugen.
+Danach waren grundsätzlich **120 sichtbare Weltframes** bis zur nächsten
+GPU-Probe abzuwarten. In realen OpenSim-Regionen ändert sich die
+Deferred-Geometrieaufnahme möglicherweise vor Ablauf dieser Frist;
+so kann die im vorangehenden Entwicklungslauf implementierte
+64-Pixel-GPU-Kamerasilhouette nicht gegen **dieselbe**
+Capture-Receipt-/Meshgeneration verglichen werden.
+
+Die bestehende portable Policy in
+`ogl/modules/include/ogl/ogl_world_shadow_policy.h` enthält
+jetzt die zusätzliche `present_coupled_motion_pair_due()`.
+Nur bei *zusätzlichem* Entwicklermodus
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1` und allen
+bisherigen realen Vulkan-Offscreen-Freigaben darf nach einer
+bereits source-geprüften ersten GPU-Aufnahme **genau ein**
+zusätzlicher GPU-Kamera-Vergleich pro realem Deferred-Receipt
+folgen – frühestens **8** und spätestens vor dem normalen
+120-Frame-Intervall. Voraussetzung sind dieselbe Region-Epoch,
+dieselbe GPU-Meshgeneration, identische Deferred-Capture-ID,
+eine **wirklich veränderte** Firestorm-Kamerapose, vorhandene
+private GPU-Coverage-Baseline und ausschließlich der
+materialunabhängige Vulkan-Depth-Debug-Modus 0.
+
+Der neue `live_present_coupled_motion_followup_receipt`-Zähler
+wird bei Modul-/Regionswechsel gelöscht und **vor dem
+neuen GPU-Versuch** als verbraucht markiert. Auch wenn ein
+GPU-Versuch fehlschlägt, darf dadurch **kein** dichter
+Retry-Loop entstehen. Die bereits bestehende
+`present_coupled_retry_due()`-Fehlerdrossel
+(120/240/480/960 Welt-Swaps) wird **weiterhin vor**
+dem Folgeversuch geprüft. Nach dem einen Zusatzversuch
+wird wieder die unveränderte normale 120-Frame-Kadenz
+ab dem letzten Versuch verwendet. Ohne Zusatzflag gelten
+ausschließlich die bisherigen Regeln. OpenGL-Framepacing,
+Mesh-Uploads, Grid-Login, Shader-Modi und SDL-Window-
+Ownership sind nicht verändert.
+
+Der Live-Logpfad meldet nur im **erfolgreichen**
+source-geprüften Nachgang den aggregierten Marker
+`P05 real deferred camera-motion follow-up: attempt=1
+source=present-coupled same_capture=1 min_world_swaps=8`
+und führt dann wie bisher das reguläre numerische
+`P05 REAL GL-world-swap -> Vulkan offscreen GPU`-Receipt
+fort. Keine Maskenbits, Kamerakoordinaten, Regions-UUIDs,
+Meshinhalte oder Accountdaten erscheinen im Log.
+Bei einer frisch akzeptierten Deferred-Aufnahme
+(`capture`/`mesh`/`region` neu) wird zudem ausdrücklich
+ein **neuer** `baseline=accepted`-Eintrag statt einer
+fälschlichen vergleichbaren Kameraänderung protokolliert.
+Die vorige private Vulkan-GPU-Silhouettenprüfung ist
+damit auf bessere praktische Erreichbarkeit im realen
+OpenSim-Weltlauf vorbereitet; **sie ist noch nicht im
+neuen angemeldeten Live-Viewer bestätigt**.
+
+**20 nachweisbar durchgeführte Entwicklungs-/Prüfschritte:**
+
+01. Sauberen Linux-Mint-Repostand `ogl-develop` auf `f6a5f3ee` und Remote-Synchronität geprüft.
+02. Verbindliche `AGENTS.md`, `ogl/PROJECT_HANDOFF.md`, `ogl/PROJECT_STATUS.md`, P05-Hauptroadmap gelesen.
+03. GitHub-CI zu `f6a5f3ee` als `success` kontrolliert.
+04. OpenGenesisLINK-G1-`main` gegen Stable `v0.9.4.0` und Baseline `ee15af8e...` geprüft: unverändert.
+05. OpenGenesisLINK-`gen1-updates` (nicht veröffentlicht), Releases, PRs #448/#447/#443 sowie relevante offene Issues read-only geprüft.
+06. Tatsächliche Firestorm-`present-coupled`-Readback-Funktion, Quellidentität und 120-Weltframe-Kadenz untersucht.
+07. Fehlende praktische Erreichbarkeit der 8x8-Kamera-Pixelvergleichsquelle bei wechselnden Realwelt-Captures identifiziert.
+08. Portable C++-Policy `present_coupled_motion_pair_due()` als klar begrenzte zweite Probenfreigabe entwickelt.
+09. Mindestens acht sichtbare Welt-Swaps und höchstens einen verkürzten Folgeversuch pro Deferred-Receipt festgelegt.
+10. Zuverlässige Same-Region-/Mesh-/Capture-Prüfung mit tatsächlich veränderter Kamerapose eingebunden.
+11. Materialunabhängigen GPU-Depth-Shading-Mode 0 und vorhandene reale Coverage-Baseline als zusätzliche Pflicht implementiert.
+12. Bestehende `present_coupled_needs_redraw()`-Quellqualifikation unverändert belassen und den Zusatzpfad daran gebunden.
+13. Bestehende `present_coupled_retry_due()`-Failure-Backoff-Prüfung vor jedem Normal- und Folgeversuch bestätigt.
+14. Einmaligen Folgeversuch **vor** GPU-Aufruf verbrauchen lassen, damit fehlgeschlagene GPU-Arbeit keinen kurzen Retry-Loop verursacht.
+15. Lifecycle-Reset der Folge-Receipt-ID bei Vulkan-Modul-/Regionswechsel implementiert.
+16. Neue Capture-/Mesh-/Regionquelle als **neue Baseline**, niemals als Erfolg gegenüber einer alten Silhouette ausgewiesen.
+17. Portable native C++-Positiv-/Negativtests für Zeitfenster, Quellenflags, Kamerabewegung, Einmaligkeit, UINT64-Grenzen und GPU-Fehler-Backoff ergänzt.
+18. Python-Grafik-Vertragsregression und lokalen Reporttest für zweiten 8-Swap-`present-coupled`-Frame mit bzw. ohne zweite GL-Bestätigung ergänzt.
+19. Vollständigen Linux-C++-Viewer-Build, 429 Python-Tests, 41 native CTests und Vulkan-X11-Clear/World/Depth-GPU-Regressionen 16/32, Meshrotation/Region und Firestorm-Projektion erfolgreich ausgeführt.
+20. Isolierte Linux-/Xvfb-Viewer-Login-Tests **mit und ohne** zusätzliche Silhouettenfreigabe bestanden: `STATE_LOGIN_WAIT`, OpenGL aktiv, keine falschen Live-Source-, Motion- oder World-Swap-Receipts, 0 FATAL. Projektstatus, Übergabe und Roadmap aktualisiert und Git-Diff geprüft.
+
+**Grenzen und nächste tatsächliche Abnahme:** Die acht-Swap-
+Folgeprobe ist an sich im echten Viewer-Code implementiert;
+der neue Live-OpenSim-GPU-Bildvergleich benötigt nun
+einen **frischen angemeldeten Nutzerlauf mit der achten
+Developer-Freigabe**. Der vorherige Vulkan-Private-GPU-
+OpenSim-Quellnachweis bleibt gültig. Die native
+Testgeometrie ist weiterhin synthetisch. Es besteht
+**noch keine dauerhaft Vulkan-eigene SDL-In-World-
+Fensterpräsentation**, kein vollständiges Avatar-,
+Terrain-, Material- oder UI-Rendering über Vulkan.
+Eine private GPU-Quittung oder ein erkannter Pixelwechsel
+ist ausdrücklich **keine** vollständig auswählbare
+produktive Vulkan-Engine. **P05 weiterhin 2/20,
+P05/3 weiter offen.** Keine Benutzerkonten,
+Produktivserver, laufenden Nutzerprozesse oder
+Benutzerprofile verändert. Keine neuen Repository-Dateien.
+P08/P13 MEZ/MESZ-Clock-v1 bleibt eigenständige Pflicht.
+
 ## P05/3 – /goal 20 Blöcke: echter OpenSim-GPU-Readback erhält quellengeprüfte Kamerasilhouette (14.11.2026)
 
 **Nächste echte P05/3-Integrationsstufe:** Der bereits positiv in

@@ -46,6 +46,41 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+14.11.2026 – /goal 20 P05/3 source-identischer
+OpenSim-Private-Vulkan-Kamera-Zweitframe:
+Zuvor war nach dem ersten echten `present-coupled`
+Vulkan-Readback 120 GL-Welt-Swaps Pause nötig;
+zwischenzeitlich neue Deferred-Mesh-Captures
+verhinderten den gerade implementierten SAME-
+Capture-8x8-Silhouettenvergleich. Neue
+`present_coupled_motion_pair_due()`-Policy erlaubt
+**exakt einen** privaten Zusatz-GPU-Readback pro
+identischer Region/Mesh/Capture frühestens nach
+8 echten sichtbaren GL-Welt-Swaps; nur bei
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1`,
+aktiver GPU-Baseline, neuer Firestorm-Kamera,
+Depth-Debug 0. Benutzte Capture-ID **vor**
+dem GPU-Aufruf verbraucht, auch bei Fehler; normale
+120-Swap-Kadenz und 120/240/480/960-Fehler-
+Backoff bleiben bindend. Lifecycle-/Regions-
+Reset setzt Einmal-Zähler zurück; neuer Capture
+wird neu als `baseline=accepted` gewertet.
+Privater GPU-Draw und normales numerisches
+`present-coupled`-Post-Swap-Receipt bleiben
+source-qualifiziert. 429 Python-/41 native CTests,
+Linux-Fullbuild und echte Vulkan-X11-16-/32-
+Frame-, Kamera-/Rotation-/Region-Regressionen
+bestanden. Zwei isolierte SDL-Logins (mit und
+ohne Zusatzfreigabe): OpenGL erreichbar, keine
+falschen Pre-Login-GPU-/Folge-Receipts, 0 FATAL.
+G1 Stable weiterhin `ee15af8e...`, kein
+veröffentlichtes Updatekanal-Release.
+**Neu angemeldeter OpenSim-Live-Kamera-/Pixelbeleg
+noch ausstehend.** Auch danach kein produktiver
+Vulkan-SDL-In-World-/Avatar-/UI-Renderer.
+P05 weiter 2/20, P05/3 offen. 20 Schritte oben
+in `PROJECT_STATUS.md`; keine Userprozesse verändert.
+
 14.11.2026 – /goal 20 P05/3 REALER OpenSim-
 Offscreen-GPU-Pixelbewegungs-Quellpfad ergänzt:
 Das vorhandene native Vulkan-Private-World-Readback

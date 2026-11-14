@@ -151,6 +151,8 @@ std::uint32_t live_present_coupled_consecutive_failures = 0;
 std::uint64_t live_present_coupled_last_failed_swap = 0;
 std::uint64_t live_present_coupled_last_attempt_swap = 0;
 std::uint64_t live_present_coupled_suppressed_retries = 0;
+// One bounded camera-motion follow-up per SAME OpenSim deferred receipt.
+std::uint64_t live_present_coupled_motion_followup_receipt = 0;
 ogl_rtx_frame_state live_present_coupled_pose{};
 bool live_present_coupled_pose_valid = false;
 // Only the compact 64-bit geometry mask lives in memory. Never persist,
@@ -170,6 +172,7 @@ void ogl_reset_present_coupled_state(bool module_lifecycle) {
     live_present_coupled_last_failed_swap=0;
     live_present_coupled_last_attempt_swap=0;
     live_present_coupled_suppressed_retries=0;
+    live_present_coupled_motion_followup_receipt=0;
     if (module_lifecycle) live_present_coupled_gpu_frames=0;
 }
 ogl_rtx_frame_state live_world_last_offscreen_pose{};
@@ -926,11 +929,32 @@ void ogl_rtx_after_visible_world_swap() {
             live_deferred_receipts,live_deferred_mesh_generation,
             mesh_generation,camera_mesh_generation)) return;
     ++live_visible_world_swaps;
-    // Try the FIRST source-qualified visible world swap immediately; an
-    // OpenSim world running at low FPS must not wait 120 frames to prove
-    // its first real private Vulkan GPU draw. All later attempts remain
-    // >=120 actual world swaps apart, regardless of success or failure.
-    if (!ogl::present_coupled_sample_due(
+    static const bool motion_pixels_opted_in=[] {
+        const char* flag=std::getenv("OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE");
+        return flag && std::strcmp(flag,"1")==0;
+    }();
+    // The first real GPU draw remains immediate; the ordinary cadence is
+    // still >=120 visible world swaps. Only explicitly enabled geometry
+    // motion diagnostics may add ONE extra attempt per deferred receipt,
+    // after >=8 visible GL swaps, with an unchanged capture and new pose.
+    const bool source_matches_previous=
+        live_present_coupled_region_epoch==live_world_region_epoch &&
+        live_present_coupled_mesh_generation==mesh_generation &&
+        live_present_coupled_capture_receipt==live_deferred_receipts;
+    const bool camera_changed=live_present_coupled_pose_valid &&
+        !ogl_same_world_camera_pose(live_present_coupled_pose,
+                                    last_live_world_camera);
+    const bool motion_pair_due=ogl::present_coupled_motion_pair_due(
+        live_visible_world_swaps,live_present_coupled_last_attempt_swap,
+        motion_pixels_opted_in && world_offscreen_coverage_mask &&
+            world_offscreen_shading_mode,
+        live_present_coupled_coverage_valid &&
+            live_present_coupled_pose_valid,
+        source_matches_previous,camera_changed,
+        live_present_coupled_motion_followup_receipt==live_deferred_receipts,
+        world_offscreen_shading_mode &&
+            world_offscreen_shading_mode()==0u);
+    if (!motion_pair_due && !ogl::present_coupled_sample_due(
             live_visible_world_swaps,live_present_coupled_last_attempt_swap))
         return;
     if (!ogl::present_coupled_needs_redraw(
@@ -947,6 +971,10 @@ void ogl_rtx_after_visible_world_swap() {
         return;
     }
     live_present_coupled_last_attempt_swap=live_visible_world_swaps;
+    // Consume the one-shot regardless of GPU success: failed draws must
+    // NEVER create an unbounded stream of synchronous retry attempts.
+    if (motion_pair_due)
+        live_present_coupled_motion_followup_receipt=live_deferred_receipts;
     if (!ogl_firestorm_offscreen_gpu_sample("present-coupled")) {
         // A repeatedly failing synchronous GPU readback must not starve
         // the existing visible OpenGL world. Keep occasional retries and
@@ -971,10 +999,6 @@ void ogl_rtx_after_visible_world_swap() {
     // pixels ONLY after the source-qualified GPU receipt has succeeded.
     // Two different cameras on different region/mesh/receipt revisions
     // cannot be considered evidence of a GPU camera-motion response.
-    static const bool motion_pixels_opted_in=[] {
-        const char* flag=std::getenv("OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE");
-        return flag && std::strcmp(flag,"1")==0;
-    }();
     if (motion_pixels_opted_in && world_offscreen_coverage_mask &&
         world_offscreen_shading_mode && world_offscreen_shading_mode()==0u) {
         const std::uint64_t current_mask=world_offscreen_coverage_mask();
@@ -1000,7 +1024,10 @@ void ogl_rtx_after_visible_world_swap() {
                 << " changed_samples=" << changed
                 << " samples=64; private Vulkan image, NO window present."
                 << LL_ENDL;
-        } else if (!live_present_coupled_coverage_valid) {
+        } else if (!live_present_coupled_coverage_valid ||
+                   !source_matches_previous) {
+            // A NEW capture/mesh/region is always a NEW baseline, never
+            // a successful comparison with the previous OpenSim world.
             LL_INFOS("OGLRenderer")
                 << "P05 live source-qualified Vulkan camera silhouette: "
                    "baseline=accepted samples=64; no GPU-motion proof yet."
@@ -1018,11 +1045,18 @@ void ogl_rtx_after_visible_world_swap() {
     live_present_coupled_mesh_generation=mesh_generation;
     live_present_coupled_capture_receipt=live_deferred_receipts;
     ++live_present_coupled_gpu_frames;
+    if (motion_pair_due)
+        LL_INFOS("OGLRenderer")
+            << "P05 real deferred camera-motion follow-up: "
+            << "attempt=1 source=present-coupled "
+               "same_capture=1 min_world_swaps=8; private GPU only."
+            << LL_ENDL;
     // Emit the numeric completion for EVERY successfully source-qualified
     // world-swap GPU receipt. The old first-3/every-64 log sampling made
-    // later real frames invisible to the P05 log validator. This already
-    // runs at most every 120 eligible world swaps, with further GPU-error
-    // backoff, and contains no user/region/object identifiers or pixels.
+    // later real frames invisible to the P05 log validator. Normal sampling
+    // is >=120 world swaps apart; a single explicitly opted-in camera-motion
+    // comparison is allowed after >=8 world swaps per same capture, still
+    // subject to GPU failure backoff. No user/region/object IDs or pixels.
     LL_INFOS("OGLRenderer")
         << "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
         << "visible_swaps=" << live_visible_world_swaps

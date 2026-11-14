@@ -2067,6 +2067,31 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('offscreen_coverage_mask()==0',native)
         self.assertIn('present_coupled_coverage_changed_samples(',policy)
 
+    def test_p05_source_matched_motion_pair_is_one_shot_and_backoff_safe(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        a=host.index('void ogl_rtx_after_visible_world_swap()')
+        b=host.index('// The region UUID is compared',a)
+        fn=host[a:b]
+        self.assertIn('inline bool present_coupled_motion_pair_due(',policy)
+        self.assertIn('return elapsed>=8u && elapsed<120u;',policy)
+        for key in ('source_matches_previous','camera_changed',
+                    'live_present_coupled_motion_followup_receipt==live_deferred_receipts',
+                    'world_offscreen_shading_mode()==0u',
+                    'live_present_coupled_coverage_valid',
+                    'live_present_coupled_last_attempt_swap=live_visible_world_swaps;',
+                    'live_present_coupled_motion_followup_receipt=live_deferred_receipts;',
+                    'same_capture=1 min_world_swaps=8; private GPU only.'):
+            self.assertIn(key,fn)
+        self.assertLess(fn.index('ogl::present_coupled_source_current('),
+                        fn.index('ogl::present_coupled_motion_pair_due('))
+        self.assertLess(fn.index('ogl::present_coupled_retry_due('),
+                        fn.index('live_present_coupled_motion_followup_receipt=live_deferred_receipts;'))
+        self.assertLess(fn.index('live_present_coupled_motion_followup_receipt=live_deferred_receipts;'),
+                        fn.index('ogl_firestorm_offscreen_gpu_sample("present-coupled")'))
+        self.assertIn('live_present_coupled_motion_followup_receipt=0;',host)
+        self.assertNotIn('vkQueuePresentKHR',fn)
+
     def test_p05_first_valid_world_swap_can_sample_without_120_frame_delay(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
@@ -2107,7 +2132,7 @@ class PublicGraphicsContracts(unittest.TestCase):
                        '" source_capture=" << live_present_coupled_capture_receipt',
                        '" region_epoch=" << live_world_region_epoch'):
             self.assertIn(marker,fn)
-        self.assertIn('if (!ogl::present_coupled_sample_due(',fn)
+        self.assertIn('if (!motion_pair_due && !ogl::present_coupled_sample_due(',fn)
 
     def test_p05_repeated_live_gpu_failures_backoff_without_stopping_gl(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()

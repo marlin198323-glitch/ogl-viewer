@@ -25,6 +25,19 @@ Quellen stehen in
 ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 unter „Verbindliche externe Server-Kompatibilitätsquelle“.
 
+P05/3 Ergänzung 14.11.2026: Ein strikt opt-in
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1` erlaubt
+jetzt genau EINE source-gleiche zusätzliche private
+Vulkan-Kamerapixelprobe nach >=8 realen GL-Welt-Swaps
+pro Capture (vorher Normalintervall >=120), wobei
+GPU-Fehler-Backoff weiterhin gilt. Code/Unit/Native
+GPU-/Linux-Viewer-Smokes grün; echter NEUER
+angemeldeter OpenSim-Folgebeleg noch offen.
+P05 bleibt 2/20. Vor weiteren zusätzlichen
+Diagnosefunktionen vorrangig echte exklusive
+Vulkan-Window-World-/UI-Architektur umsetzen;
+keine vollständige Weltpräsentation vortäuschen.
+
 Aktuellster P05/3-Stand 14.11.2026: Echte OpenSim-
 Source->private Vulkan-GPU-Receipts sind live belegt;
 permanenter authentifizierter Vulkan-Window-Present ist

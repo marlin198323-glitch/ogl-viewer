@@ -535,6 +535,33 @@ class RTXSceneLogTests(unittest.TestCase):
         result=module.p05_live_gpu_evidence(log)
         self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],1)
 
+    def test_p05_same_capture_eight_swap_motion_followup_is_source_confirmed(self):
+        # Source-checked extra GPU readback may occur at +8 GL swaps, but
+        # must still have a fresh GPU receipt and corresponding GL ack.
+        base=self.p05_coupled()
+        followup=(
+            "P05 live source-qualified Vulkan camera silhouette: "
+            "comparison=verified changed_samples=3 samples=64; "
+            "private Vulkan image, NO window present.\n"
+            "P05 deferred GPU receipt: epoch=2 capture=3 "
+            "mesh_generation=11 source=present-coupled frames=2 "
+            "camera_frames=0 nonclear_pixels=192 width=32 height=32 "
+            "lit_pixels=0 mean_luminance=260 status=completed\n"
+            "P05 REAL GL-world-swap -> Vulkan offscreen GPU: "
+            "visible_swaps=129 completed_private_frames=2 "
+            "suppressed_retries=0 mesh_generation=11 "
+            "source_capture=3 region_epoch=2; "
+            "GL owns the SDL window, NO Vulkan present.\n")
+        confirmed=module.p05_live_gpu_evidence(base+followup)
+        self.assertEqual(confirmed["status"],
+                         "visible_world_swap_private_gpu_confirmed")
+        self.assertEqual(confirmed["confirmed_world_swap_private_gpu_frames"],2)
+        self.assertEqual(confirmed["present_coupled_gpu_receipts"],2)
+        self.assertEqual(confirmed["rejected_receipt_events"],0)
+        without_ack=module.p05_live_gpu_evidence(
+            base+followup.split("P05 REAL GL-world-swap")[0])
+        self.assertEqual(without_ack["confirmed_world_swap_private_gpu_frames"],1)
+
     def test_p05_many_consecutive_post_swap_gpu_frames_are_confirmed(self):
         # Historically the host logged only the first three successful
         # samples, then the 64th. All later private GPU draws must have

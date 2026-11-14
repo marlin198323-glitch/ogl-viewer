@@ -25,6 +25,36 @@ int main() {
     // Live source may become valid at arbitrarily low FPS. The first
     // qualified GL world swap can trigger the private GPU immediately;
     // subsequent synchronous attempts obey a >=120 world-swap gap.
+    // The separate source-matched camera pair may perform exactly one
+    // extra private GPU readback, never a rapid per-frame GPU loop.
+    auto pair_due=[](uint64_t now,uint64_t last,bool enabled=true,
+        bool baseline=true,bool same_source=true,bool moved=true,
+        bool already=false,bool depth=true) {
+        return ogl::present_coupled_motion_pair_due(
+            now,last,enabled,baseline,same_source,moved,already,depth);
+    };
+    assert(!pair_due(0,0));
+    assert(!pair_due(1,0));
+    assert(!pair_due(8,1));
+    assert(pair_due(9,1));
+    assert(pair_due(120,1));
+    assert(!pair_due(121,1)); // normal 120-swap cadence instead
+    assert(!pair_due(9,10));
+    assert(!pair_due(9,1,false)); // feature disabled
+    assert(!pair_due(9,1,true,false)); // no GPU baseline
+    assert(!pair_due(9,1,true,true,false)); // changed region/mesh/receipt
+    assert(!pair_due(9,1,true,true,true,false)); // stationary camera
+    assert(!pair_due(9,1,true,true,true,true,true)); // one shot consumed
+    assert(!pair_due(9,1,true,true,true,true,false,false)); // shaded mode
+    assert(pair_due(UINT64_MAX,UINT64_MAX-8u)); // overflow safe
+    assert(!pair_due(UINT64_MAX,UINT64_MAX-7u));
+    // Existing exponential GPU-failure backoff is STILL mandatory.
+    assert(!ogl::present_coupled_retry_due(9,1,1));
+    assert(!ogl::present_coupled_retry_due(128,9,1));
+    assert(ogl::present_coupled_retry_due(129,9,1));
+    assert(!ogl::present_coupled_retry_due(248,9,2));
+    assert(ogl::present_coupled_retry_due(249,9,2));
+    assert(ogl::present_coupled_retry_due(9,1,0));
     assert(!ogl::present_coupled_sample_due(0,0));
     assert(ogl::present_coupled_sample_due(1,0));
     assert(ogl::present_coupled_sample_due(119,0));

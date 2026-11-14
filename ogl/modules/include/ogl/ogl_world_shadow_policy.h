@@ -37,6 +37,25 @@ inline bool present_coupled_sample_due(
         current_world_swaps-last_attempt_swap>=120u;
 }
 
+// One bounded, source-matched second PRIVATE VkImage readback per accepted
+// deferred receipt. Normal cadence stays >=120 visible GL world swaps;
+// an explicit silhouette opt-in may add ONE comparison after >=8 swaps.
+// It is never a Vulkan Window Present. The caller MUST still enforce the
+// existing retry/backoff, live input and camera/mesh source validation.
+inline bool present_coupled_motion_pair_due(
+    uint64_t current_world_swaps, uint64_t last_attempt_swap,
+    bool silhouette_opted_in, bool baseline_valid,
+    bool same_region_mesh_capture, bool camera_changed,
+    bool already_attempted_for_receipt, bool depth_debug_mode) noexcept {
+    if (!silhouette_opted_in || !baseline_valid ||
+        !same_region_mesh_capture || !camera_changed ||
+        already_attempted_for_receipt || !depth_debug_mode ||
+        last_attempt_swap==0 || current_world_swaps<last_attempt_swap)
+        return false;
+    const auto elapsed=current_world_swaps-last_attempt_swap;
+    return elapsed>=8u && elapsed<120u;
+}
+
 // Bound private Vulkan diagnostics after repeated in-world GPU failures.
 // This is a recovery throttle, NOT a change to OpenGL world frame pacing.
 // Base cadence remains one eligible GPU attempt per 120 visible swaps.
