@@ -46,6 +46,35 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+14.11.2026 – /goal 20 P05/3 source-gebundener
+Wiederanlauf der zweiten Vulkan-SDL-Weltvorschau:
+Vorher blockierte `ogl_preview_attempted=true`
+auch nach neuer Region/Deferred-Capture jede
+weitere Preview-Erstellung. Neue portable
+`separate_preview_source_retry_allowed()` lässt
+nur nach einem **neuen, bereits positiv validierten**
+OpenSim-Region-/Receipt-/Meshschlüssel genau
+**einen** neuen Preview-Versuch zu. Schlüssel
+vor Window-Attach gespeichert, auch bei Fehler;
+identische Quelle nach Userclose/GPU-Error/
+16-Frame-Limit bleibt gesperrt. Ein neuer
+Quellschlüssel erhält wieder Framezähler 0,
+Module-/Viewer-Reset löscht die Schlüssel.
+OpenGL-Hauptfenster bleibt getrennt; native
+Vulkan-Detach-before-SDL-Destroy unverändert.
+432 Python-/41 native CTests und Linux-
+Vollviewer grün. Vier isolierte SDL-X11-
+GUI-Starts grün: echtes zweites GPU-Fenster
+mit sichtbarem Pixelbeleg; Legacy, fehlende
+Freigaben und Liveflags ohne Login sicher,
+alle mit OpenGL-Login/0 FATAL. Native
+Vulkan-X11 16/32, Mesh-/Region-/Kameratests
+bestanden. **Noch kein echter authentifizierter
+OpenSim-Regionwechsel samt Vorschau-Re-Attach**;
+keine vollständige Vulkan-World-/UI-Engine.
+P05 bleibt 2/20, P05/3 offen. 20 Einzel-
+schritte oben in `ogl/PROJECT_STATUS.md`.
+
 14.11.2026 – /goal 20 P05/3 sichtbare EXKLUSIVE
 Vulkan-SDL-Weltvorschau in EIGENEM Fenster:
 `llwindowsdl2.cpp/.h` kann unter Linux/X11 nun

@@ -2077,6 +2077,28 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('offscreen_coverage_mask()==0',native)
         self.assertIn('present_coupled_coverage_changed_samples(',policy)
 
+    def test_p05_preview_attempt_restarts_once_only_for_new_valid_source(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        policy=(ROOT/'ogl/modules/include/ogl/ogl_world_shadow_policy.h').read_text()
+        a=host.index('void ogl_live_preview_world_swap()')
+        b=host.index('std::uint64_t rtx_wsi_xid',a)
+        fn=host[a:b]
+        self.assertIn('inline bool separate_preview_source_retry_allowed(',policy)
+        self.assertIn('if (!ogl::separate_preview_source_retry_allowed(',fn)
+        self.assertIn('ogl_preview_attempt_region_epoch=live_world_region_epoch;',fn)
+        self.assertIn('ogl_preview_attempt_receipt=live_deferred_receipts;',fn)
+        self.assertIn('ogl_preview_attempt_mesh_generation=revision;',fn)
+        self.assertIn('ogl_preview_frames=0u;',fn)
+        self.assertLess(fn.index('ogl::present_coupled_source_current('),
+                        fn.index('ogl::separate_preview_source_retry_allowed('))
+        self.assertLess(fn.index('ogl_preview_attempted=true;'),
+                        fn.index('LLWindowSDL::createOglVulkanPreviewWindow('))
+        self.assertLess(fn.index('ogl_preview_frames=0u;'),
+                        fn.index('ogl_preview_attach(display,xid,'))
+        self.assertIn('ogl_preview_attempt_region_epoch=0;',host)
+        self.assertIn('ogl_preview_attempt_receipt=0;',host)
+        self.assertIn('ogl_preview_attempt_mesh_generation=0;',host)
+
     def test_p05_real_opensim_vulkan_preview_uses_separate_sdl_x11_window(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
         sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()

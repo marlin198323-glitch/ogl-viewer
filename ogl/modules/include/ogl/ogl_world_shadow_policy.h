@@ -75,6 +75,24 @@ inline bool present_coupled_retry_due(
              present_coupled_retry_delay(failures));
 }
 
+// A secondary Vulkan SDL QA preview is strictly one attempt per REAL
+// source. After 16 frames, user close, failure or Vulkan teardown, do not
+// reopen for the same region+deferred capture+GPU mesh. Allow precisely one
+// fresh attempt after a NEW, positively source-validated snapshot.
+// All SDL/WSI permissions and current GPU readiness are checked separately.
+inline bool separate_preview_source_retry_allowed(
+    bool previously_attempted, bool currently_attached,
+    uint64_t previous_region, uint64_t previous_receipt,
+    uint64_t previous_mesh, uint64_t current_region,
+    uint64_t current_receipt, uint64_t current_mesh) noexcept {
+    if (currently_attached) return true;
+    if (!current_receipt || !current_mesh) return false;
+    return !previously_attempted ||
+        previous_region!=current_region ||
+        previous_receipt!=current_receipt ||
+        previous_mesh!=current_mesh;
+}
+
 // P05/3: source-identity guards at the actual GL-world-swap boundary.
 // This is a CPU-only policy; no GL/Vulkan window ownership is implied.
 // Every rendered GPU sample must belong to a genuine deferred receipt,

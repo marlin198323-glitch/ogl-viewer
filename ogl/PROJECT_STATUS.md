@@ -6,6 +6,71 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Arbeitsschritte: Vulkan-Preview nach neuem OpenSim-Capture kontrolliert wiederzulassen (14.11.2026)
+
+**Realen Lebenszyklusfehler des bestehenden getrennten Vulkan-SDL-X11-Fensters behoben:**
+Die mit `28d005ca` eingeführte streng opt-in Weltvorschau
+`OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1` konnte bis zu 16
+Frame-Presents aus einer authentifizierten OpenSim-Deferred-
+Quelle versuchen, stoppte aber nach User-Close/Quellewechsel/
+GPU-Fehler permanent: `ogl_preview_attempted=true` blieb gesetzt.
+Ein neues, gültiges OpenSim-Region-/Capture-Receipt konnte die
+zweite Surface im laufenden Viewer damit nicht erneut eröffnen.
+
+Jetzt bindet `ogl::separate_preview_source_retry_allowed()` in der
+vorhandenen portablen Policy die **einmalige** SDL-Vulkan-Preview-
+Erlaubnis an einen nachweisbar neuen Region-Epoch-, Deferred-Capture-
+oder GPU-Meshgeneration-Schlüssel. Die vollständige ursprüngliche
+`present-coupled`-GPU-Receipt-, Kamera-, Mesh- und Vulkan-
+Permission-Prüfkette muss **vor** dem neuen Versuch erfolgreich sein.
+Der Schlüssel wird **vor** dem SDL-Window-/Vulkan-Attach gespeichert,
+auch bei einem fehlgeschlagenen GPU-Attach. Für denselben Schlüssel
+bleibt ein Wiederöffnen nach Nutzer-Close, 16 erfolgreichen Frames,
+Fehler oder Vulkan-Teardown verboten; ohne neue source-bestätigte
+OpenSim-Daten wird kein weiterer Versuch gestartet. Bei einem
+wirklich neuen Receipt oder neuer Region/Meshgeneration darf
+**höchstens ein** frischer, separat autorisierter Aufbau stattfinden.
+Der Preview-Framezähler startet dafür wieder bei 0; das normale
+OpenGL-Hauptfenster und seine Events/Surface bleiben getrennt.
+Modul-/Viewer-Lifecycle-Reset löscht die Preview-Versuchsschlüssel.
+Die bestehende `ogl_live_preview_detach()` gibt weiterhin erst
+Vulkan-WSI/Fences und dann das zweite SDL-Fenster frei.
+
+**20 tatsächlich ausgeführte Entwicklungs-/Prüfschritte:**
+
+01. Linux-Mint-Repository `ogl-develop` auf sauberen HEAD `28d005ca` und synchronisiertes Origin geprüft.
+02. `AGENTS.md` mit verbindlichen Vulkan/OpenGL-/Server-/Clock-Grenzen erneut gelesen.
+03. `ogl/PROJECT_HANDOFF.md`, `ogl/PROJECT_STATUS.md`, Hauptroadmap und P05-Detaillog geprüft.
+04. GitHub-CI des Vorgängercommits `28d005ca` als `success` bestätigt.
+05. OpenGenesisLINK `main`, Stable `v0.9.4.0` gegen `ee15af8e...` read-only geprüft: keine Änderung.
+06. Release- und `gen1-updates`-Stand sowie PRs #448/#447/#443 auf neue, aber nicht veröffentlichte Viewer-Verträge geprüft.
+07. Echten OpenSim-Present-Source-Handshake, Preview-Attach-/Detach-/Shutdown und 16-Frame-Limit untersucht.
+08. Permanenten `ogl_preview_attempted`-Sperrzustand nach Region-/Quellwechsel als Lebenszyklusfehler identifiziert.
+09. Portable source-gebundene Preview-Rearm-Policy in bestehendem `ogl_world_shadow_policy.h` ergänzt.
+10. Rücksprung ohne gültige Capture-ID und Meshgeneration vor jeder neuen Preview-Erzeugung abgesichert.
+11. Re-Attach nach neuem Region-Epoch trotz vorheriger Fehlprobe erlaubt.
+12. Re-Attach nach neuem Deferred-Receipt oder Meshgeneration trotz vorheriger Fehlprobe erlaubt.
+13. Erneutes Öffnen mit **identischem** Quellschlüssel nach User-Close, GPU-Fehler oder Frame-16-Ende untersagt.
+14. Source-Versuchsschlüssel in `oglrtxhost.cpp` **vor** Modul- und SDL-Fenster-Attach als verbraucht gespeichert.
+15. Preview-Framezähler für einen wirklich neuen source-gebundenen Versuch sicher auf 0 gesetzt.
+16. Reset aller Preview-Versuchsschlüssel beim bestehenden Modul-/Viewer-Lifecycle hinzugefügt.
+17. Portable C++-Negativ-/Positivfälle für Erstversuch, Duplicate, neue Region, neues Mesh, neues Capture, fehlende Source und UINT64-Grenzen ergänzt.
+18. Python-Vertragstest für Reihenfolge, source-bestätigten Re-Attach und Reset ergänzt: **432/432** Python-Tests bestanden, **41/41** native CTests bestanden.
+19. Kompletter Linux-Viewer-Build und vier isolierte SDL-Xvfb-Starttests erfolgreich: echtes zweites Vulkan-Fenster mit GPU-X11-Pixelbeweis, Legacy-Pfad, fehlende Freigaben (0 Presents), Liveflags ohne Weltlogin (0 falsche OpenSim-Presents); OpenGL-Login in allen vier Fällen, 0 FATAL.
+20. Native Vulkan-X11-Clear-/World-/Depth-16-/32-Frame-Tests, Mesh-Rotation, Region-Barrier und Firestorm-Kameraprojektion bestanden; `git diff --check` sowie Status/Übergabe/Roadmap aktualisiert.
+
+**Nachweisgrenze:** Der source-gebundene Re-Attach wurde durch
+portable native und Python-Vertragstests nachgewiesen; die echte
+SDL-X11-GPU-Vorschau, ihre unabhängige Surface und der GL-Login
+wurden erneut erfolgreich ausgeführt. Einen *authentifizierten*
+OpenSim-In-World-Regionwechsel mit tatsächlich neu geöffneter
+Vulkan-Vorschau gab es in dieser Runde **nicht**. Er bleibt
+explizites Live-Gate. Auch ein erfolgreiches zweites Fenster ist
+noch keine vollständige Vulkan-Hauptfensterengine einschließlich
+Terrain, Avatar, Material und UI. Produktiver OpenGL-Viewer,
+Nutzerprofile/Prozesse und Server blieben unberührt.
+**P05 formal 2/20; P05/3 offen.** P08/P13 Clock-v1 bleibt offen.
+
 ## P05/3 – /goal 20 Arbeitsschritte: zweites SDL-Vulkan-Fenster für echten OpenSim-Weltquellpfad (14.11.2026)
 
 **Neuer Architektur-Meilenstein (Code + echte X11-GPU-Fensterabnahme,

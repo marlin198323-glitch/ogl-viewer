@@ -25,6 +25,20 @@ Quellen stehen in
 ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 unter „Verbindliche externe Server-Kompatibilitätsquelle“.
 
+P05/3 Nachtrag 14.11.2026: Die zweite separate
+Vulkan-SDL-Weltvorschau darf nach einem neuen,
+positiv source-geprüften OpenSim-Region-/Capture-/
+Meshschlüssel **einmal** neu starten; dasselbe
+Receipt kann nach Nutzerclose, GPU-Fehler oder
+16-Frame-Ende nicht wieder geöffnet werden.
+`separate_preview_source_retry_allowed()` und
+Preview-Versuchsschlüssel verhindern Retry-Loops.
+432 Python-/41 native CTests, Linux-Build,
+vier isolierte SDL-X11-Viewerstarts plus native
+Vulkan-X11-Tests grün. Authentifizierter neuer
+OpenSim-Regionwechsel samt Preview-Re-Attach
+noch ungetestet; P05 bleibt 2/20.
+
 P05/3 Architekturstand 14.11.2026: Separates
 Linux-X11-SDL-Fenster für strikt optionale
 Vulkan-Weltvorschau (`OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1`)

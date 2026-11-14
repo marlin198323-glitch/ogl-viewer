@@ -22,6 +22,27 @@ int main() {
     assert(!visible_world(true,true,false,false,false,true,true,false));
     assert(!visible_world(true,true,false,false,false,false,false,false));
     assert(!visible_world(true,true,false,false,false,false,true,true));
+    // A secondary Vulkan window can restart exactly once for a NEW real
+    // OpenSim region/mesh/receipt, not for the same source after close or
+    // a failed X11 attach (no GPU/SDL surface in this pure-policy test).
+    auto preview_retry=[](bool attempted,bool attached,
+        uint64_t old_region,uint64_t old_capture,uint64_t old_mesh,
+        uint64_t region,uint64_t capture,uint64_t mesh) {
+        return ogl::separate_preview_source_retry_allowed(
+            attempted,attached,old_region,old_capture,old_mesh,
+            region,capture,mesh);
+    };
+    assert(preview_retry(false,false,0,0,0,1,1,5));
+    assert(!preview_retry(true,false,1,1,5,1,1,5));
+    assert(preview_retry(true,true,1,1,5,1,1,5));
+    assert(preview_retry(true,false,1,1,5,2,1,5));
+    assert(preview_retry(true,false,1,1,5,1,2,5));
+    assert(preview_retry(true,false,1,1,5,1,1,6));
+    assert(!preview_retry(false,false,0,0,0,1,0,5));
+    assert(!preview_retry(true,false,1,1,5,2,0,6));
+    assert(!preview_retry(true,false,1,1,5,2,2,0));
+    assert(preview_retry(true,false,UINT64_MAX,UINT64_MAX,UINT64_MAX,
+                         1,1,1));
     // Live source may become valid at arbitrarily low FPS. The first
     // qualified GL world swap can trigger the private GPU immediately;
     // subsequent synchronous attempts obey a >=120 world-swap gap.

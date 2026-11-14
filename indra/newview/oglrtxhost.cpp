@@ -221,6 +221,11 @@ OglWorldWindowDetach ogl_preview_detach=nullptr;
 OglPreviewPresent ogl_preview_present=nullptr;
 OglPreviewCount ogl_preview_frame_count=nullptr;
 bool ogl_preview_attempted=false;
+// Source identity consumed BEFORE attempting the secondary Vulkan window.
+// Prevent infinite same-source reopen loops, but allow a new real receipt.
+std::uint64_t ogl_preview_attempt_region_epoch=0;
+std::uint64_t ogl_preview_attempt_receipt=0;
+std::uint64_t ogl_preview_attempt_mesh_generation=0;
 bool ogl_preview_attached=false;
 std::uint64_t ogl_preview_region_epoch=0;
 std::uint64_t ogl_preview_receipt=0;
@@ -290,9 +295,19 @@ void ogl_live_preview_world_swap() {
         if (ogl_preview_attached) ogl_live_preview_detach();
         return;
     }
-    if (ogl_preview_attempted && !ogl_preview_attached) return;
-    if (!ogl_preview_attempted) {
+    if (!ogl::separate_preview_source_retry_allowed(
+            ogl_preview_attempted,ogl_preview_attached,
+            ogl_preview_attempt_region_epoch,ogl_preview_attempt_receipt,
+            ogl_preview_attempt_mesh_generation,
+            live_world_region_epoch,live_deferred_receipts,revision)) return;
+    if (!ogl_preview_attached) {
+        // Consumed even on partial attach failure or user close; no repeat
+        // until a distinct, fully validated real OpenSim source arrives.
         ogl_preview_attempted=true;
+        ogl_preview_attempt_region_epoch=live_world_region_epoch;
+        ogl_preview_attempt_receipt=live_deferred_receipts;
+        ogl_preview_attempt_mesh_generation=revision;
+        ogl_preview_frames=0u;
         ogl_preview_attach=reinterpret_cast<OglWorldWindowAttach>(
             ogl_resolve_module(rtx_module_handle,
                 "ogl_vulkan_world_attach_x11_window"));
@@ -746,6 +761,9 @@ void ogl_init_rtx_module() {
 void ogl_shutdown_rtx_module() {
 #if LL_LINUX && LL_X11 && LL_SDL2
     ogl_preview_attempted=false;
+    ogl_preview_attempt_region_epoch=0;
+    ogl_preview_attempt_receipt=0;
+    ogl_preview_attempt_mesh_generation=0;
     ogl_preview_frames=0;
     LLWindowSDL::setOglWindowResizedCallback(nullptr);
     LLWindowSDL::setOglWindowWillDestroyCallback(nullptr);
