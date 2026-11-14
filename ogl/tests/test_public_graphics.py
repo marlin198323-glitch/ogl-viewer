@@ -462,6 +462,37 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('camera-motion-frames=" << moving_camera_frames',fn)
         self.assertIn('detach();\n            stop();',fn)
 
+    def test_p05_sdl_stale_camera_rejects_gpu_present_and_recovers(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        a=win.index('void ogl_probe_real_sdl_window_before_gl(')
+        b=win.index('} // namespace',a)
+        fn=win[a:b]
+        self.assertIn('OGL_VULKAN_SDL_PREGL_STALE_CAMERA_PROBE',fn)
+        self.assertIn('if (stale_camera_probe &&',fn)
+        self.assertIn('!camera_motion ||',fn)
+        self.assertIn('OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE',fn)
+        self.assertIn('OGL_VULKAN_LIVE_REGION_BARRIER',fn)
+        self.assertIn('P05 SDL stale-camera QA requires isolated per-frame motion',fn)
+        self.assertLess(fn.index('if (stale_camera_probe &&'),
+                        fn.index('SDL_LoadObject("./lib/ogl_rtx.so")'))
+        self.assertIn('stale_camera_probe && group==1 && frame==2',fn)
+        self.assertIn('invalid.camera_right[1]=0.f;',fn)
+        self.assertIn('set_camera(&invalid)==0',fn)
+        self.assertIn('camera_ready()==0',fn)
+        self.assertIn('live_inputs_ready()==0',fn)
+        self.assertIn('camera_mesh_generation()==0',fn)
+        self.assertIn('camera_updates()==before &&',fn)
+        self.assertIn('selected_present(1)==0 &&',fn)
+        self.assertIn('count && count()==frame;',fn)
+        self.assertIn('if (good) ++stale_camera_rejections;',fn)
+        self.assertLess(fn.index('if (good && stale_camera_probe &&'),
+                        fn.index('if (good && camera_motion) {'))
+        self.assertIn('stale_camera_rejections==1 &&',fn)
+        self.assertIn('stale-camera=" << (stale_camera_probe',fn)
+        self.assertIn('stale-camera-rejections=" << stale_camera_rejections',fn)
+        self.assertLess(fn.index('detach();\n            stop();'),
+                        win.index('mContext = SDL_GL_CreateContext( mWindow );'))
+
     def test_p05_actual_sdl_three_extent_multiframe_probe_contract(self):
         win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
         self.assertIn('const bool sequence=sequence_requested && sequence_permitted;',win)

@@ -1,10 +1,94 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 13.11.2026
+Stand: 14.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3 – /goal 20 Blöcke: ungültige Vulkan-Kamera darf keinen alten Weltframe präsentieren (14.11.2026)
+
+**Konkreter neuer Code:** Im vorhandenen `indra/llwindow/llwindowsdl2.cpp`
+ist der rein opt-in aktivierte Vor-GL-SDL-Vulkan-Test um
+`OGL_VULKAN_SDL_PREGL_STALE_CAMERA_PROBE=1` erweitert.
+Er verlangt bereits **vor dem Vulkan-Modulladen** die vollständige
+Firestorm-/World-/Depth-/Persistent-Kamera-Motion-Freigabe;
+Meshrotation oder Regionsbarriere gleichzeitig mit dieser
+isolierten Fehlerprobe sind untersagt. Unvollständige
+Freigaben starten ausschließlich OpenGL.
+
+Nach **zwei echten VkQueuePresentKHR-Frames** im tatsächlichen
+SDL/X11-Testfenster wird einmalig ein vorher gültiger
+Firestorm-Kameradatensatz absichtlich zu einer nichtnormierten
+rechten Kameraachse verändert (`camera_right={0,0,0}`).
+Der bestehende native Vulkan-Kamera-ABI muss diesen Aufruf
+zurückweisen. Vor dem nächsten Frame prüft der SDL-Host
+**alle** Voraussetzungen: `set_camera(&invalid)==0`,
+`camera_ready()==0`, `live_inputs_ready()==0`,
+`camera_mesh_generation()==0`, **unveränderter**
+`camera_updates`-Zähler, `selected_present(1)==0` und
+**unveränderter** Swapchain-Framezähler (`count()==frame`).
+Es darf keine stale Kamera/Mesh-Welt auf dem SDL-Fenster
+präsentiert werden. Anschließend setzt die bestehende
+per-Frame-Kamera-Motion-Schleife eine **neue valide** Kamera,
+prüft frische Generation und Swapchain-Aspekt und führt
+die 20-Frame-Sequenz fort. Nur ein tatsächlicher vollständiger
+GPU-Lauf meldet `stale-camera=verified` und
+`stale-camera-rejections=1`. Kein Quellcode für LSL,
+World-/GL-UI oder Nutzerprofile verändert.
+
+**Durchgeführte unabhängige Linux-SDL-/X11-GPU-Tests** mit
+separaten Xvfb-Displays, temporärem HOME/XDG-Profil und
+gezielt auf die eigene Test-Prozessgruppe beschränktem
+Shutdown: (a) absichtlich ungültige, danach wieder
+frische Kamera: **20/20 GPU-Presents**, **100/100**
+X11-Pixel, drei Fenstergrößen, 1 korrekte stale-Camera-
+Zurückweisung; (b) gleicher Test plus Dual-Sync:
+20/20 GPU-Presents, Dual-Fence=verified;
+(c) normale Kamera-Motion ohne neue Fehlerflag:
+20/20 Presents, stale-Camera=not-requested;
+(d) Fehlerflag bei fehlender Motion-Freigabe:
+**0 Vulkan-Presents** und OpenGL-Login;
+(e) absichtlich injizierter Frame-3-Abbruch:
+**3/20** echte Vulkan-Presents, `stale-camera=failed`
+statt falsch `verified`, vollständiger Vulkan-Detach
+vor GL-Kontext. **Alle fünf Tests erreichten OpenGL
+`STATE_LOGIN_WAIT`; 0 FATAL-Einträge.**
+
+**20 tatsächlich durchgeführte Entwicklungs-/Prüfschritte:**
+
+01. `ogl-develop` gegen `origin/ogl-develop` und Ausgangscommit `1d745c4d` auf sauberen Zustand geprüft.
+02. `AGENTS.md` und die verbindlichen Arbeitsregeln sowie die vorhandene P05-Roadmap gelesen.
+03. `PROJECT_HANDOFF.md` und `PROJECT_STATUS.md` mit tatsächlichen P05/3-Grenzen geprüft.
+04. GitHub-CI des Commits `1d745c4d` auf `success` geprüft.
+05. OpenGenesisLINK-`main` und Stable-Tag `v0.9.4.0` gegen `ee15af8e...` abgeglichen: unverändert.
+06. `gen1-updates`-Tag/Release geprüft: weiterhin nicht veröffentlicht; offene WIP-PRs nicht als Stable interpretiert.
+07. Native `set_world_projection_camera()`-Negativvalidierung und Invalidation bestehender Kamera-/Meshbindungen nachvollzogen.
+08. Vorhandene Vulkan-Swapchain-Frame-Zähler, Readiness- und Frame-Submit-/Present-Gates geprüft.
+09. Weiteres isoliertes Entwicklerflag `OGL_VULKAN_SDL_PREGL_STALE_CAMERA_PROBE` eingeführt.
+10. Vollständige Motion-/Firestorm-/World-/Depth-/Persistent-Permission-Gates bereits vor Vulkan-Modulladen verlangt.
+11. Gleichzeitige Mesh-Rotation und Region-Barrier für diese **isolierte** Stale-Kamera-Probe abgewiesen.
+12. Nach zwei erfolgreich präsentierten Frames eine absichtlich degenerierte Firestorm-Kamera injiziert.
+13. Zurückweisung der GPU-Kamera und Clearing von Bereitschaft/Meshgeneration/Update-Zähler überprüft.
+14. Vulkan-Window-Present mit ungültiger Kamera und Framezählerfortschritt explizit verboten und getestet.
+15. Anschließendes Kamerarebind mit aktueller Mesh-Generation, Viewport-Aspekt und Live-Inputs zur Wiederherstellung genutzt.
+16. Eindeutige `stale-camera`-Statusfelder und Zahl abgewiesener stale-Frames dokumentiert; einen neuen Python-Grafik-Vertragstest ergänzt.
+17. Python 424/424 und Grafiktests 102/102 bestanden; nativer Modul-Build und 41/41 CTests bestanden.
+18. Linux-Firestorm-Vollbuild inklusive Tests bestanden; echte isolierte Xvfb-SDL-GPU-Stale-Recovery mit und ohne Dual-Fence: jeweils 20/20 Frames und 100/100 Pixel.
+19. Rückwärtskompatible Kamera-Motion-Baseline 20/20, Permission-Negativfall 0 Vulkan-Presents, absichtlicher Frame-3-Abbruch 3/20 mit GL-Fallback und ohne FATAL bestanden.
+20. Native Vulkan-X11-GPU-Regressionen Clear/World je 16/32 Frames, Mesh-Rotation, Region-Barrier und Firestorm-Projektionskamera (`firestorm_right=1`) sowie `git diff --check` bestanden.
+
+**Grenzen:** Dieser Test verwendet **synthetische** Welt- und
+Depth-Geometrie im wirklichen SDL-Fenster **vor** der
+OpenGL-Initialisierung. Der frühere echte
+OpenSim-`present-coupled`-GPU-Readback ist ein davon
+**getrennter**, nur privater Vulkan-GPU-Pfad. Ein
+produktiv integrierter, dauerhaft sichtbarer Vulkan-
+In-World-Renderer einschließlich Avatar-/Terrain-/UI-
+Compositing existiert weiterhin nicht. P08/P13-
+Clock-v1-Vorgabe bleibt bestehen. Keine laufenden
+Nutzer-Viewer, Nutzerprofile oder Server modifiziert.
+**P05 weiterhin 2/20, Block P05/3 bleibt offen.**
 
 ## P05/3 – /goal 20 Teilblöcke: SDL-Vulkan-Weltframe mit bewegter Firestorm-Kamera (13.11.2026)
 

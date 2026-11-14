@@ -46,6 +46,35 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+14.11.2026 – /goal 20 P05/3 stale-Kamera-GPU-Present
+und Wiederherstellung: Bestehenden pre-GL-Vulkan-
+SDL-Host in `llwindowsdl2.cpp` mit streng opt-in
+`OGL_VULKAN_SDL_PREGL_STALE_CAMERA_PROBE=1` erweitert.
+Nur mit vollständiger Firestorm-/World-/Depth-/
+Persistent-/Motion-Freigabe; niemals zusammen mit
+Mesh-Rotation oder Region-Barrier. Nach zwei echten
+Swapchain-Presents absichtlich ungültige rechte
+Kameraachse, validierter GPU-Abweisungs-Status,
+**kein** `selected_present` / kein zusätzlicher
+Framezähler, dann frischer Kamera-Rebind und
+weiter bis insgesamt 20 GPU-Presents. Geprüft auf
+ECHTEM SDL-X11-Testfenster mit echter GPU:
+Recovery 20/20 + 100/100 Pixel, zusätzliche
+Dual-Fence-Version 20/20, Legacy 20/20,
+unvollständige Flags 0 Presents, Fault nach 3
+Frames korrekt abgewiesen. Alle 5 Runs zum
+OpenGL-Login mit 0 FATAL. Linux-Vollbuild,
+424 Python-/102 Grafik-/41 native CTests,
+native Clear-/World-16/32-/Rotation-/Barrier-
+Regressionen erfolgreich. OpenGenesisLINK G1 Stable
+noch auf `ee15af8e...`; kein Update-Release.
+Dieser Test nutzt synthetische GPU-Weltdaten VOR
+OpenGL, nicht den separaten echten OpenSim-Source-
+to-private-GPU-Pfad. KEIN produktiver Vulkan-
+Window-Welt-/Avatar-/UI-Renderer, P05 2/20,
+P05/3 weiter offen. 20 echte Einzelschritte oben
+in PROJECT_STATUS.md; keine Nutzerprofile geändert.
+
 13.11.2026 – /goal 20 P05/3 SDL-Kamera pro GPU-Frame:
 `llwindowsdl2.cpp` implementiert separat opt-in
 `OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE=1` mit

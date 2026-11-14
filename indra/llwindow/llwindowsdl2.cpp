@@ -216,6 +216,21 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // Explicit fault-recovery QA: invalidate a previously accepted live
+    // Vulkan projection and ensure the OLD mesh/camera is not presented.
+    // Only the independent per-frame-camera world/depth probe can request
+    // this, and never during a simultaneous region/mesh replacement.
+    const bool stale_camera_probe=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_STALE_CAMERA_PROBE");
+    if (stale_camera_probe &&
+        (!camera_motion ||
+         ogl_pre_gl_flag("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE") ||
+         ogl_pre_gl_flag("OGL_VULKAN_LIVE_REGION_BARRIER"))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL stale-camera QA requires isolated per-frame motion; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -298,6 +313,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool mesh_rotation_verified=false;
     bool region_barrier_verified=false;
     bool camera_motion_verified=false;
+    bool stale_camera_verified=false;
+    uint32_t stale_camera_rejections=0;
     uint32_t moving_camera_frames=0;
     uint32_t verified_pixels=0;
     uint32_t attempted_groups=0;
@@ -626,6 +643,26 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     set_camera(&camera)==1 &&
                                     camera_ready()==1;
                             }
+                            if (good && stale_camera_probe && group==1 && frame==2) {
+                                // Deliberately invalidate the previously valid
+                                // camera while the Vulkan swapchain has already
+                                // presented two REAL GPU frames. No old world
+                                // frame is permitted while camera_ready=0;
+                                // the next validated moving camera restores it.
+                                auto invalid=camera;
+                                invalid.camera_right[0]=0.f;
+                                invalid.camera_right[1]=0.f;
+                                invalid.camera_right[2]=0.f;
+                                const uint64_t before=camera_updates();
+                                good=set_camera(&invalid)==0 &&
+                                     camera_ready()==0 &&
+                                     live_inputs_ready()==0 &&
+                                     camera_mesh_generation()==0 &&
+                                     camera_updates()==before &&
+                                     selected_present(1)==0 &&
+                                     count && count()==frame;
+                                if (good) ++stale_camera_rejections;
+                            }
                             if (good && camera_motion) {
                                 // Genuine Firestorm frame cadence: move the
                                 // world camera on every present, retaining
@@ -726,6 +763,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     pixel_verified=sequence_verified;
                     if (camera_motion)
                         camera_motion_verified=sequence_verified &&
+                            moving_camera_frames==20;
+                    if (stale_camera_probe)
+                        stale_camera_verified=sequence_verified &&
+                            stale_camera_rejections==1 &&
                             moving_camera_frames==20;
                     if (persistent) persistent_verified=
                         persistent_verified && sequence_verified;
@@ -835,6 +876,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             ? (camera_motion_verified ? "verified" : "failed")
             : "not-requested") <<
         ", camera-motion-frames=" << moving_camera_frames <<
+        ", stale-camera=" << (stale_camera_probe
+            ? (stale_camera_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", stale-camera-rejections=" << stale_camera_rejections <<
         ", camera=" << (world ? (world_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", depth=" << (depth ? (depth_verified ? "verified" : "failed")
