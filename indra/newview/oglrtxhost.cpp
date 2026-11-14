@@ -231,6 +231,7 @@ std::uint64_t ogl_preview_region_epoch=0;
 std::uint64_t ogl_preview_receipt=0;
 std::uint64_t ogl_preview_mesh_generation=0;
 std::uint32_t ogl_preview_frames=0;
+bool ogl_preview_world_pixels_verified=false;
 
 void ogl_x11_wsi_will_destroy();
 
@@ -308,6 +309,7 @@ void ogl_live_preview_world_swap() {
         ogl_preview_attempt_receipt=live_deferred_receipts;
         ogl_preview_attempt_mesh_generation=revision;
         ogl_preview_frames=0u;
+        ogl_preview_world_pixels_verified=false;
         ogl_preview_attach=reinterpret_cast<OglWorldWindowAttach>(
             ogl_resolve_module(rtx_module_handle,
                 "ogl_vulkan_world_attach_x11_window"));
@@ -383,7 +385,37 @@ void ogl_live_preview_world_swap() {
         << "presented=" << ogl_preview_frames
         << " limit=16 source=real-deferred gl_owner=separate-window; "
            "NO full Vulkan viewer/UI." << LL_ENDL;
-    if (ogl_preview_frames==16u) ogl_live_preview_detach();
+    // VkQueuePresentKHR is only a QUEUE success; require independent
+    // DISPLAYED X11 pixel evidence before claiming visible OpenSim world
+    // rasterization. On a sparse camera view, do not fabricate success:
+    // keep the bounded preview running and explicitly report inconclusive.
+    if (!ogl_preview_world_pixels_verified &&
+        !LLWindowSDL::oglVulkanPreviewCloseRequested()) {
+        U32 foreground=0;
+        for (unsigned attempt=0;attempt<12u;++attempt) {
+            if (LLWindowSDL::oglVulkanPreviewWorldPixels(
+                    ogl_preview_frames,&foreground)) {
+                ogl_preview_world_pixels_verified=true;
+                LL_INFOS("OGLRenderer")
+                    << "P05 actual OpenSim Vulkan SDL preview X11 geometry: "
+                    << "foreground=" << foreground
+                    << " samples=12288 source=real-deferred "
+                       "separate-window=1; NO full Vulkan viewer/UI."
+                    << LL_ENDL;
+                break;
+            }
+            if (LLWindowSDL::oglVulkanPreviewCloseRequested()) break;
+            SDL_Delay(3);
+        }
+    }
+    if (ogl_preview_frames==16u) {
+        if (!ogl_preview_world_pixels_verified)
+            LL_WARNS("OGLRenderer")
+                << "P05 exclusive Vulkan preview: 16 queue presents "
+                   "but X11 world-pixel evidence inconclusive; "
+                   "no visible-world proof." << LL_ENDL;
+        ogl_live_preview_detach();
+    }
 }
 
 std::uint64_t rtx_wsi_xid = 0;
@@ -765,6 +797,7 @@ void ogl_shutdown_rtx_module() {
     ogl_preview_attempt_receipt=0;
     ogl_preview_attempt_mesh_generation=0;
     ogl_preview_frames=0;
+    ogl_preview_world_pixels_verified=false;
     LLWindowSDL::setOglWindowResizedCallback(nullptr);
     LLWindowSDL::setOglWindowWillDestroyCallback(nullptr);
     ogl_x11_wsi_will_destroy();

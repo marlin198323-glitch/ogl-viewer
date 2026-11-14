@@ -467,6 +467,34 @@ class RTXSceneLogTests(unittest.TestCase):
             base+"P05 actual SDL/X11 pre-GL Vulkan frame: secondary-window=verified\n",1),0)
         self.assertIn('P05 separate Vulkan SDL world preview:',script.read_text())
 
+    def test_p05_live_preview_frontbuffer_pixels_require_current_source(self):
+        base=self.p05_coupled()
+        preview=("P05 actual OpenSim Vulkan SDL preview frame: "
+                 "presented=1 limit=16 source=real-deferred "
+                 "gl_owner=separate-window; NO full Vulkan viewer/UI.\n")
+        pixels=("P05 actual OpenSim Vulkan SDL preview X11 geometry: "
+                "foreground=147 samples=12288 source=real-deferred "
+                "separate-window=1; NO full Vulkan viewer/UI.\n")
+        self.assertEqual(module.p05_live_preview_x11_pixels(base,1,0),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(base+preview,1,1),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+preview+pixels,1,1),147)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+preview+pixels,0,1),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+pixels+preview,1,1),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+preview+pixels.replace('foreground=147','foreground=0'),1,1),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+preview+pixels.replace('foreground=147','foreground=12289'),1,1),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+preview+pixels+"P05 deferred region boundary: epoch=3\n",1,1),0)
+        self.assertEqual(module.p05_live_preview_x11_pixels(
+            base+preview+pixels+"P05 deferred capture receipt: epoch=2 "
+            "capture=5 triangles=70 mesh_generation=9\n",1,1),0)
+        self.assertIn('P05 separate Vulkan SDL preview X11 geometry:',
+                      script.read_text())
+
     def test_p05_live_gpu_silhouette_evidence_strict_numeric_and_source_current(self):
         base=self.p05_coupled()
         record=("P05 live source-qualified Vulkan camera silhouette: "

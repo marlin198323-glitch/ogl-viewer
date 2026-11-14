@@ -1,10 +1,123 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 14.11.2026
+Stand: 15.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3 – /goal 20 Arbeitsschritte: tatsächliche Vulkan-Weltpixel im zweiten SDL-Fenster belegen (15.11.2026 MEZ)
+
+**Tatsächlicher nächster P05-Integrationsschritt (Live-OpenSim-Login noch offen):**
+Der bereits vorhandene strikt opt-in Vulkan-WSI-Livepfad
+`OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1` nutzt eine **zweite**,
+Vulkan-exklusive SDL/X11-Surface nach positivem echten
+OpenSim-Deferred-Receipt. Bisher wurde ein erfolgreiches
+`vkQueuePresentKHR` mit `presented=N` protokolliert, ohne
+nachzuweisen, ob die reale 512×384-Fensterfläche die
+Kamera-/Mesh-Weltgeometrie als Bildpixel enthält. Eine
+leere, noch nicht sichtbare oder nicht präsentierte Welt
+konnte als GPU-Queue-Erfolg ausgegeben werden.
+
+Die neue, nachprüfbare **separate Pixelbeweisstufe** besteht aus:
+
+- `LLWindowSDL::oglVulkanPreviewWorldPixels(frame_index,
+  foreground_samples)` in vorhandenen `llwindowsdl2.h/.cpp`:
+  Linux/X11-only, nur eigene 512×384-SDL-Surface,
+  geprüftes XID, aktives Display, sichtbarer
+  `XWindowAttributes`-Status und genau passende
+  Fenstergröße. `XGetImage` liest temporär den
+  echten X11-Frontbuffer; 128×96=**12.288**
+  Rasterpositionen werden in CPU-Speicher ausschließlich
+  während des QA-Aufrufs als RGB-Zahlen verarbeitet.
+  Der Hintergrund wird nach der echten
+  **alternierenden Vulkan-Swapchain-Clearfarbe** für
+  den jeweiligen Frame unterschieden; nur wenn
+  mindestens **32** Hintergrund-Pixel UND mindestens
+  **8** abweichende Geometriepixel vorhanden sind,
+  ist das Bild positiv. Ein schwarzes/unfertiges
+  Fenster, eine reine Clear-Fläche, ein unpassendes
+  XID/Extent oder ein geschlossener Renderer liefern
+  **keinen** Pixelbeleg. Es werden keinerlei Bilder,
+  Masken, UUIDs, Koordinaten oder Pixel-RGBs
+  gespeichert, exportiert oder protokolliert.
+- `oglrtxhost.cpp` ruft nach einem erfolgreichen
+  echten `present-coupled`-OpenSim-Preview-Present
+  und restaurierter originaler Firestorm-Kamera
+  die Frontbufferkontrolle auf. Weil X11-Window-
+  Present asynchron sein kann, wird ausschließlich
+  innerhalb der Opt-in-Preview höchstens zwölfmal
+  mit 3 ms Pause nachgeprüft, bis echte sichtbare
+  Geometrie erkennbar ist. Danach wird nur **einmal**
+  das numerische Ereignis
+  `P05 actual OpenSim Vulkan SDL preview X11 geometry:
+  foreground=N samples=12288 source=real-deferred
+  separate-window=1` ausgegeben.
+- Bloße `P05 actual OpenSim Vulkan SDL preview frame:
+  presented=N` bleiben getrennte **Queue-Erfolge**.
+  Bei fehlender X11-Pixelevidenz nach den maximalen
+  16 Preview-Presents wird ausdrücklich
+  `inconclusive; no visible-world proof` protokolliert
+  und die zweite Surface via GPU-Detach freigegeben.
+  Keine falsche Bestätigung der Live-Bilddarstellung.
+- `ogl/scripts/ogl-test-report.py` enthält nun eine
+  getrennte, quellaktuelle Prüfung
+  `p05_live_preview_x11_pixels()`. Sie verlangt
+  zunächst eine erfolgreiche `present-coupled`-
+  Privat-GPU-Quittung und mindestens eine gültige
+  zweite Vulkan-Fenster-Framequittung in **derselben
+  Session/Region/Deferred-Capture**. Nur ein danach
+  protokollierter numerischer X11-Pixelbeleg von
+  8 bis 12.288 Samples zählt als `verified`; reine
+  Queue-Presents zeigen `not_observed`.
+- Ein Größenwechsel, Minimieren, Verbergen oder
+  Schließen des zweiten Fensters wird über
+  `oglVulkanPreviewCloseRequested()` und die
+  vorhandene SDL-Eventisolation erkannt. Die
+  unveränderliche 512×384-VkSwapchain wird nicht
+  auf eine geänderte Surface präsentiert;
+  GPU-Swapchain/Fences werden **vor** dem SDL-
+  Window-Destroy freigegeben. Das OpenGL-Hauptfenster
+  behält seine eigene Surface und Eventverarbeitung.
+  Neue Quellaufnahme und Wiederanlaufregeln des
+  vorigen Commits bleiben strikt beibehalten.
+
+**20 tatsächlich ausgeführte Entwicklungs-/Integrations-/QA-Schritte:**
+
+01. `ogl-develop` und sauberen Ausgangsstand `50e2dc68` gegen `origin` auf Linux Mint geprüft.
+02. Autoritative `AGENTS.md` und P05-Sicherheits-/Viewer-Clock-Vorgaben gelesen.
+03. `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md`, bestehende `/goal`-P05-Roadmap und Preview-Quellpfad gelesen.
+04. Erfolgreiche GitHub-CI des Vorgängercommits `50e2dc68` kontrolliert.
+05. OpenGenesisLINK-`main`/Stable `v0.9.4.0` auf unveränderte SHA `ee15af8e...` geprüft.
+06. Offene Server-PRs/Issues einschließlich HGSP2 (#448), AssetService (#447) und G1-Installer (#443) read-only abgeglichen, kein ungetesteter Viewer-Vertrag übernommen.
+07. Bestehende Vulkan-Queue-Presents, echten `present-coupled`-OpenSim-GPU-Receipt und getrennte SDL-Window-Ownership untersucht.
+08. Fehlende X11-Pixelbeweiskette im REALEN OpenSim-Preview und vorhandenen synthetischen SDL-X11-Pixeltest identifiziert.
+09. Neue bestehende `LLWindowSDL`-Schnittstelle für begrenztes sichtbares Frontbuffer-Pixel-Sampling eingeführt.
+10. Live-SDL-X11-Display, Preview-XID, sichtbare Mapping-Bedingung, Fenstergröße und 16-Frame-Grenzen als Vorbedingungen umgesetzt.
+11. Temporäres `XGetImage`-Sampling für 12.288 echte X11-Bildpositionen mit sicherer `XDestroyImage`-Freigabe entwickelt.
+12. Alternierende Vulkan-Clearfarben robust vom sichtbaren Weltfragment separiert; Positivschwellen 32 Hintergrund-/8 Geometriepixel gegen leere/alte Fenster eingeführt.
+13. Neuen echten X11-Pixelbeweis NACH dem OpenSim-`vkQueuePresentKHR`-Frame und ursprünglicher Kamera-Wiederherstellung im Host angebunden.
+14. Asynchrone Bildverfügbarkeit mit maximal zwölf kurzen 3-ms-Polls begrenzt und Erfolgslog auf aggregierte Zähler beschränkt.
+15. Keine irreführende Bildbestätigung nach 16 reinen Queue-Presents: eigener `inconclusive`-Pfad und Vulkan-Detach implementiert.
+16. Lokalen `ogl-test-report.py` um getrennte, strikt an dieselbe Session/Region/Capture gebundene X11-Bildbelege erweitert.
+17. Python-Verträge für X11-Window-/Pixelreihenfolge und Report-Negativfälle (vorzeitiger Beleg, keine Queue, Capture-/Regionwechsel, ungültige Anzahl) ergänzt.
+18. Vorhandenen **echten zweiten SDL/X11-Swapchain-Test** ebenfalls mit derselben Pixel-Samplingroutine gekoppelt: eigener GPU-/Fenster-Pixelnachweis bestanden.
+19. SDL-Resize-/Hide-/Minimize-/Close-Events des zweiten Fensters sicher isoliert, Vulkan-GPU-Teardown vor SDL-Zerstörung erzwungen; **435/435 Python-Tests**, **41/41 native CTests** und Linux-Firestorm-Vollbuild bestanden.
+20. Vier isolierte Xvfb/Linux-Viewerstarts (zweite GPU-X11-Surface positiv, unveränderter Legacy-Pfad, unvollständige Flags blockiert, Live-Flags ohne OpenSim-Login ohne falschen Beleg) sowie native Vulkan-X11-GPU-16-/32-Frame-Clear/World-/Depth-, Meshrotation-, Regionbarrier- und echte Firestorm-Kameratests erfolgreich; `git diff --check` geprüft und Roadmap/Übergabe dokumentiert.
+
+**Abgrenzung / noch offen:** Die positive X11-GPU-End-to-End-
+Pixelprüfung erfolgt mit **synthetischer** World-Geometry
+vor der OpenGL-Anmeldung, während der **echte OpenSim-
+Livepfad** den neuen Pixelbeleg zwar bereits aufruft,
+aber noch nicht mit einer frisch authentifizierten
+OpenSim-Weltsitzung bestätigt wurde. Weder der
+separate Developer-Preview noch sein erfolgreicher
+X11-Pixelnachweis sind ein vollständiger auswählbarer
+Vulkan-Viewer: Hauptfenster, UI, Terrain, Avatare,
+PBR und Materialien werden weiter von OpenGL verwaltet.
+Das Hauptfenster / Benutzerprofile / produktive
+Server und alte Nutzer-Testprozesse wurden nicht
+verändert. **P05 bleibt 2/20; Block P05/3 bleibt offen.**
 
 ## P05/3 – /goal 20 Arbeitsschritte: Vulkan-Preview nach neuem OpenSim-Capture kontrolliert wiederzulassen (14.11.2026)
 

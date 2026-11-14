@@ -25,6 +25,23 @@ Quellen stehen in
 ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 unter „Verbindliche externe Server-Kompatibilitätsquelle“.
 
+P05/3 Nachtrag 15.11.2026: Die zweite reale
+Vulkan-SDL/X11-Weltvorschau besitzt jetzt eine
+unabhängige X11-Frontbuffer-Pixelbestätigung
+(12.288 Samples, Clear-Farbvergleich, numerisches
+Success/Inconclusive), getrennt von erfolgreichen
+`vkQueuePresentKHR`-Zählern. Nur ein positiv
+source-geprüftes echtes OpenSim-Receipt kann im
+Livepfad Geometrie-Nachweise auslösen. Bei
+Resize/Hide/Minimize/Close wird zuerst Vulkan
+und dann das zweite SDL-Fenster freigegeben.
+435 Python-/41 native CTests und Linux-Fullbuild,
+4 echte isolierte SDL-X11-Smokes und Vulkan-
+GPU-Regressionen grün. Neu authentifizierter
+OpenSim-Welt-Beleg mit X11-Bild noch ausstehend.
+Produktiver Vulkan-Hauptfenster-Renderer weiter
+unfertig, P05=2/20. Details in PROJECT_STATUS.md.
+
 P05/3 Nachtrag 14.11.2026: Die zweite separate
 Vulkan-SDL-Weltvorschau darf nach einem neuen,
 positiv source-geprüften OpenSim-Region-/Capture-/

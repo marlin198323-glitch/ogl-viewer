@@ -46,6 +46,47 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+15.11.2026 – /goal 20 P05/3 echter X11-Fensterpixel-
+Beleg für eine zukünftig authentifizierte OpenSim-
+Vulkan-Weltvorschau: Strikt opt-in bestehendes
+**zweites** SDL/X11-Fenster, weiterhin exklusiv
+Vulkan-eigen. Neues `LLWindowSDL::
+oglVulkanPreviewWorldPixels()` wertet nach
+Vulkan-QueuePresent **12.288** X11-Frontbuffer-
+Pixel gegen alternierende VkSwapchain-Clearfarben
+aus. Bildbeleg nur bei mindestens 32 korrekt
+gefärbten Hintergrund- und 8 abweichenden
+Geometriepixeln; reine Clears/unfertige Fenster
+werden abgewiesen. Bis 12×3 ms begrenztes
+asynchrones X11-Sampling; nur aggregierte
+Zählwerte, kein Pixel-/Assetexport.
+Eigenes numerisches Ereignis
+`P05 actual OpenSim Vulkan SDL preview X11 geometry`
+getrennt von `presented=N`; bei max. 16
+Presents ohne sichtbare Welt eigenes
+`inconclusive` und Vulkan-Detach.
+`ogl-test-report.py` prüft Pixelbeleg nur mit
+vorigem positivem Private-GPU-Source-Receipt,
+Vulkan-Window-Frame und derselben Session/
+Region/Capture; darf keine Queue-Presents als
+sichtbare Welt melden. Zweites SDL-Fenster
+wird bei Resize/Hide/Minimize/Close mit
+Vulkan-Detach **vor** SDL-Destroy freigegeben;
+OpenGL-Hauptfenster bleibt unberührt.
+435 Python-/41 native CTests, vollständiger
+Linux-Viewer-Build, vier isolierte Xvfb-GUI-
+Smokes (einschließlich zweiter echter Vulkan-
+Surface mit Pixelproof) sowie native X11-
+Vulkan-GPU-Clear/World/Depth-16/32,
+Rotation/Region/Firestorm-Kamera bestanden.
+**Nachweisgrenze:** Live-OpenSim-X11-Pixelbeleg
+noch NICHT mit authentifiziertem Weltbeitritt
+geprüft; nur der synthetische zweite SDL-
+Fenster-GPU-Present ist GPU-/Pixel-geprüft.
+P05 bleibt 2/20, P05/3 offen. Projektstatus
+enthält alle 20 realen Schritte. Keinerlei
+Server- oder Nutzerprozessänderung.
+
 14.11.2026 – /goal 20 P05/3 source-gebundener
 Wiederanlauf der zweiten Vulkan-SDL-Weltvorschau:
 Vorher blockierte `ogl_preview_attempted=true`

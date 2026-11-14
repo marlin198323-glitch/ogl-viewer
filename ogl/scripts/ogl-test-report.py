@@ -350,6 +350,44 @@ P05_LIVE_PREVIEW = re.compile(
 )
 
 
+# A successful VkQueuePresentKHR alone does NOT confirm a visible world.
+# Count real X11 frontbuffer geometry only after a current-source preview.
+P05_LIVE_PREVIEW_PIXELS = re.compile(
+    r"P05 actual OpenSim Vulkan SDL preview X11 geometry: "
+    r"foreground=(\d+) samples=12288 source=real-deferred "
+    r"separate-window=1; NO full Vulkan viewer/UI\."
+)
+
+
+def p05_live_preview_x11_pixels(log_text: str, confirmed_frames: int,
+                                preview_frames: int):
+    """Bounded numeric pixel evidence for the current real SDL Vulkan preview."""
+    if confirmed_frames<=0 or preview_frames<=0:
+        return 0
+    session=log_text.rfind("P05 deferred evidence session: begin=1")
+    if session<0:
+        return 0
+    current=log_text[session:]
+    for pattern in (P05_REGION,P05_CAPTURE):
+        occurrences=list(pattern.finditer(current))
+        if occurrences:
+            current=current[occurrences[-1].start():]
+    confirmed=0
+    acknowledged=False
+    saw_preview=False
+    for line in current.splitlines():
+        if P05_WORLD_SWAP.search(line):
+            acknowledged=True
+        if P05_LIVE_PREVIEW.search(line) and acknowledged:
+            saw_preview=True
+        pixels=P05_LIVE_PREVIEW_PIXELS.search(line)
+        if pixels and saw_preview:
+            n=int(pixels.group(1))
+            if 8<=n<=12288:
+                confirmed=n
+    return confirmed
+
+
 def p05_live_preview_evidence(log_text: str, confirmed_frames: int):
     """Count sequential current-source separate-window GPU presents only."""
     if confirmed_frames<=0:
@@ -436,6 +474,12 @@ def report():
         print("P05 separate Vulkan SDL world preview:",preview,
               "of 16 source-qualified frame(s); separate window, "
               "no Vulkan viewer UI")
+        preview_pixels=p05_live_preview_x11_pixels(
+            text,evidence["confirmed_world_swap_private_gpu_frames"],preview)
+        print("P05 separate Vulkan SDL preview X11 geometry:",
+              "verified" if preview_pixels else "not_observed",
+              "foreground samples:",preview_pixels,
+              "of 12288; separate Vulkan window, no full viewer UI")
         if evidence["status"]=="no_deferred_evidence_session":
             print("P05 live GPU developer opt-in: no evidence session "
                   "recorded; live Vulkan world draw NOT proven")

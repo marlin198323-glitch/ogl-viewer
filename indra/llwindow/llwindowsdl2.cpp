@@ -1028,9 +1028,17 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     const int green=channel(sample->green_mask);
                                     XDestroyImage(sample);
                                     if (red>=225 && green<90) {
-                                        secondary_window_verified=true;
-                                        secondary_window_stage=6;
-                                        break;
+                                        // Regression of the SAME bounded X11
+                                        // frontbuffer test used by the live
+                                        // real OpenSim developer preview.
+                                        U32 geometry_samples=0;
+                                        if (LLWindowSDL::oglVulkanPreviewWorldPixels(
+                                                1u,&geometry_samples) &&
+                                            geometry_samples>=8u) {
+                                            secondary_window_verified=true;
+                                            secondary_window_stage=6;
+                                            break;
+                                        }
                                     }
                                 }
                                 SDL_Delay(3);
@@ -1177,9 +1185,90 @@ bool LLWindowSDL::createOglVulkanPreviewWindow(
 bool LLWindowSDL::oglVulkanPreviewCloseRequested()
 {
 #if LL_LINUX
-    return !gOglVulkanPreviewWindow || gOglVulkanPreviewCloseRequested;
+    if (!gOglVulkanPreviewWindow || gOglVulkanPreviewCloseRequested)
+        return true;
+    // The prototype has a fixed 512x384 VkSwapchain. A WM/user resize,
+    // minimize or hide cannot safely keep rendering to that old extent.
+    int width=0,height=0;
+    SDL_GetWindowSize(gOglVulkanPreviewWindow,&width,&height);
+    const Uint32 flags=SDL_GetWindowFlags(gOglVulkanPreviewWindow);
+    return width!=512 || height!=384 ||
+        (flags & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN))!=0;
 #else
     return true;
+#endif
+}
+
+bool LLWindowSDL::oglVulkanPreviewWorldPixels(
+    U32 frame_index,U32* foreground_samples)
+{
+#if LL_LINUX
+    if (!foreground_samples || frame_index==0u || frame_index>16u ||
+        !gOglVulkanPreviewWindow || gOglVulkanPreviewCloseRequested ||
+        !gOglVulkanPreviewXid) return false;
+    *foreground_samples=0;
+    int width=0,height=0;
+    SDL_GetWindowSize(gOglVulkanPreviewWindow,&width,&height);
+    if (width!=512 || height!=384) return false;
+    SDL_SysWMinfo wm{};
+    SDL_VERSION(&wm.version);
+    if (!SDL_GetWindowWMInfo(gOglVulkanPreviewWindow,&wm) ||
+        wm.subsystem!=SDL_SYSWM_X11 || !wm.info.x11.display ||
+        static_cast<U64>(wm.info.x11.window)!=gOglVulkanPreviewXid)
+        return false;
+    auto* display=wm.info.x11.display;
+    const Window window=wm.info.x11.window;
+    XWindowAttributes attributes{};
+    if (!XGetWindowAttributes(display,window,&attributes) ||
+        attributes.width!=512 || attributes.height!=384 ||
+        attributes.map_state!=IsViewable) return false;
+    XSync(display,False);
+    XImage* image=XGetImage(display,window,0,0,512,384,
+                           AllPlanes,ZPixmap);
+    if (!image || !image->red_mask || !image->green_mask ||
+        !image->blue_mask) {
+        if (image) XDestroyImage(image);
+        return false;
+    }
+    auto color_channel=[](unsigned long pixel,
+                          unsigned long mask) -> int {
+        unsigned shift=0;
+        while (!(mask&1UL)) {mask>>=1; ++shift;}
+        return static_cast<int>((((pixel>>shift)&mask)*255UL+mask/2)/mask);
+    };
+    // These are the Vulkan persistent-world SWAPCHAIN clear values.
+    // A black/unpainted X11 window cannot be mistaken for GPU geometry:
+    // BOTH confirmed clear pixels AND distinct world pixels are required.
+    const bool warm=(frame_index%2u)==0u;
+    const int background_r=warm ? 166 : 20;
+    const int background_g=warm ? 89 : 54;
+    const int background_b=warm ? 31 : 115;
+    auto near_color=[](int actual,int expected) {
+        const int difference=actual-expected;
+        return difference>=-20 && difference<=20;
+    };
+    U32 clears=0,foreground=0;
+    // One bounded 128x96 scan of this fixed 512x384 QA window, no raw
+    // X11 image contents retained beyond the current call.
+    for (int y=2;y<384;y+=4) {
+        for (int x=2;x<512;x+=4) {
+            const auto pixel=XGetPixel(image,x,y);
+            const int r=color_channel(pixel,image->red_mask);
+            const int g=color_channel(pixel,image->green_mask);
+            const int b=color_channel(pixel,image->blue_mask);
+            if (near_color(r,background_r) &&
+                near_color(g,background_g) &&
+                near_color(b,background_b)) ++clears;
+            else ++foreground;
+        }
+    }
+    XDestroyImage(image);
+    if (clears<32u || foreground<8u) return false;
+    *foreground_samples=foreground;
+    return true;
+#else
+    (void)frame_index; (void)foreground_samples;
+    return false;
 #endif
 }
 
@@ -2986,8 +3075,16 @@ void LLWindowSDL::gatherInput()
             }
             if (target_id==preview_id) {
                 if (event.type==SDL_WINDOWEVENT &&
-                    event.window.event==SDL_WINDOWEVENT_CLOSE &&
-                    gOglVulkanPreviewWindow) {
+                    gOglVulkanPreviewWindow &&
+                    (event.window.event==SDL_WINDOWEVENT_CLOSE ||
+                     event.window.event==SDL_WINDOWEVENT_RESIZED ||
+                     event.window.event==SDL_WINDOWEVENT_SIZE_CHANGED ||
+                     event.window.event==SDL_WINDOWEVENT_MINIMIZED ||
+                     event.window.event==SDL_WINDOWEVENT_HIDDEN)) {
+                    // The next source-qualified preview GL-world-swap
+                    // retires Vulkan GPU work BEFORE SDL window destruction.
+                    // Never forward these secondary-window events into the
+                    // primary OpenGL viewer's keyboard/window handlers.
                     gOglVulkanPreviewCloseRequested=true;
                     SDL_HideWindow(gOglVulkanPreviewWindow);
                 }

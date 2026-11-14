@@ -2099,6 +2099,65 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('ogl_preview_attempt_receipt=0;',host)
         self.assertIn('ogl_preview_attempt_mesh_generation=0;',host)
 
+    def test_p05_secondary_vulkan_preview_closes_on_resize_or_hide(self):
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        a=sdl.index('bool LLWindowSDL::oglVulkanPreviewCloseRequested()')
+        b=sdl.index('bool LLWindowSDL::oglVulkanPreviewWorldPixels(',a)
+        fn=sdl[a:b]
+        for marker in ('SDL_GetWindowSize(gOglVulkanPreviewWindow,',
+                       'SDL_GetWindowFlags(gOglVulkanPreviewWindow)',
+                       'width!=512 || height!=384',
+                       'SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN'):
+            self.assertIn(marker,fn)
+        event=sdl[sdl.index('if (gOglVulkanPreviewWindowID) {'):]
+        for marker in ('SDL_WINDOWEVENT_CLOSE',
+                       'SDL_WINDOWEVENT_RESIZED',
+                       'SDL_WINDOWEVENT_SIZE_CHANGED',
+                       'SDL_WINDOWEVENT_MINIMIZED',
+                       'SDL_WINDOWEVENT_HIDDEN',
+                       'gOglVulkanPreviewCloseRequested=true;',
+                       'SDL_HideWindow(gOglVulkanPreviewWindow);'):
+            self.assertIn(marker,event)
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        self.assertIn('LLWindowSDL::oglVulkanPreviewCloseRequested()',host)
+        self.assertIn('if (ogl_preview_detach)\n        ogl_preview_detach();',host)
+        self.assertLess(host.index('    if (ogl_preview_detach)\n        ogl_preview_detach();'),
+                        host.index('LLWindowSDL::destroyOglVulkanPreviewWindow();'))
+
+    def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        header=(ROOT/'indra/llwindow/llwindowsdl2.h').read_text()
+        a=host.index('void ogl_live_preview_world_swap()')
+        b=host.index('std::uint64_t rtx_wsi_xid',a)
+        fn=host[a:b]
+        self.assertIn('static bool oglVulkanPreviewWorldPixels',header)
+        self.assertIn('LLWindowSDL::oglVulkanPreviewWorldPixels(',fn)
+        self.assertIn('ogl_preview_world_pixels_verified=true;',fn)
+        self.assertIn('P05 actual OpenSim Vulkan SDL preview X11 geometry:',fn)
+        self.assertIn('foreground=',fn)
+        self.assertIn('no visible-world proof.',fn)
+        self.assertLess(fn.index('ogl_preview_present(1u)==1u'),
+                        fn.index('LLWindowSDL::oglVulkanPreviewWorldPixels('))
+        self.assertLess(fn.index('LLWindowSDL::oglVulkanPreviewWorldPixels('),
+                        fn.index('P05 actual OpenSim Vulkan SDL preview X11 geometry:'))
+        self.assertIn('ogl_preview_world_pixels_verified=false;',host)
+        method=sdl[sdl.index('bool LLWindowSDL::oglVulkanPreviewWorldPixels('):
+                   sdl.index('void LLWindowSDL::destroyOglVulkanPreviewWindow()')]
+        for phrase in ('frame_index>16u','gOglVulkanPreviewCloseRequested',
+                       'SDL_GetWindowSize(', 'SDL_GetWindowWMInfo(',
+                       'XGetWindowAttributes(', 'attributes.map_state!=IsViewable',
+                       'XGetImage(display,window,0,0,512,384,',
+                       'XDestroyImage(image);','frame_index%2u',
+                       'background_r=warm ? 166 : 20',
+                       'background_g=warm ? 89 : 54',
+                       'background_b=warm ? 31 : 115',
+                       'for (int y=2;y<384;y+=4)',
+                       'for (int x=2;x<512;x+=4)',
+                       'clears<32u || foreground<8u'):
+            self.assertIn(phrase,method)
+        self.assertNotIn('SDL_GL_CreateContext(',method)
+
     def test_p05_real_opensim_vulkan_preview_uses_separate_sdl_x11_window(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
         sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
@@ -2124,7 +2183,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'world_set_camera(&last_live_world_camera)==1',
             'ogl_preview_present(1u)==1u',
             'ogl_preview_frames>=16u',
-            'if (ogl_preview_frames==16u) ogl_live_preview_detach();',
+            'if (ogl_preview_frames==16u) {',
             'NO full Vulkan viewer/UI.',
         ):
             self.assertIn(token,fn)
@@ -2140,6 +2199,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('if (target_id==preview_id)',sdl)
         self.assertIn('gOglVulkanPreviewCloseRequested=true;',sdl)
         self.assertIn('gOglVulkanPreviewXid',sdl)
+        self.assertIn('LLWindowSDL::oglVulkanPreviewWorldPixels(',sdl)
         self.assertIn('event.syswm.msg->msg.x11.event.xany.window',sdl)
         self.assertIn('createOglVulkanPreviewWindow(',header)
         self.assertIn('destroyOglVulkanPreviewWindow();',header)

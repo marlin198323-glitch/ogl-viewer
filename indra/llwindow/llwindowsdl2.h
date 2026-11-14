@@ -174,6 +174,10 @@ public:
     static bool createOglVulkanPreviewWindow(void** display, U64* window,
                                               int* width, int* height);
     static bool oglVulkanPreviewCloseRequested();
+    // Read back bounded X11 FRONTBUFFER color evidence from the separate
+    // Vulkan-only SDL window. Never return or persist raw image/pixel data.
+    static bool oglVulkanPreviewWorldPixels(U32 frame_index,
+                                           U32* foreground_samples);
     static void destroyOglVulkanPreviewWindow();
 #endif // LL_X11
 
