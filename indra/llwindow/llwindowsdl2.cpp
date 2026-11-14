@@ -231,6 +231,21 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // Proof of ACTUAL raster movement, not merely an accepted camera
+    // counter. This independent QA needs an immutable two-triangle mesh:
+    // mesh/region churn and deliberately stale cameras have separate tests.
+    const bool motion_pixels=
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_MOTION_PIXELS_PROBE");
+    if (motion_pixels &&
+        (!camera_motion ||
+         ogl_pre_gl_flag("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE") ||
+         ogl_pre_gl_flag("OGL_VULKAN_LIVE_REGION_BARRIER") ||
+         stale_camera_probe)) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL motion-pixel QA requires immutable moving-camera world; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -314,6 +329,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool region_barrier_verified=false;
     bool camera_motion_verified=false;
     bool stale_camera_verified=false;
+    bool motion_pixels_verified=false;
+    uint32_t motion_pixel_changes=0;
     uint32_t stale_camera_rejections=0;
     uint32_t moving_camera_frames=0;
     uint32_t verified_pixels=0;
@@ -534,6 +551,42 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     }
                     return false;
                 };
+                // The five original pixels prove a GPU triangle was drawn,
+                // but cannot prove that a moving camera shifts its image.
+                // Read ONLY a transient X11 window scanline and classify
+                // triangle-vs-background by red/green channels, invariant
+                // to the alternate warm/cool clear colors per frame. Never
+                // write captured window pixels to logs, cache or files.
+                auto front_geometry_mask=[&](int width,int height,
+                                              uint64_t& mask) {
+                    if (width<64 || height<8) return false;
+                    XSync(wm.info.x11.display,False);
+                    XImage* scan=XGetImage(wm.info.x11.display,
+                        wm.info.x11.window,0,height/2,
+                        static_cast<unsigned>(width),1,AllPlanes,ZPixmap);
+                    if (!scan) return false;
+                    auto channel=[](unsigned long value,
+                                    unsigned long mask) -> int {
+                        if (!mask) return -1;
+                        unsigned shift=0;
+                        while (!(mask&1UL)) { mask>>=1; ++shift; }
+                        return static_cast<int>(
+                            (((value>>shift)&mask)*255UL+mask/2)/mask);
+                    };
+                    uint64_t bits=0;
+                    for (unsigned sample=0;sample<64;++sample) {
+                        const int x=static_cast<int>(
+                            (static_cast<uint64_t>(sample+1)*width)/65u);
+                        const unsigned long value=XGetPixel(scan,x,0);
+                        const int red=channel(value,scan->red_mask);
+                        const int green=channel(value,scan->green_mask);
+                        if (red>=210 && green<100)
+                            bits|=UINT64_C(1)<<sample;
+                    }
+                    XDestroyImage(scan);
+                    mask=bits;
+                    return bits!=0;
+                };
                 // Verify the server-side X11 window extent rather than
                 // trusting only the dimensions cached by SDL.
                 auto x11_extent_matches=[&](int width,int height) {
@@ -579,6 +632,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                 group>1 ? 1u : 2u);
                     }
                     attached|=good;
+                    uint64_t initial_geometry_mask=0;
                     if (good) {
                         for (uint32_t frame=0;frame<frames;++frame) {
                             // Faults are injected AFTER a few successful
@@ -687,6 +741,25 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                 good=false;
                                 break;
                             }
+                            if (motion_pixels && group==1 &&
+                                (frame==0 || frame==frames-1)) {
+                                uint64_t visible_mask=0;
+                                good=front_geometry_mask(width,height,visible_mask);
+                                if (good && frame==0)
+                                    initial_geometry_mask=visible_mask;
+                                if (good && frame==frames-1) {
+                                    const uint64_t changed=
+                                        initial_geometry_mask^visible_mask;
+                                    // Silhouette must actually shift, not
+                                    // just switch debug background colors.
+                                    good=changed!=0;
+                                    if (good) {
+                                        motion_pixel_changes=static_cast<uint32_t>(
+                                            __builtin_popcountll(changed));
+                                    }
+                                }
+                                if (!good) break;
+                            }
                             ++presented;
                         }
                     }
@@ -768,6 +841,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         stale_camera_verified=sequence_verified &&
                             stale_camera_rejections==1 &&
                             moving_camera_frames==20;
+                    if (motion_pixels)
+                        motion_pixels_verified=sequence_verified &&
+                            motion_pixel_changes>0;
                     if (persistent) persistent_verified=
                         persistent_verified && sequence_verified;
                     if (persistent_world) {
@@ -880,6 +956,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             ? (stale_camera_verified ? "verified" : "failed")
             : "not-requested") <<
         ", stale-camera-rejections=" << stale_camera_rejections <<
+        ", motion-pixels=" << (motion_pixels
+            ? (motion_pixels_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", motion-pixel-changes=" << motion_pixel_changes <<
         ", camera=" << (world ? (world_verified ? "verified" : "failed")
                               : "not-requested") <<
         ", depth=" << (depth ? (depth_verified ? "verified" : "failed")

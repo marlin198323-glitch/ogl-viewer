@@ -6,6 +6,102 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Blöcke: Kamera-Bewegung muss reale Vulkan-Pixel verändern (14.11.2026)
+
+**Konkrete P05/3-Korrektur am bestehenden SDL/Vulkan-Window-Present-Pfad:**
+Der vorige Test `OGL_VULKAN_SDL_PREGL_CAMERA_MOTION_PROBE` hatte
+pro Frame zwar eine numerisch neue Kamera durch das native
+Vulkan-ABI bestätigt, beweist jedoch noch nicht, dass die
+**sichtbaren GPU-Rasterpixel** sich dadurch verschieben. Die
+bisherige 5-Pixel-Prüfung untersucht nur die Dreiecksmitte
+und vier unveränderte Hintergrund-Ecken; eine intern
+ignorierte Kamera-Transform könnte dort unentdeckt bleiben.
+
+Der zusätzliche **standardmäßig deaktivierte**
+`OGL_VULKAN_SDL_PREGL_MOTION_PIXELS_PROBE=1` stellt nun
+in `indra/llwindow/llwindowsdl2.cpp` eine streng
+isolierte, echte X11-Frontbuffer-**Geometriesilhouetten-
+Prüfung** bereit. Er erfordert den vollständigen
+Firestorm-World-/Depth-/Persistent-/Camera-Motion-Test
+und verbietet simultane Mesh-Rotation, Region-Barriere
+oder Stale-Camera-Injektion. Fehlende/inkompatible
+Berechtigungen werden **vor dem Vulkan-Modulladen**
+abgewiesen. Das getrennte Live-OpenSim-Opt-in wird
+nicht aktivierbar gemacht oder verändert.
+
+Für das **erste Fenster-Extent** scannt die neue
+GPU-Prüfung nach dem echten Frame-Present und der
+bisherigen fünf sichtbaren Pixelkontrollen genau die
+mittlere Fensterzeile. Von 64 repräsentativen
+Pixelpositionen wird lediglich eine **64-Bit-Maske**
+gebildet: `red >= 210 && green < 100` steht für
+getroffene Dreiecksgeometrie, nicht für den
+abwechselnd warmen/kühlen Debug-Hintergrund.
+Die erste Aufnahme erfolgt nach Frame 0, die zweite
+nach Frame 7 (sieben akzeptierte Kamerabewegungen).
+Nur bei gültiger Rastermaske und mindestens einer
+**tatsächlich geänderten** Geometrieposition meldet
+der Test `motion-pixels=verified`. Die Bit-Differenz
+wird als aggregierte Zahl `motion-pixel-changes=N`
+protokolliert. Die Bildpixel bleiben ausschließlich
+kurzzeitig in der Testfunktion, **keine Screenshots,
+Benutzerkoordinaten, Assets oder Texturen** gespeichert.
+Fehler beim X11-Bildlesen oder eine unveränderte
+Silhouette schlagen fehl und führen zum bisherigen
+sicheren Vulkan-Detach / regulären OpenGL-Login.
+
+**Unabhängiger Live-X11-GPU-Befund auf dem wirklichen
+SDL-Viewerfenster:** 20/20 echte Vulkan-Presents,
+100/100 Standard-Pixelprüfungen, drei Fenstergrößen,
+`camera-motion-frames=20`, `motion-pixels=verified`,
+**3 von 64 veränderten Silhouetten-Abtastpositionen**.
+Mit zusätzlichem Dual-Fence-Test wieder 20/20 und
+3/64; beide isolierten Viewer erreichten nach
+dem Vulkan-Detach `STATE_LOGIN_WAIT` unter OpenGL.
+Legacy ohne zusätzliche Pixelprobe 20/20 mit
+`motion-pixels=not-requested`; fehlendes Motion-
+Opt-in oder widersprüchliche Mesh-Rotation/Stale-
+Camera-Anforderung führten zu **0 Vulkan-Presents**
+und normalem GL-Login. Bei kontrolliertem
+Frame-3-Abbruch wurden lediglich 3/20 gültige
+GPU-Frames bestätigt; `motion-pixels=failed`,
+kein irreführender Erfolg und kein FATAL.
+
+**20 tatsächlich ausgeführte Entwicklungs-/Prüfschritte:**
+
+01. `ogl-develop` und sauberen Ausgangscommit `8de42e62` verifiziert.
+02. Verbindliche `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und P05-Roadmap gelesen.
+03. GitHub-CI für `8de42e62` als `success` geprüft.
+04. OpenGenesisLINK `main` / Stable `v0.9.4.0` mit `ee15af8e...` verglichen: unverändert.
+05. `gen1-updates`-Status und offene WIP-PRs #448/#447/#443 kontrolliert; keine Stable-Viewer-Änderung behauptet.
+06. Echten OpenSim-`present-coupled`-GPU-Provenienzpfad von synthetischer pre-GL-X11-Window-Ownership getrennt geprüft.
+07. Die 5-Pixel-GPU-Regressionsprüfung auf fehlenden **Nachweis tatsächlicher Kameraverschiebung** untersucht.
+08. Separates Opt-in `OGL_VULKAN_SDL_PREGL_MOTION_PIXELS_PROBE` im vorhandenen SDL-Fenstercode ergänzt.
+09. Strikte Vorgabe: nur per-Frame-Firestorm-Kamera und unveränderte Welt-/Depth-Geometrie erlaubt.
+10. Gleichzeitig aktivierte Mesh-Rotation, Region-Barriere oder Stale-Kamera-Injektion vor Vulkan-Modulladen ausgeschlossen.
+11. Temporäres X11-Mittellinien-Readback mit `XGetImage` und sicherer Fehlerbehandlung umgesetzt.
+12. RGB-/Bitmaske für 64 Geometrie-Abtastpunkte eingeführt; warme/kühle Debug-Hintergrundfarben ausgeschlossen.
+13. Geometriemaske an Frame 0 nach GPU-Present und bestätigten 5 Referenzpixeln entnommen.
+14. Zweite Geometriemaske nach Frame 7 entnommen und nur bei tatsächlicher Bitänderung als bewegt gewertet.
+15. Ergebnisfelder `motion-pixels` und `motion-pixel-changes` ohne Bild-/Privatdaten ergänzt.
+16. Python-Quellvertragstest für Opt-in, Quarantäneflags, Reihenfolge, Pixelmaske und Delta ergänzt: 103/103 Grafiktests.
+17. Linux-Vollviewer erfolgreich gebaut; 425/425 Python- und 41/41 native CTests bestanden.
+18. Echte SDL/X11-Tests mit und ohne Dual-Fence: jeweils 20/20 Presents, 100/100 Pixel und 3 Silhouetten-Änderungen bestanden.
+19. Negativ-/Regressionsläufe: Legacy 20/20, fehlende Motion-Freigabe/Rotation/Stale-Kamera 0 Presents, Frame-3-Abbruch 3/20 korrekt als fehlgeschlagen, alle OpenGL-Logins und 0 FATAL.
+20. Native Vulkan-X11-GPU-Regressionsläufe Clear/World/Depth 16/32, Meshrotation, Regionsbarriere und echte Firestorm-Kameraprojektion sowie `git diff --check` bestanden.
+
+**Strikte Grenze:** Dies beweist, dass die Vulkan-
+Projektionskamera auf einem echten SDL/X11-Fenster
+die **synthetische Dreiecksgeometrie sichtbar
+verschiebt**. Es verbindet noch **keine echte
+OpenSim-Weltgeometrie** mit der permanenten Vulkan-
+Window-Swapchain, rendert nicht alle Terrain-/Avatar-/
+Material-/UI-Ebenen und ersetzt den OpenGL-Renderer
+nicht. Die servergesteuerte MEZ/MESZ-Clock-v1 bleibt
+P08/P13-Pflicht. Keine laufende Benutzer-Sitzung oder
+Produktivserver verändert. **P05 bleibt 2/20; P05/3
+weiter offen.**
+
 ## P05/3 – /goal 20 Blöcke: ungültige Vulkan-Kamera darf keinen alten Weltframe präsentieren (14.11.2026)
 
 **Konkreter neuer Code:** Im vorhandenen `indra/llwindow/llwindowsdl2.cpp`

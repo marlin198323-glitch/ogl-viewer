@@ -46,6 +46,36 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+14.11.2026 – /goal 20 P05/3 echte Vulkan-GPU-
+Silhouettenverschiebung nach Firestorm-Kamera-
+Update: Vorher bewiesen 20/20 GPU-Presents nur
+unveränderte 5 Referenzpixel, kein tatsächliches
+verschobenes Bild. Neues strikt opt-in
+`OGL_VULKAN_SDL_PREGL_MOTION_PIXELS_PROBE=1`
+in `llwindowsdl2.cpp`: nur mit vollständiger
+Firestorm-World-/Depth-/Kamera-Motion-Erlaubnis,
+nicht parallel zu Mesh-Rotation, Region-Barrier,
+Stale-Camera; vor Modul-Laden fail-closed.
+Nach echten Frames 0 und 7 auf dem SDL/X11-Fenster
+64 Mittellinienpositionen per kurzlebigem `XGetImage`
+als 64-Bit-Geometrierechtsmaske gewertet; nur bei
+`XOR!=0` Erfolg, Hintergrund-Tint-Wechsel ignoriert.
+Zwei Xvfb-Läufe (normal und Dual-Fence): 20/20
+GPU-Presents, 100/100 Standardpixel, **3/64**
+veränderte Silhouettenpositionen, OpenGL-Login.
+Legacy 20/20, unzulässige Flagkombination 0
+Vulkan-Presents, Frame-3-Fault 3/20 ohne falschen
+Erfolg und nachher sicherer GL-Login; alle 0 FATAL.
+425/425 Python-/103 Grafik-/41 native CTests,
+Linux-Fullbuild und native 16/32-GPU-Regressions-
+läufe erfolgreich. G1 Stable `ee15af8e...`
+unverändert, offene Server-PRs nicht deployed.
+WICHTIG: synthetische World-Meshes vor GL, **noch
+kein** echter permanenter Vulkan-OpenSim-SDL-
+In-World-Present. P05 weiter 2/20, P05/3 offen.
+20 Schritte in PROJECT_STATUS.md; keine User-
+Sitzungen oder Server verändert.
+
 14.11.2026 – /goal 20 P05/3 stale-Kamera-GPU-Present
 und Wiederherstellung: Bestehenden pre-GL-Vulkan-
 SDL-Host in `llwindowsdl2.cpp` mit streng opt-in

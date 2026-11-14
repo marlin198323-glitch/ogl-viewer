@@ -493,6 +493,31 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(fn.index('detach();\n            stop();'),
                         win.index('mContext = SDL_GL_CreateContext( mWindow );'))
 
+    def test_p05_sdl_moving_camera_changes_actual_gpu_triangle_silhouette(self):
+        win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
+        a=win.index('void ogl_probe_real_sdl_window_before_gl(')
+        b=win.index('} // namespace',a)
+        fn=win[a:b]
+        self.assertIn('OGL_VULKAN_SDL_PREGL_MOTION_PIXELS_PROBE',fn)
+        self.assertIn('if (motion_pixels &&',fn)
+        self.assertIn('!camera_motion ||',fn)
+        self.assertIn('stale_camera_probe))',fn)
+        self.assertLess(fn.index('if (motion_pixels &&'),
+                        fn.index('SDL_LoadObject("./lib/ogl_rtx.so")'))
+        self.assertIn('auto front_geometry_mask=',fn)
+        self.assertIn('XGetImage(wm.info.x11.display,',fn)
+        self.assertIn('red>=210 && green<100',fn)
+        self.assertIn('bits|=UINT64_C(1)<<sample;',fn)
+        self.assertIn('initial_geometry_mask^visible_mask',fn)
+        self.assertIn('motion_pixel_changes=static_cast<uint32_t>(',fn)
+        self.assertIn('motion_pixels_verified=sequence_verified &&',fn)
+        self.assertIn('motion-pixels=" << (motion_pixels',fn)
+        self.assertIn('motion-pixel-changes=" << motion_pixel_changes',fn)
+        self.assertLess(fn.index('if (good && camera_motion) {'),
+                        fn.index('if (motion_pixels && group==1 &&'))
+        self.assertLess(fn.index('verified_visible_pixel(width,height,frame)'),
+                        fn.index('initial_geometry_mask^visible_mask'))
+
     def test_p05_actual_sdl_three_extent_multiframe_probe_contract(self):
         win=(ROOT/"indra/llwindow/llwindowsdl2.cpp").read_text()
         self.assertIn('const bool sequence=sequence_requested && sequence_permitted;',win)
