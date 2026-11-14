@@ -107,6 +107,29 @@ inline bool present_coupled_pixel_stats_valid(
            (lit_pixels==0u || mean_luminance>0u);
 }
 
+// The private VkImage exposes only 64 in-process geometry-hit bits.
+// A changed silhouette is independently meaningful ONLY for the same
+// genuine region, mesh, source receipt and a newly accepted camera pose.
+// It is not proof of visible Vulkan Window Present or full scene quality.
+inline uint32_t present_coupled_coverage_changed_samples(
+    bool previous_valid, uint64_t previous_region, uint64_t current_region,
+    uint64_t previous_mesh, uint64_t current_mesh,
+    uint64_t previous_receipt, uint64_t current_receipt,
+    bool same_camera_pose, uint64_t previous_mask,
+    uint64_t current_mask) noexcept {
+    if (!previous_valid || previous_region!=current_region ||
+        previous_mesh==0 || previous_mesh!=current_mesh ||
+        previous_receipt==0 || previous_receipt!=current_receipt ||
+        same_camera_pose) return 0u;
+    uint64_t differences=previous_mask^current_mask;
+    uint32_t changed=0;
+    while (differences) {
+        differences&=differences-1u;
+        ++changed;
+    }
+    return changed;
+}
+
 // Identical pose and mesh do NOT prove that the captured real-world
 // material/source data stayed unchanged: the deferred receipt also matters.
 inline bool present_coupled_needs_redraw(

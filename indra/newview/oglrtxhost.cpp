@@ -107,6 +107,9 @@ using ogl_world_offscreen_count_fn = std::uint64_t (*)();
 ogl_world_offscreen_count_fn world_offscreen_scene_frames = nullptr;
 using ogl_world_offscreen_pixels_fn = uint32_t (*)();
 ogl_world_offscreen_pixels_fn world_offscreen_scene_pixels = nullptr;
+using ogl_world_offscreen_mask_fn = std::uint64_t (*)();
+ogl_world_offscreen_mask_fn world_offscreen_coverage_mask = nullptr;
+ogl_world_offscreen_pixels_fn world_offscreen_shading_mode = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_scene_width = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_scene_height = nullptr;
 ogl_world_offscreen_pixels_fn world_offscreen_lit_pixels = nullptr;
@@ -150,10 +153,16 @@ std::uint64_t live_present_coupled_last_attempt_swap = 0;
 std::uint64_t live_present_coupled_suppressed_retries = 0;
 ogl_rtx_frame_state live_present_coupled_pose{};
 bool live_present_coupled_pose_valid = false;
+// Only the compact 64-bit geometry mask lives in memory. Never persist,
+// export or log this bitset or OpenSim/Firestorm camera coordinates.
+std::uint64_t live_present_coupled_coverage_mask = 0;
+bool live_present_coupled_coverage_valid = false;
 void ogl_reset_present_coupled_state(bool module_lifecycle) {
     live_visible_world_swaps=0;
     live_present_coupled_pose={};
     live_present_coupled_pose_valid=false;
+    live_present_coupled_coverage_mask=0;
+    live_present_coupled_coverage_valid=false;
     live_present_coupled_region_epoch=0;
     live_present_coupled_mesh_generation=0;
     live_present_coupled_capture_receipt=0;
@@ -385,6 +394,10 @@ void ogl_init_rtx_module() {
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_frames"));
     world_offscreen_scene_pixels = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_pixels"));
+    world_offscreen_coverage_mask = reinterpret_cast<ogl_world_offscreen_mask_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_coverage_mask"));
+    world_offscreen_shading_mode = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
+        ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_shading_mode"));
     world_offscreen_scene_width = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
         ogl_resolve_module(rtx_module_handle,"ogl_vulkan_world_offscreen_scene_width"));
     world_offscreen_scene_height = reinterpret_cast<ogl_world_offscreen_pixels_fn>(
@@ -611,6 +624,8 @@ void ogl_shutdown_rtx_module() {
     world_render_offscreen_scene = nullptr;
     world_offscreen_scene_frames = nullptr;
     world_offscreen_scene_pixels = nullptr;
+    world_offscreen_coverage_mask = nullptr;
+    world_offscreen_shading_mode = nullptr;
     world_offscreen_scene_width = nullptr;
     world_offscreen_scene_height = nullptr;
     world_offscreen_lit_pixels = nullptr;
@@ -951,6 +966,52 @@ void ogl_rtx_after_visible_world_swap() {
     }
     live_present_coupled_consecutive_failures=0;
     live_present_coupled_last_failed_swap=0;
+    // Real OpenSim scene, PRIVATE Vulkan GPU readback, never Vulkan Window
+    // Present. The extra developer gate compares 64 sampled GPU geometry
+    // pixels ONLY after the source-qualified GPU receipt has succeeded.
+    // Two different cameras on different region/mesh/receipt revisions
+    // cannot be considered evidence of a GPU camera-motion response.
+    static const bool motion_pixels_opted_in=[] {
+        const char* flag=std::getenv("OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE");
+        return flag && std::strcmp(flag,"1")==0;
+    }();
+    if (motion_pixels_opted_in && world_offscreen_coverage_mask &&
+        world_offscreen_shading_mode && world_offscreen_shading_mode()==0u) {
+        const std::uint64_t current_mask=world_offscreen_coverage_mask();
+        const bool same_pose=live_present_coupled_pose_valid &&
+            ogl_same_world_camera_pose(live_present_coupled_pose,
+                                       last_live_world_camera);
+        const bool comparable=live_present_coupled_coverage_valid &&
+            live_present_coupled_pose_valid && !same_pose &&
+            live_present_coupled_region_epoch==live_world_region_epoch &&
+            live_present_coupled_mesh_generation==mesh_generation &&
+            live_present_coupled_capture_receipt==live_deferred_receipts;
+        if (comparable) {
+            const std::uint32_t changed=
+                ogl::present_coupled_coverage_changed_samples(
+                    live_present_coupled_coverage_valid,
+                    live_present_coupled_region_epoch,live_world_region_epoch,
+                    live_present_coupled_mesh_generation,mesh_generation,
+                    live_present_coupled_capture_receipt,live_deferred_receipts,
+                    same_pose,live_present_coupled_coverage_mask,current_mask);
+            LL_INFOS("OGLRenderer")
+                << "P05 live source-qualified Vulkan camera silhouette: "
+                << "comparison=" << (changed ? "verified" : "inconclusive")
+                << " changed_samples=" << changed
+                << " samples=64; private Vulkan image, NO window present."
+                << LL_ENDL;
+        } else if (!live_present_coupled_coverage_valid) {
+            LL_INFOS("OGLRenderer")
+                << "P05 live source-qualified Vulkan camera silhouette: "
+                   "baseline=accepted samples=64; no GPU-motion proof yet."
+                << LL_ENDL;
+        }
+        live_present_coupled_coverage_mask=current_mask;
+        live_present_coupled_coverage_valid=true;
+    } else {
+        live_present_coupled_coverage_mask=0;
+        live_present_coupled_coverage_valid=false;
+    }
     live_present_coupled_pose=last_live_world_camera;
     live_present_coupled_pose_valid=true;
     live_present_coupled_region_epoch=live_world_region_epoch;

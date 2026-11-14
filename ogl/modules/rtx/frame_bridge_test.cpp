@@ -297,6 +297,10 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_scene_frames"));
     const auto offscreen_world_pixels = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_pixels"));
+    const auto offscreen_coverage_mask = reinterpret_cast<uint64_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_coverage_mask"));
+    const auto offscreen_shading_mode = reinterpret_cast<uint32_t(*)()>(
+        dlsym(library,"ogl_vulkan_world_offscreen_shading_mode"));
     const auto offscreen_world_width = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_scene_width"));
     const auto offscreen_world_height = reinterpret_cast<uint32_t(*)()>(
@@ -343,7 +347,8 @@ int main(int argc, char** argv) {
         dlsym(library,"ogl_vulkan_world_offscreen_cache_releases"));
     const auto offscreen_cache_release = reinterpret_cast<uint32_t(*)()>(
         dlsym(library,"ogl_vulkan_world_offscreen_cache_release"));
-    assert(offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
+    assert(offscreen_coverage_mask && offscreen_shading_mode &&
+           offscreen_world && offscreen_world_frames && offscreen_world_pixels &&
            offscreen_world_width && offscreen_world_height &&
            offscreen_lit_pixels && offscreen_mean_luminance &&
            offscreen_mean_red && offscreen_mean_blue && offscreen_mean_green &&
@@ -354,6 +359,8 @@ int main(int argc, char** argv) {
            offscreen_cache_builds && offscreen_cache_reuses &&
            offscreen_cache_releases && offscreen_cache_release);
     assert(offscreen_world()==0 && offscreen_world_frames()==0 &&
+           offscreen_shading_mode()==UINT32_MAX &&
+           offscreen_coverage_mask()==0 &&
            offscreen_world_pixels()==0 && offscreen_world_width()==0 &&
            offscreen_world_height()==0 &&
            offscreen_lit_pixels()==0 && offscreen_mean_luminance()==0 &&
@@ -1888,6 +1895,8 @@ int main(int argc, char** argv) {
                 offscreen_cache_releases()==offscreen_release0 &&
                 offscreen_world_pixels()>0 &&
                 offscreen_world_pixels()<1024 &&
+                offscreen_shading_mode()==0 &&
+                offscreen_coverage_mask()!=0 &&
                 // The camera moves completely away from scene: the GPU
                 // still renders, but observed visible pixels drop to ZERO.
                 ((camera.camera_position[1]=50.f),true) &&
@@ -2012,6 +2021,7 @@ int main(int argc, char** argv) {
                 live_inputs()==1 && offscreen_world()==1 &&
                 offscreen_world_frames()==offscreen_start+5 &&
                 offscreen_world_pixels()==0 &&
+                offscreen_coverage_mask()==0 &&
                 mesh_generation()==static_mesh_generation &&
                 mesh_uploads()==static_mesh_uploads &&
                 mesh_retire_waits()==static_mesh_waits &&
@@ -2021,6 +2031,7 @@ int main(int argc, char** argv) {
                 live_inputs()==1 && offscreen_world()==1 &&
                 offscreen_world_frames()==offscreen_start+6 &&
                 offscreen_world_pixels()>0 &&
+                offscreen_coverage_mask()!=0 &&
                 mesh_generation()==static_mesh_generation &&
                 mesh_uploads()==static_mesh_uploads &&
                 mesh_retire_waits()==static_mesh_waits &&

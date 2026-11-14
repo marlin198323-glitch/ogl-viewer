@@ -437,6 +437,37 @@ class RTXSceneLogTests(unittest.TestCase):
                 "source_capture=3 region_epoch=2; "
                 "GL owns the SDL window, NO Vulkan present.\n")
 
+    def test_p05_live_gpu_silhouette_evidence_strict_numeric_and_source_current(self):
+        base=self.p05_coupled()
+        record=("P05 live source-qualified Vulkan camera silhouette: "
+                "comparison=verified changed_samples=3 samples=64; "
+                "private Vulkan image, NO window present.\n")
+        baseline=("P05 live source-qualified Vulkan camera silhouette: "
+                  "baseline=accepted samples=64; no GPU-motion proof yet.\n")
+        self.assertEqual(module.p05_gpu_silhouette_evidence(base,1),
+                         {"status":"not_observed","changed_samples":0})
+        self.assertEqual(module.p05_gpu_silhouette_evidence(base+baseline,1),
+                         {"status":"baseline_only","changed_samples":0})
+        self.assertEqual(module.p05_gpu_silhouette_evidence(base+record,1),
+                         {"status":"verified","changed_samples":3})
+        self.assertEqual(module.p05_gpu_silhouette_evidence(base+record,0)["status"],
+                         "not_observed")
+        self.assertEqual(module.p05_gpu_silhouette_evidence(
+            base+record+"P05 deferred region boundary: epoch=3\n",1)["status"],
+            "not_observed")
+        self.assertEqual(module.p05_gpu_silhouette_evidence(
+            base+record+"P05 deferred capture receipt: epoch=2 capture=4 "
+            "triangles=200 mesh_generation=12\n",1)["status"],
+            "not_observed")
+        self.assertEqual(module.p05_gpu_silhouette_evidence(
+            base+record+record.replace('changed_samples=3','changed_samples=65'),1)["status"],
+            "verified")  # keep last VALID record, reject invalid values
+        inconclusive=record.replace('comparison=verified changed_samples=3',
+                                    'comparison=inconclusive changed_samples=0')
+        self.assertEqual(module.p05_gpu_silhouette_evidence(
+            base+inconclusive,1),{"status":"inconclusive","changed_samples":0})
+        self.assertIn("P05 private Vulkan camera silhouette:",script.read_text())
+
     def test_p05_real_world_swap_coupled_success_requires_confirmation(self):
         result=module.p05_live_gpu_evidence(self.p05_coupled())
         self.assertEqual(result["status"],"visible_world_swap_private_gpu_confirmed")

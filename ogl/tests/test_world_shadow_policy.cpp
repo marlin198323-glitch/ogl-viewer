@@ -88,6 +88,26 @@ int main() {
     assert(!ogl::present_coupled_pixel_stats_valid(500,1,0));
     assert(!ogl::present_coupled_pixel_stats_valid(0,1,1));
     assert(!ogl::present_coupled_pixel_stats_valid(100,UINT32_MAX,10));
+    // Source-checked geometry silhouettes: only a genuinely moved camera
+    // against the SAME real mesh/region/receipt may qualify GPU pixels.
+    auto changed_samples=[](bool valid,uint64_t old_region,
+        uint64_t region,uint64_t old_mesh,uint64_t mesh,
+        uint64_t old_receipt,uint64_t receipt,bool same_pose,
+        uint64_t old_mask,uint64_t mask) {
+        return ogl::present_coupled_coverage_changed_samples(
+            valid,old_region,region,old_mesh,mesh,old_receipt,receipt,
+            same_pose,old_mask,mask);
+    };
+    assert(changed_samples(true,1,1,5,5,2,2,false,0x3u,0x5u)==2);
+    assert(changed_samples(true,1,1,5,5,2,2,false,0,UINT64_MAX)==64);
+    assert(changed_samples(true,1,1,5,5,2,2,false,0,0)==0);
+    assert(changed_samples(true,1,1,5,5,2,2,true,0x3u,0x5u)==0);
+    assert(changed_samples(false,1,1,5,5,2,2,false,0x3u,0x5u)==0);
+    assert(changed_samples(true,1,2,5,5,2,2,false,0x3u,0x5u)==0);
+    assert(changed_samples(true,1,1,5,6,2,2,false,0x3u,0x5u)==0);
+    assert(changed_samples(true,1,1,5,5,2,3,false,0x3u,0x5u)==0);
+    assert(changed_samples(true,1,1,0,0,2,2,false,0x3u,0x5u)==0);
+    assert(changed_samples(true,1,1,5,5,0,0,false,0x3u,0x5u)==0);
     // GPU proof is stricter than a successful VkQueueSubmit: same
     // source across the draw, bounded dimensions, and non-clear pixels.
     const auto evidence=[](uint64_t old_epoch,uint64_t old_receipt,

@@ -6,6 +6,121 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Blöcke: echter OpenSim-GPU-Readback erhält quellengeprüfte Kamerasilhouette (14.11.2026)
+
+**Nächste echte P05/3-Integrationsstufe:** Der bereits positiv in
+Benutzerlogs nachgewiesene private OpenSim-Deferred-Source-
+GPU-Pfad und die separat bereits getestete SDL-Vulkan-
+Fensterpräsentation werden **nicht** fälschlich als ein
+fertiger Renderer ausgegeben. Der bestehende echte
+`present-coupled`-GPU-Readback nach sichtbarem OpenGL-
+Welt-Swap kann nun **optional** selbst feststellen, ob
+geänderte, akzeptierte Firestorm-Kameraposen auch
+**andere Pixel der privaten Vulkan-Weltabbildung** liefern.
+
+Im bestehenden `ogl_rtx_module.cpp` wird bei jedem
+abgeschlossenen privaten `VkDrawIndexed`-GPU-Readback
+aus dem *echten* Vulkan-RGBA-Bild eine kompakte 8x8-
+Geometrie-Belegmaske berechnet: 64 repräsentative
+Farbpixel der GPU werden mit der unveränderten
+Clear-Farbe verglichen. Lediglich eine **64-Bit-Maske**
+bleibt innerhalb des Prozesses, kein gespeichertes
+Bild, keine Pixel-/Bild-Logs oder Accountdaten.
+Das Modul bietet dafür einen read-only ABI-Export
+`ogl_vulkan_world_offscreen_coverage_mask()` sowie
+`ogl_vulkan_world_offscreen_shading_mode()`.
+**Nur Mode 0 (Depth-Debug, materialunabhängig)**
+ist eine zulässige Bewegungs-Silhouette: Material-/
+Licht-/Textur-Farbänderungen in Modi 1–8 dürfen
+nicht fälschlich als Kamerabewegung gelten.
+Masken nach Modul-Abschluss werden gelöscht; ältere
+Modulversionen ohne neue ABI liefern keinen positiven
+Bewegungsbeleg.
+
+Der Host `oglrtxhost.cpp` vergleicht solche GPU-Bitmasken
+nur bei **explizitem zusätzlichen**
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1` und allen
+schon benötigten P05-`present-coupled`-Opt-ins.
+Ein GPU-Frame muss zuvor vollständig durch
+`ogl_firestorm_offscreen_gpu_sample("present-coupled")`
+mit dem **echten Deferred-Receipt** validiert sein.
+Eine Vergleichsprobe ist nur zulässig, wenn zuvor
+bereits ein positiver Quellframe existiert, die
+Firestorm-Kamerapose inzwischen verändert wurde,
+**Region-Epoch, Mesh-Generation und genau dieselbe
+Deferred-Capture-Receipt-ID** jedoch unverändert
+geblieben sind. Die portable Policy
+`present_coupled_coverage_changed_samples()`
+bewertet nur eine echte 64-Bit-Silhouettenänderung;
+im Log erscheinen allein die *aggregierten* Werte
+`changed_samples=0..64`, `comparison=verified`
+oder `inconclusive` (0 Sampleänderungen).
+Keine Maskenwerte, Objekt-/Regionskennungen, URLs,
+Kamerakoordinaten oder vertraulichen Assets im Log.
+Bei Erstquelle meldet der Host nur
+`baseline=accepted`, ausdrücklich **keinen**
+Bewegungserfolg. Bei Regionswechsel und Modul-Restart
+werden Masken und Quellzustand vollständig
+zurückgesetzt; bei Mesh-/Capture-Wechsel keine
+Quervergleiche. Die bisherige private Vulkan-Draw-
+Erfolgserkennung und der OpenGL-Renderer bleiben
+**unverändert**. Kein `vkQueuePresentKHR` in der
+echten OpenSim-Live-Sitzung.
+
+Der bestehende Report `ogl/scripts/ogl-test-report.py`
+wertet optional nur streng numerische Statusmeldungen
+und nur noch quellaktuelle Session/Region/Capture aus:
+`not_observed`, `baseline_only`, `verified` oder
+`inconclusive`. Alte Erfolgslogs aus einer
+vorangegangenen Region oder von einem älteren Mesh
+werden nicht als aktueller Beleg wiederverwendet.
+Selbst `verified` bedeutet hier **nur geänderte
+private GPU-Samplepixel, keine vollständige Vulkan-
+Weltpräsentation oder unabhängige Login-Authentifizierung**.
+
+**20 tatsächlich ausgeführte Entwicklungs-/Prüfschritte:**
+
+01. `ogl-develop`-Ausgangscommit `ab5e6d3f` und sauberen lokalen Arbeitsbaum geprüft.
+02. `AGENTS.md`, `PROJECT_HANDOFF.md`, `PROJECT_STATUS.md` und verbindliche Hauptroadmap gelesen.
+03. GitHub-CI für `ab5e6d3f` als `success` verifiziert.
+04. OpenGenesisLINK-`main` sowie Stable-Tag `v0.9.4.0` auf unveränderte `ee15af8e...`-SHA geprüft.
+05. `gen1-updates`-Kanal, Releases und PRs #448/#447/#443 read-only geprüft; keine Stable-Änderungen übernommen.
+06. Realen `present-coupled`-OpenSim-GPU-Pfad und generische synthische SDL-Window-Tests getrennt auf Source-Provenienz untersucht.
+07. Bestehende native `VkImage`-Copy-/Fence-/RGBA-Readback-Funktion für überprüfbare GPU-Silhouetten erweitert.
+08. Materialunabhängige 8x8-Geometrie-/Clear-Maske (64 Bit) ohne Exporte von Bilddaten erstellt.
+09. Masken-Lifecycle bei Modul-Stopp/Device-Close und nativem Kameraaufruf kontrolliert.
+10. Read-only ABI für letzte GPU-Silhouette `ogl_vulkan_world_offscreen_coverage_mask` ergänzt.
+11. Shading-Mode-ABI ergänzt und nur Mode 0 als unabhängig von Material-/Sun-Pixeländerungen zugelassen.
+12. `oglrtxhost.cpp` auf neue Modul-ABIs inklusive sicherem Null-Fallback erweitert.
+13. Striktes neues Entwickler-Opt-in `OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE` eingeführt.
+14. Vorherigen positiven Source-Receipt plus unveränderte Region-/Mesh-/Capture-ID und neue echte Kamerapose als Voraussetzung gebunden.
+15. Portable C++-Policy und 10 Positiv-/Negativfälle zu Bitdelta, gleichen Posen, Regions-/Mesh-/Capturewechsel und fehlender Ausgangsquelle hinzugefügt.
+16. Reportstatus `baseline_only`/`verified`/`inconclusive`/`not_observed` ergänzt; bei Regions-/Meshwechsel keine falsche Altbeweisübernahme.
+17. Native C++-GPU-Regressionskette mit echter Vulkan-Bildmaske bei Szene sichtbar / Kamera weg / Szene erneut sichtbar erfolgreich getestet.
+18. Vollständige Python-Suite 427/427 einschließlich 104 Grafik- und erweiterten Report-Vertragstests sowie 41/41 native CTests erfolgreich.
+19. Linux-Vollviewer-Build und native X11-Vulkan-GPU-Regressionen Clear/World/Depth je 16/32, Kamera, Mesh-Rotation und Region-Barrier bestanden.
+20. Mit allen acht Live-Probe-Opt-ins im isolierten SDL-Login-Start negative Pre-Login-Fälle geprüft: kein falscher OpenSim-Motion-Beleg, keine falsche World-Swap-Bestätigung, keine FATAL-Meldung. Anschließend Projektübergabe und Roadmap aktualisiert.
+
+**Abnahmegrenzen:** Das neue positive native GPU-Sample
+stammt aus einer **synthetischen** Szene; ein
+aktuell neu angemeldeter OpenSim-Viewer mit zusätzlichem
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1`
+wurde **noch nicht** in die Welt gebracht. Die
+zurückliegende echte OpenSim-`present-coupled`-
+Quelle ist positiv, aber noch ohne diese neue
+Pixelbewegungsdiagnose. `0 changed_samples`
+bleibt **inconclusive** und darf nicht mit
+fertigem Vulkan-Rendering verwechselt werden.
+Erst ein echter neu geloggter Vergleich kann den
+neuen Live-Teilblock bestätigen. Der produktive
+OpenGL-Viewer und laufende Nutzerprozesse wurden
+nicht geändert; keine neuen Repo-Dateien.
+**P05 formal weiterhin 2/20 und P05/3 offen:**
+SDL-Vulkan-Window-Present der authentifizierten
+OpenSim-Welt einschließlich Terrain, Avatar,
+Material und UI fehlt weiterhin. P08/P13-Clock-v1
+(MEZ/MESZ mit UTC-Fallback) bleibt separate Pflicht.
+
 ## P05/3 – /goal 20 Blöcke: Kamera-Bewegung muss reale Vulkan-Pixel verändern (14.11.2026)
 
 **Konkrete P05/3-Korrektur am bestehenden SDL/Vulkan-Window-Present-Pfad:**

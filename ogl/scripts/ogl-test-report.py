@@ -138,6 +138,44 @@ P05_WORLD_SWAP = re.compile(
 )
 
 
+# Strictly numeric, aggregate-only live Vulkan PRIVATE GPU geometry
+# changes. The host compares successive images in memory, only when the
+# true Firestorm deferred receipt, region, mesh and camera all match.
+# Never echo pixel masks, camera positions or untrusted full log lines.
+P05_SILHOUETTE = re.compile(
+    r"P05 live source-qualified Vulkan camera silhouette: "
+    r"comparison=(verified|inconclusive) changed_samples=(\d+) "
+    r"samples=64; private Vulkan image, NO window present\."
+)
+
+
+def p05_gpu_silhouette_evidence(log_text: str, confirmed_frames: int):
+    """Return only source-current numeric GPU motion evidence (not login proof)."""
+    result = {"status": "not_observed", "changed_samples": 0}
+    if confirmed_frames<=0:
+        return result
+    session=log_text.rfind("P05 deferred evidence session: begin=1")
+    if session<0:
+        return result
+    text=log_text[session:]
+    # Never revive old GPU evidence after teleport or a new mesh capture.
+    for marker in (P05_REGION, P05_CAPTURE):
+        occurrences=list(marker.finditer(text))
+        if occurrences:
+            text=text[occurrences[-1].start():]
+    records=list(P05_SILHOUETTE.finditer(text))
+    for record in reversed(records):
+        status, raw_changed=record.groups()
+        changed=int(raw_changed)
+        if changed>64 or (status=="verified")!=(changed>0):
+            continue
+        return {"status":status,"changed_samples":changed}
+    if "P05 live source-qualified Vulkan camera silhouette: " \
+            "baseline=accepted samples=64; no GPU-motion proof yet." in text:
+        result["status"]="baseline_only"
+    return result
+
+
 def p05_live_gpu_evidence(log_text: str):
     """Last-session, last-region source chain; never an authentication proof.
 
@@ -352,6 +390,11 @@ def report():
               evidence["confirmed_world_swap_private_gpu_frames"],
               "confirmed of", evidence["present_coupled_gpu_receipts"],
               "coupled receipts; no Vulkan window present")
+        silhouette=p05_gpu_silhouette_evidence(
+            text,evidence["confirmed_world_swap_private_gpu_frames"])
+        print("P05 private Vulkan camera silhouette:",silhouette["status"],
+              "changed 8x8 samples:",silhouette["changed_samples"],
+              "of 64; GPU offscreen only, no Vulkan window present")
         if evidence["status"]=="no_deferred_evidence_session":
             print("P05 live GPU developer opt-in: no evidence session "
                   "recorded; live Vulkan world draw NOT proven")

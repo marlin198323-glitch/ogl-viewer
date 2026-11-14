@@ -46,6 +46,43 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+14.11.2026 – /goal 20 P05/3 REALER OpenSim-
+Offscreen-GPU-Pixelbewegungs-Quellpfad ergänzt:
+Das vorhandene native Vulkan-Private-World-Readback
+liefert jetzt eine kompakte 8x8-Clear-vs-Geometry-
+Maske, kein Bild-Export. Neues read-only-Modul-ABI
+`ogl_vulkan_world_offscreen_coverage_mask()` plus
+`ogl_vulkan_world_offscreen_shading_mode()`.
+Ausschließlich materialunabhängiger Depth-Mode 0
+belegt Geometrie und Kamera, keine Sun/PBR-
+Farbänderung. `oglrtxhost.cpp` vergleicht die
+Bitmasken nur nach source-qualifiziertem echtem
+`present-coupled`-Vulkan-Readback, bei
+**identischem** Region-Epoch, Mesh-Generation
+und Deferred-Capture-Receipt, aber veränderter
+Firestorm-Kamerapose. Extra Opt-in:
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1`.
+Nur Status und numerische `changed_samples=0..64`
+in Logs, keine Pixel-/Positionsdaten. Baseline,
+inconclusive und verified klar getrennt;
+bei Regionswechsel/Modul-Restart Cache verworfen.
+Testreport erkennt nur letzten aktiven
+Session-/Region-/Capture-Bereich.
+Linux-Fullbuild 427 Python-/41 native CTests,
+native echte GPU-Offscreen-Tests mit Kamera weg/
+zurück, Vulkan-X11 Clear/World 16/32,
+Rotation/Region und Firestorm-Kamera bestanden.
+Isolierter SDL-Login mit allen acht P05-Flags:
+kein vorzeitiger GPU-Motion- oder Weltbeleg.
+**WICHTIG:** Der neue Effekt auf tatsächlichen
+OpenSim-Live-Pixeln erfordert einen NEUEN
+Nutzer-World-Lauf; bisher nur synthetischer
+native GPU-Test. Kein permanenter Vulkan-
+SDL-World-Present, P05 bleibt formal 2/20,
+P05/3 offen. 20 Einzelschritte stehen oben
+in PROJECT_STATUS.md. Keine Userprozesse/
+Produktivserver verändert.
+
 14.11.2026 – /goal 20 P05/3 echte Vulkan-GPU-
 Silhouettenverschiebung nach Firestorm-Kamera-
 Update: Vorher bewiesen 20/20 GPU-Presents nur

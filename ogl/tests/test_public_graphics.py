@@ -2032,6 +2032,41 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('lit_pixels<=nonclear_pixels',policy)
         self.assertIn('mean_luminance<=765u',policy)
 
+    def test_p05_genuine_opensim_private_vulkan_gpu_motion_pixels_are_source_qualified(self):
+        host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()
+        gpu=(ROOT/"ogl/modules/rtx/ogl_rtx_module.cpp").read_text()
+        native=(ROOT/"ogl/modules/rtx/frame_bridge_test.cpp").read_text()
+        policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
+        start=host.index('void ogl_rtx_after_visible_world_swap()')
+        end=host.index('// The region UUID is compared',start)
+        fn=host[start:end]
+        self.assertIn('OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE',fn)
+        self.assertIn('world_offscreen_coverage_mask',fn)
+        self.assertIn('world_offscreen_shading_mode && world_offscreen_shading_mode()==0u',fn)
+        self.assertLess(fn.index('if (!ogl_firestorm_offscreen_gpu_sample("present-coupled"))'),
+                        fn.index('if (motion_pixels_opted_in && world_offscreen_coverage_mask &&'))
+        for term in ('live_present_coupled_region_epoch==live_world_region_epoch',
+                     'live_present_coupled_mesh_generation==mesh_generation',
+                     'live_present_coupled_capture_receipt==live_deferred_receipts',
+                     'live_present_coupled_pose_valid && !same_pose',
+                     'ogl::present_coupled_coverage_changed_samples(',
+                     'comparison=" << (changed ? "verified" : "inconclusive")',
+                     'baseline=accepted samples=64; no GPU-motion proof yet.',
+                     'private Vulkan image, NO window present.'):
+            self.assertIn(term,fn)
+        self.assertLess(fn.index('live_present_coupled_coverage_mask=current_mask'),
+                        fn.index('live_present_coupled_pose=last_live_world_camera'))
+        self.assertIn('world_offscreen_coverage_mask = nullptr;',host)
+        self.assertIn('live_present_coupled_coverage_valid=false;',host)
+        self.assertIn('ogl_vulkan_world_offscreen_coverage_mask',host)
+        self.assertIn('uint64_t offscreen_world_coverage_mask = 0;',gpu)
+        self.assertIn('world_device.offscreen_world_coverage_mask=coverage_mask;',gpu)
+        self.assertIn('const uint32_t x=(((sample%8u)*2u+1u)*width)/16u;',gpu)
+        self.assertIn('const uint32_t y=(((sample/8u)*2u+1u)*height)/16u;',gpu)
+        self.assertIn('offscreen_coverage_mask()!=0',native)
+        self.assertIn('offscreen_coverage_mask()==0',native)
+        self.assertIn('present_coupled_coverage_changed_samples(',policy)
+
     def test_p05_first_valid_world_swap_can_sample_without_120_frame_delay(self):
         policy=(ROOT/"ogl/modules/include/ogl/ogl_world_shadow_policy.h").read_text()
         host=(ROOT/"indra/newview/oglrtxhost.cpp").read_text()

@@ -295,6 +295,9 @@ struct WorldGraphicsDevice {
     uint32_t offscreen_world_mean_red = 0;
     uint32_t offscreen_world_mean_green = 0;
     uint32_t offscreen_world_mean_blue = 0;
+    // Only a transient 8x8 hit/clear mask from the LAST completed private
+    // VkImage GPU readback. This is not a bitmap, image export or Window WSI.
+    uint64_t offscreen_world_coverage_mask = 0;
     // P05/3: bounded GPU queue submission diagnostic. These counters refer
     // to commands submitted BEFORE waiting on their completion fences,
     // NOT to simultaneous GPU execution or completed swapchain presents.
@@ -564,6 +567,7 @@ struct WorldGraphicsDevice {
         offscreen_world_lit_pixels = offscreen_world_mean_luminance = 0;
         offscreen_world_mean_red = offscreen_world_mean_green =
             offscreen_world_mean_blue = 0;
+        offscreen_world_coverage_mask = 0;
         tint_uploads = uv_uploads = rgba_uploads = material_slot_uploads = 0;
         offscreen_world_builds=offscreen_world_reuses=offscreen_world_releases=0;
         mesh_generation = 0;
@@ -4412,6 +4416,19 @@ uint32_t render_offscreen_color_frame(bool scene = false) {
                         ++lit;
                 }
             }
+            // Sample exactly 64 GPU pixels, NOT CPU-projected triangles.
+            // A bit represents visible non-clear geometry. Sampling at
+            // cell centres works for all validated offscreen resolutions.
+            // The host never logs the mask or actual pixels; it receives
+            // only an in-process bitset to compare genuine camera motion.
+            uint64_t coverage_mask=0;
+            for (uint32_t sample=0;sample<64u;++sample) {
+                const uint32_t x=(((sample%8u)*2u+1u)*width)/16u;
+                const uint32_t y=(((sample/8u)*2u+1u)*height)/16u;
+                if (!matches((size_t(y)*width+x)*4u))
+                    coverage_mask|=UINT64_C(1)<<sample;
+            }
+            world_device.offscreen_world_coverage_mask=coverage_mask;
             world_device.offscreen_world_lit_pixels=lit;
             world_device.offscreen_world_mean_luminance=changed ?
                 uint32_t(luminance_sum/changed) : 0u;
@@ -5893,6 +5910,17 @@ extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_scene_frames() 
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_pixels() {
     return world_device.offscreen_world_covered_pixels;
+}
+// Compact GPU-derived geometry-only evidence for an opt-in, source-checked
+// real OpenSim camera-motion diagnostic. Never persist or log the mask.
+extern "C" OGL_MODULE_EXPORT uint64_t ogl_vulkan_world_offscreen_coverage_mask() {
+    return world_device.offscreen_world_coverage_mask;
+}
+// Only depth-debug (mode 0) is a material-independent occupancy signal.
+// Sunlight/material/texture modes may change colors without moving geometry.
+extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_shading_mode() {
+    return world_device.offscreen_world_cache.initialized ?
+        world_device.offscreen_world_cache.shading_mode : UINT32_MAX;
 }
 extern "C" OGL_MODULE_EXPORT uint32_t ogl_vulkan_world_offscreen_scene_width() {
     return world_device.offscreen_world_width;

@@ -25,6 +25,20 @@ Quellen stehen in
 ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 unter „Verbindliche externe Server-Kompatibilitätsquelle“.
 
+Aktuellster P05/3-Stand 14.11.2026: Echte OpenSim-
+Source->private Vulkan-GPU-Receipts sind live belegt;
+permanenter authentifizierter Vulkan-Window-Present ist
+NICHT implementiert (P05=2/20). Zusätzlich neues opt-in
+`OGL_VULKAN_LIVE_GPU_SILHOUETTE_PROBE=1` zur prüfbaren
+8x8-Geometrie-Silhouette aus Vulkan-Depth-Readback,
+mit gleicher Region/Mesh/Capture, neuer Kamera, nur
+numerischen Sample-Differenzen. Native GPU-/Python-
+Regressionen bestanden; neuer LIVE-OpenSim-Pixelbeweis
+nach diesem Code noch offen. Keine produktive
+Vulkan-Window-Ownership aktivieren. Vollständige
+Beschreibung im aktuellen `ogl/PROJECT_STATUS.md`.
+Die folgenden älteren P05-Einträge sind Historie:
+
 Aktueller P05-Stand 09.11.2026 (Code a32e457e):
 20 neue echte technische Teilblöcke:
 optionaler Vulkan-HQ-Atlas ShaderMode8
