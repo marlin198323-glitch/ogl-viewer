@@ -232,6 +232,10 @@ std::uint64_t ogl_preview_receipt=0;
 std::uint64_t ogl_preview_mesh_generation=0;
 std::uint32_t ogl_preview_frames=0;
 bool ogl_preview_world_pixels_verified=false;
+// First current-source display sample is NOT sufficient for a world proof.
+// Wait for a distinct present with the opposite swapchain-clear parity.
+std::uint32_t ogl_preview_first_pixel_frame=0u;
+std::uint32_t ogl_preview_first_pixel_foreground=0u;
 
 void ogl_x11_wsi_will_destroy();
 
@@ -315,6 +319,8 @@ void ogl_live_preview_world_swap() {
         ogl_preview_attempt_mesh_generation=revision;
         ogl_preview_frames=0u;
         ogl_preview_world_pixels_verified=false;
+        ogl_preview_first_pixel_frame=0u;
+        ogl_preview_first_pixel_foreground=0u;
         ogl_preview_attach=reinterpret_cast<OglWorldWindowAttach>(
             ogl_resolve_module(rtx_module_handle,
                 "ogl_vulkan_world_attach_x11_window"));
@@ -406,13 +412,25 @@ void ogl_live_preview_world_swap() {
         for (unsigned attempt=0;attempt<12u;++attempt) {
             if (LLWindowSDL::oglVulkanPreviewWorldPixels(
                     ogl_preview_frames,&foreground)) {
-                ogl_preview_world_pixels_verified=true;
-                LL_INFOS("OGLRenderer")
-                    << "P05 actual OpenSim Vulkan SDL preview X11 geometry: "
-                    << "foreground=" << foreground
-                    << " samples=12288 source=real-deferred "
-                       "separate-window=1; NO full Vulkan viewer/UI."
-                    << LL_ENDL;
+                if (ogl::separate_preview_two_frame_pixels(
+                        ogl_preview_first_pixel_frame,ogl_preview_frames,
+                        ogl_preview_first_pixel_foreground,foreground)) {
+                    ogl_preview_world_pixels_verified=true;
+                    LL_INFOS("OGLRenderer")
+                        << "P05 actual OpenSim Vulkan SDL preview X11 geometry: "
+                        << "foreground=" << foreground
+                        << " samples=12288 alternating_frames="
+                        << ogl_preview_first_pixel_frame << ","
+                        << ogl_preview_frames
+                        << " proof=two-frame source=real-deferred "
+                           "separate-window=1; NO full Vulkan viewer/UI."
+                        << LL_ENDL;
+                } else if (!ogl_preview_first_pixel_frame ||
+                           ogl_preview_first_pixel_frame==ogl_preview_frames) {
+                    // Re-sampling the same present is never a second frame.
+                    ogl_preview_first_pixel_frame=ogl_preview_frames;
+                    ogl_preview_first_pixel_foreground=foreground;
+                }
                 break;
             }
             if (LLWindowSDL::oglVulkanPreviewCloseRequested()) break;
@@ -809,6 +827,8 @@ void ogl_shutdown_rtx_module() {
     ogl_preview_attempt_mesh_generation=0;
     ogl_preview_frames=0;
     ogl_preview_world_pixels_verified=false;
+    ogl_preview_first_pixel_frame=0u;
+    ogl_preview_first_pixel_foreground=0u;
     LLWindowSDL::setOglWindowResizedCallback(nullptr);
     LLWindowSDL::setOglWindowWillDestroyCallback(nullptr);
     ogl_x11_wsi_will_destroy();

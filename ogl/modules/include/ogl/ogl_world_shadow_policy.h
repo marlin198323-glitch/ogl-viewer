@@ -93,6 +93,20 @@ inline bool separate_preview_source_retry_allowed(
         previous_mesh!=current_mesh;
 }
 
+// Real X11 preview pixels are a positive display proof only after two
+// DIFFERENT successfully presented frames with opposite Vulkan clear colors.
+// Reject a single stale frontbuffer, repeats of the same frame, truncated
+// evidence and invalid numerical samples. Both reads must independently
+// contain a real background and at least 8 non-background pixels.
+inline bool separate_preview_two_frame_pixels(
+    uint32_t first_frame, uint32_t next_frame,
+    uint32_t first_foreground, uint32_t next_foreground) noexcept {
+    return first_frame>=1u && next_frame>first_frame &&
+           next_frame<=16u && ((first_frame^next_frame)&1u)!=0u &&
+           first_foreground>=8u && first_foreground<=12288u &&
+           next_foreground>=8u && next_foreground<=12288u;
+}
+
 // P05/3: source-identity guards at the actual GL-world-swap boundary.
 // This is a CPU-only policy; no GL/Vulkan window ownership is implied.
 // Every rendered GPU sample must belong to a genuine deferred receipt,

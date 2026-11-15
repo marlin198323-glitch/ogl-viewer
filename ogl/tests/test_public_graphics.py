@@ -2153,6 +2153,8 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('secondary-sunlight-frames=" << secondary_sunlight_frames',sdl)
         self.assertIn('frozen_shader_mode=persistent_present(1)==0',sdl)
         self.assertIn('secondary_sunlight_verified=true;',sdl)
+        self.assertIn('secondary_first_foreground=geometry_samples;',sdl)
+        self.assertIn('ogl::separate_preview_two_frame_pixels(',sdl)
         self.assertIn('LLWindowSDL::oglVulkanPreviewWorldPixels(',sdl)
         self.assertIn('if (triangle && persistent && secondary_sunlight)',sdl)
 
@@ -2166,6 +2168,9 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('static bool oglVulkanPreviewWorldPixels',header)
         self.assertIn('LLWindowSDL::oglVulkanPreviewWorldPixels(',fn)
         self.assertIn('ogl_preview_world_pixels_verified=true;',fn)
+        self.assertIn('ogl::separate_preview_two_frame_pixels(',fn)
+        self.assertIn('ogl_preview_first_pixel_frame=ogl_preview_frames;',fn)
+        self.assertIn('proof=two-frame source=real-deferred',fn)
         self.assertIn('P05 actual OpenSim Vulkan SDL preview X11 geometry:',fn)
         self.assertIn('foreground=',fn)
         self.assertIn('no visible-world proof.',fn)

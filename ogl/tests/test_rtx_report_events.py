@@ -469,29 +469,36 @@ class RTXSceneLogTests(unittest.TestCase):
 
     def test_p05_live_preview_frontbuffer_pixels_require_current_source(self):
         base=self.p05_coupled()
-        preview=("P05 actual OpenSim Vulkan SDL preview frame: "
-                 "presented=1 limit=16 source=real-deferred "
-                 "gl_owner=separate-window; NO full Vulkan viewer/UI.\n")
+        frame=lambda n: ("P05 actual OpenSim Vulkan SDL preview frame: "
+                         f"presented={n} limit=16 source=real-deferred "
+                         "gl_owner=separate-window; NO full Vulkan viewer/UI.\n")
         pixels=("P05 actual OpenSim Vulkan SDL preview X11 geometry: "
-                "foreground=147 samples=12288 source=real-deferred "
+                "foreground=147 samples=12288 alternating_frames=1,2 "
+                "proof=two-frame source=real-deferred "
                 "separate-window=1; NO full Vulkan viewer/UI.\n")
-        self.assertEqual(module.p05_live_preview_x11_pixels(base,1,0),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(base+preview,1,1),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+preview+pixels,1,1),147)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+preview+pixels,0,1),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+pixels+preview,1,1),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+preview+pixels.replace('foreground=147','foreground=0'),1,1),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+preview+pixels.replace('foreground=147','foreground=12289'),1,1),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+preview+pixels+"P05 deferred region boundary: epoch=3\n",1,1),0)
-        self.assertEqual(module.p05_live_preview_x11_pixels(
-            base+preview+pixels+"P05 deferred capture receipt: epoch=2 "
-            "capture=5 triangles=70 mesh_generation=9\n",1,1),0)
+        pair=base+frame(1)+frame(2)
+        proof=lambda data,frames=2: module.p05_live_preview_x11_pixels(
+            data,1,frames)
+        self.assertEqual(proof(pair),0)  # Queue alone is not pixel proof.
+        self.assertEqual(proof(base+frame(1)+pixels),0)
+        self.assertEqual(proof(pair+pixels,1),0)
+        self.assertEqual(proof(pair+pixels),147)
+        self.assertEqual(module.p05_live_preview_x11_pixels(pair+pixels,0,2),0)
+        self.assertEqual(proof(base+pixels+frame(1)+frame(2)),0)
+        self.assertEqual(proof(pair+pixels.replace('foreground=147','foreground=0')),0)
+        self.assertEqual(proof(pair+pixels.replace('foreground=147','foreground=12289')),0)
+        self.assertEqual(proof(pair+pixels.replace('alternating_frames=1,2',
+                                                   'alternating_frames=1,1')),0)
+        self.assertEqual(proof(pair+pixels.replace('alternating_frames=1,2',
+                                                   'alternating_frames=1,3')),0)
+        self.assertEqual(proof(pair+pixels.replace('alternating_frames=1,2',
+                                                   'alternating_frames=2,1')),0)
+        self.assertEqual(proof(pair+pixels.replace('proof=two-frame','proof=one-frame')),0)
+        self.assertEqual(proof(pair+pixels.replace(
+            'alternating_frames=1,2 proof=two-frame ','')),0)
+        self.assertEqual(proof(pair+pixels+"P05 deferred region boundary: epoch=3\n"),0)
+        self.assertEqual(proof(pair+pixels+"P05 deferred capture receipt: epoch=2 "
+                               "capture=5 triangles=70 mesh_generation=9\n"),0)
         self.assertIn('P05 separate Vulkan SDL preview X11 geometry:',
                       script.read_text())
 

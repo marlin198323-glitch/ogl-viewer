@@ -6,6 +6,71 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Prüfschritte: zweifacher X11-Weltpixelbeleg im Vulkan-Zweitfenster (15.11.2026 MEZ)
+
+**Code integriert, Linux-GPU-/X11-Regressionen bestanden; authentifizierter OpenSim-Livetest weiterhin offen.**
+Die unabhängige 512×384-Vulkan-SDL-Weltvorschau meldet einen echten
+`P05 actual OpenSim Vulkan SDL preview X11 geometry`-Beleg
+nicht mehr nach nur einem sichtbaren Frontbuffer-Scan. Zwei tatsächlich
+präsentierte **verschiedene** Frames mit jeweils gültigem
+Vulkan-Clear-/Geometrie-Sampling, umgekehrter Warm/Kalt-Clear-Parität
+und unveränderter echter OpenSim-Region/Capture-/Meshgeneration
+sind erforderlich. Erst danach darf `proof=two-frame` zusammen mit
+`alternating_frames=A,B` und dem letzten numerischen
+`foreground`-Wert protokolliert werden. Die nachfolgende
+`ogl-test-report.py` prüft die fortlaufenden Queue-Present-Indizes,
+beide Frame-Nummern, Wertebereiche, Reihenfolge, aktuelle Quelle,
+vorheriges bestätigtes post-GL-World-Swap-Private-GPU-Receipt und
+die gegensätzliche Clear-Parität. Ältere Einzel-Frame-Logs sind
+absichtlich **keine** neue Zwei-Frame-Evidenz. Erfolgreiche
+`vkQueuePresentKHR`-Zähler bleiben vom sichtbaren Bildbeleg getrennt.
+
+Der vorhandene native CPU-Policy-Header
+`ogl_world_shadow_policy.h` enthält die portable, nicht rendernde
+Prüffunktion `separate_preview_two_frame_pixels`. Der echte
+SDL/X11-Sonnenlichttest verwendet dieselbe Funktion nach zwei realen
+`vkQueuePresentKHR`-Frames und jeweils einzeln bestätigten
+X11-Pixelabtastungen; der Firestorm-OpenGL-Hauptfensterpfad bleibt
+unverändert. Quelle/erstes Frontbuffer-Sample werden beim neuen
+Preview-Attach sowie Modulshutdown zurückgesetzt. Keine neuen
+Projektdaten/Dateien, kein Netz- oder Server-Schreibzugriff.
+
+**20 tatsächlich ausgeführte Arbeitsschritte:**
+
+01. Linux-Mint-Gerät und `ogl-develop` auf sauberem Ausgangscommit `02427ca0` geprüft.
+02. Root-`AGENTS.md` gelesen und Grenzen/Serververträge übernommen.
+03. `ogl/PROJECT_HANDOFF.md` gelesen.
+04. `ogl/PROJECT_STATUS.md` einschließlich bisherigen P05/3-Gates gelesen.
+05. Haupt-`/goal`-Roadmap und aktive P05-Vorgaben geprüft.
+06. OpenGenesisLINK-`main` und Stable-`v0.9.4.0` read-only gegen `ee15af8e...` verifiziert.
+07. Fehlenden `gen1-updates`-Tag, Stable-Release und offenen WIP-PRs #443/#447/#448 geprüft.
+08. Tatsächliche Vulkan-Queue-Presents, Source-Receipt- und OpenGL-Window-Ownership-Grenzen untersucht.
+09. Bisheriges Einzelbild-X11-Readback und die asynchrone Fenster-Present-Grenze geprüft.
+10. Portable Zwei-Frame-/Gegenparitäts-/Sample-Grenzprüfung in bestehendem Policy-Header ergänzt.
+11. Host-Pixel-Proof-Zwischenzustand ergänzt; einzelne Frame-Scans bleiben unbestätigt.
+12. Zwischenzustand bei neuem echten Source-Attach und Modulshutdown zurückgesetzt.
+13. Source-qualifiziertes Proof-Event erst nach zwei verschiedenen Vulkan-Frame-Indizes ausgegeben.
+14. Bestehenden Python-Testreport auf strikt geprüfte Zwei-Frame-Events aktualisiert.
+15. Native C++-Negativ- und Positivregressionen für Paare, Wiederholungen und ungültige Samples ergänzt.
+16. Python-Quellvertragstests für Host, SDL und Parser erweitert.
+17. Report-Regressionsfälle für alte Einzelbildlogs, fehlende/geänderte Quelle, Reihenfolge und Samplegrenzen erweitert.
+18. **436/436 Python-Tests, 41/41 native CTests** und `git diff --check` bestanden.
+19. Vollständigen Linux-C++-Firestorm-Viewer mit SDL-Window-Code und Paketressourcen erfolgreich neu gebaut.
+20. Drei getrennte Xvfb-SDL-Starts: Sunlight **2 echte Vulkan-Presents mit geändertem Grünpixel und Zwei-Frame-Beleg**, Depth-Legacy weiterhin `secondary-window=verified`, fehlende Sun-Freigabe korrekt blockiert; stets OpenGL-`STATE_LOGIN_WAIT`, keine FATAL-Meldung. Isolierte Testprofile und deren verbleibender Testprozess gezielt bereinigt.
+
+**Abnahmegrenze:** Synthetische Dreiecksgeometrie ist im
+zweiten SDL/X11-Fenster mit GPU-/X11-Nachweis getestet.
+Ein **neuer authentifizierter OpenSim-Weltbeitritt** mit tatsächlichen
+zwei sichtbaren source-validierten Frame-Presents fehlt. Ebenso
+vollständige Vulkan-Hauptfensterengine, Terrain, Avatare,
+Material-/PBR-/UI-Compositing, Windows/macOS-Vollviewer.
+P05 **2/20**, Block **P05/3 offen**; P08/P13 serverautoritatives
+Clock-v1 (MEZ/MESZ/UTC) weiterhin offen.
+**Nächster Schritt:** echte eingeloggte OpenSim-Preview mit
+`proof=two-frame` nachweisen, danach permanente Vulkan-Window-
+World-/UI-Ownership entwerfen und integrieren, ohne die OpenGL-
+Rückfallebene abzuschalten.
+
 ## P05/3 – /goal 20 Arbeitsschritte: echtes Vulkan-Sonnenlicht auf zweiter SDL-Swapchain (15.11.2026 MEZ)
 
 **Implementiert und auf NVIDIA/X11 mit synthetischem World-Mesh GPU-/Pixel-geprüft, authentifizierte OpenSim-Live-Abnahme offen.**

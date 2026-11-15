@@ -4,6 +4,23 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
+P05/3 Nachtrag 15.11.2026: Echte OpenSim-Vulkan-
+Zweitfenster-Pixel sind erst nach ZWEI verschiedenen
+source-validierten GPU-Presents samt voneinander
+unabhängigen X11-Frontbuffer-Scans und alternierender
+Clear-Parität als `proof=two-frame` nachweisbar.
+Eine Einzelbildprobe und bloße Queue-Presents
+reichen nicht. Strenger Testreport und portable
+CPU-Policy, 436 Python-/41 native CTests,
+Linux-Vollbuild, 3 unabhängige SDL/X11-Smokes
+(Sunlight, Depth-Legacy, fehlende Permission)
+bestanden. Synthetische GPU-Fensterprüfung,
+KEIN authentifizierter OpenSim-Zweitfensterbeleg
+und KEIN produktiver Vulkan-Hauptfensterrenderer.
+P05=2/20, Block 3 weiter offen. Siehe
+`ogl/PROJECT_STATUS.md` für 20 Einzelprüfpunkte.
+Server-Baseline `ee15af8e...` unverändert.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

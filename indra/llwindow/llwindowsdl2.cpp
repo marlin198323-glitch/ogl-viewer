@@ -45,6 +45,7 @@
 // BEFORE any GL context exists. The portable LLWindow ABI is not changed.
 #if LL_LINUX && LL_X11
 #include "../../ogl/modules/include/ogl/ogl_rtx_api.h"
+#include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h"
 #endif
 
 // if there is a better methood to get at the settings from llwindow/ let me know! -Zi
@@ -1015,6 +1016,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         camera.aspect_ratio=float(pw)/float(ph);
                         camera.near_clip_m=2.f;
                         camera.far_clip_m=10.f;
+                        U32 secondary_first_foreground=0u;
                         const bool uploaded_secondary=upload(&world_near,1)==1;
                         if (uploaded_secondary) secondary_window_stage=2;
                         const bool attached_secondary=uploaded_secondary &&
@@ -1057,6 +1059,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                         if (LLWindowSDL::oglVulkanPreviewWorldPixels(
                                                 1u,&geometry_samples) &&
                                             geometry_samples>=8u) {
+                                            secondary_first_foreground=geometry_samples;
                                             secondary_window_verified=true;
                                             secondary_window_stage=6;
                                             break;
@@ -1112,7 +1115,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     if (changed_green>=0 &&
                                         std::abs(changed_green-first_green)>=3 &&
                                         LLWindowSDL::oglVulkanPreviewWorldPixels(
-                                            2u,&foreground) && foreground>=8u) {
+                                            2u,&foreground) &&
+                                        ogl::separate_preview_two_frame_pixels(
+                                            1u,2u,secondary_first_foreground,foreground)) {
                                         secondary_sunlight_verified=true;
                                         break;
                                     }

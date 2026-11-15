@@ -4,6 +4,36 @@ Aktuelles Projekt: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Git-Remote: https://github.com/marlin198323-glitch/ogl-viewer.git
 
+15.11.2026 – neue P05/3-Entwicklungsrunde (20 reale
+Prüfschritte): Die streng opt-in aktivierte zweite
+SDL/X11-Vulkan-Weltvorschau erfordert für einen
+*sichtbaren* echten OpenSim-Weltpixelbeleg jetzt
+**zwei verschiedene, der Reihe nach nachgewiesene
+Vulkan-Presents mit alternierenden Warm/Kalt-Clears**.
+Erst dann erscheint das Logereignis
+`P05 actual OpenSim Vulkan SDL preview X11 geometry:
+foreground=N samples=12288 alternating_frames=A,B
+proof=two-frame source=real-deferred ...`.
+Portable native Policy-Funktion in
+`ogl_world_shadow_policy.h`, Host-Zustand in
+`oglrtxhost.cpp`, derselbe Nachweis in der
+synthetischen SDL-X11-Sonnenlichtprobe, strenger
+`ogl-test-report.py` mit negativer Einzelbild-
+/Quell-/Reihenfolgenprüfung. 436 Python-/41 native
+CTests, Linux-Vollbuild und drei isolierte GPU-X11-
+Smokes (Sunlight 2 Frames mit Farbwechsel, Depth
+Legacy, unvollständige Sun-Freigabe) bestanden;
+OpenGL-`STATE_LOGIN_WAIT`, keine FATAL. Die
+Server-Stable-Baseline unverändert `ee15af8e...`.
+**Kein neuer authentifizierter OpenSim-Welt-Pixelbeleg,
+kein Vulkan-Hauptfenster, keine Windows/macOS-Abnahme.
+P05 bleibt 2/20, Block P05/3 offen.**
+Weitere 20 Schritte, Testdetails und nächster
+Block in `ogl/PROJECT_STATUS.md`. Alte
+Einzelbild-Logs zählen ab jetzt nicht als
+Zwei-Frame-X11-Nachweis. Keine Produktivserver,
+Benutzerprofile oder laufende Benutzerviewer geändert.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

@@ -43,6 +43,20 @@ int main() {
     assert(!preview_retry(true,false,1,1,5,2,2,0));
     assert(preview_retry(true,false,UINT64_MAX,UINT64_MAX,UINT64_MAX,
                          1,1,1));
+    // Visible X11 world proof needs two distinct real swapchain presents
+    // with opposite clear colors; never accept a single/stale frame.
+    using ogl::separate_preview_two_frame_pixels;
+    assert(separate_preview_two_frame_pixels(1,2,16,32));
+    assert(separate_preview_two_frame_pixels(2,5,8,12288));
+    assert(!separate_preview_two_frame_pixels(0,2,16,32));
+    assert(!separate_preview_two_frame_pixels(1,1,16,32));
+    assert(!separate_preview_two_frame_pixels(2,1,16,32));
+    assert(!separate_preview_two_frame_pixels(1,3,16,32));
+    assert(!separate_preview_two_frame_pixels(1,17,16,32));
+    assert(!separate_preview_two_frame_pixels(1,2,7,32));
+    assert(!separate_preview_two_frame_pixels(1,2,16,7));
+    assert(!separate_preview_two_frame_pixels(1,2,12289,32));
+    assert(!separate_preview_two_frame_pixels(1,2,16,12289));
     // Live source may become valid at arbitrarily low FPS. The first
     // qualified GL world swap can trigger the private GPU immediately;
     // subsequent synchronous attempts obey a >=120 world-swap gap.

@@ -2,6 +2,30 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 15.11.2026: zwei sichtbare Vulkan-Weltframes
+
+Im Source-/Region-/Mesh-validierten Opt-in-Zweitfenster darf
+`vkQueuePresentKHR` weiterhin nicht als sichtbarer OpenSim-
+Weltbeleg gelten. Ein einziger `XGetImage`-Scan
+ist ebenfalls nicht hinreichend. Implementierter QA-Schritt:
+zwei verschiedene erfolgreiche Frame-Indizes 1..16, zwei
+positive X11-Frontbuffer-Scans mit gültiger jeweiliger
+Swapchain-Clear-Farbe, mindestens 32 Clear- und 8 Geometriepixel
+je Frame, abwechselnde Frame-Parität, identische aktuelle
+Deferred-Region/Capture-/Meshquelle, danach
+`proof=two-frame` und numerische Frame-Indizes.
+Einzelbild-Logs dürfen im Testreport nicht hochgestuft
+werden. Die zweite Vulkan-Surface bleibt isoliert,
+OpenGL besitzt weiterhin das Hauptfenster. Linux:
+436 Python-/41 native CTests, Vollviewer-Build,
+drei echte Xvfb-GPU-Fenstertests erfolgreich.
+Authentifizierter OpenSim-Live-Zweitfensterbeleg
+und produktive Vulkan-Welt-/UI-Engine sind weiterhin
+offene Voraussetzungen von **P05/3 (P05 2/20)**.
+Ausführliche 20 Schritte in `ogl/PROJECT_STATUS.md`.
+Externer OpenGenesisLINK-Stable-Stand unverändert
+`ee15af8e...`, kein `gen1-updates`-Release.
+
 ## Verbindlicher Projektauftrag – bei jedem neuen Chat zuerst lesen
 
 **Kanonisches GitHub-Repository:** https://github.com/marlin198323-glitch/ogl-viewer

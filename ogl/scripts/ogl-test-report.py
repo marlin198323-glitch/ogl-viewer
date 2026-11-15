@@ -354,7 +354,8 @@ P05_LIVE_PREVIEW = re.compile(
 # Count real X11 frontbuffer geometry only after a current-source preview.
 P05_LIVE_PREVIEW_PIXELS = re.compile(
     r"P05 actual OpenSim Vulkan SDL preview X11 geometry: "
-    r"foreground=(\d+) samples=12288 source=real-deferred "
+    r"foreground=(\d+) samples=12288 alternating_frames=(\d+),(\d+) "
+    r"proof=two-frame source=real-deferred "
     r"separate-window=1; NO full Vulkan viewer/UI\."
 )
 
@@ -374,16 +375,21 @@ def p05_live_preview_x11_pixels(log_text: str, confirmed_frames: int,
             current=current[occurrences[-1].start():]
     confirmed=0
     acknowledged=False
-    saw_preview=False
+    last_preview_frame=0
     for line in current.splitlines():
         if P05_WORLD_SWAP.search(line):
             acknowledged=True
-        if P05_LIVE_PREVIEW.search(line) and acknowledged:
-            saw_preview=True
+        frame=P05_LIVE_PREVIEW.search(line)
+        if frame and acknowledged:
+            number=int(frame.group(1))
+            if number==last_preview_frame+1 and number<=16:
+                last_preview_frame=number
         pixels=P05_LIVE_PREVIEW_PIXELS.search(line)
-        if pixels and saw_preview:
-            n=int(pixels.group(1))
-            if 8<=n<=12288:
+        if pixels and last_preview_frame>=2:
+            n,first,second=map(int,pixels.groups())
+            if (8<=n<=12288 and 1<=first<second<=16 and
+                    (first^second)&1 and second==last_preview_frame and
+                    second<=preview_frames):
                 confirmed=n
     return confirmed
 
