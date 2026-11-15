@@ -6,6 +6,43 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Arbeitsschritte: echte Face-RGB-Farben im zweiten Vulkan-Fenster (15.11.2026 MEZ)
+
+**Implementiert und auf Linux/X11 mit synthetischer Geometrie sichtbar GPU-getestet. Authentifizierter OpenSim-In-World-Farbbeleg weiterhin offen.**
+
+Die bereits vorhandenen source-validierten OpenSim-LLTextureEntry-Diffuse-RGB-Seitenpuffer können nun unter dem ZUSÄTZLICHEN Entwickler-Opt-in
+`OGL_VULKAN_PREVIEW_FACE_TINT_PROBE=1`
+in der eigenen 512×384-SDL/X11-Vulkan-Weltvorschau als echte Vertexfarben gezeichnet werden. Dafür wird kein neuer Shader und keine parallele Engine angelegt: Der vorhandene und zuvor private GPU-geprüfte `ogl_dev_world_face_tint_vert_spv`-/`ogl_dev_world_face_tint_frag_spv`-Pfad samt Binding 1 wird in die bereits vorhandene persistente VkSwapchain-Pipeline integriert. Binding 0 bleibt Welt-XYZ, Binding 1 übernimmt drei RGB-Floats pro Vertex; Indexpuffer, VkDepth, 80-Byte-Kamera/Sun-Push-Constants und Vulkan-Synchronisation bleiben unverändert. Der existierende Vulkan-Sun-/Depth-Test ohne das neue Flag bleibt unverändert.
+
+Die neue Option ist standardmäßig deaktiviert und setzt `OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE=1`, `OGL_VULKAN_WORLD_FACE_TINT_PROBE=1`, `OGL_VULKAN_WORLD_LAMBERT_PROBE=1`, `OGL_VULKAN_WORLD_SUN_LIGHT_PROBE=1` sowie alle bisherigen echten Source-/Region-/Camera-/World-/Depth-/WSI-Gates voraus. Zusätzlich müssen der GPU-Tintbuffer, die exakte aktuelle Meshgeneration und die Anzahl `3 * triangle_count` vor einem Render-Present vorliegen. Ungültige Tint-Optionen werden *vor* dem GPU-Modulladen im SDL-Test abgewiesen und im Vulkan-Modul selbst ebenfalls fail-closed behandelt. Pipeline-Shadermodus und Face-Tint-Auswahl sind während einer bestehenden Swapchain unveränderlich; ein versuchter Wechsel darf keinen neuen Frame zählen oder präsentieren.
+
+**Unabhängiger realer GPU-/X11-Test mit synthetischem blauem Face-RGB:** Ein vorhandenes einzelnes 3D-Weltdreieck erhält über die echte Vulkan-GPU-Face-Tint-Upload-ABI opaque Blau. Im zweiten SDL-Fenster werden zwei echte `vkQueuePresentKHR`-Frames mit zwei unterschiedlichen Sun-Richtungen und dem weiterhin unveränderten GPU-Mesh gezeigt. X11-Readback bestätigt dominantes Blau im Dreieck sowie eine echte geänderte Beleuchtungskomponente und gültige alternierende Clear- und Geometriepixel. Es wird kein OpenGL-Readback als Vulkan-Farbbeleg ausgegeben. Die gleichzeitig aktive synthetische Prä-GL-Hauptfensterprüfung verwendet zeitweise den alten shaderneutralen Modus, stellt das Entwicklerflag vor dem Zweitfenster wieder her und gibt alle Vulkan-Ressourcen vor OpenGL frei. Der eigentliche Live-OpenSim-Pfad bleibt davon getrennt.
+
+**20 tatsächlich bearbeitete Entwicklungs-/Prüfschritte:**
+
+01. Linux-Mint-Commander auf `ogl-develop`, sauberem Ausgangscommit `ed2414c0` und Remote-Synchronität geprüft.
+02. `AGENTS.md` einschließlich Windows/macOS-/OpenGL-Schutz und P05-Grenzen gelesen.
+03. `ogl/PROJECT_HANDOFF.md` gelesen.
+04. `ogl/PROJECT_STATUS.md` und bisherige 2-Frame-Beweisstufe gelesen.
+05. Verbindliche `/goal`-Roadmap und noch offene Phase P05/3 gelesen.
+06. Read-only OpenGenesisLINK `main` und `v0.9.4.0` unverändert auf `ee15af8e...` geprüft.
+07. Fehlenden `gen1-updates`-Tag und offene WIP-PRs #443/#447/#448 geprüft, keine fremden Serveränderungen übernommen.
+08. Vorheriges GitHub-Portable-Grafik-CI-Ergebnis `ed2414c0` als erfolgreich verifiziert.
+09. Bestehende Vulkan-WSI-Pipeline gegen private Shader-Mode-3-/Face-Tint-GPU-Implementierung verglichen.
+10. Bereits vorhandene echte LLTextureEntry-Source-Face-RGB-ABI und Meshgeneration im Host geprüft.
+11. Neues isoliertes, standardmäßig ausgeschaltetes Face-RGB-Preview-Opt-in und vollständige voneinander unabhängige Flags eingeführt.
+12. Finite opaque RGB-Quellenvalidation, GPU-Tintbuffer-/Indexzuordnung und Meshgenerations-Gates wiederverwendet.
+13. Bestehende Face-Tint-Vertex- und -Fragment-SPIR-V in der aktiven zweiten Vulkan-Swapchain auswählbar gemacht.
+14. Zweites VkVertex-Input-Binding mit eigenem aktuellen GPU-Tintbuffer zur vorhandenen Indexpipeline verbunden.
+15. Modus pro Swapchain eingefroren; Wechsel während laufender Vulkan-Submission vor Acquire zurückgewiesen.
+16. Echte Live-Preview weiter auf aktuelle OpenSim-Region/Capture/privates GPU-Receipt und vorhandene Farbsidecar-Quelle begrenzt.
+17. Eigenes synthetisches SDL-X11-GPU-Testmesh um blaues RGB, zwei echte Sonnenrichtungs-Presents und zweifache X11-Pixel-/Farbprüfung erweitert.
+18. Entdeckte Prä-GL-Hauptfenster-Gate-Überlappung durch zeitlich begrenzten, automatisch rücksetzenden Entwicklerflag-Guard behoben; ungültige Flags früh abgewiesen.
+19. Vorhandene Python-Grafikregression für Shaderwahl, GPU-Bindings, Guard, Source- und Wechselverbote erweitert; 437/437 Python-Tests, 41/41 native CTests und Linux-Vollviewer-Build bestanden.
+20. Vier echte voneinander isolierte Xvfb-Viewerstarts (Face-RGB, alte Sonnenlicht-Variante, fehlende Tint-Quelle, ungültiger Tint-Opt-in), native 16-/32-Frame-X11-Persistent-WSI-Regressionen, `git diff --check` und sauberen GL-Login geprüft. Kein FATAL; Testprozesse gezielt über eigene Prozessgruppen beendet.
+
+**Grenzen:** Es sind synthetische Weltgeometrie und wirkliche Vulkan/X11-Framebuffer-Pixel geprüft. Kein neu authentifizierter OpenSim-Live-Farb-Frame im zweiten Fenster, keine automatische Material-/Textur-/Alpha-/PBR-Freigabe, kein Terrain-/Avatar-/UI-Compositing und kein OpenGL→Vulkan-Hauptfenster-Enginewechsel. Windows-/macOS-Vollviewer unverifiziert; servergesteuerte Clock-v1-Pflicht in P08/P13 offen. Formal **P05 2/20, P05/3 offen**. Als nächstes den echten source-identischen OpenSim-Tint-Farbbeleg nach Login und danach die exklusive Hauptfenster-/UI-Architektur integrieren; keine künstlichen P05-Fortschrittspunkte.
+
 ## P05/3 – /goal 20 Prüfschritte: zweifacher X11-Weltpixelbeleg im Vulkan-Zweitfenster (15.11.2026 MEZ)
 
 **Code integriert, Linux-GPU-/X11-Regressionen bestanden; authentifizierter OpenSim-Livetest weiterhin offen.**

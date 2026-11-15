@@ -21,6 +21,26 @@ P05=2/20, Block 3 weiter offen. Siehe
 `ogl/PROJECT_STATUS.md` für 20 Einzelprüfpunkte.
 Server-Baseline `ee15af8e...` unverändert.
 
+P05/3 15.11.2026: Strikt opt-in kann die zweite
+Vulkan-SDL-X11-Weltvorschau auch reale, source-
+qualifizierte OpenSim-LLTextureEntry-Face-RGB-Tints
+im bestehenden GPU-Vertexbinding1 darstellen.
+Neuer `OGL_VULKAN_PREVIEW_FACE_TINT_PROBE=1`
+braucht volle Sun-/Tint-/Mesh-/WSI-Gates,
+aktuellen Farbsidecar und pro Swapchain fixierte
+Shaderwahl. Vorhandene Vulkan-Mode-3-Shader
+wiederverwendet, synthetischer echter Zweitfenster-
+GPU-/X11-Beleg mit zwei geänderten blauen
+Sonnenlichtframes erfolgreich, alter Sun-/Depth-
+Preview und GL-Login erhalten. 437 Python-/41
+native CTests, Linux-Vollbuild, 4 SDL-X11-
+Smokes, native 16/32-Present-Regressionen grün.
+Kein neuer *authentifizierter* OpenSim-Live-Beleg,
+kein produktiver Vulkan-Hauptfensterrenderer,
+keine Windows/macOS-GUI-Abnahme. P05 2/20,
+Block P05/3 offen. Details in PROJECT_STATUS.md.
+Externe Serverbaseline weiterhin ee15af8e...
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

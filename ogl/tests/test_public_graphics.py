@@ -2158,6 +2158,48 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('LLWindowSDL::oglVulkanPreviewWorldPixels(',sdl)
         self.assertIn('if (triangle && persistent && secondary_sunlight)',sdl)
 
+    def test_p05_secondary_vulkan_preview_renders_real_source_face_rgb_only_with_opt_in(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        a=gpu.index('uint32_t present_persistent_clear_frame(')
+        b=gpu.index('// P05/3 foundation:',a)
+        present=gpu[a:b]
+        for phrase in (
+            'OGL_VULKAN_PREVIEW_FACE_TINT_PROBE',
+            'OGL_VULKAN_WORLD_FACE_TINT_PROBE',
+            'world_device.tint_mesh_generation!=world_device.mesh_generation',
+            'world_device.tint_vertex_count!=world_device.mesh_triangle_count*3u',
+            '(p.initialized && p.face_tint!=face_tint)',
+            'p.face_tint=face_tint;',
+            'ogl_dev_world_face_tint_vert_spv',
+            'ogl_dev_world_face_tint_frag_spv',
+            'vertex_input.vertexBindingDescriptionCount=face_tint ? 2u : 1u;',
+            'vkCmdBindVertexBuffers(cmd,0,2,buffers,offsets);',
+            'vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u',
+        ):
+            self.assertIn(phrase,present)
+        self.assertLess(present.index('world_device.tint_mesh_generation!='),
+                        present.index('vkAcquireNextImageKHR'))
+        self.assertLess(present.index('(p.initialized && p.face_tint!=face_tint)'),
+                        present.index('if (!p.initialized) {'))
+        self.assertIn('world_tint_mesh_generation()!=world_mesh_generation()',host)
+        self.assertIn('!flag_enabled("OGL_VULKAN_WORLD_FACE_TINT_PROBE")',host)
+        self.assertIn('face-tint="',host)
+        self.assertIn('no texture/PBR/alpha/terrain/avatar/UI.',host)
+        self.assertIn('const ogl_rtx_face_tint blue_face{{0.f,0.f,1.f}};',sdl)
+        self.assertIn('upload_tints(&blue_face,1)==1',sdl)
+        self.assertIn('SecondaryTintFlagGuard',sdl)
+        self.assertIn('raw_tint_mode &&',sdl)
+        self.assertIn('face-tint preview rejects invalid opt-in',sdl)
+        self.assertIn('secondary_tint_guard.restore();',sdl)
+        self.assertLess(sdl.index('secondary_tint_guard.restore();'),
+                        sdl.index('LLWindowSDL::createOglVulkanPreviewWindow('))
+        self.assertIn('blue>red && blue>green',sdl)
+        self.assertIn('frozen_tint_mode=persistent_present(1)==0',sdl)
+        self.assertIn('secondary-face-tint=" << (secondary_face_tint',sdl)
+        self.assertIn('secondary_face_tint_verified=secondary_face_tint;',sdl)
+
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
         sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()

@@ -34,6 +34,40 @@ Einzelbild-Logs zählen ab jetzt nicht als
 Zwei-Frame-X11-Nachweis. Keine Produktivserver,
 Benutzerprofile oder laufende Benutzerviewer geändert.
 
+15.11.2026 – P05/3 /goal-20er-Runde: Der zweite
+exklusive Vulkan-SDL/X11-World-Swapchain-Renderer
+verwendet neu bei separatem
+`OGL_VULKAN_PREVIEW_FACE_TINT_PROBE=1`
+die bereits vorhandenen source-validierten
+Opaque-Face-RGB-Seitenpuffer von OpenSim. Die
+vorhandenen Face-Tint-SPIR-V-Shader, 80-Byte-Sun/
+Camera-Push-Constants und GPU-Binding 1 wurden in
+der persistenten Vulkan-WSI-Pipeline wiederverwendet;
+Depth-/Sunlight-Legacy bleibt Standard. Face-Tint
+braucht eigene vollständige Sun/World/Tint-Gates,
+GPU-Tintbuffer mit aktueller Meshgeneration
+und unveränderlichen VkSwapchain-Shader-Modus.
+Synthetisches blaues World-Triangle wurde mit
+zwei echten X11-Vulkan-Presents und wechselndem
+Sonnenlicht sichtbar nachgewiesen; beide echten
+GPU-Fenster-Readbacks zeigen nichtleere Geometrie
+und echte Blau-Beleuchtungsänderung. Main-PreGL-
+Testfenster arbeitet weiter mit alten Shaderflags;
+ein Scope-Guard stellt die separate Face-Tint-
+Freigabe vor dem zweiten Fenster wieder her.
+4 isolierte Xvfb-/OpenGL-Loginfälle (Tint, Sun
+Legacy, fehlende Tint-Quelle, invalides Flag),
+437 Python-/41 native CTests, Linux-Vollbuild
+und native X11-Vulkan-16/32-Present-Regressions-
+läufe bestanden. `ogl/PROJECT_STATUS.md` enthält
+alle 20 konkreten Schritte und Grenzen.
+**Kein neuer authentifizierter OpenSim-Livetest.
+Vulkan-Hauptfenster mit Avatar/Terrain/UI fehlt;
+P05=2/20, Block 3 weiterhin offen.**
+Kein Server, Benutzerprofil oder Benutzer-Viewer
+geändert. OpenGenesisLINK Stable unverändert
+`ee15af8e...`.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

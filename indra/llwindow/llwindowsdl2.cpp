@@ -266,6 +266,25 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SECONDARY_WINDOW_PROBE");
     const bool secondary_sunlight=secondary_window_probe &&
         ogl_pre_gl_flag("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE");
+    const char* raw_tint_mode=std::getenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE");
+    if (secondary_window_probe && raw_tint_mode &&
+        std::strcmp(raw_tint_mode,"0")!=0 &&
+        std::strcmp(raw_tint_mode,"1")!=0) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL face-tint preview rejects invalid opt-in; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
+    const bool secondary_face_tint=secondary_window_probe &&
+        ogl_pre_gl_flag("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE");
+    if (secondary_face_tint &&
+        (!secondary_sunlight ||
+         !ogl_pre_gl_flag("OGL_VULKAN_WORLD_FACE_TINT_PROBE"))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL face-tint preview requires sunlight and current face RGB permissions; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     if (secondary_sunlight &&
         (!ogl_pre_gl_flag("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
          !ogl_pre_gl_flag("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) {
@@ -287,6 +306,20 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    // The synthetic startup test first uses the actual main SDL window,
+    // where no face RGB sidecar is uploaded. Quarantine the secondary-only
+    // tint permission until that main-window test has fully detached.
+    // The scope guard restores the original flag on every early exit.
+    struct SecondaryTintFlagGuard {
+        bool enabled;
+        explicit SecondaryTintFlagGuard(bool value) : enabled(value) {
+            if (enabled) SDL_setenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE","0",1);
+        }
+        void restore() const {
+            if (enabled) SDL_setenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE","1",1);
+        }
+        ~SecondaryTintFlagGuard() { restore(); }
+    } secondary_tint_guard(secondary_face_tint);
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -318,6 +351,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     using Present = uint32_t (*)(uint32_t);
     using Detach = void (*)();
     using Upload = int (*)(const ogl_rtx_triangle*,uint32_t);
+    using UploadTint = int (*)(const ogl_rtx_face_tint*,uint32_t);
     using MeshCount = uint32_t (*)();
     using SetCamera = int (*)(const ogl_rtx_frame_state*);
     const auto set_camera=reinterpret_cast<SetCamera>(
@@ -335,6 +369,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_LoadFunction(library,"ogl_vulkan_world_live_inputs_ready"));
     const auto upload=reinterpret_cast<Upload>(
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_triangles"));
+    const auto upload_tints=reinterpret_cast<UploadTint>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_upload_face_tints"));
     const auto mesh_count=reinterpret_cast<MeshCount>(
         SDL_LoadFunction(library,"ogl_vulkan_world_gpu_triangle_count"));
     const auto start=reinterpret_cast<ogl_module_start_fn>(
@@ -373,6 +409,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool motion_pixels_verified=false;
     bool secondary_window_verified=false;
     bool secondary_sunlight_verified=false;
+    bool secondary_face_tint_verified=false;
     uint32_t secondary_sunlight_frames=0;
     uint32_t secondary_window_stage=0;
     uint32_t motion_pixel_changes=0;
@@ -989,6 +1026,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     // The original SDL viewer surface is already detached;
                     // all rendering below targets a distinct SDL X11 window.
                     detach();
+                    secondary_tint_guard.restore();
                     void* preview_display=nullptr;
                     U64 preview_xid=0;
                     int pw=0,ph=0;
@@ -1017,7 +1055,13 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         camera.near_clip_m=2.f;
                         camera.far_clip_m=10.f;
                         U32 secondary_first_foreground=0u;
-                        const bool uploaded_secondary=upload(&world_near,1)==1;
+                        const bool uploaded_geometry=upload(&world_near,1)==1;
+                        // Same existing GPU-sidecar ABI used for genuine
+                        // OpenSim LLTextureEntry diffuse RGB. Opaque only.
+                        const ogl_rtx_face_tint blue_face{{0.f,0.f,1.f}};
+                        const bool uploaded_secondary=uploaded_geometry &&
+                            (!secondary_face_tint ||
+                             (upload_tints && upload_tints(&blue_face,1)==1));
                         if (uploaded_secondary) secondary_window_stage=2;
                         const bool attached_secondary=uploaded_secondary &&
                             attach(preview_display,preview_xid,pw,ph)==1;
@@ -1030,8 +1074,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                             secondary_window_stage=5;
                             // X11 presentation is asynchronous. Confirm
                             // the actual projected triangle at the center.
-                            // Sunlight mode instead uses a green-dominant
-                            // material-independent directional shader.
+                            // Sunlight uses the green debug shade; face RGB
+                            // mode instead requires actual blue-dominant
+                            // pixels from the GPU vertex color sidecar.
                             auto* dpy=static_cast<Display*>(preview_display);
                             for (int attempt=0;attempt<120;++attempt) {
                                 XSync(dpy,False);
@@ -1049,8 +1094,12 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     };
                                     const int red=channel(sample->red_mask);
                                     const int green=channel(sample->green_mask);
+                                    const int blue=channel(sample->blue_mask);
                                     XDestroyImage(sample);
-                                    if ((secondary_sunlight && green>red && green>=55) ||
+                                    if ((secondary_face_tint &&
+                                         blue>red && blue>green && blue>=45) ||
+                                        (secondary_sunlight && !secondary_face_tint &&
+                                         green>red && green>=55) ||
                                         (!secondary_sunlight && red>=225 && green<90)) {
                                         // Regression of the SAME bounded X11
                                         // frontbuffer test used by the live
@@ -1072,29 +1121,29 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         // The source triangle stays on the SAME VkBuffer.
                         // Change only the validated sun and prove a SECOND
                         // real Vulkan swapchain frame with visibly different
-                        // green lighting, not just a queue/frame counter.
+                        // illuminated green (or face-RGB blue) pixels,
+                        // not just a queue/frame counter.
                         if (secondary_sunlight && secondary_window_verified) {
                             secondary_sunlight_frames=1;
                             auto* dpy=static_cast<Display*>(preview_display);
-                            auto center_green=[&]() -> int {
+                            auto center_color=[&]() -> int {
                                 XSync(dpy,False);
                                 XImage* sample=XGetImage(dpy,
                                     static_cast<Window>(preview_xid),
                                     pw/2,ph/2,1,1,AllPlanes,ZPixmap);
-                                if (!sample || !sample->green_mask) {
-                                    if (sample) XDestroyImage(sample);
-                                    return -1;
-                                }
+                                if (!sample) return -1;
                                 const auto pixel=XGetPixel(sample,0,0);
-                                unsigned long mask=sample->green_mask;
+                                unsigned long mask=secondary_face_tint
+                                    ? sample->blue_mask : sample->green_mask;
+                                if (!mask) { XDestroyImage(sample); return -1; }
                                 unsigned shift=0;
                                 while (!(mask&1UL)) {mask>>=1; ++shift;}
-                                const int green=static_cast<int>(
+                                const int component=static_cast<int>(
                                     (((pixel>>shift)&mask)*255UL+mask/2)/mask);
                                 XDestroyImage(sample);
-                                return green;
+                                return component;
                             };
-                            const int first_green=center_green();
+                            const int first_component=center_color();
                             // Switching a live VkSwapchain's shader mode
                             // behind the pipeline is forbidden, even after
                             // an otherwise valid GPU present. Restore this
@@ -1103,22 +1152,30 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                             const bool frozen_shader_mode=persistent_present(1)==0 &&
                                 persistent_count()==1;
                             SDL_setenv("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE","1",1);
+                            bool frozen_tint_mode=true;
+                            if (secondary_face_tint) {
+                                SDL_setenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE","0",1);
+                                frozen_tint_mode=persistent_present(1)==0 &&
+                                    persistent_count()==1;
+                                SDL_setenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE","1",1);
+                            }
                             camera.sun_direction[0]=1.f;
                             camera.sun_direction[2]=0.f;
-                            if (frozen_shader_mode && first_green>=0 &&
-                                set_camera(&camera)==1 &&
+                            if (frozen_shader_mode && frozen_tint_mode &&
+                                first_component>=0 && set_camera(&camera)==1 &&
                                 persistent_present(1)==1 && persistent_count()==2) {
                                 secondary_sunlight_frames=2;
                                 for (unsigned attempt=0;attempt<120u;++attempt) {
-                                    const int changed_green=center_green();
+                                    const int changed_component=center_color();
                                     U32 foreground=0;
-                                    if (changed_green>=0 &&
-                                        std::abs(changed_green-first_green)>=3 &&
+                                    if (changed_component>=0 &&
+                                        std::abs(changed_component-first_component)>=3 &&
                                         LLWindowSDL::oglVulkanPreviewWorldPixels(
                                             2u,&foreground) &&
                                         ogl::separate_preview_two_frame_pixels(
                                             1u,2u,secondary_first_foreground,foreground)) {
                                         secondary_sunlight_verified=true;
+                                        secondary_face_tint_verified=secondary_face_tint;
                                         break;
                                     }
                                     SDL_Delay(3);
@@ -1163,6 +1220,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             ? (secondary_sunlight_verified ? "verified" : "failed")
             : "not-requested") <<
         ", secondary-sunlight-frames=" << secondary_sunlight_frames <<
+        ", secondary-face-tint=" << (secondary_face_tint
+            ? (secondary_face_tint_verified ? "verified" : "failed")
+            : "not-requested") <<
         ", stale-camera=" << (stale_camera_probe
             ? (stale_camera_verified ? "verified" : "failed")
             : "not-requested") <<

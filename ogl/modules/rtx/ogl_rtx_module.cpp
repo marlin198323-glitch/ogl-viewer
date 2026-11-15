@@ -146,6 +146,7 @@ struct OglPersistentClearFrames {
     VkPipeline pipeline = VK_NULL_HANDLE;
     bool world_depth = false;
     bool sunlight = false; // frozen per attached VkSwapchain
+    bool face_tint = false; // independent frozen vertex-binding1 mode
     std::array<uint64_t,2> submitted_mesh_generations{};
     std::vector<VkSemaphore> presented_by_image;
     std::vector<VkFence> image_in_flight;
@@ -2646,6 +2647,19 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     if (sun_preview && std::strcmp(sun_preview,"0")!=0 &&
         std::strcmp(sun_preview,"1")!=0) return 0;
     const bool sunlight=sun_preview && std::strcmp(sun_preview,"1")==0;
+    const char* tint_preview=std::getenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE");
+    if (tint_preview && std::strcmp(tint_preview,"0")!=0 &&
+        std::strcmp(tint_preview,"1")!=0) return 0;
+    const bool face_tint=tint_preview && std::strcmp(tint_preview,"1")==0;
+    if (face_tint) {
+        const char* tint_source=std::getenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
+        if (!world || !sunlight || !tint_source ||
+            std::strcmp(tint_source,"1")!=0 ||
+            !world_device.mesh_tint_vertices ||
+            world_device.tint_mesh_generation!=world_device.mesh_generation ||
+            world_device.tint_vertex_count!=world_device.mesh_triangle_count*3u)
+            return 0;
+    }
     if (sunlight) {
         const char* lambert=std::getenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
         const char* sun=std::getenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
@@ -2688,7 +2702,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     // 16-frame QA ceiling. The normal pre-GL path remains capped at 16.
     if (p.blocked || (p.initialized && p.frame_count>=p.max_frames) ||
         (p.initialized && p.world_depth!=world) ||
-        (p.initialized && p.sunlight!=sunlight)) return 0;
+        (p.initialized && p.sunlight!=sunlight) ||
+        (p.initialized && p.face_tint!=face_tint)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -2769,6 +2784,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             p.image_count=expected_count;
             p.world_depth=world;
             p.sunlight=sunlight;
+            p.face_tint=face_tint;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
                                      VK_FORMAT_D16_UNORM}) {
@@ -2920,20 +2936,24 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         if (world) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=true
-                ? sizeof(ogl_dev_world_vert_spv) : sizeof(ogl_dev_vert_spv);
-            vertex_info.pCode=true
-                ? ogl_dev_world_vert_spv : ogl_dev_vert_spv;
+            vertex_info.codeSize=face_tint
+                ? sizeof(ogl_dev_world_face_tint_vert_spv)
+                : sizeof(ogl_dev_world_vert_spv);
+            vertex_info.pCode=face_tint
+                ? ogl_dev_world_face_tint_vert_spv : ogl_dev_world_vert_spv;
             if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
                                      &p.vertex_shader)!=VK_SUCCESS || !p.vertex_shader)
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=sunlight
-                ? sizeof(ogl_dev_world_sunlight_frag_spv)
-                : sizeof(ogl_dev_depth_frag_spv);
-            fragment_info.pCode=sunlight
-                ? ogl_dev_world_sunlight_frag_spv : ogl_dev_depth_frag_spv;
+            fragment_info.codeSize=face_tint
+                ? sizeof(ogl_dev_world_face_tint_frag_spv)
+                : (sunlight ? sizeof(ogl_dev_world_sunlight_frag_spv)
+                            : sizeof(ogl_dev_depth_frag_spv));
+            fragment_info.pCode=face_tint
+                ? ogl_dev_world_face_tint_frag_spv
+                : (sunlight ? ogl_dev_world_sunlight_frag_spv
+                            : ogl_dev_depth_frag_spv);
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
                 return false;
@@ -2957,10 +2977,16 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             vertex_attribute.offset=0;
             VkPipelineVertexInputStateCreateInfo vertex_input{
                 VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-            vertex_input.vertexBindingDescriptionCount=1;
-            vertex_input.pVertexBindingDescriptions=&vertex_binding;
-            vertex_input.vertexAttributeDescriptionCount=1;
-            vertex_input.pVertexAttributeDescriptions=&vertex_attribute;
+            VkVertexInputBindingDescription bindings[2]{vertex_binding,vertex_binding};
+            bindings[1].binding=1;
+            VkVertexInputAttributeDescription attributes[2]{
+                vertex_attribute,vertex_attribute};
+            attributes[1].location=1;
+            attributes[1].binding=1;
+            vertex_input.vertexBindingDescriptionCount=face_tint ? 2u : 1u;
+            vertex_input.pVertexBindingDescriptions=bindings;
+            vertex_input.vertexAttributeDescriptionCount=face_tint ? 2u : 1u;
+            vertex_input.pVertexAttributeDescriptions=attributes;
             VkPipelineInputAssemblyStateCreateInfo assembly{
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
             assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -3280,7 +3306,14 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             0,sizeof(float)*(sunlight ? 20u : 16u),
             world_light_push.data());
         const VkDeviceSize offset=0;
-        vkCmdBindVertexBuffers(cmd,0,1,&world_device.mesh_vertices,&offset);
+        if (face_tint) {
+            const VkBuffer buffers[2]{world_device.mesh_vertices,
+                                      world_device.mesh_tint_vertices};
+            const VkDeviceSize offsets[2]{0,0};
+            vkCmdBindVertexBuffers(cmd,0,2,buffers,offsets);
+        } else {
+            vkCmdBindVertexBuffers(cmd,0,1,&world_device.mesh_vertices,&offset);
+        }
         vkCmdBindIndexBuffer(cmd,world_device.mesh_indices,0,
                              VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u,1,0,0,0);

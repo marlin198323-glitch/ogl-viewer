@@ -2,6 +2,33 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 15.11.2026: echte Face-RGB-Pipeline in der zweiten Vulkan-Swapchain
+
+Weitere Renderintegration auf `ogl-develop`: opt-in
+`OGL_VULKAN_PREVIEW_FACE_TINT_PROBE=1` schaltet
+ausschließlich auf der zweiten, Vulkan-eigenen
+SDL/X11-World-Swapchain vom zuvor eingebauten Sun-
+Fragmentshader auf vorhandene Face-Tint-Vertex-/
+Fragment-SPIR-V und GPU-Vertexbinding1 um. Quelle:
+bereits validiertes Opaque-RGB je OpenSim-Volumeface,
+3 aktuelle identische RGB-Vertexwerte je Triangle;
+genaue Source-/Mesh-Generation plus alle Sun-/Tint-
+Permissions bleiben zwingend. Shader-Modus wird pro
+VkSwapchain eingefroren. Der synthetische echte
+Vulkan-X11-GPU-Test bestätigt blaues RGB-Dreieck,
+zwei unterschiedliche Beleuchtungsframes und die
+Zwei-Frame-Pixelbeweiskette; normale OpenGL-Haupt-
+Session und Depth-/Sun-Legacy unverändert.
+437 Python-/41 native CTests, Linux-Fullbuild,
+vier isolierte X11-GUI-Fälle, native Vulkan-X11-
+16/32-Frame-Regressionsläufe erfolgreich.
+**Noch kein neuer authentifizierter OpenSim-Live-
+Zweitfenster-Farbnachweis und keine vollständige
+Hauptfenster-Welt-/UI-Vulkanengine. P05 bleibt
+2/20, Block 3 offen.** Externer OpenGenesisLINK
+Stable `ee15af8e...` unverändert.
+20 Einzelmaßnahmen in `ogl/PROJECT_STATUS.md`.
+
 ### Aktueller P05/3-Checkpoint – 15.11.2026: zwei sichtbare Vulkan-Weltframes
 
 Im Source-/Region-/Mesh-validierten Opt-in-Zweitfenster darf
