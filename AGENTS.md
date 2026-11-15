@@ -26,6 +26,25 @@ ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 unter „Verbindliche externe Server-Kompatibilitätsquelle“.
 
 P05/3 Nachtrag 15.11.2026: Die zweite reale
+SDL-X11-Vulkan-World-Swapchain kann zusätzlich
+nur bei `OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE=1`
+UND beiden `OGL_VULKAN_WORLD_LAMBERT_PROBE=1` +
+`OGL_VULKAN_WORLD_SUN_LIGHT_PROBE=1` den
+bereits getesteten Sunlight-Fragmentshader mit
+20 Floats/80-Byte-Camera-/Firestorm-Sun-Push-
+Constants verwenden. Shader-Modus pro aktiver
+VkSwapchain unveränderlich, Sun-Bewegung ohne
+Meshneuladen; Depth-Preview und GL bleiben Default.
+5 echte isolierte X11-Smokes: 2 echte Vulkan-
+Sun-Presents mit nachgewiesener Pixel-Farbänderung,
+Depth-Legacy und fail-closed Missing/Invalid-Flags;
+436 Python-/41 native CTests, Linux-Vollbuild und
+16/32-Frame-/Region-/Mesh-/Kameratests grün.
+**Kein neuer authentifizierter OpenSim-Live-
+Sunlight-X11-Weltbeleg und keine vollständige
+Vulkan-Hauptfensterengine. P05=2/20, P05/3 offen.**
+
+P05/3 Nachtrag 15.11.2026: Die zweite reale
 Vulkan-SDL/X11-Weltvorschau besitzt jetzt eine
 unabhängige X11-Frontbuffer-Pixelbestätigung
 (12.288 Samples, Clear-Farbvergleich, numerisches

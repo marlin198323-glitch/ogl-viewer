@@ -46,6 +46,41 @@ Detaillierte Kriterien in der Hauptroadmap im Abschnitt
 
 Keine Änderung am P05 2/20 und kein neuer OGL-Renderer.
 
+15.11.2026 – /goal 20 P05/3 echte Vulkan-
+Fragment-Sonnenbeleuchtung im separaten zweiten
+SDL-X11-Weltvorschaufenster: Standard bleibt
+rot/grüner Depth-Debug. Zusätzliche streng opt-in
+`OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE=1` erfordert
+`OGL_VULKAN_WORLD_LAMBERT_PROBE=1` und
+`OGL_VULKAN_WORLD_SUN_LIGHT_PROBE=1`, außerdem
+die gesamte bisherige source-qualifizierte
+Vulkan-World/Depth/Persistent-/Window-Freigabe.
+`ogl_rtx_module.cpp` benutzt dafür den vorhandenen
+Sunlight-Fragment-SPIR-V mit 80-Byte-Camera+Sun-
+Push-Constant und Vertex-/Fragment-Stage-Maske.
+Shader-Modus pro Swapchain eingefroren; fehlende
+Sun-Quelle/Flags oder Umschalten bei Inflight
+blockiert den nächsten GPU-Present; dynamische
+Sun-Bewegung benötigt keinen Mesh-Neuupload.
+Synthetischer echter SDL-X11-Zweitfenster-TEST:
+**2 echte VkQueuePresents** mit unveränderten
+GPU-World-Triangles und geänderter Sun X/Z,
+GPU-Fenster-Pixel-Readback beweist verschiedene
+grüne Beleuchtung und echte Geometriepixel.
+5/5 isolierte Linux-Xvfb-GUI-Smokes (Sunlit,
+Depth-Legacy, fehlende beide Einzelgates,
+ungültige Opt-in-Flag) erfolgreich; alle OpenGL-
+Login, 0 FATAL. Linux-Vollbuild **436 Python-/
+41 native CTests** und native Vulkan-X11-Clear/
+World-16/32-/Rotation-/Barrier-/Firestorm-
+Kamera-Regressionen bestanden. OpenGenesisLINK
+G1 Stable unverändert `ee15af8e...`.
+**Neuer authentifizierter OpenSim-Livetest mit
+sunlit World-Preview noch offen.** Hauptfenster
+bleibt OpenGL, kein voller Vulkan-Avatar/Terrain/
+Material/UI-Renderer. P05=2/20, P05/3 offen.
+20 echte Schritte in `ogl/PROJECT_STATUS.md`.
+
 15.11.2026 – /goal 20 P05/3 echter X11-Fensterpixel-
 Beleg für eine zukünftig authentifizierte OpenSim-
 Vulkan-Weltvorschau: Strikt opt-in bestehendes

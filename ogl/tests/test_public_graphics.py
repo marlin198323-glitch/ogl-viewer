@@ -2124,6 +2124,38 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(host.index('    if (ogl_preview_detach)\n        ogl_preview_detach();'),
                         host.index('LLWindowSDL::destroyOglVulkanPreviewWindow();'))
 
+    def test_p05_real_sdl_vulkan_preview_sunlight_shader_is_opt_in_and_immutable(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        a=gpu.index('uint32_t present_persistent_clear_frame(')
+        b=gpu.index('// P05/3 foundation:',a)
+        fn=gpu[a:b]
+        for needle in ('OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE',
+                       'OGL_VULKAN_WORLD_LAMBERT_PROBE',
+                       'OGL_VULKAN_WORLD_SUN_LIGHT_PROBE',
+                       '!world_device.world_sun_ready',
+                       '(p.initialized && p.sunlight!=sunlight)',
+                       'p.sunlight=sunlight;',
+                       'ogl_dev_world_sunlight_frag_spv',
+                       'sizeof(float)*(sunlight ? 20u : 16u)',
+                       'world_device.world_sun_direction.begin()',
+                       'VK_SHADER_STAGE_FRAGMENT_BIT',
+                       'vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u'):
+            self.assertIn(needle,fn)
+        self.assertLess(fn.index('if (sunlight) {'),fn.index('vkAcquireNextImageKHR'))
+        self.assertLess(fn.index('(p.initialized && p.sunlight!=sunlight)'),
+                        fn.index('if (!p.initialized) {'))
+        self.assertIn('bool sunlight = false;',gpu)
+        self.assertIn('OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE',host)
+        self.assertIn('sunlight=enabled; native Firestorm sun',host)
+        self.assertIn('secondary-sunlight=" << (secondary_sunlight',sdl)
+        self.assertIn('secondary-sunlight-frames=" << secondary_sunlight_frames',sdl)
+        self.assertIn('frozen_shader_mode=persistent_present(1)==0',sdl)
+        self.assertIn('secondary_sunlight_verified=true;',sdl)
+        self.assertIn('LLWindowSDL::oglVulkanPreviewWorldPixels(',sdl)
+        self.assertIn('if (triangle && persistent && secondary_sunlight)',sdl)
+
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
         sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()

@@ -145,6 +145,7 @@ struct OglPersistentClearFrames {
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkPipeline pipeline = VK_NULL_HANDLE;
     bool world_depth = false;
+    bool sunlight = false; // frozen per attached VkSwapchain
     std::array<uint64_t,2> submitted_mesh_generations{};
     std::vector<VkSemaphore> presented_by_image;
     std::vector<VkFence> image_in_flight;
@@ -2639,6 +2640,19 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     const char* world_enabled=std::getenv(
         "OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE");
     const bool world=world_enabled && std::strcmp(world_enabled,"1")==0;
+    // Reuse the existing verified sunlight fragment shader on the real
+    // Vulkan SDL swapchain, ONLY after separate explicit permissions.
+    const char* sun_preview=std::getenv("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE");
+    if (sun_preview && std::strcmp(sun_preview,"0")!=0 &&
+        std::strcmp(sun_preview,"1")!=0) return 0;
+    const bool sunlight=sun_preview && std::strcmp(sun_preview,"1")==0;
+    if (sunlight) {
+        const char* lambert=std::getenv("OGL_VULKAN_WORLD_LAMBERT_PROBE");
+        const char* sun=std::getenv("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE");
+        if (!world || !lambert || std::strcmp(lambert,"1")!=0 ||
+            !sun || std::strcmp(sun,"1")!=0 ||
+            !world_device.world_sun_ready) return 0;
+    }
     if (world) {
         // Mesh/camera/graphics/depth flags MUST all be independently on.
         // No fallback to a solid-color clear when any input is missing.
@@ -2673,7 +2687,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     // on ONE VkSwapchain to expose fence/semaphore reuse beyond the usual
     // 16-frame QA ceiling. The normal pre-GL path remains capped at 16.
     if (p.blocked || (p.initialized && p.frame_count>=p.max_frames) ||
-        (p.initialized && p.world_depth!=world)) return 0;
+        (p.initialized && p.world_depth!=world) ||
+        (p.initialized && p.sunlight!=sunlight)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -2753,6 +2768,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 return false;
             p.image_count=expected_count;
             p.world_depth=world;
+            p.sunlight=sunlight;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
                                      VK_FORMAT_D16_UNORM}) {
@@ -2913,10 +2929,11 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=true
-                ? sizeof(ogl_dev_depth_frag_spv) : sizeof(ogl_dev_frag_spv);
-            fragment_info.pCode=true
-                ? ogl_dev_depth_frag_spv : ogl_dev_frag_spv;
+            fragment_info.codeSize=sunlight
+                ? sizeof(ogl_dev_world_sunlight_frag_spv)
+                : sizeof(ogl_dev_depth_frag_spv);
+            fragment_info.pCode=sunlight
+                ? ogl_dev_world_sunlight_frag_spv : ogl_dev_depth_frag_spv;
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
                 return false;
@@ -2983,9 +3000,10 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             blend.attachmentCount=1;
             blend.pAttachments=&color_attachment;
             VkPushConstantRange camera_range{};
-            camera_range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
+            camera_range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT |
+                (sunlight ? VK_SHADER_STAGE_FRAGMENT_BIT : 0u);
             camera_range.offset=0;
-            camera_range.size=sizeof(float)*16;
+            camera_range.size=sizeof(float)*(sunlight ? 20u : 16u);
             VkPipelineLayoutCreateInfo layout_info{
                 VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
             layout_info.pushConstantRangeCount=1u;
@@ -3248,8 +3266,19 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     vkCmdBeginRenderPass(cmd,&rbi,VK_SUBPASS_CONTENTS_INLINE);
     if (world) {
         vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,p.pipeline);
-        vkCmdPushConstants(cmd,p.pipeline_layout,VK_SHADER_STAGE_VERTEX_BIT,
-            0,sizeof(float)*16,world_device.world_to_clip.data());
+        // Normalized real Firestorm sun vector is updated independently of
+        // the accepted GPU mesh; fragment lighting requires no re-upload.
+        std::array<float,20> world_light_push{};
+        std::copy(world_device.world_to_clip.begin(),
+                  world_device.world_to_clip.end(),world_light_push.begin());
+        if (sunlight)
+            std::copy(world_device.world_sun_direction.begin(),
+                      world_device.world_sun_direction.end(),
+                      world_light_push.begin()+16);
+        vkCmdPushConstants(cmd,p.pipeline_layout,VK_SHADER_STAGE_VERTEX_BIT |
+            (sunlight ? VK_SHADER_STAGE_FRAGMENT_BIT : 0u),
+            0,sizeof(float)*(sunlight ? 20u : 16u),
+            world_light_push.data());
         const VkDeviceSize offset=0;
         vkCmdBindVertexBuffers(cmd,0,1,&world_device.mesh_vertices,&offset);
         vkCmdBindIndexBuffer(cmd,world_device.mesh_indices,0,

@@ -6,6 +6,117 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Arbeitsschritte: echtes Vulkan-Sonnenlicht auf zweiter SDL-Swapchain (15.11.2026 MEZ)
+
+**Implementiert und auf NVIDIA/X11 mit synthetischem World-Mesh GPU-/Pixel-geprüft, authentifizierte OpenSim-Live-Abnahme offen.**
+Bisher rendert die separate strikt opt-in SDL-Vulkan-
+Weltvorschau (`OGL_VULKAN_LIVE_WORLD_WINDOW_PREVIEW=1`)
+nur Tiefen-Debug (rot/grün), obgleich im privaten
+Vulkan-Framebuffer bereits ein geprüfter
+Lambert-/Sonnenlicht-Fragmentshader vorhanden ist.
+Das zweite SDL-Fenster kann jetzt auf echte
+**dynamische Fragmentbeleuchtung durch die
+validierte Firestorm-Sonnenrichtung** umschalten.
+Kein neuer Shader, kein neuer Projektnamen-/UI-/
+Server-/Build-Dateibestand, kein Wechsel der
+OpenGL-Hauptfenster-Ownership.
+
+Der neue **zusätzliche, standardmäßig deaktivierte**
+`OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE=1` benötigt
+`OGL_VULKAN_WORLD_LAMBERT_PROBE=1`,
+`OGL_VULKAN_WORLD_SUN_LIGHT_PROBE=1` und die
+bereits bestehende vollständige Source-Receipt-,
+Vulkan-Mesh-/Camera-/World-/Depth-/Persistent-
+WSI-Freigabekette. Das Modul verweigert den Present,
+wenn der gültige Firestorm-Sonnenvektor fehlt,
+eine der Zusatzfreigaben nicht genau `1` ist oder
+die neue Option einen ungültigen Wert enthält.
+Der Shader-Modus wird **bei Erzeugung der
+VkSwapchain-Pipeline eingefroren**; ein späteres
+Umschalten innerhalb derselben aktiven Swapchain
+wird vor `vkAcquireNextImageKHR` zurückgewiesen.
+
+Der bestehende Modulcode `ogl_rtx_module.cpp`
+verwendet bei Sonnenlicht den bereits im privaten
+Vulkan-Renderpfad geprüften
+`ogl_dev_world_sunlight_frag_spv` statt
+`ogl_dev_depth_frag_spv` mit derselben
+Kamera-Vertexprojektion. Anstelle 16 Kamera-Floats
+werden **20 Float-Push-Constants (80 Byte)**
+freigegeben: 16 für die Firestorm-World-to-Clip-
+Matrix und vier für den dynamischen Sonnenvektor
+(drei normalisierte Komponenten + Zero-Padding).
+Im Sonnenlichtmodus sind Vertex- **und**
+Fragment-Shader-Stages explizit berechtigt;
+im bisherigen Depth-Modus bleibt es bei
+16 Floats/64 Byte/Vertex-Stage.
+Eine neue Sonnenrichtung pro Frame wird per
+`set_world_projection_camera()` verarbeitet;
+kein Mesh-Neuupload und kein Vulkan-Pipeline-
+Rebuild bei Sonnenänderung. Die bestehenden
+Depth-Buffer je Swapchain-Image, zwei GPU-Fences,
+Semaphoren, Resize-, Region- und
+Vulkan-Detach-before-SDL-Destroy-Regeln bleiben.
+
+Der echte SDL-X11-**Zweitfenstertest** in
+`llwindowsdl2.cpp` verwendet einen unveränderten
+World-Triangle-GPU-Buffer, rendert **zwei**
+`vkQueuePresentKHR`-Frames und verändert nur
+die Sonnenrichtung (Z nach X). Der Pixel-Readback
+bestätigte **unterschiedliche grüne Beleuchtung**
+im eigentlichen 512×384-Vulkan-Fenster und
+weiterhin mindestens acht echte Geometriepixel
+gegen die alternierende Swapchain-Clearfarbe.
+Eine absichtlich während der aktiven Swapchain
+umgeschaltete Shaderflag wird vor jedem weiteren
+GPU-Present abgefangen und danach wiederhergestellt.
+Die synthetische Hauptfenster-Vorabnahme akzeptiert
+im expliziten Sonnenlichttest die beleuchtete
+Geometrie statt fälschlich die rote Depth-Palette
+zu verlangen. Eindeutige QA-Logfelder sind
+`secondary-sunlight=verified` und
+`secondary-sunlight-frames=2`. Die Standardtests
+bleiben unverändert bei `not-requested`.
+Der Live-Host protokolliert beim ersten echten
+source-validierten Sonnenlicht-Present nur die
+Meldung `sunlight=enabled; native Firestorm sun,
+no PBR/material/UI`; das ist ausdrücklich **kein
+nachgewiesener Live-Pixelbeleg**.
+
+**20 tatsächlich ausgeführte Entwicklungs-/Prüfschritte:**
+
+01. Linux-Mint-Repository `ogl-develop` auf sauberem Ausgangscommit `dcd96622` gegen `origin` geprüft.
+02. Bindende `AGENTS.md`, `ogl/PROJECT_HANDOFF.md` und `ogl/PROJECT_STATUS.md` gelesen.
+03. P05-Hauptroadmap und bisherigen Zwei-Fenster-World-/GPU-Pixel-Nachweis geprüft.
+04. GitHub-CI des Commits `dcd96622` als erfolgreich kontrolliert.
+05. OpenGenesisLINK `main` und unveränderlichen Stable-Tag `v0.9.4.0` auf `ee15af8e...` read-only geprüft.
+06. Releases, fehlenden `gen1-updates`-Tag und offene Server-PRs #448, #447, #443 geprüft, keine WIP-Verträge integriert.
+07. Vorhandene echte Vulkan-Swapchain-Depth-Pipeline und privaten Sun-/Lambert-Fragmentshader bis auf SPIR-V-/Push-Constant-Ebene verglichen.
+08. Fehlende Fragmentbeleuchtung des SECOND SDL-Vulkan-World-Present-Pfades als nächsten tatsächlichen Rendering-Ausbau identifiziert.
+09. Neues unabhängiges Entwicklerflag `OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE` eingeführt; ungültige Werte fail-closed.
+10. Bereits bestehende World-/Sun-/Lambert-Permissions sowie validierten Sonnenvektor zwingend vor Rendering verlangt.
+11. Neu gewählten Shader-Modus pro initialisiertem VkSwapchain-Renderpass eingefroren; kein Pipelinewechsel während GPU-Inflight.
+12. Bestehenden getesteten Sonnenlicht-Fragment-SPIR-V in der persistenten Vulkan-World-Pipeline wiederverwendet.
+13. Vulkan-Pipeline-Layout nur im Sonnenmodus auf 20 Float-Push-Constants und Vertex-/Fragment-Stages erweitert.
+14. Pro Frame aktuelle Firestorm-World-to-Clip-Kamera und normalisierte Sonnendirektion ohne Mesh-Neuupload übertragen.
+15. Source-validierte Echt-OpenSim-Zweitfenstervorschau auf unabhängige zusätzliche Sun-/Lambert-Opt-ins begrenzt, Depth-Default unverändert.
+16. Synthetisches zweites SDL-X11-GPU-Fenster um zwei nacheinander echte Frame-Presents mit Z-/X-Sonnenbewegung und farbgeprüften Fensterrasterpunkten erweitert.
+17. Versuchten Shaderwechsel während bestehender GPU-Swapchain mit 0 zusätzlichen Presents und unverändertem GPU-Framezähler geprüft.
+18. Fünf unabhängig isolierte X11-GUI-Smokes erfolgreich: Sonnenlicht mit 2 Frames, Depth-Legacy, fehlende Sonnen- und Lambertfreigabe sowie ungültige Option; alle regulärer GL-Login, 0 FATAL.
+19. Vollständigen Linux-Firestorm-Build, **436/436 Python-Tests** einschließlich neuem Source-Vertragstest und **41/41 native CTests** bestanden.
+20. Echte native NVIDIA-Vulkan-X11-Regressionen Clear/World mit 16 und 32 Frames, Meshrotation, Regionbarriere und Firestorm-Rechtsachsen-/Kamera-/Depth-Prüfung bestanden; `git diff --check`, Status, Übergabe und Hauptroadmap aktualisiert.
+
+**Noch offen:** Der positive GPU-Licht-/Farbwechsel wurde
+mit synthetischer Weltgeometrie im echten zweiten
+SDL-Fenster bewiesen, **nicht** bei einem neuen
+authentifizierten OpenSim-Weltbeitritt. Dieses
+Live-Gate und der dauerhafte Vulkan-Renderer des
+Hauptfensters mit vollständigem Terrain, Avatar,
+PBR/Materialien und UI fehlen weiterhin. Die
+OpenGL-Haupt-Session, laufende Nutzer-Testprozesse,
+Benutzerprofile und Server bleiben unverändert.
+**P05 weiterhin 2/20; P05/3 noch offen.**
+
 ## P05/3 – /goal 20 Arbeitsschritte: tatsächliche Vulkan-Weltpixel im zweiten SDL-Fenster belegen (15.11.2026 MEZ)
 
 **Tatsächlicher nächster P05-Integrationsschritt (Live-OpenSim-Login noch offen):**

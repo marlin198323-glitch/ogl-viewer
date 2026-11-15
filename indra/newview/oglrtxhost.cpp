@@ -281,6 +281,11 @@ void ogl_live_preview_world_swap() {
         !flag_enabled("OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN") ||
         !flag_enabled("OGL_VULKAN_LIVE_WORLD_OFFSCREEN") ||
         flag_enabled("OGL_VULKAN_WINDOW_PERSISTENT")) return;
+    // Separate real Vulkan sunlight preview permission; legacy GL and
+    // default red/green depth preview are left entirely unchanged.
+    if (flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") &&
+        (!flag_enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
+         !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) return;
     // Require a real OpenSim source matching the last independent private
     // Vulkan GPU completion. Never present a synthetic/old-region snapshot.
     const auto revision=world_mesh_generation();
@@ -380,6 +385,12 @@ void ogl_live_preview_world_swap() {
         return;
     }
     ++ogl_preview_frames;
+    if (ogl_preview_frames==1u &&
+        flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE"))
+        LL_INFOS("OGLRenderer")
+            << "P05 separate Vulkan SDL preview lighting: "
+               "sunlight=enabled; native Firestorm sun, no PBR/material/UI."
+            << LL_ENDL;
     LL_INFOS("OGLRenderer")
         << "P05 actual OpenSim Vulkan SDL preview frame: "
         << "presented=" << ogl_preview_frames

@@ -263,6 +263,16 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     // exclusively by the later source-qualified viewer-host callback.
     const bool secondary_window_probe=
         ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SECONDARY_WINDOW_PROBE");
+    const bool secondary_sunlight=secondary_window_probe &&
+        ogl_pre_gl_flag("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE");
+    if (secondary_sunlight &&
+        (!ogl_pre_gl_flag("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
+         !ogl_pre_gl_flag("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL Vulkan sunlight preview requires BOTH fragment-light permissions; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     if (secondary_window_probe &&
         (!firestorm_basis || sequence_requested || sequence_permitted ||
          !ogl_pre_gl_flag("OGL_VULKAN_EXCLUSIVE_PERSISTENT_WORLD_PROBE") ||
@@ -361,6 +371,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool stale_camera_verified=false;
     bool motion_pixels_verified=false;
     bool secondary_window_verified=false;
+    bool secondary_sunlight_verified=false;
+    uint32_t secondary_sunlight_frames=0;
     uint32_t secondary_window_stage=0;
     uint32_t motion_pixel_changes=0;
     uint32_t stale_camera_rejections=0;
@@ -561,10 +573,17 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                             : (warm?89:54);
                         const int wanted_blue=triangle ? (far_triangle?41:38)
                             : (warm?31:115);
-                        if (std::abs(red-wanted_red)>5 ||
-                            std::abs(green-wanted_green)>5 ||
-                            std::abs(blue-wanted_blue)>5)
+                        // The lighting opt-in also runs a synthetic primary
+                        // persistent-world QA before the SECOND SDL window.
+                        // It must validate fragment-shaded green geometry,
+                        // not falsely fail the default red depth palette.
+                        if (triangle && persistent && secondary_sunlight) {
+                            if (green<=red || green<55) return false;
+                        } else if (std::abs(red-wanted_red)>5 ||
+                                   std::abs(green-wanted_green)>5 ||
+                                   std::abs(blue-wanted_blue)>5) {
                             return false;
+                        }
                         ++verified_pixels;
                     }
                     return true;
@@ -1007,8 +1026,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         if (camera_secondary && persistent_present(1)==1 &&
                             persistent_count()==1) {
                             secondary_window_stage=5;
-                            // X11 presentation is asynchronous. Confirm one
-                            // red front-facing triangle pixel at the center.
+                            // X11 presentation is asynchronous. Confirm
+                            // the actual projected triangle at the center.
+                            // Sunlight mode instead uses a green-dominant
+                            // material-independent directional shader.
                             auto* dpy=static_cast<Display*>(preview_display);
                             for (int attempt=0;attempt<120;++attempt) {
                                 XSync(dpy,False);
@@ -1027,7 +1048,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     const int red=channel(sample->red_mask);
                                     const int green=channel(sample->green_mask);
                                     XDestroyImage(sample);
-                                    if (red>=225 && green<90) {
+                                    if ((secondary_sunlight && green>red && green>=55) ||
+                                        (!secondary_sunlight && red>=225 && green<90)) {
                                         // Regression of the SAME bounded X11
                                         // frontbuffer test used by the live
                                         // real OpenSim developer preview.
@@ -1043,6 +1065,62 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                 }
                                 SDL_Delay(3);
                             }
+                        }
+                        // The source triangle stays on the SAME VkBuffer.
+                        // Change only the validated sun and prove a SECOND
+                        // real Vulkan swapchain frame with visibly different
+                        // green lighting, not just a queue/frame counter.
+                        if (secondary_sunlight && secondary_window_verified) {
+                            secondary_sunlight_frames=1;
+                            auto* dpy=static_cast<Display*>(preview_display);
+                            auto center_green=[&]() -> int {
+                                XSync(dpy,False);
+                                XImage* sample=XGetImage(dpy,
+                                    static_cast<Window>(preview_xid),
+                                    pw/2,ph/2,1,1,AllPlanes,ZPixmap);
+                                if (!sample || !sample->green_mask) {
+                                    if (sample) XDestroyImage(sample);
+                                    return -1;
+                                }
+                                const auto pixel=XGetPixel(sample,0,0);
+                                unsigned long mask=sample->green_mask;
+                                unsigned shift=0;
+                                while (!(mask&1UL)) {mask>>=1; ++shift;}
+                                const int green=static_cast<int>(
+                                    (((pixel>>shift)&mask)*255UL+mask/2)/mask);
+                                XDestroyImage(sample);
+                                return green;
+                            };
+                            const int first_green=center_green();
+                            // Switching a live VkSwapchain's shader mode
+                            // behind the pipeline is forbidden, even after
+                            // an otherwise valid GPU present. Restore this
+                            // QA-only process flag before the next frame.
+                            SDL_setenv("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE","0",1);
+                            const bool frozen_shader_mode=persistent_present(1)==0 &&
+                                persistent_count()==1;
+                            SDL_setenv("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE","1",1);
+                            camera.sun_direction[0]=1.f;
+                            camera.sun_direction[2]=0.f;
+                            if (frozen_shader_mode && first_green>=0 &&
+                                set_camera(&camera)==1 &&
+                                persistent_present(1)==1 && persistent_count()==2) {
+                                secondary_sunlight_frames=2;
+                                for (unsigned attempt=0;attempt<120u;++attempt) {
+                                    const int changed_green=center_green();
+                                    U32 foreground=0;
+                                    if (changed_green>=0 &&
+                                        std::abs(changed_green-first_green)>=3 &&
+                                        LLWindowSDL::oglVulkanPreviewWorldPixels(
+                                            2u,&foreground) && foreground>=8u) {
+                                        secondary_sunlight_verified=true;
+                                        break;
+                                    }
+                                    SDL_Delay(3);
+                                }
+                            }
+                            secondary_window_verified=secondary_window_verified &&
+                                secondary_sunlight_verified;
                         }
                         // Explicit retire-before-destroy, even if GPU or
                         // window readback failed; never destroy borrowed XID.
@@ -1076,6 +1154,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             ? (secondary_window_verified ? "verified" : "failed")
             : "not-requested") <<
         ", secondary-stage=" << secondary_window_stage <<
+        ", secondary-sunlight=" << (secondary_sunlight
+            ? (secondary_sunlight_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-sunlight-frames=" << secondary_sunlight_frames <<
         ", stale-camera=" << (stale_camera_probe
             ? (stale_camera_verified ? "verified" : "failed")
             : "not-requested") <<
