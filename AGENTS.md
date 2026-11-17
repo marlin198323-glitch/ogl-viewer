@@ -41,6 +41,29 @@ keine Windows/macOS-GUI-Abnahme. P05 2/20,
 Block P05/3 offen. Details in PROJECT_STATUS.md.
 Externe Serverbaseline weiterhin ee15af8e...
 
+P05/3 17.11.2026: UV-Shader aus vorhandener
+privater Vulkan-Mode-4-GPU-Diagnose ist in das
+strikt opt-in zweite Vulkan-SDL/X11-Weltfenster
+integriert. `OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE=1`
+benötigt zusätzlich alle Face-RGB-/Sun-/Depth-/
+World-/Source-/Meshgenerationsfreigaben, nutzt
+Binding2 float2 je Vertex und unveränderliche
+Swapchain-Shaderwahl. Echte GPU-Pixelsamples mit
+roten/grünen UV-Zellen, je zwei Vulkan-Presents,
+X11-Frontbuffer-Prüfung und Sicherung der
+Face-RGB-/UV-GPU-Buffer-Lifetime getestet.
+438 Python/41 native CTests, Linux-Fullbuild
+und isolierte X11-Smokes bestanden.
+**Kein authentifizierter neuer OpenSim-Livebeleg,
+keine Vulkan-Hauptfensterengine oder Windows/macOS-
+Vollviewerabnahme. P05 bleibt 2/20, Block 3 offen.**
+`ogl/PROJECT_STATUS.md` enthält 20 Einzelmaßnahmen.
+OpenGenesisLINK-`main` aktuell `a520063837`
+(CAPS-Mesh-Bounds, Singularity-Zulassung),
+Stable `v0.9.4.0=ee15af8e` unverändert.
+OGL-Viewer-Allowlist weiterhin akzeptiert,
+keine Serveränderung oder automatische Updates.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

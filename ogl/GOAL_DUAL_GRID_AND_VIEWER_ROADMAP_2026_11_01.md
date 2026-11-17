@@ -2,6 +2,33 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: sichtbare GPU-UV-Checker-Pipeline
+
+Mit eigenem Default-OFF-`OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE=1`
+verwendet die bestehende SDL/X11-World-Vulkan-
+Zweitfenster-Swapchain jetzt den vorhandenen
+privaten GPU-UV-Checker-Shader und die echte
+UV-Quelle je Vertex über zusätzliches Binding 2.
+`OGL_VULKAN_WORLD_UV_CHECKER_PROBE=1`, echte
+Face-RGB-/Sun-/World-/Camera-/Depth-/Source-
+Freigaben und identische Mesh-/UV-Generation
+sind Pflicht; GPU-Seitenbuffer dürfen nicht
+während laufender WSI-Presents getauscht werden.
+Die X11-Smokes bestätigen echte rote und grüne
+UV-Checker-Felder über Vulkan-Fensterpixel,
+je zwei Presents und unverändertes OpenGL-
+Loginverhalten. Es sind keine echten OpenSim-
+Texturassets und keine komplette Vulkan-Welt/
+Terrain/Avatar/UI-Präsentation implementiert.
+P05 **2/20, P05/3 offen**, 20 echte Schritte
+und Testergebnisse stehen in PROJECT_STATUS.md.
+Neue OpenGenesisLINK-`main`-Commits
+`cffd846`, `3f2629d`, `a520063` betreffen
+Mesh-CAPS-Inputvalidierung und Singularity-
+Viewerzulassung. `OGL Viewer` weiterhin
+freigegeben, `v0.9.4.0` Stable bleibt
+`ee15af8e`. Keine Server-Patches eingespielt.
+
 ### Aktueller P05/3-Checkpoint – 15.11.2026: echte Face-RGB-Pipeline in der zweiten Vulkan-Swapchain
 
 Weitere Renderintegration auf `ogl-develop`: opt-in

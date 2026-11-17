@@ -291,6 +291,10 @@ void ogl_live_preview_world_swap() {
     if (tint_preview && std::strcmp(tint_preview,"0")!=0 &&
         std::strcmp(tint_preview,"1")!=0) return;
     const bool preview_tint=flag_enabled("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE");
+    const char* uv_preview=std::getenv("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
+    if (uv_preview && std::strcmp(uv_preview,"0")!=0 &&
+        std::strcmp(uv_preview,"1")!=0) return;
+    const bool preview_uv=flag_enabled("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
     if (flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") &&
         (!flag_enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
          !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) return;
@@ -298,7 +302,18 @@ void ogl_live_preview_world_swap() {
         (!flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") ||
          !flag_enabled("OGL_VULKAN_WORLD_FACE_TINT_PROBE") ||
          !world_tint_mesh_generation || !world_mesh_generation ||
-         world_tint_mesh_generation()!=world_mesh_generation())) return;
+         world_tint_mesh_generation()!=world_mesh_generation())) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
+    if (preview_uv &&
+        (!preview_tint ||
+         !flag_enabled("OGL_VULKAN_WORLD_UV_CHECKER_PROBE") ||
+         !world_uv_mesh_generation || !world_mesh_generation ||
+         world_uv_mesh_generation()!=world_mesh_generation())) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     // Require a real OpenSim source matching the last independent private
     // Vulkan GPU completion. Never present a synthetic/old-region snapshot.
     const auto revision=world_mesh_generation();
@@ -406,8 +421,9 @@ void ogl_live_preview_world_swap() {
             << "P05 separate Vulkan SDL preview lighting: "
                "sunlight=enabled; native Firestorm sun; face-tint="
             << (preview_tint ? "enabled" : "disabled")
-            << "; opaque face RGB only, "
-               "no texture/PBR/alpha/terrain/avatar/UI."
+            << "; uv-checker=" << (preview_uv ? "enabled" : "disabled")
+            << "; opaque procedural UV checks only, "
+               "no sampled texture/PBR/alpha/terrain/avatar/UI."
             << LL_ENDL;
     LL_INFOS("OGLRenderer")
         << "P05 actual OpenSim Vulkan SDL preview frame: "

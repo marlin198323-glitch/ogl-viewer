@@ -68,6 +68,38 @@ Kein Server, Benutzerprofil oder Benutzer-Viewer
 geändert. OpenGenesisLINK Stable unverändert
 `ee15af8e...`.
 
+17.11.2026 – letzte /goal-20er-Runde auf `ogl-develop`:
+Vorhandene OpenSim-UV-Sidecar-Daten (float2 je
+Vertex) können mit separatem deaktiviertem
+`OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE=1` jetzt
+im zweiten 512×384-Vulkan-SDL/X11-Weltfenster
+über echte dritte GPU-Vertexbindung und die
+bereits bestehenden UV-Checker-Shader dargestellt
+werden. Nur source-/meshgenerationsvalide
+Live-OpenSim-UVs; nicht Texture Assets/PBR.
+Zwei isolierte synthetische echte GPU-UV-Zellen
+(Rot, Grün) mit je zwei X11-Vulkan-Presents,
+beiden Frontbuffer-Scans und Sun-Änderung
+bestanden. Vorheriger Face-RGB-/Sun-Modus,
+normaler OpenGL-Viewer bleiben erhalten.
+Neue fail-closed WSI-GPU-Lifetime-Gates schützen
+UV-/Face-RGB-Buffer vor vorzeitigem Austausch;
+Vorschau bei ungültiger Source abtrennen.
+438 Python-/41 native CTests, Linux-Vollbuild,
+5 getrennte GPU-X11-GUI-Testfälle und native
+16/32-Frame-GPU-Regressionsläufe geprüft.
+20 Einzelschritte in `ogl/PROJECT_STATUS.md`.
+**P05=2/20, Block 3 offen: Authentifizierter
+OpenSim-UV-Zweitfensterbeleg und Vulkan-Hauptfenster
+mit Terrain/Avataren/UI noch nicht abgenommen.**
+OpenGenesisLINK `main` ist seit der älteren
+Baseline um 3 Commits auf `a520063837` gestiegen:
+CAPS-Mesh-Upload-Validierung und Singularity-
+Viewer-Allowlist; `OGL Viewer` weiter erlaubt.
+Stable `v0.9.4.0` bleibt `ee15af8e`,
+`gen1-updates` noch nicht vorhanden.
+Keine Server-/Benutzerdaten geändert.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

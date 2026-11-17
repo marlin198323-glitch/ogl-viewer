@@ -2174,7 +2174,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'p.face_tint=face_tint;',
             'ogl_dev_world_face_tint_vert_spv',
             'ogl_dev_world_face_tint_frag_spv',
-            'vertex_input.vertexBindingDescriptionCount=face_tint ? 2u : 1u;',
+            'face_uv ? 3u : (face_tint ? 2u : 1u);',
             'vkCmdBindVertexBuffers(cmd,0,2,buffers,offsets);',
             'vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u',
         ):
@@ -2186,9 +2186,10 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('world_tint_mesh_generation()!=world_mesh_generation()',host)
         self.assertIn('!flag_enabled("OGL_VULKAN_WORLD_FACE_TINT_PROBE")',host)
         self.assertIn('face-tint="',host)
-        self.assertIn('no texture/PBR/alpha/terrain/avatar/UI.',host)
+        self.assertIn('no sampled texture/PBR/alpha/terrain/avatar/UI.',host)
         self.assertIn('const ogl_rtx_face_tint blue_face{{0.f,0.f,1.f}};',sdl)
-        self.assertIn('upload_tints(&blue_face,1)==1',sdl)
+        self.assertIn('upload_tints(secondary_face_uv ? &white_face',sdl)
+        self.assertIn(': &blue_face,1)==1',sdl)
         self.assertIn('SecondaryTintFlagGuard',sdl)
         self.assertIn('raw_tint_mode &&',sdl)
         self.assertIn('face-tint preview rejects invalid opt-in',sdl)
@@ -2199,6 +2200,67 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('frozen_tint_mode=persistent_present(1)==0',sdl)
         self.assertIn('secondary-face-tint=" << (secondary_face_tint',sdl)
         self.assertIn('secondary_face_tint_verified=secondary_face_tint;',sdl)
+
+    def test_p05_secondary_vulkan_uv_checker_current_mesh_and_frozen_pipeline(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        a=gpu.index('uint32_t present_persistent_clear_frame(')
+        b=gpu.index('// P05/3 foundation:',a)
+        frame=gpu[a:b]
+        for required in (
+            'OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE',
+            'OGL_VULKAN_WORLD_UV_CHECKER_PROBE',
+            'face_uv=uv_preview &&',
+            'if (!face_tint || !uv_source',
+            '!world_device.mesh_uv_vertices',
+            'world_device.uv_mesh_generation!=world_device.mesh_generation',
+            'world_device.uv_vertex_count!=world_device.mesh_triangle_count*3u',
+            '(p.initialized && p.face_uv!=face_uv)',
+            'p.face_uv=face_uv;',
+            'ogl_dev_world_uv_checker_vert_spv',
+            'ogl_dev_world_uv_checker_frag_spv',
+            'attributes[2].format=VK_FORMAT_R32G32_SFLOAT;',
+            'bindings[2].stride=sizeof(float)*2u;',
+            'face_uv ? 3u : (face_tint ? 2u : 1u)',
+            'vkCmdBindVertexBuffers(cmd,0,3,buffers,offsets);',
+        ):
+            self.assertIn(required,frame)
+        tint_upload=gpu[gpu.index('int upload_world_face_tints('):
+                        gpu.index('int upload_world_face_uvs(')]
+        uv_upload=gpu[gpu.index('int upload_world_face_uvs('):
+                      gpu.index('int upload_world_material_slots(')]
+        self.assertIn('world_device.persistent.submitted_any',tint_upload)
+        self.assertIn('world_device.persistent.submitted_any',uv_upload)
+        self.assertLess(frame.index('world_device.uv_mesh_generation!='),
+                        frame.index('vkAcquireNextImageKHR'))
+        self.assertLess(frame.index('(p.initialized && p.face_uv!=face_uv)'),
+                        frame.index('if (!p.initialized) {'))
+        for required in (
+            'world_uv_mesh_generation()!=world_mesh_generation()',
+            '!flag_enabled("OGL_VULKAN_WORLD_UV_CHECKER_PROBE")',
+            'uv-checker=" << (preview_uv ? "enabled" : "disabled")',
+            'no sampled texture/PBR/alpha/terrain/avatar/UI.',
+        ):
+            self.assertIn(required,host)
+        for required in (
+            'UV-checker preview rejects invalid opt-in',
+            'UV-checker preview requires face RGB and UV sources',
+            'SecondaryTintFlagGuard(bool tint,bool uv)',
+            'secondary_tint_guard.restore();',
+            'ogl_vulkan_world_upload_face_uvs',
+            'upload_uvs(&checker_cell,1)==1',
+            'const float u=green_uv_test ? .375f : .125f;',
+            'secondary-face-uv=" << (secondary_face_uv',
+            'frozen_uv_mode=persistent_present(1)==0',
+            'secondary_face_uv_verified=secondary_face_uv;',
+            'secondary_material_busy_verified=',
+            'secondary-material-busy=" << (secondary_face_tint',
+            'upload_uvs(&checker_cell,1)==0',
+            'LLWindowSDL::oglVulkanPreviewWorldPixels(',
+            'ogl::separate_preview_two_frame_pixels(',
+        ):
+            self.assertIn(required,sdl)
 
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()

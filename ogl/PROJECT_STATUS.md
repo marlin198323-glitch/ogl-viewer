@@ -1,10 +1,45 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 15.11.2026
+Stand: 17.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3 – /goal 20 Entwicklungs-/Prüfschritte: UV-Vertexbuffer und echter X11-Vulkan-Checker (17.11.2026 MEZ)
+
+**Technik umgesetzt, Linux-GPU-/Pixeltests bestanden; authentifizierter OpenSim-Echtweltbeleg weiter ausstehend. P05 bleibt 2/20; P05/3 offen.**
+
+Die bisherige separate Vulkan-SDL/X11-World-Swapchain besitzt ab jetzt einen **dritten echten GPU-Vertexbuffer** für die bereits source-validierten OpenSim-UVs (je float2 pro Vertex, Binding 2, Location 2). Ein neues, standardmäßig **deaktiviertes** `OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE=1` aktiviert nur in der vorhandenen Vulkan-Zweitfenster-Vorschau die bereits privat GPU-geprüften `ogl_dev_world_uv_checker_vert_spv` und `ogl_dev_world_uv_checker_frag_spv` anstelle von Depth-, Sunlight- und Face-RGB-Shader. Keine neuen Shader oder Projektdateien, keine Änderungen an der primären OpenGL-Fenster-Ownership. Der Checker visualisiert die UV-Zuordnung pro Fragment; das sind **keine** geladenen Textur-/JPEG2000-/PBR-Assets.
+
+Vor jedem Swapchain-Present verlangt das Modul sämtliche bisherigen World-/WSI-/Depth-/Sun-/Camera-/Tint-Gates und zusätzlich `OGL_VULKAN_WORLD_UV_CHECKER_PROBE=1`, gültigen GPU-UV-Buffer, genau aktuelle Meshgeneration und genau `3 * triangle_count` UV-Vertices. Der Shader-/Tint-/UV-Modus wird bei Pipeline-Erstellung unveränderlich fixiert; ein Wechsel mitten im laufenden Vulkan-Frame wird *vor* Acquire/Present abgewiesen. Der echt eingeloggte Deferred-World-Pfad akzeptiert nur gegen aktuelle Quelle/Region/Capture/Meshgeneration passende UVs. Sobald die Sidecar-Quelle ungültig wird, wird das zweite Fenster getrennt, statt eine alte Szene weiterhin als aktuell anzuzeigen. **Neue GPU-Lifetime-Sicherung:** Face-RGB-/UV-Buffer dürfen während bereits erfolgter Vulkan-WSI-Frame-Submissions nicht durch Upload/Clear ersetzt bzw. freigegeben werden. Nach sicherem VkSwapchain-Detach sind reguläre neue Uploads wieder möglich.
+
+Die bestehende Prä-GL-Diagnose erhält einen auf den Test beschränkten Scope-Guard, der Face-RGB- und UV-Preview-Flags beim Test des OpenGL-Hauptfensters nur vorübergehend deaktiviert. Erst nach diesem GPU-Detach werden die beiden Optionen für das zweite SDL-X11-Vulkan-Fenster wiederhergestellt. Echte Shader-Diagnose erfolgt mit zwei **unabhängigen** Vorgaben `u=.125` (rotes Prüffeld) und `u=.375` (grünes Prüffeld), je zwei echten VkQueuePresents, getrennten X11-Frontbuffer-Pixelbelegen, anderen Sonnenrichtungen und korrekter Gegenparitätsprüfung. Die tatsächlich laufenden GPU-Uploads der zwei Sidecars werden nach dem ersten Present fail-closed abgewiesen; das wird auch im X11-Test geprüft. Fehlende oder ungültige Opt-in-Flags führen ohne Vulkan-Present zurück zum OpenGL-Login.
+
+**20 konkret bearbeitete Arbeitsschritte:**
+
+01. Linux-Mint-Remote Commander, sauberen Branch `ogl-develop` und Commit `56ab96c8` als Ausgangsbasis geprüft.
+02. Root-`AGENTS.md` einschließlich Plattform-/Servervorgaben gelesen.
+03. `ogl/PROJECT_HANDOFF.md` einschließlich offener P05/3-Abnahme gelesen.
+04. `ogl/PROJECT_STATUS.md` und den vorigen Face-RGB-Integrationsstand gelesen.
+05. Die verbindliche `/goal`-Roadmap und den OpenGL-Fallbackauftrag gelesen.
+06. OpenGenesisLINK `main` read-only auf neuen HEAD `a520063837` geprüft; drei Commits seit `ee15af8e` erkannt.
+07. Stable-Tag `v0.9.4.0=ee15af8e`, weiterhin fehlenden `gen1-updates`-Tag und WIP-PRs #443/#447/#448/#450 geprüft.
+08. Neue Server-Fixes differenziert: CAPS-Mesh-Upload-Bounds (cffd846), Singularity-Viewer-Allowlist (3f2629d/a520063); `OGL Viewer` bleibt zulässig, keine Viewer-Wire-Vertragsänderung nötig; GitHub-Vorläufer-CI `43708246177` erfolgreich.
+09. Vorhandene private Vulkan-UV-Checker-SPIR-V-Shader, UV-GPU-Sidecar-ABI und Shader-Mode 4 geprüft.
+10. Opt-in-Gate `OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE` mitsamt fail-closed Werteprüfung umgesetzt.
+11. Bereits bestehende UV-Source-Freigabe und exakte GPU-Mesh-/UV-Vertexgeneration in aktivem Vulkan-WSI-Pfad erzwungen.
+12. UV-Shader-Modus pro Swapchain fixiert; GPU-Moduswechsel bei fortlaufender Framezählung verhindert.
+13. Die vorhandenen UV-Checker-Vertex- und -Fragment-SPIR-V für das reale zweite Vulkan-Fenster ausgewählt.
+14. Drittes VkVertexbuffer-Binding/Attribut (2×float) an die vorhandene World-/RGB-/Depth-/Sun-/Indexpipeline gebunden.
+15. Die source-validierte echte OpenSim-Preview um UV-Generation und sofortige Sidecar-Veraltungstrennung erweitert.
+16. Das synthetische SDL-X11-Fenster um getrennte rote und grüne UV-Zellen über die echte GPU-UV-Upload-ABI erweitert.
+17. Zwei Vulkan-Presents, veränderte Sun-Beleuchtung, passende X11-Farbpixel und 2-Frame-Geometrienachweis pro UV-Zelle getestet.
+18. Die alte Face-RGB-/Sunlight-Vorschau und OpenGL-Hauptfenster-Probe getrennt regressionsgeprüft; fehlende/ungültige UV-Permissions fail-closed.
+19. GPU-Lifetime-Gates für beide farb-/UV-bezogenen Sidecar-Buffers ergänzt; Live-Wiedergabe alter Daten beim Quellenverlust unterbunden und wirksame Reupload-Sperre im X11-Test nachgewiesen.
+20. **438 Python-Tests, 41 native CTests, Linux-Fullviewer-Build**, isolierte GPU-X11-Smokes, native Vulkan-16/32-Present-Regressionen, `git diff --check` und GitHub-CI-Freigabe geprüft.
+
+**Grenzen:** Die synthetischen X11-Farbfelder beweisen einen echten GPU-/Fenster-UV-Pfad, keine authentifizierte OpenSim-Session. Noch offen sind der echte source-identische In-World-Pixelbeleg, OpenSim-Asset-/Texturladen, Terrain, Avatare, Alpha-/PBR-Materialien, UI-Composition, Vulkan-Hauptfenster-Ownership und Windows/macOS-Vollviewer-Akzeptanz. Kein Eingriff in laufende Viewer, Benutzerprofile oder produktive Server. MEZ/MESZ/UTC-Clock-v1 in P08/P13 weiterhin offen.
 
 ## P05/3 – /goal 20 Arbeitsschritte: echte Face-RGB-Farben im zweiten Vulkan-Fenster (15.11.2026 MEZ)
 

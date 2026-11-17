@@ -147,6 +147,7 @@ struct OglPersistentClearFrames {
     bool world_depth = false;
     bool sunlight = false; // frozen per attached VkSwapchain
     bool face_tint = false; // independent frozen vertex-binding1 mode
+    bool face_uv = false; // independent frozen vertex-binding2 checker mode
     std::array<uint64_t,2> submitted_mesh_generations{};
     std::vector<VkSemaphore> presented_by_image;
     std::vector<VkFence> image_in_flight;
@@ -2651,6 +2652,18 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     if (tint_preview && std::strcmp(tint_preview,"0")!=0 &&
         std::strcmp(tint_preview,"1")!=0) return 0;
     const bool face_tint=tint_preview && std::strcmp(tint_preview,"1")==0;
+    const char* uv_preview=std::getenv("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
+    if (uv_preview && std::strcmp(uv_preview,"0")!=0 &&
+        std::strcmp(uv_preview,"1")!=0) return 0;
+    const bool face_uv=uv_preview && std::strcmp(uv_preview,"1")==0;
+    if (face_uv) {
+        const char* uv_source=std::getenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
+        if (!face_tint || !uv_source || std::strcmp(uv_source,"1")!=0 ||
+            !world_device.mesh_uv_vertices ||
+            world_device.uv_mesh_generation!=world_device.mesh_generation ||
+            world_device.uv_vertex_count!=world_device.mesh_triangle_count*3u)
+            return 0;
+    }
     if (face_tint) {
         const char* tint_source=std::getenv("OGL_VULKAN_WORLD_FACE_TINT_PROBE");
         if (!world || !sunlight || !tint_source ||
@@ -2703,7 +2716,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     if (p.blocked || (p.initialized && p.frame_count>=p.max_frames) ||
         (p.initialized && p.world_depth!=world) ||
         (p.initialized && p.sunlight!=sunlight) ||
-        (p.initialized && p.face_tint!=face_tint)) return 0;
+        (p.initialized && p.face_tint!=face_tint) ||
+        (p.initialized && p.face_uv!=face_uv)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -2785,6 +2799,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             p.world_depth=world;
             p.sunlight=sunlight;
             p.face_tint=face_tint;
+            p.face_uv=face_uv;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
                                      VK_FORMAT_D16_UNORM}) {
@@ -2936,24 +2951,29 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         if (world) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=face_tint
-                ? sizeof(ogl_dev_world_face_tint_vert_spv)
-                : sizeof(ogl_dev_world_vert_spv);
-            vertex_info.pCode=face_tint
-                ? ogl_dev_world_face_tint_vert_spv : ogl_dev_world_vert_spv;
+            vertex_info.codeSize=face_uv
+                ? sizeof(ogl_dev_world_uv_checker_vert_spv)
+                : (face_tint ? sizeof(ogl_dev_world_face_tint_vert_spv)
+                             : sizeof(ogl_dev_world_vert_spv));
+            vertex_info.pCode=face_uv
+                ? ogl_dev_world_uv_checker_vert_spv
+                : (face_tint ? ogl_dev_world_face_tint_vert_spv
+                             : ogl_dev_world_vert_spv);
             if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
                                      &p.vertex_shader)!=VK_SUCCESS || !p.vertex_shader)
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=face_tint
-                ? sizeof(ogl_dev_world_face_tint_frag_spv)
+            fragment_info.codeSize=face_uv
+                ? sizeof(ogl_dev_world_uv_checker_frag_spv)
+                : (face_tint ? sizeof(ogl_dev_world_face_tint_frag_spv)
                 : (sunlight ? sizeof(ogl_dev_world_sunlight_frag_spv)
-                            : sizeof(ogl_dev_depth_frag_spv));
-            fragment_info.pCode=face_tint
-                ? ogl_dev_world_face_tint_frag_spv
+                            : sizeof(ogl_dev_depth_frag_spv)));
+            fragment_info.pCode=face_uv
+                ? ogl_dev_world_uv_checker_frag_spv
+                : (face_tint ? ogl_dev_world_face_tint_frag_spv
                 : (sunlight ? ogl_dev_world_sunlight_frag_spv
-                            : ogl_dev_depth_frag_spv);
+                            : ogl_dev_depth_frag_spv));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
                 return false;
@@ -2977,15 +2997,23 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             vertex_attribute.offset=0;
             VkPipelineVertexInputStateCreateInfo vertex_input{
                 VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-            VkVertexInputBindingDescription bindings[2]{vertex_binding,vertex_binding};
+            VkVertexInputBindingDescription bindings[3]{
+                vertex_binding,vertex_binding,vertex_binding};
             bindings[1].binding=1;
-            VkVertexInputAttributeDescription attributes[2]{
-                vertex_attribute,vertex_attribute};
+            bindings[2].binding=2;
+            bindings[2].stride=sizeof(float)*2u;
+            VkVertexInputAttributeDescription attributes[3]{
+                vertex_attribute,vertex_attribute,vertex_attribute};
             attributes[1].location=1;
             attributes[1].binding=1;
-            vertex_input.vertexBindingDescriptionCount=face_tint ? 2u : 1u;
+            attributes[2].location=2;
+            attributes[2].binding=2;
+            attributes[2].format=VK_FORMAT_R32G32_SFLOAT;
+            vertex_input.vertexBindingDescriptionCount=
+                face_uv ? 3u : (face_tint ? 2u : 1u);
             vertex_input.pVertexBindingDescriptions=bindings;
-            vertex_input.vertexAttributeDescriptionCount=face_tint ? 2u : 1u;
+            vertex_input.vertexAttributeDescriptionCount=
+                face_uv ? 3u : (face_tint ? 2u : 1u);
             vertex_input.pVertexAttributeDescriptions=attributes;
             VkPipelineInputAssemblyStateCreateInfo assembly{
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
@@ -3306,7 +3334,13 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             0,sizeof(float)*(sunlight ? 20u : 16u),
             world_light_push.data());
         const VkDeviceSize offset=0;
-        if (face_tint) {
+        if (face_uv) {
+            const VkBuffer buffers[3]{world_device.mesh_vertices,
+                                      world_device.mesh_tint_vertices,
+                                      world_device.mesh_uv_vertices};
+            const VkDeviceSize offsets[3]{0,0,0};
+            vkCmdBindVertexBuffers(cmd,0,3,buffers,offsets);
+        } else if (face_tint) {
             const VkBuffer buffers[2]{world_device.mesh_vertices,
                                       world_device.mesh_tint_vertices};
             const VkDeviceSize offsets[2]{0,0};
@@ -4992,7 +5026,10 @@ int upload_world_face_tints(const ogl_rtx_face_tint* tints,uint32_t count) {
         !world_device.device || !world_device.device_proc ||
         !world_device.physical_device || !world_device.instance_proc ||
         !world_device.destroy_buffer || !world_device.free_memory ||
-        world_device.offscreen_world_cache.submitted)
+        world_device.offscreen_world_cache.submitted ||
+        // A submitted window frame may still read this color VkBuffer.
+        // Never replace/retire a sidecar before GPU window teardown.
+        world_device.persistent.submitted_any)
         return 0;
     // Explicitly withdraw a rejected/missing face-color source without
     // dropping valid geometry. This invalidates a previous tint revision.
@@ -5048,7 +5085,10 @@ int upload_world_face_uvs(const ogl_rtx_face_uv* uv_triangles,uint32_t count) {
         !sun || std::strcmp(sun,"1")!=0 ||
         !world_device.device || !world_device.device_proc ||
         !world_device.destroy_buffer || !world_device.free_memory ||
-        world_device.offscreen_world_cache.submitted)
+        world_device.offscreen_world_cache.submitted ||
+        // Unlike the older offscreen-only path, SDL/Vulkan WSI now
+        // consumes binding2; active frame submissions own the old buffer.
+        world_device.persistent.submitted_any)
         return 0;
     if (count==0) {
         world_device.clear_face_uvs();
@@ -5072,7 +5112,7 @@ int upload_world_face_uvs(const ogl_rtx_face_uv* uv_triangles,uint32_t count) {
     if (!upload_world_attribute_bytes(uv_triangles,
         VkDeviceSize(count)*sizeof(ogl_rtx_face_uv),buffer,memory))
         return 0;
-    // No private offscreen GPU submission is pending; WSI does not use UV.
+    // Private offscreen AND live WSI submissions were excluded above.
     world_device.clear_face_uvs();
     world_device.mesh_uv_vertices=buffer;
     world_device.mesh_uv_memory=memory;
