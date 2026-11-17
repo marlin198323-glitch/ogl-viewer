@@ -6,6 +6,41 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs-/Prüfschritte: echtes sampled RGBA8 im Vulkan-Zweitfenster (17.11.2026 MEZ)
+
+**Implementiert: Separates SDL/X11-Vulkan-Vorschaufenster kann jetzt eine echte GPU-abgetastete, dekodierte RGBA8-Testtextur über VkImage, VkImageView, VkSampler und Descriptor Set zeichnen. Zwei Farben, zwei Vulkan-Presents und unabhängige X11-Pixel wurden bestätigt. Das Hauptfenster bleibt OpenGL. Authentifizierte OpenSim-Texturasset-Übertragung und vollständige Vulkan-Hauptfensterengine weiterhin offen.**
+
+Die vorhandene private Vulkan-Mode-5-Shader-Pipeline wird im persistenten opt-in SDL/X11-Zweitfenster wiederverwendet. Neue zusätzliche Freigabe `OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE=1` (normalerweise AUS). Sie setzt den kompletten World/Depth/Sun/Face-Tint/UV-Pfad und `OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE=1` voraus. Echte eingeloggt erfasste RGBA-Daten erfordern darüber hinaus `OGL_VULKAN_LIVE_RGBA_SOURCE=1`, die bestätigte OpenSim-Deferred-Quelle, Region/Capture-/Meshgeneration und exakt die aktuelle RGBA-Quellgeneration; weder ungesicherte Bilddaten noch ältere Texturen werden automatisch als sichtbar behauptet. Nur bereits dekodierte, opaque RGBA8-Pixel, höchstens 64×64, eine Imagequelle je aktuelle Meshrevision; keine JPEG2000-Dekodierung, keine Texturasset-Streamingpipeline, keine UV-pro-Face-Materialzuordnung oder PBR.
+
+Vulkan erstellt für das eine zweite Fenster einen eigenen linear geteilten Host-Coherent `VkImage` mit validiertem Row-Pitch, eigenem Sampler, ImageView, Combined-Image-Sampler-DescriptorPool/Layout/Set und der vorhandenen `ogl_dev_world_rgba_sample_frag_spv`-Shaderstufe. Nur beim ersten echten GPU-Present erfolgt die Host-Write→Fragment-Read-Layout-Barriere; danach werden Ressourcen und Descriptor während derselben VkSwapchain unverändert wiederverwendet. In-flight-Werte schützen `RGBA`, `UV` und `Face RGB` vor vorzeitigem Upload/Clear/Freigeben. Shaderwahl `rgba_image` pro Swapchain fixiert und bereits vor Acquire auf Umschaltversuche kontrolliert. Beim sicheren Detach nach `vkQueueWaitIdle` werden Descriptor-/Sampler-/Image-Ressourcen vollständig in korrekter Reihenfolge freigegeben. Fehlt auf der GPU linear-samplefähiges RGBA8, wird der Entwickler-Sonderpfad abgewiesen und OpenGL bleibt erhalten.
+
+Der synthetische Prä-GL-Test lädt genau zwei opaque Dekodiertesttexel (Rot/Grün) über dieselbe bestehende RGBA-Upload-ABI; zwei separate Linux-Xvfb-Runs prüfen die ausgewählten Texel, zwei veränderte Sonnenbeleuchtungsframes, echten Vulkan-Present, X11-Framebuffer-Farbsamples und die vorherige Zwei-Frame-Geometrieprüfung. Die Test-Hauptfensterphase schaltet nur ihre eigenen zusätzlichen Entwicklerflags temporär ab; das zweite Fenster bekommt alle Freigaben zurück. Ein anfangs fehlschlagender Test war auf **veraltetes paketiertes Viewer-Binary bei bereits aktualisierter Vulkan-.so** zurückzuführen: nach obligatorischem `copy_l_viewer_manifest` ist der Pixelnachweis erfolgreich. Keine Benutzer-Viewer-Prozesse oder Profile für diese Tests verwendet.
+
+**20 ausgeführte Entwicklungs- und Prüfschritte dieser Runde:**
+
+01. Linux-Mint-Commander `jam-MS-7D28`, korrekten Branch `ogl-develop`, sauberen Ausgangscommit `2bde8ae1` geprüft.
+02. `AGENTS.md` und die verbindlichen OpenGL-/Vulkan-/Plattform-Grenzen gelesen.
+03. `ogl/PROJECT_HANDOFF.md` und aktuelle P05/3-Abnahmegrenze gelesen.
+04. `ogl/PROJECT_STATUS.md` und den vorigen UV-GPU-Integrationsstand gelesen.
+05. Die verbindliche `/goal`-Hauptroadmap auf Phasen-/20er-Block-Vorgaben geprüft.
+06. OpenGenesisLINK Stable-`v0.9.4.0` read-only auf `ee15af8e` geprüft.
+07. OpenGenesisLINK-`main` `a5200638` read-only, unveränderten Viewer-Vertrag, offenen WIP-PR #443/#447/#448/#450 und fehlenden `gen1-updates`-Tag geprüft.
+08. Vorherige GitHub-CI `44102892346` mit 6/6 portablen Jobs bestätigt, Full-Windows-Installer weiterhin nicht ausgeführt.
+09. Private Vulkan-RGBA-Mode-5-Shader, Vulkan-1.0-Sampler-/Descriptor- und bestehende Image-Upload-ABI im vorhandenen Code untersucht.
+10. Neue unabhängige, standardmäßig ausgeschaltete `OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE`-Berechtigung mit striktem 0/1-Wertebereich hinzugefügt.
+11. Vulkan-Source-Gates für opaque Imagegröße, Source-/Meshgeneration, vorhandene UV-Sidecars und echte Deferred-OpenSim-Receipt erweitert.
+12. Sampled-Image-Shader in der persistenten Vulkan-SDL-Fragmentpipeline für den neuen Modus ausgewählt und pro Swapchain eingefroren.
+13. Neues VkImage mit Formateignungsprüfung, Host-Coherent-Speicher, Pitched-Pixelkopie, Sampler und ImageView für die zweite Swapchain erstellt.
+14. DescriptorSetLayout, Pool und Descriptor der sampled Fragmentstufe in VkPipelineLayout eingebunden.
+15. Einmalige Host→Fragment-Synchronisation per VkImageMemoryBarrier vor dem ersten Renderpass und Descriptor-Bind vor dem Zeichnen integriert.
+16. VkSwapchain-Teardown zur sicheren Descriptor-/Sampler-/Image-Freigabe nach GPU-Abschluss erweitert und laufende RGBA-Reuploads/Clears fail-closed geblockt.
+17. Bestehenden SDL-GPU-Test um zwei echte texelabhängige RGBA-Upload- und X11-Farbtests ergänzt.
+18. Stale-Binary-Testfehler diagnostiziert, Paketmanifest aktualisiert und die echte GPU-Abnahme mit synchronisiertem Testviewer wiederholt.
+19. Echte isolierte Xvfb-Tests: Rot/Grün-Sample, UV-/RGB-/Sun-Legacy, fehlende RGBA-Quelle und ungültiger Opt-in; normales OpenGL-Login in allen sieben Fällen, keine FATAL.
+20. Python-/native C++-Shader-/Descriptor-/Source-Regressionen, Linux-Vollviewer-Build, native X11-Present-Langlaufprüfung und Git-Diff-Integrität durchgeführt; Ergebnisse in Hand-off und Roadmap übernommen.
+
+**Formaler Phasenstatus bleibt P05 2/20, P05/3 offen.** Keine automatische Aktivierung für Nutzer, keine neuen Projektdateien, keine Produktivserveränderung. Nächste Voraussetzung für P05/3 ist der echte authentifizierte OpenSim-Source-/Zwei-Frame-Nachweis und danach der eigentliche vollständige Vulkan-World-/Terrain-/Avatar-/UI-Renderer im Hauptfenster. Windows-/macOS-Vollviewerprüfung und servergesteuerte Clock-v1-Pflicht P08/P13 bleiben offen.
+
 ## P05/3 – /goal 20 Entwicklungs-/Prüfschritte: UV-Vertexbuffer und echter X11-Vulkan-Checker (17.11.2026 MEZ)
 
 **Technik umgesetzt, Linux-GPU-/Pixeltests bestanden; authentifizierter OpenSim-Echtweltbeleg weiter ausstehend. P05 bleibt 2/20; P05/3 offen.**

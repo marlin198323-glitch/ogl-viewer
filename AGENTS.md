@@ -64,6 +64,31 @@ Stable `v0.9.4.0=ee15af8e` unverändert.
 OGL-Viewer-Allowlist weiterhin akzeptiert,
 keine Serveränderung oder automatische Updates.
 
+P05/3 17.11.2026: Zweites SDL/X11-Vulkan-
+Weltfenster kann bei separatem Default-AUS-
+`OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE=1`
+die vorhandene private VkImage/VkSampler/
+DescriptorSet-Shader-Pipeline für dekodierte
+opaque RGBA8-Pixel (max. 64×64) nutzen.
+Einmalige GPU-Layout-Barriere, Shader-/
+Imagequelle/Meshgeneration eingefroren,
+in-flight Image-/RGB-/UV-Reupload-Verbot,
+sicheres Texture-Ressourcen-Teardown.
+Zwei echte rote/grüne Vulkan-X11-GPU-Pixel-
+Tests je 2 Presents mit Sonnenlichtänderung;
+altes UV-/Tint-/Sun-Verhalten und
+OpenGL-Login-Fallback erhalten. 439 Python-
+und 41 native CTests, Full-Linux-Build,
+7 unabhängige X11-GUI-Smokes geprüft.
+**Kein OpenSim-J2C-Assetstreaming oder
+authentifizierter In-World-Vulkan-Beleg, kein
+vollständiges Vulkan-Hauptfenster. P05
+bleibt 2/20, Block 3 offen.**
+Details in PROJECT_STATUS.md / HANDOFF.
+OpenGenesisLINK `main=a5200638`, Stable
+`v0.9.4.0=ee15af8e` unverändert;
+keine Serveränderung.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

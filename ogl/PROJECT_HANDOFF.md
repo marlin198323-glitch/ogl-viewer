@@ -100,6 +100,46 @@ Stable `v0.9.4.0` bleibt `ee15af8e`,
 `gen1-updates` noch nicht vorhanden.
 Keine Server-/Benutzerdaten geändert.
 
+17.11.2026 – letzte P05/3-/goal-20er-Runde:
+Die separate 512×384-Vulkan-SDL/X11-Welt-Swapchain
+hat bei zusätzlichem Default-AUS-Opt-in
+`OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE=1`
+einen echten VkImage/VkImageView/VkSampler/
+DescriptorSet-gestützten, opaque RGBA8-Sample-
+Pfad. Bestehenden privaten Mode-5-Vulkan-SPIR-V
+wiederverwendet. Genau eine bereits dekodierte
+Imagequelle, max. 64×64, aktuelle World/UV/RGB/
+RGBA-/Kamera-/Region-/Capture-Generation nötig;
+echte Live-RGBA erfordert separat
+`OGL_VULKAN_LIVE_RGBA_SOURCE=1`, keine
+OpenSim-J2C-Assetstreaming-Pipeline behaupten.
+Host-Kopie vor erstem Present und einmalige
+VkImage-Layout-Barriere; Texture Descriptor,
+VkSampler und Image haben eigene sichere
+Swapchain-Lifetime. Reupload/Clear während
+GPU-Presents untersagt, Shader-Modus nicht
+laufend umschaltbar. Nach sicherem Detach
+Ressourcen freigeben; OpenGL-Hauptfenster
+unverändert. Rot-/Grün-Dekodiertesttexel im
+zweiten Fenster mit zwei echten Vulkan-
+Presents, X11-Farb- und Geometriesampling
+bestanden. Alter UV-/Face-RGB-/Sun-Pfad
+funktioniert weiterhin; Negativ-Permissions
+blockieren korrekt. Testfehler wegen stale
+packaged Viewer-Binary gefunden; erst nach
+`copy_l_viewer_manifest` valide neue Ergebnisse.
+439 Python-/41 native CTests sowie Full-Linux-
+Build; 7 isolierte X11-Viewer-Smokes getestet.
+20 Schritte und Abnahmegrenzen in
+`ogl/PROJECT_STATUS.md`, Roadmap aktualisiert.
+**P05 2/20, P05/3 offen:** authentifizierter
+OpenSim-Live-2-Frame-Nachweis, J2C-Assets,
+vollständiger Vulkan-Main-World/Avatar/UI und
+Windows/macOS-Vollviewer fehlen.
+OpenGenesisLINK `main=a5200638`, Stable
+`v0.9.4.0=ee15af8e`, kein gen1-updates-Tag.
+Keine Server-/Nutzerprofile geändert.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

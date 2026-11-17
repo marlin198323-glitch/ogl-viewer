@@ -2186,7 +2186,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('world_tint_mesh_generation()!=world_mesh_generation()',host)
         self.assertIn('!flag_enabled("OGL_VULKAN_WORLD_FACE_TINT_PROBE")',host)
         self.assertIn('face-tint="',host)
-        self.assertIn('no sampled texture/PBR/alpha/terrain/avatar/UI.',host)
+        self.assertIn('NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI.',host)
         self.assertIn('const ogl_rtx_face_tint blue_face{{0.f,0.f,1.f}};',sdl)
         self.assertIn('upload_tints(secondary_face_uv ? &white_face',sdl)
         self.assertIn(': &blue_face,1)==1',sdl)
@@ -2240,17 +2240,17 @@ class PublicGraphicsContracts(unittest.TestCase):
             'world_uv_mesh_generation()!=world_mesh_generation()',
             '!flag_enabled("OGL_VULKAN_WORLD_UV_CHECKER_PROBE")',
             'uv-checker=" << (preview_uv ? "enabled" : "disabled")',
-            'no sampled texture/PBR/alpha/terrain/avatar/UI.',
+            'NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI.',
         ):
             self.assertIn(required,host)
         for required in (
             'UV-checker preview rejects invalid opt-in',
             'UV-checker preview requires face RGB and UV sources',
-            'SecondaryTintFlagGuard(bool tint,bool uv)',
+            'SecondaryTintFlagGuard(bool tint,bool uv,bool rgba)',
             'secondary_tint_guard.restore();',
             'ogl_vulkan_world_upload_face_uvs',
             'upload_uvs(&checker_cell,1)==1',
-            'const float u=green_uv_test ? .375f : .125f;',
+            'const float u=secondary_rgba_image',
             'secondary-face-uv=" << (secondary_face_uv',
             'frozen_uv_mode=persistent_present(1)==0',
             'secondary_face_uv_verified=secondary_face_uv;',
@@ -2261,6 +2261,87 @@ class PublicGraphicsContracts(unittest.TestCase):
             'ogl::separate_preview_two_frame_pixels(',
         ):
             self.assertIn(required,sdl)
+
+    def test_p05_secondary_vulkan_rgba8_sampled_image_owns_its_descriptor_and_pixels(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        start=gpu.index('uint32_t present_persistent_clear_frame(')
+        end=gpu.index('// P05/3 foundation:',start)
+        frame=gpu[start:end]
+        for required in (
+            'OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE',
+            'OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE',
+            'face_uv=uv_preview &&',
+            'if (!face_uv || !rgba_source',
+            'world_device.rgba_mesh_generation!=world_device.mesh_generation',
+            'world_device.rgba_cpu_texels.size()!=',
+            'world_device.rgba_width>64u || world_device.rgba_height>64u',
+            '(p.initialized && p.rgba_image!=rgba_image)',
+            'p.rgba_image=rgba_image;',
+            'VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT',
+            'VK_FORMAT_R8G8B8A8_UNORM',
+            'ti.tiling=VK_IMAGE_TILING_LINEAR;',
+            'ti.initialLayout=VK_IMAGE_LAYOUT_PREINITIALIZED;',
+            'vkGetImageSubresourceLayout(world_device.device,',
+            'layout.rowPitch<pitch',
+            'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT',
+            'world_device.rgba_cpu_texels.data()+row*pitch',
+            'vkUnmapMemory(world_device.device,p.texture_memory)',
+            'VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER',
+            'vkCreateDescriptorSetLayout(world_device.device',
+            'vkAllocateDescriptorSets(world_device.device',
+            'vkUpdateDescriptorSets(world_device.device,1,&write,0,nullptr);',
+            'ogl_dev_world_rgba_sample_frag_spv',
+            'layout_info.setLayoutCount=rgba_image ? 1u : 0u;',
+            'vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,',
+            'vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_HOST_BIT,',
+            'VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;',
+            'vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u,1,0,0,0);',
+        ):
+            self.assertIn(required,frame)
+        self.assertLess(frame.index('world_device.rgba_mesh_generation!='),
+                        frame.index('vkAcquireNextImageKHR'))
+        self.assertLess(frame.index('(p.initialized && p.rgba_image!=rgba_image)'),
+                        frame.index('if (!p.initialized) {'))
+        self.assertLess(frame.index('vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_HOST_BIT,'),
+                        frame.index('vkCmdBeginRenderPass(cmd,&rbi'))
+        offscreen_start=gpu.index('int upload_world_rgba_image(')
+        offscreen_end=gpu.index('void gpu_probe_cleanup()',offscreen_start)
+        self.assertIn('world_device.persistent.submitted_any',
+                      gpu[offscreen_start:offscreen_end])
+        release=gpu[gpu.index('void release_persistent_frames()'):
+                    gpu.index('void detach_window()')]
+        for resource in ('texture_descriptor_pool','texture_set_layout',
+                         'texture_sampler','texture_view','texture_image',
+                         'texture_memory'):
+            self.assertIn('persistent.'+resource,release)
+        self.assertLess(release.index('idle(queue)!=VK_SUCCESS'),
+                        release.index('persistent.texture_descriptor_pool'))
+        for expected in (
+            'OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE',
+            'OGL_VULKAN_LIVE_RGBA_SOURCE',
+            'world_rgba_mesh_generation()!=world_mesh_generation()',
+            'if (ogl_preview_attached) ogl_live_preview_detach();',
+            'rgba-image=" << (preview_rgba ? "enabled" : "disabled")',
+            'NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI.',
+        ):
+            self.assertIn(expected,host)
+        for expected in (
+            'RGBA-image preview rejects invalid opt-in',
+            'RGBA-image preview requires current UV and decoded image permissions',
+            'SecondaryTintFlagGuard(bool tint,bool uv,bool rgba)',
+            'const uint8_t test_texels[8]',
+            'upload_rgba(test_texels,2u,1u)==1',
+            'upload_rgba(test_texels,2u,1u)==0',
+            'upload_rgba(nullptr,0u,0u)==0',
+            'frozen_rgba_mode=persistent_present(1)==0',
+            'secondary-rgba-image=" << (secondary_rgba_image',
+            'secondary_rgba_verified=secondary_rgba_image;',
+            'ogl::separate_preview_two_frame_pixels(',
+            'LLWindowSDL::oglVulkanPreviewWorldPixels(',
+        ):
+            self.assertIn(expected,sdl)
 
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()

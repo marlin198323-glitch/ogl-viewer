@@ -295,6 +295,10 @@ void ogl_live_preview_world_swap() {
     if (uv_preview && std::strcmp(uv_preview,"0")!=0 &&
         std::strcmp(uv_preview,"1")!=0) return;
     const bool preview_uv=flag_enabled("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
+    const char* rgba_preview=std::getenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
+    if (rgba_preview && std::strcmp(rgba_preview,"0")!=0 &&
+        std::strcmp(rgba_preview,"1")!=0) return;
+    const bool preview_rgba=flag_enabled("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
     if (flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") &&
         (!flag_enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
          !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) return;
@@ -311,6 +315,14 @@ void ogl_live_preview_world_swap() {
          !flag_enabled("OGL_VULKAN_WORLD_UV_CHECKER_PROBE") ||
          !world_uv_mesh_generation || !world_mesh_generation ||
          world_uv_mesh_generation()!=world_mesh_generation())) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
+    if (preview_rgba &&
+        (!preview_uv || !flag_enabled("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE") ||
+         !flag_enabled("OGL_VULKAN_LIVE_RGBA_SOURCE") ||
+         !world_rgba_mesh_generation || !world_mesh_generation ||
+         world_rgba_mesh_generation()!=world_mesh_generation())) {
         if (ogl_preview_attached) ogl_live_preview_detach();
         return;
     }
@@ -422,8 +434,9 @@ void ogl_live_preview_world_swap() {
                "sunlight=enabled; native Firestorm sun; face-tint="
             << (preview_tint ? "enabled" : "disabled")
             << "; uv-checker=" << (preview_uv ? "enabled" : "disabled")
-            << "; opaque procedural UV checks only, "
-               "no sampled texture/PBR/alpha/terrain/avatar/UI."
+            << "; rgba-image=" << (preview_rgba ? "enabled" : "disabled")
+            << "; opaque decoded RGBA8 sampling or procedural UV checks, "
+               "NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI."
             << LL_ENDL;
     LL_INFOS("OGLRenderer")
         << "P05 actual OpenSim Vulkan SDL preview frame: "

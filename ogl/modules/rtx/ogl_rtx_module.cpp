@@ -148,6 +148,14 @@ struct OglPersistentClearFrames {
     bool sunlight = false; // frozen per attached VkSwapchain
     bool face_tint = false; // independent frozen vertex-binding1 mode
     bool face_uv = false; // independent frozen vertex-binding2 checker mode
+    bool rgba_image = false; // independent frozen sampled-image descriptor mode
+    VkImage texture_image = VK_NULL_HANDLE;
+    VkDeviceMemory texture_memory = VK_NULL_HANDLE;
+    VkImageView texture_view = VK_NULL_HANDLE;
+    VkSampler texture_sampler = VK_NULL_HANDLE;
+    VkDescriptorSetLayout texture_set_layout = VK_NULL_HANDLE;
+    VkDescriptorPool texture_descriptor_pool = VK_NULL_HANDLE;
+    VkDescriptorSet texture_descriptor = VK_NULL_HANDLE;
     std::array<uint64_t,2> submitted_mesh_generations{};
     std::vector<VkSemaphore> presented_by_image;
     std::vector<VkFence> image_in_flight;
@@ -491,6 +499,25 @@ struct WorldGraphicsDevice {
             destroy_pipeline(device,persistent.pipeline,nullptr);
         if (destroy_layout && persistent.pipeline_layout)
             destroy_layout(device,persistent.pipeline_layout,nullptr);
+        auto destroy_descriptor_pool=reinterpret_cast<PFN_vkDestroyDescriptorPool>(
+            device_proc(device,"vkDestroyDescriptorPool"));
+        auto destroy_descriptor_layout=reinterpret_cast<
+            PFN_vkDestroyDescriptorSetLayout>(
+                device_proc(device,"vkDestroyDescriptorSetLayout"));
+        auto destroy_sampler=reinterpret_cast<PFN_vkDestroySampler>(
+            device_proc(device,"vkDestroySampler"));
+        if (persistent.texture_descriptor_pool && destroy_descriptor_pool)
+            destroy_descriptor_pool(device,persistent.texture_descriptor_pool,nullptr);
+        if (persistent.texture_set_layout && destroy_descriptor_layout)
+            destroy_descriptor_layout(device,persistent.texture_set_layout,nullptr);
+        if (persistent.texture_sampler && destroy_sampler)
+            destroy_sampler(device,persistent.texture_sampler,nullptr);
+        if (persistent.texture_view && destroy_view)
+            destroy_view(device,persistent.texture_view,nullptr);
+        if (persistent.texture_image && destroy_image)
+            destroy_image(device,persistent.texture_image,nullptr);
+        if (persistent.texture_memory && free_memory)
+            free_memory(device,persistent.texture_memory,nullptr);
         if (destroy_shader) {
             if (persistent.vertex_shader)
                 destroy_shader(device,persistent.vertex_shader,nullptr);
@@ -2656,6 +2683,29 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     if (uv_preview && std::strcmp(uv_preview,"0")!=0 &&
         std::strcmp(uv_preview,"1")!=0) return 0;
     const bool face_uv=uv_preview && std::strcmp(uv_preview,"1")==0;
+    const char* rgba_preview=std::getenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
+    if (rgba_preview && std::strcmp(rgba_preview,"0")!=0 &&
+        std::strcmp(rgba_preview,"1")!=0) return 0;
+    const bool rgba_image=rgba_preview && std::strcmp(rgba_preview,"1")==0;
+    if (rgba_image) {
+        const char* rgba_source=std::getenv("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE");
+        if (!face_uv || !rgba_source || std::strcmp(rgba_source,"1")!=0 ||
+            !world_device.rgba_width || !world_device.rgba_height ||
+            world_device.rgba_width>64u || world_device.rgba_height>64u ||
+            world_device.rgba_cpu_texels.size()!=
+                size_t(world_device.rgba_width)*world_device.rgba_height*4u ||
+            world_device.rgba_mesh_generation!=world_device.mesh_generation) {
+            if (logger) logger(2,("P05 Vulkan RGBA WSI source rejected: "
+                "UV="+std::to_string(face_uv)+
+                " image="+std::to_string(world_device.rgba_width)+"x"+
+                std::to_string(world_device.rgba_height)+
+                " bytes="+std::to_string(world_device.rgba_cpu_texels.size())+
+                " image-gen="+std::to_string(world_device.rgba_mesh_generation)+
+                " mesh-gen="+std::to_string(world_device.mesh_generation)+
+                "; GL unaffected.").c_str());
+            return 0;
+        }
+    }
     if (face_uv) {
         const char* uv_source=std::getenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
         if (!face_tint || !uv_source || std::strcmp(uv_source,"1")!=0 ||
@@ -2717,7 +2767,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         (p.initialized && p.world_depth!=world) ||
         (p.initialized && p.sunlight!=sunlight) ||
         (p.initialized && p.face_tint!=face_tint) ||
-        (p.initialized && p.face_uv!=face_uv)) return 0;
+        (p.initialized && p.face_uv!=face_uv) ||
+        (p.initialized && p.rgba_image!=rgba_image)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -2752,6 +2803,16 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     OGL_PERSIST_FN(vkCmdBindIndexBuffer);
     OGL_PERSIST_FN(vkCmdDrawIndexed);
     OGL_PERSIST_FN(vkCmdPushConstants);
+    OGL_PERSIST_FN(vkMapMemory);
+    OGL_PERSIST_FN(vkUnmapMemory);
+    OGL_PERSIST_FN(vkGetImageSubresourceLayout);
+    OGL_PERSIST_FN(vkCreateSampler);
+    OGL_PERSIST_FN(vkCreateDescriptorSetLayout);
+    OGL_PERSIST_FN(vkCreateDescriptorPool);
+    OGL_PERSIST_FN(vkAllocateDescriptorSets);
+    OGL_PERSIST_FN(vkUpdateDescriptorSets);
+    OGL_PERSIST_FN(vkCmdBindDescriptorSets);
+    OGL_PERSIST_FN(vkCmdPipelineBarrier);
 #undef OGL_PERSIST_FN
     if (!vkGetSwapchainImagesKHR || !vkCreateImageView ||
         !vkCreateRenderPass || !vkCreateFramebuffer ||
@@ -2778,8 +2839,17 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         !vkCmdDrawIndexed || !vkCmdPushConstants ||
         !get_format_properties || !get_mem_properties))
         return 0;
+    if (rgba_image && (!vkMapMemory || !vkUnmapMemory ||
+        !vkGetImageSubresourceLayout || !vkCreateSampler ||
+        !vkCreateDescriptorSetLayout || !vkCreateDescriptorPool ||
+        !vkAllocateDescriptorSets || !vkUpdateDescriptorSets ||
+        !vkCmdBindDescriptorSets || !vkCmdPipelineBarrier)) {
+        if (logger) logger(2,"P05 Vulkan RGBA WSI missing Vulkan descriptor/image function; GL unaffected.");
+        return 0;
+    }
 
     if (!p.initialized) {
+        uint32_t rgba_stage=0;
         auto init=[&]() -> bool {
             uint32_t count=0;
             if (vkGetSwapchainImagesKHR(world_device.device,
@@ -2800,6 +2870,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             p.sunlight=sunlight;
             p.face_tint=face_tint;
             p.face_uv=face_uv;
+            p.rgba_image=rgba_image;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
                                      VK_FORMAT_D16_UNORM}) {
@@ -2946,6 +3017,139 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                                       &p.presented_by_image[i])!=VK_SUCCESS ||
                     !p.presented_by_image[i]) return false;
             }
+        // Existing private Vulkan 1.0 RGBA8 sampled-image path, now owned
+        // by this ONE persistent VkSwapchain. Nothing is shared with the
+        // offscreen texture cache or the main OpenGL-owned SDL window.
+        if (rgba_image) {
+            rgba_stage=1; // VkFormat linear sampling capability
+            VkFormatProperties texture_features{};
+            get_format_properties(world_device.physical_device,
+                VK_FORMAT_R8G8B8A8_UNORM,&texture_features);
+            if (!(texture_features.linearTilingFeatures &
+                  VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)) return false;
+            rgba_stage=2; // format supports linear sampled image
+            VkImageCreateInfo ti{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+            ti.imageType=VK_IMAGE_TYPE_2D;
+            ti.format=VK_FORMAT_R8G8B8A8_UNORM;
+            ti.extent={world_device.rgba_width,world_device.rgba_height,1u};
+            ti.mipLevels=1; ti.arrayLayers=1;
+            ti.samples=VK_SAMPLE_COUNT_1_BIT;
+            ti.tiling=VK_IMAGE_TILING_LINEAR;
+            ti.usage=VK_IMAGE_USAGE_SAMPLED_BIT;
+            ti.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+            ti.initialLayout=VK_IMAGE_LAYOUT_PREINITIALIZED;
+            if (vkCreateImage(world_device.device,&ti,nullptr,
+                    &p.texture_image)!=VK_SUCCESS || !p.texture_image)
+                return false;
+            rgba_stage=3; // texture VkImage created
+            VkMemoryRequirements req{};
+            vkGetImageMemoryRequirements(world_device.device,p.texture_image,&req);
+            VkPhysicalDeviceMemoryProperties mem{};
+            get_mem_properties(world_device.physical_device,&mem);
+            uint32_t memory_type=UINT32_MAX;
+            for (uint32_t i=0;i<mem.memoryTypeCount && i<32u;++i)
+                if ((req.memoryTypeBits & (1u<<i)) &&
+                    (mem.memoryTypes[i].propertyFlags &
+                        (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))==
+                        (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+                    memory_type=i;
+                    break;
+                }
+            if (memory_type==UINT32_MAX) return false;
+            VkMemoryAllocateInfo alloc{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+            alloc.allocationSize=req.size;
+            alloc.memoryTypeIndex=memory_type;
+            if (vkAllocateMemory(world_device.device,&alloc,nullptr,
+                    &p.texture_memory)!=VK_SUCCESS || !p.texture_memory ||
+                vkBindImageMemory(world_device.device,p.texture_image,
+                    p.texture_memory,0)!=VK_SUCCESS) return false;
+            rgba_stage=4; // host coherent texture memory bound
+            VkImageSubresource sub{};
+            sub.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+            VkSubresourceLayout layout{};
+            vkGetImageSubresourceLayout(world_device.device,
+                p.texture_image,&sub,&layout);
+            const size_t pitch=size_t(world_device.rgba_width)*4u;
+            const size_t rows=world_device.rgba_height;
+            if (!rows || layout.rowPitch<pitch ||
+                layout.offset>req.size ||
+                (rows-1u)>(req.size-layout.offset)/layout.rowPitch ||
+                pitch>req.size-layout.offset-(rows-1u)*layout.rowPitch)
+                return false;
+            void* dst=nullptr;
+            if (vkMapMemory(world_device.device,p.texture_memory,
+                    0,req.size,0,&dst)!=VK_SUCCESS || !dst) return false;
+            for (size_t row=0;row<rows;++row)
+                std::memcpy(static_cast<uint8_t*>(dst)+layout.offset+
+                                row*layout.rowPitch,
+                            world_device.rgba_cpu_texels.data()+row*pitch,pitch);
+            vkUnmapMemory(world_device.device,p.texture_memory);
+            rgba_stage=5; // validated row pitch and copied decoded bytes
+            VkImageViewCreateInfo iv{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+            iv.image=p.texture_image;
+            iv.viewType=VK_IMAGE_VIEW_TYPE_2D;
+            iv.format=ti.format;
+            iv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+            iv.subresourceRange.levelCount=1;
+            iv.subresourceRange.layerCount=1;
+            if (vkCreateImageView(world_device.device,&iv,nullptr,
+                    &p.texture_view)!=VK_SUCCESS || !p.texture_view)
+                return false;
+            VkSamplerCreateInfo si{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+            si.magFilter=si.minFilter=VK_FILTER_NEAREST;
+            si.mipmapMode=VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            si.addressModeU=si.addressModeV=si.addressModeW=
+                VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            si.maxLod=0.f;
+            if (vkCreateSampler(world_device.device,&si,nullptr,
+                    &p.texture_sampler)!=VK_SUCCESS || !p.texture_sampler)
+                return false;
+            VkDescriptorSetLayoutBinding binding{};
+            binding.binding=0;
+            binding.descriptorCount=1;
+            binding.descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            binding.stageFlags=VK_SHADER_STAGE_FRAGMENT_BIT;
+            VkDescriptorSetLayoutCreateInfo dsl{
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+            dsl.bindingCount=1;
+            dsl.pBindings=&binding;
+            if (vkCreateDescriptorSetLayout(world_device.device,&dsl,nullptr,
+                    &p.texture_set_layout)!=VK_SUCCESS || !p.texture_set_layout)
+                return false;
+            VkDescriptorPoolSize pool_size{};
+            pool_size.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            pool_size.descriptorCount=1;
+            VkDescriptorPoolCreateInfo pool{
+                VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+            pool.maxSets=1;
+            pool.poolSizeCount=1;
+            pool.pPoolSizes=&pool_size;
+            if (vkCreateDescriptorPool(world_device.device,&pool,nullptr,
+                    &p.texture_descriptor_pool)!=VK_SUCCESS ||
+                !p.texture_descriptor_pool) return false;
+            VkDescriptorSetAllocateInfo dai{
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+            dai.descriptorPool=p.texture_descriptor_pool;
+            dai.descriptorSetCount=1;
+            dai.pSetLayouts=&p.texture_set_layout;
+            if (vkAllocateDescriptorSets(world_device.device,&dai,
+                    &p.texture_descriptor)!=VK_SUCCESS ||
+                !p.texture_descriptor) return false;
+            VkDescriptorImageInfo image_info{};
+            image_info.sampler=p.texture_sampler;
+            image_info.imageView=p.texture_view;
+            image_info.imageLayout=VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet=p.texture_descriptor;
+            write.dstBinding=0;
+            write.descriptorCount=1;
+            write.descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            write.pImageInfo=&image_info;
+            vkUpdateDescriptorSets(world_device.device,1,&write,0,nullptr);
+            rgba_stage=6; // sampled VkImage, sampler and descriptor ready
+        }
         // Optional genuine rasterization of indexed vertex data. The
         // normal single/16-frame clear tests use no shaders/pipelines.
         if (world) {
@@ -2964,16 +3168,18 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=face_uv
-                ? sizeof(ogl_dev_world_uv_checker_frag_spv)
+            fragment_info.codeSize=rgba_image
+                ? sizeof(ogl_dev_world_rgba_sample_frag_spv)
+                : (face_uv ? sizeof(ogl_dev_world_uv_checker_frag_spv)
                 : (face_tint ? sizeof(ogl_dev_world_face_tint_frag_spv)
                 : (sunlight ? sizeof(ogl_dev_world_sunlight_frag_spv)
-                            : sizeof(ogl_dev_depth_frag_spv)));
-            fragment_info.pCode=face_uv
-                ? ogl_dev_world_uv_checker_frag_spv
+                            : sizeof(ogl_dev_depth_frag_spv))));
+            fragment_info.pCode=rgba_image
+                ? ogl_dev_world_rgba_sample_frag_spv
+                : (face_uv ? ogl_dev_world_uv_checker_frag_spv
                 : (face_tint ? ogl_dev_world_face_tint_frag_spv
                 : (sunlight ? ogl_dev_world_sunlight_frag_spv
-                            : ogl_dev_depth_frag_spv));
+                            : ogl_dev_depth_frag_spv)));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
                 return false;
@@ -3061,8 +3267,10 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             VkPipelineLayoutCreateInfo layout_info{
                 VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
             layout_info.pushConstantRangeCount=1u;
-            layout_info.pPushConstantRanges=true
-                ? &camera_range : nullptr;
+            layout_info.pPushConstantRanges=&camera_range;
+            layout_info.setLayoutCount=rgba_image ? 1u : 0u;
+            layout_info.pSetLayouts=rgba_image
+                ? &p.texture_set_layout : nullptr;
             if (vkCreatePipelineLayout(world_device.device,&layout_info,nullptr,
                                        &p.pipeline_layout)!=VK_SUCCESS ||
                 !p.pipeline_layout)
@@ -3085,6 +3293,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 1,&graphics_info,nullptr,&p.pipeline)!=VK_SUCCESS ||
                 !p.pipeline)
                 return false;
+            if (rgba_image) rgba_stage=7; // correct sampled fragment VkPipeline
         }
 
 
@@ -3117,6 +3326,10 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             return true;
         };
         if (!init()) {
+            if (rgba_image && logger)
+                logger(2,("P05 Vulkan RGBA SDL preview setup rejected stage="+
+                    std::to_string(rgba_stage)+
+                    "; no frame presented, OpenGL unaffected.").c_str());
             world_device.release_persistent_frames();
             return 0;
         }
@@ -3317,9 +3530,31 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
     clears[1].depthStencil.depth=1.f;
     rbi.clearValueCount=world ? 2u : 1u;
     rbi.pClearValues=clears;
+    if (rgba_image && p.frame_count==0) {
+        // Host coherent texels are copied before the FIRST submission.
+        // The descriptor is never modified during the live swapchain.
+        VkImageMemoryBarrier texture_barrier{
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        texture_barrier.srcAccessMask=VK_ACCESS_HOST_WRITE_BIT;
+        texture_barrier.dstAccessMask=VK_ACCESS_SHADER_READ_BIT;
+        texture_barrier.oldLayout=VK_IMAGE_LAYOUT_PREINITIALIZED;
+        texture_barrier.newLayout=VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        texture_barrier.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        texture_barrier.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        texture_barrier.image=p.texture_image;
+        texture_barrier.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        texture_barrier.subresourceRange.levelCount=1;
+        texture_barrier.subresourceRange.layerCount=1;
+        vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_HOST_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,0,0,nullptr,
+            0,nullptr,1,&texture_barrier);
+    }
     vkCmdBeginRenderPass(cmd,&rbi,VK_SUBPASS_CONTENTS_INLINE);
     if (world) {
         vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,p.pipeline);
+        if (rgba_image)
+            vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,
+                p.pipeline_layout,0,1,&p.texture_descriptor,0,nullptr);
         // Normalized real Firestorm sun vector is updated independently of
         // the accepted GPU mesh; fragment lighting requires no re-upload.
         std::array<float,20> world_light_push{};
@@ -5200,7 +5435,10 @@ int upload_world_rgba_image(const uint8_t* rgba,uint32_t width,uint32_t height) 
         !enabled("OGL_VULKAN_WORLD_MESH_UPLOAD") ||
         !enabled("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
         !world_device.device || !world_device.device_proc ||
-        world_device.offscreen_world_cache.submitted)
+        world_device.offscreen_world_cache.submitted ||
+        // A persistent WSI descriptor may currently reference the
+        // CPU-uploaded image. Preserve its pixels until window teardown.
+        world_device.persistent.submitted_any)
         return 0;
     if (!rgba && width==0 && height==0) {
         // Drop the sampled-image cache before any descriptor/image is freed.
@@ -5252,6 +5490,10 @@ int upload_world_rgba_image(const uint8_t* rgba,uint32_t width,uint32_t height) 
     world_device.rgba_height=height;
     world_device.rgba_mesh_generation=world_device.mesh_generation;
     ++world_device.rgba_uploads;
+    if (logger && enabled("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE"))
+        logger(1,("P05 RGBA WSI accepted image pixels="+
+            std::to_string(world_device.rgba_cpu_texels.size())+
+            " generation="+std::to_string(world_device.rgba_mesh_generation)).c_str());
     return 1;
 }
 

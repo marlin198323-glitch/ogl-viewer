@@ -2,6 +2,36 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: sichtbares Vulkan-RGBA8-VkImage-Sampling
+
+Der strikt opt-in gestartete zweite SDL/X11-
+Vulkan-Renderer kann mit
+`OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE=1`
+die bestehende private Mode-5-Sampled-Image-
+SPIR-V-Pipeline im realen X11-Fenster nutzen.
+Opaque, dekodierte RGBA8-Pixel max. 64×64,
+ein Bild pro aktueller Meshgeneration,
+Source-/Region-/Camera-/RGB-/UV-/RGBA-
+Permissions und echte GPU-Bindung2 sind
+Pflicht. Shaderwahl ist swapchain-fest; die
+VkImage/VkSampler/DescriptorSet-Ressourcen
+werden mit dem Vulkan-Fenster sicher retired.
+Zwei unterschiedliche dekodierte Testtexel
+(Rot/Grün) wurden in eigenen isolierten
+X11-GPU-Testläufen samt jeweils zwei
+tatsächlichen Presents und Frontbuffer-
+Farb-/Geometrienachweis geprüft.
+Fehlende oder ungültige Berechtigungen
+blockieren die Vorschau, OpenGL bleibt
+vollständig funktionsfähig. Keine eigene
+JPEG2000/OpenSim-Assetstreaming-Pipeline,
+keine Material-/PBR-/Avatar-/Terrain-/UI-
+Hauptfenster-Integration. Voller /goal-20er-
+Block und Testergebnisse in PROJECT_STATUS.md.
+**P05 weiterhin 2/20, P05/3 offen.**
+OpenGenesisLINK main `a5200638`, Stable
+`v0.9.4.0=ee15af8e` unverändert.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: sichtbare GPU-UV-Checker-Pipeline
 
 Mit eigenem Default-OFF-`OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE=1`

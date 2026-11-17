@@ -288,6 +288,25 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     }
     const bool secondary_face_uv=secondary_window_probe &&
         ogl_pre_gl_flag("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
+    const char* raw_rgba_mode=std::getenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
+    if (secondary_window_probe && raw_rgba_mode &&
+        std::strcmp(raw_rgba_mode,"0")!=0 &&
+        std::strcmp(raw_rgba_mode,"1")!=0) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL RGBA-image preview rejects invalid opt-in; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
+    const bool secondary_rgba_image=secondary_window_probe &&
+        ogl_pre_gl_flag("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
+    if (secondary_rgba_image &&
+        (!secondary_face_uv ||
+         !ogl_pre_gl_flag("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE"))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL RGBA-image preview requires current UV and decoded image permissions; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     if (secondary_face_uv &&
         (!secondary_face_tint ||
          !ogl_pre_gl_flag("OGL_VULKAN_WORLD_UV_CHECKER_PROBE"))) {
@@ -332,17 +351,21 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     struct SecondaryTintFlagGuard {
         bool enabled;
         bool uv_enabled;
-        SecondaryTintFlagGuard(bool tint,bool uv)
-            : enabled(tint),uv_enabled(uv) {
+        bool rgba_enabled;
+        SecondaryTintFlagGuard(bool tint,bool uv,bool rgba)
+            : enabled(tint),uv_enabled(uv),rgba_enabled(rgba) {
             if (enabled) SDL_setenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE","0",1);
             if (uv_enabled) SDL_setenv("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE","0",1);
+            if (rgba_enabled) SDL_setenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE","0",1);
         }
         void restore() const {
             if (enabled) SDL_setenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE","1",1);
             if (uv_enabled) SDL_setenv("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE","1",1);
+            if (rgba_enabled) SDL_setenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE","1",1);
         }
         ~SecondaryTintFlagGuard() { restore(); }
-    } secondary_tint_guard(secondary_face_tint,secondary_face_uv);
+    } secondary_tint_guard(secondary_face_tint,secondary_face_uv,
+                           secondary_rgba_image);
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -376,6 +399,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     using Upload = int (*)(const ogl_rtx_triangle*,uint32_t);
     using UploadTint = int (*)(const ogl_rtx_face_tint*,uint32_t);
     using UploadUV = int (*)(const ogl_rtx_face_uv*,uint32_t);
+    using UploadRGBA = int (*)(const uint8_t*,uint32_t,uint32_t);
     using MeshCount = uint32_t (*)();
     using SetCamera = int (*)(const ogl_rtx_frame_state*);
     const auto set_camera=reinterpret_cast<SetCamera>(
@@ -397,6 +421,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_face_tints"));
     const auto upload_uvs=reinterpret_cast<UploadUV>(
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_face_uvs"));
+    const auto upload_rgba=reinterpret_cast<UploadRGBA>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_upload_rgba_image"));
     const auto mesh_count=reinterpret_cast<MeshCount>(
         SDL_LoadFunction(library,"ogl_vulkan_world_gpu_triangle_count"));
     const auto start=reinterpret_cast<ogl_module_start_fn>(
@@ -437,6 +463,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool secondary_sunlight_verified=false;
     bool secondary_face_tint_verified=false;
     bool secondary_face_uv_verified=false;
+    bool secondary_rgba_verified=false;
     bool secondary_material_busy_verified=false;
     uint32_t secondary_sunlight_frames=0;
     uint32_t secondary_window_stage=0;
@@ -1093,16 +1120,24 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         // always come from real source-qualified OpenSim.
                         const bool green_uv_test=secondary_face_uv &&
                             ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_UV_GREEN_TEST");
-                        const float u=green_uv_test ? .375f : .125f;
-                        const ogl_rtx_face_uv checker_cell{{
-                            u,.125f,u,.125f,u,.125f}};
+                        const float u=secondary_rgba_image
+                            ? (green_uv_test ? .75f : .25f)
+                            : (green_uv_test ? .375f : .125f);
+                        const float v=secondary_rgba_image ? .5f : .125f;
+                        const ogl_rtx_face_uv checker_cell{{u,v,u,v,u,v}};
+                        // Two opaque decoded test texels, NOT downloaded
+                        // OpenSim/JPEG2000 assets or a texture cache.
+                        const uint8_t test_texels[8]{
+                            255u,0u,0u,255u,0u,255u,0u,255u};
                         const bool uploaded_secondary=uploaded_geometry &&
                             (!secondary_face_tint ||
                              (upload_tints &&
                               upload_tints(secondary_face_uv ? &white_face
                                                              : &blue_face,1)==1)) &&
                             (!secondary_face_uv ||
-                             (upload_uvs && upload_uvs(&checker_cell,1)==1));
+                             (upload_uvs && upload_uvs(&checker_cell,1)==1)) &&
+                            (!secondary_rgba_image ||
+                             (upload_rgba && upload_rgba(test_texels,2u,1u)==1));
                         if (uploaded_secondary) secondary_window_stage=2;
                         const bool attached_secondary=uploaded_secondary &&
                             attach(preview_display,preview_xid,pw,ph)==1;
@@ -1177,7 +1212,10 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     upload_tints(secondary_face_uv
                                         ? &white_face : &blue_face,1)==0)) &&
                                 (!secondary_face_uv || (upload_uvs &&
-                                    upload_uvs(&checker_cell,1)==0));
+                                    upload_uvs(&checker_cell,1)==0)) &&
+                                (!secondary_rgba_image || (upload_rgba &&
+                                    upload_rgba(test_texels,2u,1u)==0 &&
+                                    upload_rgba(nullptr,0u,0u)==0));
                             auto* dpy=static_cast<Display*>(preview_display);
                             auto center_color=[&]() -> int {
                                 XSync(dpy,False);
@@ -1222,10 +1260,18 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     persistent_count()==1;
                                 SDL_setenv("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE","1",1);
                             }
+                            bool frozen_rgba_mode=true;
+                            if (secondary_rgba_image) {
+                                SDL_setenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE","0",1);
+                                frozen_rgba_mode=persistent_present(1)==0 &&
+                                    persistent_count()==1;
+                                SDL_setenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE","1",1);
+                            }
                             camera.sun_direction[0]=1.f;
                             camera.sun_direction[2]=0.f;
                             if (frozen_shader_mode && frozen_tint_mode &&
-                                frozen_uv_mode && secondary_material_busy_verified &&
+                                frozen_uv_mode && frozen_rgba_mode &&
+                                secondary_material_busy_verified &&
                                 first_component>=0 && set_camera(&camera)==1 &&
                                 persistent_present(1)==1 && persistent_count()==2) {
                                 secondary_sunlight_frames=2;
@@ -1241,6 +1287,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                         secondary_sunlight_verified=true;
                                         secondary_face_tint_verified=secondary_face_tint;
                                         secondary_face_uv_verified=secondary_face_uv;
+                                        secondary_rgba_verified=secondary_rgba_image;
                                         break;
                                     }
                                     SDL_Delay(3);
@@ -1290,6 +1337,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             : "not-requested") <<
         ", secondary-face-uv=" << (secondary_face_uv
             ? (secondary_face_uv_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-rgba-image=" << (secondary_rgba_image
+            ? (secondary_rgba_verified ? "verified" : "failed")
             : "not-requested") <<
         ", secondary-material-busy=" << (secondary_face_tint
             ? (secondary_material_busy_verified ? "verified" : "failed")
