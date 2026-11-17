@@ -148,6 +148,38 @@ P05 2/20, Block 3 weiterhin offen.**
 Server-main a520063837, Stable
 v0.9.4.0 ee15af8e, keine Serveränderung.
 
+P05/3 17.11.2026: Die zweite streng opt-in
+Vulkan-SDL/X11-World-Swapchain kann jetzt
+den bestehenden privaten Mode8-HQ-SPIR-V
+für einen 256×256-opaque-RGBA8-Atlas
+(4×4 Materialien, 16 Slots) verwenden.
+HQ-Preview ist Default-OFF und verlangt
+Atlas-/16-Slot-/HQ-Welt- und Live-Permissions,
+exakt aktuelle Region/Capture/Mesh-/
+RGBA-/Materialslotgeneration. 64er-
+Mode5/Mode6/Mode7 bleiben eigenständig.
+GPU-Schalterwahl pro Swapchain einfrieren,
+Material-/UV-/RGB-/Imagebuffer bei laufenden
+GPU-Presents nicht ersetzen/entfernen.
+Synthetische X11-GPU-HQ-Abnahme
+Slot 0 Rot / Slot 5 Grün, gleiche UVs,
+je 2 echte Presents mit Farbscan.
+Neu: laufende Vulkan-Live-Vorschau
+bei ungültigen Quell-/Shaderflags oder
+fehlender Basis-World-/Sun-Permission
+aktiv detach statt stale Frame anzeigen.
+443 Python-/41 native CTests, Linux-
+Vollviewer-Build, GPU-X11-Smokes
+und native 16-/32-WSI-GPU-Tests.
+**Keine authentifizierte OpenSim-
+Vulkan-In-World-Quelle, keine komplette
+Vulkan-Mainworld/Terrain/Avatar/UI.
+P05 2/20, P05/3 weiter offen.**
+Details und 20 Schritte in PROJECT_STATUS,
+Handoff und Roadmap; Server-main
+a520063837, Stable ee15af8e.
+Keine Serveränderung.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

@@ -6,6 +6,39 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs-/Prüfschritte: HQ-256×256-Materialatlas im echten Vulkan-Zweitfenster (17.11.2026 MEZ)
+
+**Implementiert:** Die bestehende, standardmäßig deaktivierte zweite SDL/X11-Vulkan-World-Swapchain unterstützt jetzt zusätzlich den bereits GPU-geprüften privaten Mode-8-SPIR-V-Fragmentshader für einen 4×4-Atlas mit **16 opaque RGBA8-Materialfeldern zu jeweils 64×64 Texeln** in einem 256×256-VkImage. Vorherige Modi bleiben vollständig separat: Mode 5 einzelne dekodierte RGBA8-Textur (max. 64×64), Mode 6 2×2-Atlas (64×64), Mode 7 4×4-Atlas (64×64). Der bestehende VkImage/VkSampler/Descriptor-Set-Weg übernimmt die exakte Vulkan-Linear-Tiling-/Host-Coherent-/Row-Pitch-Validierung und einmalige Host-Write→Fragment-Read-Barriere; nur die Mode-8-Auswahl sowie die exakt erlaubte Bildkante werden erweitert. Vulkan-Shader, Mesh-XYZ, Face-RGB, UV, Materialslot-Binding3, Kamera/Sonne, Tiefe, Synchronisation und Swapchain-Ressourcenlebensdauer bleiben unverändert. Der normale Viewer startet weiterhin mit dem OpenGL-Standardrenderer.
+
+**Zusätzliche Default-AUS-Freigabe:** `OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_HQ_PROBE=1` setzt die getrennten Opt-ins `OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE=1`, `OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE=1`, `OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE=1`, `OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1`, `OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1` sowie alle World-/Depth-/Sun-/Tint-/UV-/RGBA-/Mesh-/Camera-Permissions voraus. HQ akzeptiert exakt 256×256 opaque RGBA8-Bytes; ohne HQ bleibt die bisherige 64×64-Grenze. Quell-/GPU-Material- und Texture-Meshgeneration sowie aktuelle Vertexzahlen sind vor jedem Frame Pflicht. Die beiden HQ-Schalter und Shaderauswahl sind pro Swapchain **eingefroren**. Ein expliziter GPU-Test schaltet den HQ-Flag nach dem ersten Present aus und verlangt die Ablehnung des zweiten Presents, ohne den Framecounter fortzusetzen. Änderungen/Clears von Texture-, Slot-, UV- oder RGB-Daten bei bereits eingereichten WSI-Frames bleiben fail-closed.
+
+Eine **authentifizierte** OpenSim-Live-HQ-Quelle benötigt zusätzlich `OGL_VULKAN_LIVE_RGBA_SOURCE=1`, `OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE=1`, `OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1` und `OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE=1` mit exaktem Region-/Capture-/Mesh-/Materialslot-Receipt. Ein zweiter Sicherheitsfix trennt jetzt die laufende Vulkan-Vorschau ausdrücklich, wenn eine globale World-Permission, Sunlight-Source oder eines der Tint-/UV-/RGBA-/Atlas-/Atlas16-/HQ-Flags ungültig wird, statt ein altes Frame sichtbar stehen zu lassen. Im Synthetiktest beweisen allein bereits dekodierte Testtexel den GPU-Fensterpfad; **keine** neuen realen OpenSim-J2C-Assets, Texturdownloads, PBR oder Alpha-Komposition werden behauptet.
+
+**20 konkret bearbeitete Entwicklungs- und Prüfschritte:**
+
+01. Linux-Mint Remote Commander, `ogl-develop`, sauberen Ausgangscommit `d550669e` geprüft.
+02. `AGENTS.md` und die Schutzvorgaben für Renderer, Benutzerprofile und Server gelesen.
+03. `ogl/PROJECT_HANDOFF.md` und aktuelle P05/3-Live-Abnahmegrenze gelesen.
+04. `ogl/PROJECT_STATUS.md` samt 16-Material-Vulkan-Swapchain-Stand gelesen.
+05. `ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md` und 20er-Phasenverfahren gelesen.
+06. OpenGenesisLINK-`main` read-only `a520063837` und Stable `v0.9.4.0=ee15af8e` geprüft.
+07. Fehlenden `gen1-updates`-Tag und WIP-PRs #443, #447, #448 und #450 read-only geprüft; keine neue Wire-Inkompatibilität festgestellt.
+08. GitHub-Vorläufer-CI `44114657638` überprüft, 6/6 portable Native-Graphics-Plattformjobs erfolgreich, Windows-Installer weiter skipped.
+09. Vorhandenen privaten Vulkan-Mode8-HQ-SPIR-V, 256×256-Host-Upload, Texture-Sampler und Shader-Source-Baseline analysiert.
+10. Zusätzliches, standardmäßig deaktiviertes HQ-Vorschau-Flag mit strikter Werteprüfung 0/1 eingeführt.
+11. Host- und WSI-Permissions so erweitert, dass 256er-Atlas nur mit beiden Eltern-Atlas-Quellen und echter HQ-Source erlaubt wird.
+12. VK-Swapchain-Mode-8-Fragmentshader ausgewählt, alte 64er Mode-5-/Mode-6-/Mode-7-Shaderpfade getrennt erhalten.
+13. GPU-RGBA-Source-Grenzen auf 256 ausschließlich bei HQ-Opt-in erweitert, andere Modi unverändert begrenzt.
+14. Exakte 256×256-Dimension und aktuelle RGBA-/Material-/Meshgeneration vor Acquire/Present geprüft.
+15. HQ-Shaderwahl und Preview-Modus je Swapchain eingefroren und Umschaltversuch nach dem ersten GPU-Frame fail-closed behandelt.
+16. Firestorm-Live-HQ-Source um ausdrückliche Source-/Mesh-Permissions erweitert und Stale-Source-Detach erhalten.
+17. Weitere Live-Sicherheitslücke behoben: ungültige bestehende Opt-ins, Top-Level-World-Berechtigungen und Sonnensource lösen jetzt aktiven Preview-Detach aus.
+18. Reale Vulkan-X11-GPU-Abnahme: 256×256-Testatlas mit identischen UVs (0.5,0.5), Slot 0 Rot und Slot 5 Grün, je 2 Presents, 2 X11-Bildscans, Sunlight-Änderung und Busy-Gates.
+19. Portable Python-Tests um HQ-Shader-/Source-/Image-/WSI- und Stale-Detach-Regressionen erweitert; bestehende 64er-Source-Verträge aktualisiert.
+20. Linux-Vollviewer plus synchronisiertes Paket, ältere Vulkan-GPU-/OpenGL-Smokes, negative HQ-Permissions, 41 native CTests, native Vulkan 16-/32-Frame-Regressionen und Git-Integrität geprüft; Dokumentation aktualisiert und GitHub-Veröffentlichung/CI gesondert verifiziert.
+
+**Formaler P05-Status weiterhin 2/20, Block P05/3 offen.** Erfolgreiche synthetische Vulkan-X11-Tests sind keine authentifizierten OpenSim-Echtweltbelege. Weiter fehlen die echten Quell-Assets/J2C-Downloads, eine vollständige Terrain-/Avatar-/Alpha-/PBR-/UI-Pipeline im Vulkan-Hauptfenster sowie native Windows/macOS-Vollviewer-Akzeptanz. P08/P13 Clock-v1 Europe/Berlin/UTC unverändert offen. Kein Produktivserver, laufender Benutzerviewer oder Nutzerprofil geändert; keine neuen Projektdateien erstellt.
+
 ## P05/3 – /goal 20 Entwicklungs- und Prüfschritte: 16-Material-Atlas im Vulkan-Zweitfenster (17.11.2026 MEZ)
 
 **Neue GPU-Funktion:** Die bisherige opt-in SDL/X11-Vulkan-Weltvorschau kann jetzt zusätzlich den bestehenden privaten **Mode-7-Fragmentshader** für einen **4×4-Atlas mit bis zu 16 opaque RGBA8-Materialfeldern** nutzen. Das Image bleibt ein 64×64 großes, dekodiertes, host-coherent VkImage mit Sampler und Vulkan-Descriptor-Set. Die bereits vorhandene World-XYZ-/Face-RGB-/UV-/Materialslot-Vertexpipeline mit vier VkVertexbindings bleibt identisch; lediglich Shader und Layout werden vor der ersten VkSwapchain-Submission strikt unterschieden. Der normale Firestorm-Viewer verwendet weiterhin OpenGL. Der Renderer ist kein vollständiger Vulkan-Welt-/UI-Renderer.

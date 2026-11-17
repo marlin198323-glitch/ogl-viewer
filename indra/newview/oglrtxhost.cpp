@@ -284,38 +284,72 @@ void ogl_live_preview_world_swap() {
         !flag_enabled("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
         !flag_enabled("OGL_VULKAN_LIVE_PRESENT_COUPLED_OFFSCREEN") ||
         !flag_enabled("OGL_VULKAN_LIVE_WORLD_OFFSCREEN") ||
-        flag_enabled("OGL_VULKAN_WINDOW_PERSISTENT")) return;
+        flag_enabled("OGL_VULKAN_WINDOW_PERSISTENT")) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     // Separate real Vulkan sunlight preview permission; legacy GL and
     // default red/green depth preview are left entirely unchanged.
     const char* tint_preview=std::getenv("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE");
     if (tint_preview && std::strcmp(tint_preview,"0")!=0 &&
-        std::strcmp(tint_preview,"1")!=0) return;
+        std::strcmp(tint_preview,"1")!=0) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     const bool preview_tint=flag_enabled("OGL_VULKAN_PREVIEW_FACE_TINT_PROBE");
     const char* uv_preview=std::getenv("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
     if (uv_preview && std::strcmp(uv_preview,"0")!=0 &&
-        std::strcmp(uv_preview,"1")!=0) return;
+        std::strcmp(uv_preview,"1")!=0) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     const bool preview_uv=flag_enabled("OGL_VULKAN_PREVIEW_UV_CHECKER_PROBE");
     const char* rgba_preview=std::getenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
     if (rgba_preview && std::strcmp(rgba_preview,"0")!=0 &&
-        std::strcmp(rgba_preview,"1")!=0) return;
+        std::strcmp(rgba_preview,"1")!=0) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     const bool preview_rgba=flag_enabled("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
     const char* atlas_preview=std::getenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
     if (atlas_preview && std::strcmp(atlas_preview,"0")!=0 &&
-        std::strcmp(atlas_preview,"1")!=0) return;
+        std::strcmp(atlas_preview,"1")!=0) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     const bool preview_atlas=flag_enabled("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
     const char* atlas16_preview=std::getenv(
         "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE");
     if (atlas16_preview && std::strcmp(atlas16_preview,"0")!=0 &&
-        std::strcmp(atlas16_preview,"1")!=0) return;
+        std::strcmp(atlas16_preview,"1")!=0) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     const bool preview_atlas16=flag_enabled(
         "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE");
     if (preview_atlas16 && !preview_atlas) {
         if (ogl_preview_attached) ogl_live_preview_detach();
         return;
     }
+    const char* atlas_hq_preview=std::getenv(
+        "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_HQ_PROBE");
+    if (atlas_hq_preview && std::strcmp(atlas_hq_preview,"0")!=0 &&
+        std::strcmp(atlas_hq_preview,"1")!=0) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
+    const bool preview_atlas_hq=flag_enabled(
+        "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_HQ_PROBE");
+    if (preview_atlas_hq && !preview_atlas16) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     if (flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") &&
         (!flag_enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
-         !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) return;
+         !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     if (preview_tint &&
         (!flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") ||
          !flag_enabled("OGL_VULKAN_WORLD_FACE_TINT_PROBE") ||
@@ -350,7 +384,11 @@ void ogl_live_preview_world_swap() {
          (!preview_atlas16 &&
           std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE") &&
           std::strcmp(std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE"),"0")!=0) ||
-         (std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") &&
+         (preview_atlas_hq &&
+          (!flag_enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") ||
+           !flag_enabled("OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE"))) ||
+         (!preview_atlas_hq &&
+          std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") &&
           std::strcmp(std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE"),"0")!=0) ||
          !world_material_slot_generation || !world_mesh_generation ||
          world_material_slot_generation()!=world_mesh_generation())) {
@@ -468,6 +506,7 @@ void ogl_live_preview_world_swap() {
             << "; rgba-image=" << (preview_rgba ? "enabled" : "disabled")
             << "; material-atlas=" << (preview_atlas ? "enabled" : "disabled")
             << "; material-atlas16=" << (preview_atlas16 ? "enabled" : "disabled")
+            << "; material-atlas-hq=" << (preview_atlas_hq ? "enabled" : "disabled")
             << "; opaque decoded RGBA8 sampling or procedural UV checks, "
                "NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI."
             << LL_ENDL;

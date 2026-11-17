@@ -2,6 +2,43 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: 256×256-HQ-16-Materialatlas im Vulkan-Zweitfenster
+
+Vorhandener privater Mode8-HQ-Shader
+jetzt auch im strikt opt-in echten
+SDL/X11-Vulkan-Zweitfenster mit 4×4
+Materialzellen, 16 Slots und 256×256
+opaque RGBA8-VkImage. Abgesicherter
+Shader-/Layout-/Source-Pfad über neue
+Default-AUS-HQ-Preview-Freigabe.
+2×2 (Mode6) und 4×4/64 (Mode7),
+einzelnes RGBA8-Image (Mode5) bleiben
+separat und unverändert. Gleiche 4
+GPU-Vertexbuffers, VkSampler/Descriptor
+und World-/Depth-/Sunlight-Pipeline.
+Aktuelle Mesh-/RGBA-/Slot-/Capture-
+Generation und 256×256-Bild erforderlich;
+Shaderwahl pro Swapchain eingefroren,
+in-flight-Buffer geschützt.
+Synthetische rote/grüne GPU-HQ-
+Materialfeldtests bei identischen UVs
+mit je zwei echten Vulkan-Presents und
+X11-Pixelbelegen bestanden. Globale
+und ungültige World-/Atlas-/Sun-Gates
+trennen jetzt auch aktive Vorschaufenster.
+443 Python-/41 native CTests, Linux-
+Vollbuild, isolierte X11-GUI- und
+native WSI-Present-Regressionen geprüft.
+**P05 2/20, P05/3 weiterhin offen:**
+kein authentifizierter OpenSim-HQ-
+Welttexturbeleg, kein J2C-Streaming,
+kein Vulkan-Hauptfenster mit Terrain,
+Avataren und UI. Phasenfortschritt
+nicht künstlich erhöht. 20 echte
+Schritte in PROJECT_STATUS dokumentiert.
+Server-main a520063837, stable ee15af8e,
+keine Produktivserveränderung.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: 16-Material-4×4-Atlas im Vulkan-Zweitfenster
 
 Ergänzend zur vorhandenen 2×2-Version

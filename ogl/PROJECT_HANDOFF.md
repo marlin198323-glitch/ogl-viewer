@@ -219,6 +219,43 @@ World-/Terrain-/Avatar-/UI-Renderer,
 keine Windows/macOS-Vollviewer-Abnahme.
 Keine Produktivserver-/Userdaten verändert.
 
+17.11.2026 – aktuellster P05/3-/goal-20er-Block:
+Zweite strikt opt-in SDL/X11-Vulkan-Welt-
+Swapchain kann jetzt vorhandenen privaten
+Mode8-HQ-Fragmentshader mit 256×256
+opaque RGBA8-VkImage (4×4 Materialzellen,
+je 64×64, 16 Materialslots) zeichnen.
+Vorhandene XYZ/RGB/UV/Binding3-Vertex-
+und VkSampler/Descriptor/Sun/Depth-
+Pipeline unverändert. Neues Default-OFF-
+`OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_HQ_PROBE=1`
+setzt World-/16-Atlas-/HQ-Quellfreigabe
+und aktuelle Region/Capture/Meshgen voraus.
+64×64-Mode5-/Mode6-/Mode7 bleiben erhalten;
+HQ verlangt EXAKT 256×256 opaque Bytes.
+Shader-/HQ-Freigabe pro Swapchain eingefroren,
+GPU-Buffer-Reupload/Clear während Presents
+gesperrt. Synthetische HQ-Vulkan-X11-GPU-
+Tests mit identischen UVs und Materialslot
+0 Rot / 5 Grün, je 2 echte Vulkan-Presents,
+zweifache X11-Frontbuffer-Pixel- und
+Sonnenlichtvariation nachgewiesen.
+Stale Live-Vorschau trennt sich jetzt auch
+bei ungültigen Shaderflags, Top-Level-
+World-Permissions oder Sunlight-Quellen.
+443 Python-/41 native CTests sowie Linux-
+Viewer, X11-/WSI-Regressionen geprüft;
+20 Einzelmaßnahmen in PROJECT_STATUS.
+OpenGenesisLINK main a520063837, Stable
+v0.9.4.0 ee15af8e unverändert. Vorherige
+portable CI 44114657638 6/6 grün.
+**P05 2/20, P05/3 weiterhin offen:**
+kein authentifizierter OpenSim-In-World-
+HQ-Texturbeleg, kein J2C-Assetstreaming,
+kein vollständiger Vulkan-Hauptfenster-
+Terrain-/Avatar-/UI-/Alpha-/PBR-Renderer.
+Keine Server-/Benutzerprofil-Änderungen.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

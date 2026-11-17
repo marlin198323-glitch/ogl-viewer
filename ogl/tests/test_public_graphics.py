@@ -2276,7 +2276,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'if (!face_uv || !rgba_source',
             'world_device.rgba_mesh_generation!=world_device.mesh_generation',
             'world_device.rgba_cpu_texels.size()!=',
-            'world_device.rgba_width>64u || world_device.rgba_height>64u',
+            'world_device.rgba_width>(material_atlas_hq ? 256u : 64u)',
             '(p.initialized && p.rgba_image!=rgba_image)',
             'p.rgba_image=rgba_image;',
             'VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT',
@@ -2358,7 +2358,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'world_device.material_slot_vertex_count!=',
             '!world_device.material_slot_count',
             'world_device.material_slot_count>',
-            'world_device.rgba_width!=64u || world_device.rgba_height!=64u',
+            'world_device.rgba_width!=(material_atlas_hq ? 256u : 64u)',
             '(p.initialized && p.material_atlas!=material_atlas)',
             'p.material_atlas=material_atlas;',
             'ogl_dev_world_material_atlas_vert_spv',
@@ -2388,12 +2388,12 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(required,host)
         for required in (
             'four-material atlas preview rejects invalid opt-in',
-            'material atlas requires matching 2x2/4x4 RGBA+slot permissions',
+            'material atlas requires matching 2x2/4x4/HQ RGBA+slot permissions',
             'SecondaryAtlasFlagGuard',
             'secondary_atlas_guard.restore();',
             'ogl_vulkan_world_upload_material_slots',
             'const ogl_rtx_face_material_slot test_slot',
-            'test_atlas.resize(64u*64u*4u,255u);',
+            'test_atlas.resize(size_t(tile_dimension)*',
             'upload_slots(&test_slot,1u,test_material_count)==1',
             'upload_slots(&test_slot,1u,test_material_count)==0',
             'upload_slots(nullptr,0u,0u)==0',
@@ -2416,11 +2416,11 @@ class PublicGraphicsContracts(unittest.TestCase):
             'OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE',
             'if (material_atlas16 && !material_atlas) return 0;',
             '(material_atlas16 && (!atlas16 || std::strcmp(atlas16,"1")!=0))',
-            '(atlas_hq && std::strcmp(atlas_hq,"0")!=0)',
+            '(!material_atlas_hq && atlas_hq &&',
             'world_device.material_slot_mesh_generation!=world_device.mesh_generation',
             'world_device.material_slot_vertex_count!=',
             '(material_atlas16 ? 16u : 4u)',
-            'world_device.rgba_width!=64u || world_device.rgba_height!=64u',
+            'world_device.rgba_width!=(material_atlas_hq ? 256u : 64u)',
             '(p.initialized && p.material_atlas16!=material_atlas16)',
             'p.material_atlas16=material_atlas16;',
             'ogl_dev_world_material_atlas_16_frag_spv',
@@ -2445,7 +2445,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         for required in (
             'P05 SDL 16-material atlas rejects invalid preview opt-in',
             'P05 SDL 16-material atlas requires parent atlas permission',
-            'P05 SDL material atlas requires matching 2x2/4x4 RGBA+slot permissions',
+            'P05 SDL material atlas requires matching 2x2/4x4/HQ RGBA+slot permissions',
             'SecondaryAtlasFlagGuard(bool enabled_flag,bool enabled16_flag)',
             'secondary_atlas_guard.restore();',
             'const bool secondary_material_atlas16',
@@ -2461,6 +2461,86 @@ class PublicGraphicsContracts(unittest.TestCase):
             'ogl::separate_preview_two_frame_pixels(',
         ):
             self.assertIn(required,sdl)
+
+    def test_p05_secondary_vulkan_hq_256_atlas_mode8_live_source_and_gpu(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        a=gpu.index('uint32_t present_persistent_clear_frame(')
+        b=gpu.index('// P05/3 foundation:',a)
+        frame=gpu[a:b]
+        for expected in (
+            'OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_HQ_PROBE',
+            'std::strcmp(atlas_hq_preview,"1")==0;',
+            'if (material_atlas_hq && !material_atlas16) return 0;',
+            '(material_atlas_hq && (!atlas_hq ||',
+            'std::strcmp(atlas_hq,"1")!=0))',
+            'world_device.rgba_width>(material_atlas_hq ? 256u : 64u)',
+            'world_device.rgba_height>(material_atlas_hq ? 256u : 64u)',
+            'world_device.rgba_width!=(material_atlas_hq ? 256u : 64u)',
+            'world_device.rgba_height!=(material_atlas_hq ? 256u : 64u)',
+            '(p.initialized && p.material_atlas_hq!=material_atlas_hq)',
+            'p.material_atlas_hq=material_atlas_hq;',
+            'ogl_dev_world_material_atlas_hq_frag_spv',
+            'ogl_dev_world_material_atlas_16_frag_spv',
+            'vkCmdBindVertexBuffers(cmd,0,4,buffers,offsets);',
+            'VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER',
+        ):
+            self.assertIn(expected,frame)
+        self.assertLess(frame.index('world_device.rgba_width!=(material_atlas_hq'),
+                        frame.index('vkAcquireNextImageKHR'))
+        self.assertLess(frame.index('(p.initialized && p.material_atlas_hq!='),
+                        frame.index('if (!p.initialized) {'))
+        self.assertIn('bool material_atlas_hq = false;',gpu)
+        self.assertIn('const size_t bytes=size_t(width)*height*4u;',gpu)
+        self.assertIn('width!=(hq_requested ? 256u : 64u)',gpu)
+        for expected in (
+            'OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_HQ_PROBE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE',
+            'OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE',
+            'if (preview_atlas_hq && !preview_atlas16)',
+            'material-atlas-hq=" << (preview_atlas_hq ? "enabled" : "disabled")',
+            'if (ogl_preview_attached) ogl_live_preview_detach();',
+        ):
+            self.assertIn(expected,host)
+        for expected in (
+            'P05 SDL HQ atlas rejects invalid preview opt-in',
+            'P05 SDL HQ atlas requires 16-material parent opt-in',
+            'SecondaryAtlasHQFlagGuard',
+            'secondary_hq_guard.restore();',
+            'const uint32_t tile_dimension=secondary_material_atlas_hq',
+            'test_atlas.resize(size_t(tile_dimension)*',
+            'tile_dimension/4u : tile_dimension/2u',
+            'sampled_width=secondary_material_atlas',
+            'sampled_height=secondary_material_atlas',
+            'frozen_atlas_hq_mode=persistent_present(1)==0',
+            'secondary_atlas_hq_verified=secondary_material_atlas_hq;',
+            'secondary-material-atlas-hq=" << (secondary_material_atlas_hq',
+            'LLWindowSDL::oglVulkanPreviewWorldPixels(',
+            'ogl::separate_preview_two_frame_pixels(',
+        ):
+            self.assertIn(expected,sdl)
+
+    def test_p05_live_vulkan_preview_detaches_on_permissions_and_invalid_modes(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        a=host.index('void ogl_live_preview_world_swap()')
+        b=host.index('const auto revision=world_mesh_generation();',a)
+        gate=host[a:b]
+        # Existing WSI window must be retired rather than replay an old
+        # region/source frame after an invalid opt-in or source permission.
+        self.assertIn('flag_enabled("OGL_VULKAN_WINDOW_PERSISTENT")) {',gate)
+        self.assertIn('if (ogl_preview_attached) ogl_live_preview_detach();',gate)
+        for label in ('tint_preview','uv_preview','rgba_preview',
+                      'atlas_preview','atlas16_preview','atlas_hq_preview'):
+            a=gate.index('std::strcmp('+label+',"1")!=0)')
+            b=gate.index('return;',a)
+            self.assertIn('if (ogl_preview_attached) ogl_live_preview_detach();',
+                          gate[a:b])
+        sunlight=gate.index('!flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) {')
+        self.assertIn('if (ogl_preview_attached) ogl_live_preview_detach();',
+                      gate[sunlight:gate.index('return;',sunlight)])
+        self.assertIn('OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE',gate)
+        self.assertIn('world_material_slot_generation()!=world_mesh_generation()',gate)
 
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
