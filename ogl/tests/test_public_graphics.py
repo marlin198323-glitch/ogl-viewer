@@ -2357,7 +2357,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'world_device.material_slot_mesh_generation!=world_device.mesh_generation',
             'world_device.material_slot_vertex_count!=',
             '!world_device.material_slot_count',
-            'world_device.material_slot_count>4u',
+            'world_device.material_slot_count>',
             'world_device.rgba_width!=64u || world_device.rgba_height!=64u',
             '(p.initialized && p.material_atlas!=material_atlas)',
             'p.material_atlas=material_atlas;',
@@ -2388,18 +2388,76 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(required,host)
         for required in (
             'four-material atlas preview rejects invalid opt-in',
-            'four-material atlas preview requires RGBA+slot source and 2x2 layout',
+            'material atlas requires matching 2x2/4x4 RGBA+slot permissions',
             'SecondaryAtlasFlagGuard',
             'secondary_atlas_guard.restore();',
             'ogl_vulkan_world_upload_material_slots',
             'const ogl_rtx_face_material_slot test_slot',
             'test_atlas.resize(64u*64u*4u,255u);',
-            'upload_slots(&test_slot,1u,2u)==1',
-            'upload_slots(&test_slot,1u,2u)==0',
+            'upload_slots(&test_slot,1u,test_material_count)==1',
+            'upload_slots(&test_slot,1u,test_material_count)==0',
             'upload_slots(nullptr,0u,0u)==0',
             'frozen_atlas_mode=persistent_present(1)==0',
             'secondary-material-atlas=" << (secondary_material_atlas',
             'secondary_atlas_verified=secondary_material_atlas;',
+            'ogl::separate_preview_two_frame_pixels(',
+        ):
+            self.assertIn(required,sdl)
+
+    def test_p05_secondary_vulkan_4x4_material_atlas_16_strict_source_and_gpu(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        beg=gpu.index('uint32_t present_persistent_clear_frame(')
+        end=gpu.index('// P05/3 foundation:',beg)
+        frame=gpu[beg:end]
+        for required in (
+            'OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE',
+            'if (material_atlas16 && !material_atlas) return 0;',
+            '(material_atlas16 && (!atlas16 || std::strcmp(atlas16,"1")!=0))',
+            '(atlas_hq && std::strcmp(atlas_hq,"0")!=0)',
+            'world_device.material_slot_mesh_generation!=world_device.mesh_generation',
+            'world_device.material_slot_vertex_count!=',
+            '(material_atlas16 ? 16u : 4u)',
+            'world_device.rgba_width!=64u || world_device.rgba_height!=64u',
+            '(p.initialized && p.material_atlas16!=material_atlas16)',
+            'p.material_atlas16=material_atlas16;',
+            'ogl_dev_world_material_atlas_16_frag_spv',
+            'ogl_dev_world_material_atlas_frag_spv',
+            'ogl_dev_world_material_atlas_vert_spv',
+            'vkCmdBindVertexBuffers(cmd,0,4,buffers,offsets);',
+        ):
+            self.assertIn(required,frame)
+        self.assertLess(frame.index('world_device.material_slot_mesh_generation!='),
+                        frame.index('vkAcquireNextImageKHR'))
+        self.assertLess(frame.index('(p.initialized && p.material_atlas16!=material_atlas16)'),
+                        frame.index('if (!p.initialized) {'))
+        self.assertIn('bool material_atlas16 = false;',gpu)
+        for required in (
+            'OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE',
+            'OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE',
+            'world_material_slot_generation()!=world_mesh_generation()',
+            'material-atlas16=" << (preview_atlas16 ? "enabled" : "disabled")',
+        ):
+            self.assertIn(required,host)
+        for required in (
+            'P05 SDL 16-material atlas rejects invalid preview opt-in',
+            'P05 SDL 16-material atlas requires parent atlas permission',
+            'P05 SDL material atlas requires matching 2x2/4x4 RGBA+slot permissions',
+            'SecondaryAtlasFlagGuard(bool enabled_flag,bool enabled16_flag)',
+            'secondary_atlas_guard.restore();',
+            'const bool secondary_material_atlas16',
+            'slot_index=green_uv_test',
+            '(secondary_material_atlas16 ? 5.f : 1.f)',
+            'test_material_count=',
+            'secondary_material_atlas16 ? 6u : 2u;',
+            'upload_slots(&test_slot,1u,test_material_count)==1',
+            'upload_slots(&test_slot,1u,test_material_count)==0',
+            'secondary_atlas16_verified=secondary_material_atlas16;',
+            'frozen_atlas16_mode=persistent_present(1)==0',
+            'secondary-material-atlas16=" << (secondary_material_atlas16',
             'ogl::separate_preview_two_frame_pixels(',
         ):
             self.assertIn(required,sdl)

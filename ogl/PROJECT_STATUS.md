@@ -6,6 +6,39 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs- und Prüfschritte: 16-Material-Atlas im Vulkan-Zweitfenster (17.11.2026 MEZ)
+
+**Neue GPU-Funktion:** Die bisherige opt-in SDL/X11-Vulkan-Weltvorschau kann jetzt zusätzlich den bestehenden privaten **Mode-7-Fragmentshader** für einen **4×4-Atlas mit bis zu 16 opaque RGBA8-Materialfeldern** nutzen. Das Image bleibt ein 64×64 großes, dekodiertes, host-coherent VkImage mit Sampler und Vulkan-Descriptor-Set. Die bereits vorhandene World-XYZ-/Face-RGB-/UV-/Materialslot-Vertexpipeline mit vier VkVertexbindings bleibt identisch; lediglich Shader und Layout werden vor der ersten VkSwapchain-Submission strikt unterschieden. Der normale Firestorm-Viewer verwendet weiterhin OpenGL. Der Renderer ist kein vollständiger Vulkan-Welt-/UI-Renderer.
+
+Freigabe: `OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE=1` ist **standardmäßig AUS** und benötigt zwingend `OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE=1` sowie `OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE=1`. Fehlen sie, ist ein Wert unzulässig oder wird gleichzeitig `OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE` aktiviert, wird der Frame **vor Acquire/Present** abgewiesen. 2×2 benutzt weiter den Mode-6-Shader und bis zu 4 Slots; 4×4 benutzt Mode 7 und bis zu 16 Slots. Exakte `material_slot_mesh_generation`, 3 aktuelle Slotvertices pro Triangle, gültige 1–16-Zuordnung sowie 64×64-RGBA8-Imagequelle sind Voraussetzung. Shader-Modus und Atlas16-Auswahl sind pro aktiver Swapchain **unveränderlich**; ein Test schaltet das Flag nach dem ersten GPU-Frame um und verifiziert die Ablehnung ohne Framefortschritt. In-flight-Buffer-Lifetime und die sichere Descriptor-/Image-Teardown-Reihenfolge bleiben erhalten.
+
+Der authentifizierte OpenSim-Pfad setzt zusätzlich `OGL_VULKAN_LIVE_RGBA_SOURCE=1` und `OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1` voraus sowie den echten Region-/Capture-/Mesh-/UV-/Materialslot-Receipt. Fehlende oder veraltete Sidecars trennen eine schon aktive Vorschau. Der isolierte X11-GPU-Test nutzt **ausschließlich synthetische bereits dekodierte Materialbilder**, also keinen behaupteten In-World-Assetbeleg. Er verwendet in unterschiedlichen Testprozessen dieselben UVs (0.5, 0.5), aber Materialslot 0 (Rot) beziehungsweise Slot 5 (Grün) aus unterschiedlichen Zeilen des 4×4-Atlas. Zwei echte VkQueuePresentKHR-Frames und voneinander unabhängige X11-Geometrie-/Farbscans pro Fall prüfen sichtbares Ergebnis und wechselnde Beleuchtung.
+
+**20 tatsächliche Arbeitsschritte dieser Runde:**
+
+01. Über Linux-Mint Remote Commander Branch `ogl-develop`, sauberen Git-Tree und Ausgangscommit `c3338893` geprüft.
+02. `AGENTS.md` einschließlich OpenGL-/Vulkan-/Server-/Benutzerprofil-Schutz gelesen.
+03. `ogl/PROJECT_HANDOFF.md` einschließlich der echten OpenSim-Abnahmegrenzen gelesen.
+04. `ogl/PROJECT_STATUS.md` und bisherige 2×2-Atlas-/Source-/WSI-Implementierung gelesen.
+05. Bindenden `/goal`-Phasenplan für P05/3 und 20er-Arbeitspakete gelesen.
+06. OpenGenesisLINK-`main` read-only unverändert `a520063837` geprüft; keine Viewer-Wire-Inkompatibilität erkannt.
+07. Stable `v0.9.4.0=ee15af8e`, fehlendes `gen1-updates` und WIP-PRs #443/#447/#448/#450 read-only geprüft.
+08. Vorangegangenen GitHub-CI-Lauf `44111686551` mit 6/6 erfolgreichen nativen Plattform-Jobs verifiziert; Windows-Vollinstaller skipped.
+09. Bestehende private Vulkan-Mode-7-4×4-Atlas-SPIR-V-Datei, GPU-Slot-Upload und CPU-Atlas-Packung geprüft.
+10. Zusätzliches, standardmäßig ausgeschaltetes 16-Atlas-Preview-Opt-in samt strikter 0/1-Validierung implementiert.
+11. 16-Atlas-Permission-Kette (übergeordnetes Atlas-Opt-in, World-Atlas16, kein HQ) im Vulkan-Modul durchgesetzt.
+12. 2×2-Mode6 und 4×4-Mode7 streng nach erlaubter Slotzahl (4 bzw. 16) und Quellformat getrennt.
+13. Shaderwahl `ogl_dev_world_material_atlas_16_frag_spv` im bestehenden persistenten VkSwapchain-Renderpass ergänzt.
+14. `OglPersistentClearFrames` um eingefrorenen Atlas16-Modus und vor-Acquire-Moduswechselverbot erweitert.
+15. Authentifizierten Host-Pfad an `OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE=1` plus aktuelle GPU-Meshgeneration gekoppelt.
+16. SDL-Testfenster um eigenständigen Atlas16-Flag-Scope-Guard, ungültige/Missing-Flag-Ablehnung und sicheren OpenGL-Fallback erweitert.
+17. Synthetischen 64×64-Vulkan-Atlas so aufgebaut, dass Materialslot 0/5 bei **identischen UVs** unterschiedliche Farben ergibt.
+18. Zwei GPU-Vulkan-Presents, X11-Frontbuffer-Pixel und Frozen-Flag-/Busy-Buffer-Checks für beide Material-Slots getestet.
+19. Öffentliche Quellcode-/Shader-/World-Source-Unitregression aktualisiert und erweitert; 441/441 Python-Tests und 41/41 native CTests bestanden.
+20. Linux-Vollviewer-Build einschließlich synchronisiertem Testmanifest, isolierte positive/negative X11-GPU-GUI-Tests, native 16-/32-Frame-WSI-Regressionsprüfung und `git diff --check` durchgeführt; Bestandsdokumentation aktualisiert und Push/CI-Status getrennt geprüft.
+
+**Formaler Status bleibt P05 2/20, Block P05/3 offen.** Nicht abgeschlossen: authentifizierter source-identischer OpenSim-Zwei-Frame-Weltbeleg, echte Texturassets/J2C-Streaming und Materialcache, hochauflösende HQ-Atlas-Weltvorschau, Gelände, Avatare, Alpha/PBR, UI-Komposition und Vulkan-Ownership des Hauptfensters. Keine Produktivserveränderungen, kein Eingriff in laufende Benutzer-Viewer oder deren Profile, keine neuen Projektdateien.
+
 ## P05/3 – /goal 20 Entwicklungsblöcke: Vier-Material-Atlas in der Vulkan-Zweitswapchain (17.11.2026 MEZ)
 
 **Implementiert und mit echter Vulkan-/X11-GPU-Farbausgabe überprüft.** Im strikt opt-in SDL/X11-Vulkan-Zweitfenster werden jetzt die bereits privat geprüften Mode-6-Atlas-Vertex-/Fragmentshader verwendet. Ein vierter, von der OpenSim-Quelle stammender GPU-Vertexbuffer liefert einen Float-Materialslot (Binding 3, Location 3) pro Vertex; World-XYZ, Face-RGB, UV und der bestehende RGBA8-VkImage/VkSampler/Descriptor-Pfad bleiben bestehen. Ein 64×64-Pixel-Atlas enthält bis zu vier 2×2-Materialfelder. Alle bisherigen Shader-Pfade einschließlich des eigentlichen OpenGL-Hauptfensters bleiben unverändert.

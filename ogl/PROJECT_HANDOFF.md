@@ -182,6 +182,43 @@ Vulkan-Hauptfensterengine; Windows- und
 macOS-Vollviewer-Abnahme fehlt.
 Keine Produktivserver/Benutzerdaten verändert.
 
+17.11.2026 – aktuellster /goal-20er-Block:
+Vorhandenen privaten Vulkan-Mode-7-
+Shader (4×4-Atlas, bis zu 16 opaque
+Materialien im 64×64-RGBA8-Image) in
+die streng opt-in zweite SDL/X11-
+Vulkan-World-Swapchain integriert.
+`OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE=1`
+benötigt Parent-Material-Atlas, World-
+Atlas16 und eigene Live-Source-Permissions;
+HQ/2×2 werden getrennt und nicht vermischt.
+Materialslot-VkBuffer Binding3, bestehende
+XYZ/RGB/UV/Depth/Sun-Shaderpipeline,
+VkImage/VkSampler/Descriptor unverändert.
+Neue Auswahl ist bei Swapchain-Erstellung
+eingefroren; Änderungen während laufender
+GPU-Presents verboten, Buffer-Lifetime
+gegen alte Materialquellen geschützt.
+Isolierte echte Vulkan/X11-Synthese:
+4×4-Slot 0 Rot, Slot 5 Grün, identische UVs,
+je 2 GPU-Presents, 2 unabhängige Frontbuffer-
+Scans, Sonnenlichtvariation und Busy-Gates.
+441 Python-Tests, 41 native CTests,
+kompletter Linux-Build, Legacy-/Negativ-
+X11-Tests und native WSI-Regressionen.
+20 Einzelschritte in PROJECT_STATUS.md,
+Roadmap und AGENTS.md aktualisiert.
+OpenGenesisLINK main a520063837, Stable
+v0.9.4.0 ee15af8e und WIP-PRs unverändert;
+vorangegangene GitHub-Portable-CI 6/6 PASS.
+**P05 bleibt 2/20, P05/3 offen.**
+Keine authentifizierte OpenSim-Zweitfenster-
+Source-Pixelabnahme, kein Texture-/J2C-
+Streaming, kein vollständiger Vulkan-Main-
+World-/Terrain-/Avatar-/UI-Renderer,
+keine Windows/macOS-Vollviewer-Abnahme.
+Keine Produktivserver-/Userdaten verändert.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

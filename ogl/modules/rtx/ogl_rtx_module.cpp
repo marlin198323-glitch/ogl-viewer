@@ -150,6 +150,7 @@ struct OglPersistentClearFrames {
     bool face_uv = false; // independent frozen vertex-binding2 checker mode
     bool rgba_image = false; // independent frozen sampled-image descriptor mode
     bool material_atlas = false; // frozen face-material binding3, four texture tiles
+    bool material_atlas16 = false; // frozen 4x4/16-tile shader, NOT HQ
     VkImage texture_image = VK_NULL_HANDLE;
     VkDeviceMemory texture_memory = VK_NULL_HANDLE;
     VkImageView texture_view = VK_NULL_HANDLE;
@@ -2712,6 +2713,13 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         std::strcmp(atlas_preview,"1")!=0) return 0;
     const bool material_atlas=atlas_preview &&
         std::strcmp(atlas_preview,"1")==0;
+    const char* atlas16_preview=std::getenv(
+        "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE");
+    if (atlas16_preview && std::strcmp(atlas16_preview,"0")!=0 &&
+        std::strcmp(atlas16_preview,"1")!=0) return 0;
+    const bool material_atlas16=atlas16_preview &&
+        std::strcmp(atlas16_preview,"1")==0;
+    if (material_atlas16 && !material_atlas) return 0;
     if (material_atlas) {
         const char* atlas_source=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
         const char* atlas16=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
@@ -2720,16 +2728,18 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         // a live 4x4 or 256x256 atlas using the wrong shader layout.
         if (!rgba_image || !atlas_source ||
             std::strcmp(atlas_source,"1")!=0 ||
-            // Only four-slot layout can use the 2x2 WSI shader.
-            // Unknown values are also invalid, not implicit "off".
-            (atlas16 && std::strcmp(atlas16,"0")!=0) ||
+            // Choose the shader from the explicit preview opt-in AND
+            // the identically authorized world atlas layout.
+            (!material_atlas16 && atlas16 && std::strcmp(atlas16,"0")!=0) ||
+            (material_atlas16 && (!atlas16 || std::strcmp(atlas16,"1")!=0)) ||
             (atlas_hq && std::strcmp(atlas_hq,"0")!=0) ||
             !world_device.mesh_material_slot_vertices ||
             world_device.material_slot_mesh_generation!=world_device.mesh_generation ||
             world_device.material_slot_vertex_count!=
                 world_device.mesh_triangle_count*3u ||
             !world_device.material_slot_count ||
-            world_device.material_slot_count>4u ||
+            world_device.material_slot_count>
+                (material_atlas16 ? 16u : 4u) ||
             world_device.rgba_width!=64u || world_device.rgba_height!=64u)
             return 0;
     }
@@ -2796,7 +2806,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         (p.initialized && p.face_tint!=face_tint) ||
         (p.initialized && p.face_uv!=face_uv) ||
         (p.initialized && p.rgba_image!=rgba_image) ||
-        (p.initialized && p.material_atlas!=material_atlas)) return 0;
+        (p.initialized && p.material_atlas!=material_atlas) ||
+        (p.initialized && p.material_atlas16!=material_atlas16)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -2900,6 +2911,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             p.face_uv=face_uv;
             p.rgba_image=rgba_image;
             p.material_atlas=material_atlas;
+            p.material_atlas16=material_atlas16;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
                                      VK_FORMAT_D16_UNORM}) {
@@ -3201,22 +3213,26 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=material_atlas
+            fragment_info.codeSize=material_atlas16
+                ? sizeof(ogl_dev_world_material_atlas_16_frag_spv)
+                : (material_atlas
                 ? sizeof(ogl_dev_world_material_atlas_frag_spv)
                 : (rgba_image
                 ? sizeof(ogl_dev_world_rgba_sample_frag_spv)
                 : (face_uv ? sizeof(ogl_dev_world_uv_checker_frag_spv)
                 : (face_tint ? sizeof(ogl_dev_world_face_tint_frag_spv)
                 : (sunlight ? sizeof(ogl_dev_world_sunlight_frag_spv)
-                            : sizeof(ogl_dev_depth_frag_spv)))));
-            fragment_info.pCode=material_atlas
+                            : sizeof(ogl_dev_depth_frag_spv))))));
+            fragment_info.pCode=material_atlas16
+                ? ogl_dev_world_material_atlas_16_frag_spv
+                : (material_atlas
                 ? ogl_dev_world_material_atlas_frag_spv
                 : (rgba_image
                 ? ogl_dev_world_rgba_sample_frag_spv
                 : (face_uv ? ogl_dev_world_uv_checker_frag_spv
                 : (face_tint ? ogl_dev_world_face_tint_frag_spv
                 : (sunlight ? ogl_dev_world_sunlight_frag_spv
-                            : ogl_dev_depth_frag_spv))));
+                            : ogl_dev_depth_frag_spv)))));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
                 return false;

@@ -120,6 +120,34 @@ ogl/PROJECT_STATUS.md und HANDOFF.
 Server-main a520063837, stable ee15af8e;
 keine Serveränderungen.
 
+P05/3 17.11.2026: Opt-in zweite
+Vulkan-SDL/X11-World-Swapchain kann
+bestehenden privaten 4×4-/Mode-7-
+Materialatlas-SPIR-V mit bis zu 16
+opaque RGBA8-Materialslots zeichnen.
+`OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE=1`
+benötigt separaten Eltern-Atlas-Modus,
+World-Atlas16/Live-Source, aktuelle
+XYZ/RGB/UV/Slot-/RGBA-GPU-Generation.
+2×2-Atlas mit Mode6 bleibt unverändert;
+HQ-Mode8 explizit nicht im 16er-Modus.
+Shaderwahl pro Swapchain eingefroren;
+in-flight Materialseitenbuffer gesperrt.
+Synthetisch echte Vulkan/X11-Belege mit
+Slot0 Rot und Slot5 Grün, identischen
+UVs, je 2 GPU-Presents/Frontbuffer-
+Geometriescans; normale OpenGL-
+Anmeldung bleibt erhalten. 441
+Python-Tests, 41 native CTests, kompletter
+Linux-Vollviewer-Build; 20 Schritte
+in ogl/PROJECT_STATUS.md dokumentiert.
+**Kein authentifizierter OpenSim-Live-
+Material-Frame, keine Vulkan-Main-
+World-/Terrain-/Avatar-/UI-Engine.
+P05 2/20, Block 3 weiterhin offen.**
+Server-main a520063837, Stable
+v0.9.4.0 ee15af8e, keine Serveränderung.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

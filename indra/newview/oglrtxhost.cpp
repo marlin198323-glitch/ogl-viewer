@@ -303,6 +303,16 @@ void ogl_live_preview_world_swap() {
     if (atlas_preview && std::strcmp(atlas_preview,"0")!=0 &&
         std::strcmp(atlas_preview,"1")!=0) return;
     const bool preview_atlas=flag_enabled("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
+    const char* atlas16_preview=std::getenv(
+        "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE");
+    if (atlas16_preview && std::strcmp(atlas16_preview,"0")!=0 &&
+        std::strcmp(atlas16_preview,"1")!=0) return;
+    const bool preview_atlas16=flag_enabled(
+        "OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE");
+    if (preview_atlas16 && !preview_atlas) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
     if (flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") &&
         (!flag_enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
          !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) return;
@@ -334,7 +344,11 @@ void ogl_live_preview_world_swap() {
         (!preview_rgba ||
          !flag_enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE") ||
          !flag_enabled("OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE") ||
-         (std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE") &&
+         (preview_atlas16 &&
+          (!flag_enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE") ||
+           !flag_enabled("OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE"))) ||
+         (!preview_atlas16 &&
+          std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE") &&
           std::strcmp(std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE"),"0")!=0) ||
          (std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") &&
           std::strcmp(std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE"),"0")!=0) ||
@@ -453,6 +467,7 @@ void ogl_live_preview_world_swap() {
             << "; uv-checker=" << (preview_uv ? "enabled" : "disabled")
             << "; rgba-image=" << (preview_rgba ? "enabled" : "disabled")
             << "; material-atlas=" << (preview_atlas ? "enabled" : "disabled")
+            << "; material-atlas16=" << (preview_atlas16 ? "enabled" : "disabled")
             << "; opaque decoded RGBA8 sampling or procedural UV checks, "
                "NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI."
             << LL_ENDL;

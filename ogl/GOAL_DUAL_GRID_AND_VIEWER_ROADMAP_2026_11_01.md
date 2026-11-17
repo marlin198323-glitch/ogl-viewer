@@ -2,6 +2,40 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: 16-Material-4×4-Atlas im Vulkan-Zweitfenster
+
+Ergänzend zur vorhandenen 2×2-Version
+nutzt die zweite strikt opt-in Vulkan-SDL/
+X11-World-Swapchain den privaten
+Mode-7-4×4-Atlas-SPIR-V für bis zu
+16 opaque RGBA8-Materialfelder.
+`OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_16_PROBE=1`
+ist standardmäßig deaktiviert und
+verlangt übergeordneten Atlas,
+World-Atlas16 sowie aktuell passende
+GPU-XYZ-/Face-RGB-/UV-/Slot-/RGBA-Quellen.
+Kein HQ-Atlas im selben Modus.
+Die bestehende VkImage/VkSampler-/
+Descriptor- und Binding3-Pipeline bleibt
+unverändert, Shaderwahl pro Swapchain
+eingefroren. Synthetische GPU-X11-
+Zweitfensterbelege: Rot Slot0 / Grün
+Slot5 bei exakt identischen UVs, je zwei
+Vulkan-Presents, X11-Farb- und
+Geometriescans, Busy-/Mode-Checks.
+441 Python-/41 native CTests, Linux-
+Vollviewer-Build, isolierte X11-Smokes.
+Der authentifizierte OpenSim-Zwei-Frame-
+In-World-Beleg und die gesamte Vulkan-
+Hauptfenster-/Terrain-/Avatar-/UI-Engine
+fehlen weiterhin. Kein echter J2C-Asset-
+Upload und keine HQ-Atlas-Weltvorschau.
+**P05 2/20, P05/3 weiter offen.**
+20 Entwicklungs- und Prüfschritte
+im aktualisierten PROJECT_STATUS.md.
+OpenGenesisLINK main a520063837,
+Stable ee15af8e; keine Serveränderung.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: vierfacher Materialatlas im Vulkan-Zweitfenster
 
 Strikt opt-in integriert die bestehende
