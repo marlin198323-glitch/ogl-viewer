@@ -542,6 +542,16 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_LoadFunction(library,"ogl_vulkan_world_persistent_release_count"));
     const auto persistent_idles=reinterpret_cast<MeshCount>(
         SDL_LoadFunction(library,"ogl_vulkan_world_persistent_teardown_idles"));
+    const auto mesh_generation=reinterpret_cast<Counter64>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_mesh_generation"));
+    const auto mesh_retire_waits=reinterpret_cast<MeshCount>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_mesh_retire_waits"));
+    const auto invalidate_region=reinterpret_cast<int(*)()>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_invalidate_region"));
+    const auto region_barrier_failures=reinterpret_cast<Counter64>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_region_barrier_failures"));
+    const bool qa_sidecar_region=secondary_face_tint &&
+        ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_SIDECAR_REGION_BARRIER_TEST");
     const auto detach=reinterpret_cast<Detach>(
         SDL_LoadFunction(library,"ogl_vulkan_world_detach_window"));
     uint32_t presented=0;
@@ -567,6 +577,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool secondary_atlas16_verified=false;
     bool secondary_atlas_hq_verified=false;
     bool secondary_material_busy_verified=false;
+    bool secondary_mesh_lifetime_verified=false;
+    bool secondary_region_barrier_verified=false;
+    bool secondary_detach_recovery_verified=false;
     uint32_t secondary_sunlight_frames=0;
     uint32_t secondary_window_stage=0;
     uint32_t motion_pixel_changes=0;
@@ -1368,6 +1381,42 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     upload_rgba(sampled_pixels,
                                         sampled_width,sampled_height)==0 &&
                                     upload_rgba(nullptr,0u,0u)==0));
+                            // Additional GPU-vertex lifetime regression:
+                            // even with the explicit depth-only mesh-rotation
+                            // grant, a source-bound WSI pipeline must NOT
+                            // destroy binding1/2/3 while still attached.
+                            // Inspect generation/wait counters to prove
+                            // rejection BEFORE any bounded GPU fence wait.
+                            if (secondary_face_tint && mesh_generation &&
+                                mesh_retire_waits && upload && mesh_count &&
+                                persistent_count) {
+                                const uint64_t gen_before=mesh_generation();
+                                const uint32_t wait_before=mesh_retire_waits();
+                                const ogl_rtx_triangle replacement{{
+                                    15.f,16.f,26.8f,
+                                    15.f,24.f,26.8f,
+                                    15.f,20.f,33.2f
+                                }};
+                                const char* prior_rotation=std::getenv(
+                                    "OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
+                                const std::string rotation_restore=
+                                    prior_rotation ? prior_rotation : "";
+                                SDL_setenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",
+                                           "1",1);
+                                secondary_mesh_lifetime_verified=
+                                    upload(&replacement,1u)==0 &&
+                                    upload(nullptr,0u)==0 &&
+                                    mesh_generation()==gen_before &&
+                                    mesh_retire_waits()==wait_before &&
+                                    mesh_count()==1u &&
+                                    persistent_count()==1u &&
+                                    camera_ready && camera_ready()==1u;
+                                if (prior_rotation)
+                                    SDL_setenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",
+                                               rotation_restore.c_str(),1);
+                                else
+                                    ::unsetenv("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE");
+                            }
                             auto* dpy=static_cast<Display*>(preview_display);
                             auto center_color=[&]() -> int {
                                 XSync(dpy,False);
@@ -1447,6 +1496,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                 frozen_shader_mode && frozen_tint_mode &&
                                 frozen_uv_mode && frozen_rgba_mode &&
                                 secondary_material_busy_verified &&
+                                (!secondary_face_tint ||
+                                 secondary_mesh_lifetime_verified) &&
                                 first_component>=0 && set_camera(&camera)==1 &&
                                 persistent_present(1)==1 && persistent_count()==2) {
                                 secondary_sunlight_frames=2;
@@ -1473,12 +1524,67 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                             }
                             secondary_window_verified=secondary_window_verified &&
                                 secondary_sunlight_verified;
+                            // Opt-in native QA only: an OpenSim region
+                            // change must invalidate the camera instantly
+                            // while leaving GPU-bound sidecars alive until
+                            // the SDL owner detaches the VkSwapchain.
+                            if (qa_sidecar_region && secondary_window_verified &&
+                                invalidate_region && region_barrier_failures &&
+                                mesh_generation && mesh_count && persistent_count) {
+                                const auto before_failure=region_barrier_failures();
+                                const auto before_generation=mesh_generation();
+                                const char* prior_region=std::getenv(
+                                    "OGL_VULKAN_LIVE_REGION_BARRIER");
+                                const std::string prior_region_value=
+                                    prior_region ? prior_region : "";
+                                SDL_setenv("OGL_VULKAN_LIVE_REGION_BARRIER","1",1);
+                                secondary_region_barrier_verified=
+                                    invalidate_region()==0 &&
+                                    region_barrier_failures()==before_failure+1 &&
+                                    mesh_generation()==before_generation &&
+                                    mesh_count()==1u && camera_ready &&
+                                    camera_ready()==0u &&
+                                    persistent_present(1)==0 &&
+                                    persistent_count()==2u;
+                                if (prior_region)
+                                    SDL_setenv("OGL_VULKAN_LIVE_REGION_BARRIER",
+                                               prior_region_value.c_str(),1);
+                                else
+                                    ::unsetenv("OGL_VULKAN_LIVE_REGION_BARRIER");
+                                secondary_window_verified=
+                                    secondary_window_verified &&
+                                    secondary_region_barrier_verified;
+                            }
                         }
                         // Explicit retire-before-destroy, even if GPU or
                         // window readback failed; never destroy borrowed XID.
                         detach();
                         LLWindowSDL::destroyOglVulkanPreviewWindow();
-                        upload(nullptr,0);
+                        // The GPU buffer lease has ended. A new region
+                        // is allowed to publish a fresh mesh generation
+                        // ONLY AFTER both the Vulkan swapchain and X11
+                        // preview are safely retired.
+                        if (qa_sidecar_region && secondary_region_barrier_verified &&
+                            mesh_generation && upload && mesh_count && camera_ready) {
+                            const auto previous_generation=mesh_generation();
+                            const ogl_rtx_triangle next_region{{
+                                15.f,16.f,26.8f,
+                                15.f,24.f,26.8f,
+                                15.f,20.f,33.2f
+                            }};
+                            secondary_detach_recovery_verified=
+                                upload(&next_region,1u)==1 &&
+                                mesh_generation()==previous_generation+1 &&
+                                mesh_count()==1u && camera_ready()==0u;
+                        }
+                        const bool cleared=upload(nullptr,0)==1;
+                        if (qa_sidecar_region) {
+                            secondary_detach_recovery_verified=
+                                secondary_detach_recovery_verified && cleared;
+                            secondary_window_verified=
+                                secondary_window_verified &&
+                                secondary_detach_recovery_verified;
+                        }
                     }
                 }
             }
@@ -1530,6 +1636,15 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             : "not-requested") <<
         ", secondary-material-busy=" << (secondary_face_tint
             ? (secondary_material_busy_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-mesh-lifetime=" << (secondary_face_tint
+            ? (secondary_mesh_lifetime_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-region-barrier=" << (qa_sidecar_region
+            ? (secondary_region_barrier_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-detach-recovery=" << (qa_sidecar_region
+            ? (secondary_detach_recovery_verified ? "verified" : "failed")
             : "not-requested") <<
         ", stale-camera=" << (stale_camera_probe
             ? (stale_camera_verified ? "verified" : "failed")

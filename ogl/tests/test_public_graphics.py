@@ -947,7 +947,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             self.assertIn(name,module)
             self.assertIn(name,native)
         a=module.index("int upload_world_geometry(")
-        b=module.index("int ",a+10) if "int " in module[a+10:] else len(module)
+        b=module.index("// Shared Vulkan staging:",a)
         fn=module[a:b]
         self.assertIn("OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE",fn)
         self.assertIn("if (frames.initialized && frames.submitted_any &&",fn)
@@ -1029,7 +1029,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn("++world_device.mesh_dedup_skips;",module)
         self.assertIn("ogl_vulkan_world_mesh_dedup_skips(void)",api)
         a=module.index("int upload_world_geometry(")
-        b=module.index("int ",a+10)
+        b=module.index("// Shared Vulkan staging:",a)
         fn=module[a:b]
         self.assertLess(fn.index("std::memcmp("),fn.index("VkFence unfinished[2]"))
         self.assertLess(fn.index("std::memcmp("),fn.index("world_device.clear_mesh();"))
@@ -1088,7 +1088,7 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertLess(fun.index("wait(world_device.device,pending,unfinished"),
                         fun.index("world_device.clear_mesh();"))
         a=module.index("int upload_world_geometry(")
-        b=module.index("int ",a+10)
+        b=module.index("// Shared Vulkan staging:",a)
         upload=module[a:b]
         self.assertIn("if (frames.blocked) return 0;",upload)
         self.assertIn("(world_device.mesh_vertices || world_device.mesh_indices)",upload)
@@ -2541,6 +2541,61 @@ class PublicGraphicsContracts(unittest.TestCase):
                       gate[sunlight:gate.index('return;',sunlight)])
         self.assertIn('OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE',gate)
         self.assertIn('world_material_slot_generation()!=world_mesh_generation()',gate)
+
+    def test_p05_source_bound_persistent_wsi_mesh_rotation_and_region_barrier(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        rotation=gpu[gpu.index('int upload_world_geometry('):
+                     gpu.index('// Shared Vulkan staging:',gpu.index('int upload_world_geometry('))]
+        barrier=gpu[gpu.index('int invalidate_live_world_region('):
+                    gpu.index('int upload_world_geometry(')]
+        active='frames.initialized && frames.submitted_any &&\n        (frames.face_tint || frames.face_uv || frames.rgba_image ||\n         frames.material_atlas)'
+        for body in (rotation,barrier):
+            self.assertIn(active,body)
+        self.assertLess(rotation.index('++world_device.mesh_dedup_skips;'),
+                        rotation.index(active))
+        self.assertLess(rotation.index(active),
+                        rotation.index('const char* rotation=std::getenv('))
+        self.assertLess(rotation.index(active),
+                        rotation.index('if (count==0) {'))
+        self.assertLess(rotation.index(active),
+                        rotation.index('world_device.clear_mesh();'))
+        self.assertLess(barrier.index('world_device.world_camera_ready=false;'),
+                        barrier.index(active))
+        self.assertLess(barrier.index(active),
+                        barrier.index('if (frames.initialized && frames.submitted_any) {'))
+        self.assertLess(barrier.index(active),
+                        barrier.index('world_device.clear_mesh();'))
+        self.assertIn('frames.blocked=true;',barrier)
+        self.assertIn('++world_device.region_barrier_failures;',barrier)
+        for required in (
+            'ogl_vulkan_world_mesh_generation',
+            'ogl_vulkan_world_mesh_retire_waits',
+            'ogl_vulkan_world_invalidate_region',
+            'ogl_vulkan_world_region_barrier_failures',
+            'OGL_VULKAN_SDL_PREGL_SIDECAR_REGION_BARRIER_TEST',
+            'OGL_VULKAN_PERSISTENT_MESH_ROTATION_PROBE',
+            'upload(&replacement,1u)==0',
+            'upload(nullptr,0u)==0',
+            'mesh_retire_waits()==wait_before',
+            'mesh_generation()==gen_before',
+            'mesh_count()==1u',
+            'secondary_mesh_lifetime_verified',
+            'secondary_region_barrier_verified',
+            'persistent_present(1)==0',
+            'persistent_count()==2u',
+            'secondary-mesh-lifetime=',
+            'secondary-region-barrier=',
+            'secondary-detach-recovery=',
+            'upload(&next_region,1u)==1',
+            'mesh_generation()==previous_generation+1',
+            'camera_ready()==0u',
+            'const bool cleared=upload(nullptr,0)==1;',
+        ):
+            self.assertIn(required,sdl)
+        # A borrowed XID is never destroyed until after VkSwapchain detach.
+        self.assertLess(sdl.index('secondary_region_barrier_verified='),
+                        sdl.index('LLWindowSDL::destroyOglVulkanPreviewWindow();'))
 
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()

@@ -6,6 +6,39 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs- und Prüfschritte: Quellgebundene Vulkan-WSI-Mesh-Lifetime (17.11.2026 MEZ)
+
+**Befund und Behebung:** Die bisherige native Vulkan-Tiefenpipeline durfte nach einem begrenzten VkFence-Wait die Mesh-VkBuffer einer laufenden persistenten Swapchain austauschen. Die bereits integrierten source-qualifizierten Shader für echte Face-RGB-, UV-, RGBA8-, 2×2-, 4×4- und HQ-Materialdaten benutzen aber zusätzlich GPU-Vertexbindungen 1–3. Der alte Meshwechsel zerstörte auch deren Sidecar-Buffer, obwohl die eingerichtete Pipeline/Swapchain weiterlebte. Neu verweigert `upload_world_geometry()` deshalb eine jede tatsächliche Meshrotation/Löschung, solange `frames.initialized && frames.submitted_any` und ein quellgebundener Tint-/UV-/RGBA-/Material-Shader aktiv sind – **auch bei expliziter Depth-Mesh-Rotation-Permission**. Die Prüfung liegt vor GPU-Fence-Waits, Allokation, Mesh-Löschung oder Generationwechsel. Identische, nach vollständigen Bytes deduplizierte Meshes bleiben unverändert erlaubt; Depth-only-Rotation nutzt weiter den ursprünglichen bounded-fence-Pfad.
+
+**Region-Lifetime:** `invalidate_live_world_region()` invalidiert weiterhin unmittelbar Kamera, Sonne und Weltmatrizen. Bei einer laufenden source-bound Swapchain setzt der Barrier-Pfad anschließend `frames.blocked=true`, erhöht den Failure-Counter und verweigert sowohl nächsten Present als auch vorzeitige GPU-Buffer-Löschung. Nur der echte SDL/X11-Eigentümer darf die Swapchain detach/retire und danach neues Mesh/Sidecars hochladen. Der normale Firestorm-Host detacht seine Live-Vorschau bereits im Region-Transition-Pfad. Der OpenGL-Standardrenderer bleibt unberührt. Diese Grenzprüfung ist **kein** vollständiger Vulkan-Hauptfenster-Renderer.
+
+**Echte GPU-Abnahme:** In einem isolierten Linux-X11-HQ-Vulkanfenster wurde ein echtes 256×256 opaque RGBA8-Materialfeld mit zwei separaten `vkQueuePresentKHR`-Frames und X11-Frontbuffer-Pixelbelegen angezeigt. Zwischen beiden Frames wurden unter absichtlich eingeschalteter Meshrotation ein neuer gültiger Triangle-Upload und `upload(nullptr,0)` abgewiesen, ohne die Meshgeneration, Meshanzahl, Kamera oder Fence-Retire-Counter zu verändern. Nach Frame 2 wurde der Region-Barrier absichtlich ausgelöst: Ergebnis 0/blocked, Kamera ungültig, Vulkan-Present verweigert, Mesh noch vorhanden. Erst nach wirklichem Detach und X11-Fenster-Retire wurden eine neue Triangle-Generation und anschließender Mesh-Clear akzeptiert. Die native GPU-Regression für Depth-only-Rotation/Region-Barriers blieb ebenfalls vollständig erfolgreich. Alle Tests nutzen isolierte synthetische Quellen, **keine** autentifizierte OpenSim-Live-World- oder heruntergeladenen J2C-Assets.
+
+**20 tatsächlich bearbeitete Schritte dieser /goal-Runde:**
+
+01. Linux-Mint Remote Commander, sauberen `ogl-develop`-Branch und Ausgangscommit `7456b0eb` geprüft.
+02. `AGENTS.md` einschließlich OpenGL-/Vulkan-/Benutzerprofil-Schutz vollständig geprüft.
+03. `ogl/PROJECT_HANDOFF.md` für P05/3-Source-Beweisgrenzen gelesen.
+04. `ogl/PROJECT_STATUS.md` und aktuelle HQ-Atlas-Swapchain-Grenzen gelesen.
+05. Bestehende `/goal`-Phasenroadmap und 20er-Blockprozess gelesen.
+06. OpenGenesisLINK-`main=a520063837` und Stable-`v0.9.4.0=ee15af8e` read-only geprüft; kein Server-Main-Delta.
+07. Fehlenden `gen1-updates`-Tag und offene PRs #443/#447/#448/#450/#453 read-only geprüft, keine neuen Viewer-Wire-Rechte übernommen.
+08. CI `44118051656` korrekt eingeordnet: fünf portable Jobs erfolgreich, macOS-ARM64 ohne zugewiesenen Runner abgebrochen, gesamter Run `failure`; Windows-Installer skipped.
+09. Vorhandene WSI-`submitted_mesh_generations`, Fence-Waits, sidecar-`clear_mesh()` und Swapchain-Shader-Bindings auditiert.
+10. Entdeckt, dass Depth-only-Meshrotation in sourcegebundenem Vulkan die aktiven RGB-/UV-/Slot-Buffer freigeben könnte.
+11. Den sourcegebundenen Meshwechsel vor Fence-Wait/Buffer-Replacement und trotz Rotationspermission fail-closed blockiert.
+12. Bytegenaue Dedup-Snapshots vor dieser Sperre weiterhin unverändert zugelassen.
+13. Tiefenrenderer-Meshrotation einschließlich begrenzter Fence-Waits unverändert erhalten.
+14. Region-Barrier: Kamera/Sonne/Matrizen sofort invalidiert, vorzeitigem Source-Buffer-Clear vorgebaut, Swapchain für weitere Presents gesperrt.
+15. SDL-Sidecar-X11-Test um aktuelle GPU-Meshgeneration, Retire-Waits, Framecounter und Null-/Valid-Upload-Ablehnung ergänzt.
+16. Echten HQ-X11-Zwei-Frame-Test um den Region-Barrier-Fehler- und Stale-Camera-Nachweis erweitert.
+17. Nach sicherem Vulkan-Detach erneuten GPU-Meshupload, neue Generation, Kamera-Rebind-Pflicht und Clear getestet; QA-Environment-Scope wiederhergestellt.
+18. Bestehende Python-Quellcode-Regressionsgrenzen bereinigt, eigenen WSI-Mesh-/Region-Lifetime-Vertrag ergänzt, 444/444 Python-Tests bestanden.
+19. Acht isolierte GUI-Fälle einschließlich HQ-Barrier/Recovery, Atlas/UV/RGBA/Depth-Legacy und ungültiger HQ-Freigabe bestanden; OpenGL-Login ohne FATAL.
+20. Linux-Fullviewer-Build, synchronisiertes Viewer-Testmanifest, 41/41 native CTests sowie native GPU-X11-Rotation, Regionen und 16/32-Frame-Langläufe bestanden; `git diff --check`, Dokumentation, Commit/Push/CI-Check ergänzt.
+
+**Formal P05 weiterhin 2/20; P05/3 offen.** Für den Abschluss fehlen authentifizierte OpenSim-Region-/Material-Zwei-Frame-Pixel, tatsächlicher JPEG2000-Assetstreaming-/Cachepfad sowie vollständige Terrain-/Avatar-/UI-/Alpha-/PBR-Komposition und echtes Vulkan-Rendering im Hauptfenster. Portable CI ist keine Windows/macOS-Vollviewer-Abnahme. Keine produktiven Serveränderungen, kein Benutzerprofil geändert und keine neuen Projektdateien angelegt.
+
 ## P05/3 – /goal 20 Entwicklungs-/Prüfschritte: HQ-256×256-Materialatlas im echten Vulkan-Zweitfenster (17.11.2026 MEZ)
 
 **Implementiert:** Die bestehende, standardmäßig deaktivierte zweite SDL/X11-Vulkan-World-Swapchain unterstützt jetzt zusätzlich den bereits GPU-geprüften privaten Mode-8-SPIR-V-Fragmentshader für einen 4×4-Atlas mit **16 opaque RGBA8-Materialfeldern zu jeweils 64×64 Texeln** in einem 256×256-VkImage. Vorherige Modi bleiben vollständig separat: Mode 5 einzelne dekodierte RGBA8-Textur (max. 64×64), Mode 6 2×2-Atlas (64×64), Mode 7 4×4-Atlas (64×64). Der bestehende VkImage/VkSampler/Descriptor-Set-Weg übernimmt die exakte Vulkan-Linear-Tiling-/Host-Coherent-/Row-Pitch-Validierung und einmalige Host-Write→Fragment-Read-Barriere; nur die Mode-8-Auswahl sowie die exakt erlaubte Bildkante werden erweitert. Vulkan-Shader, Mesh-XYZ, Face-RGB, UV, Materialslot-Binding3, Kamera/Sonne, Tiefe, Synchronisation und Swapchain-Ressourcenlebensdauer bleiben unverändert. Der normale Viewer startet weiterhin mit dem OpenGL-Standardrenderer.

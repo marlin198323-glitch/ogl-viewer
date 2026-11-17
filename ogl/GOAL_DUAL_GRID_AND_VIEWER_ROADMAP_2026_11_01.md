@@ -2,6 +2,43 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: sichere Vulkan-Mesh-/Material-Lifetime bei Regionwechsel
+
+Source-qualifizierte zweite Vulkan-
+Swapchain (Tint/UV/RGBA/Atlas2×2/
+4×4/HQ) verhindert jetzt jede echte
+Welt-Meshrotation und Clear, solange
+GPU-WSI-Frames submitten. Sonst
+wurden beim Meshwechsel auch aktive
+Vertex-Sidecars (RGB/UV/Slot) gelöscht.
+Prüfung passiert VOR GPU-Fence-Wait/
+Ressourcenfreigabe. Depth-only-WSI
+behält geprüfte Fence-basierte Rotation,
+identische deduplizierte Meshes bleiben
+bei Quelle unverändert.
+Region-Barrier invalidiert Kamera/
+Sonne vor Ablehnung, blockiert weitere
+Frames und hält GPU-Mesh-Sidecars
+bis zum sicheren SDL/X11-Detach.
+Anschließend neue Meshgeneration,
+sauberer Buffer-Clear und OpenGL-
+Login erfolgreich. Echte isolierte
+Vulkan-HQ-X11-2-Frame-Pixelabnahme,
+zusätzlich 7 GUI-Smokes, 444 Python
+und 41 native CTests, GPU-Rotation,
+Region-Barrier sowie 16/32-Present-
+Langläufe erfolgreich.
+**Formal P05 2/20, P05/3 offen.**
+Ein OpenSim-In-World-Source-Beleg,
+J2C-Assetpipeline, Vulkan-Hauptfenster
+mit Terrain, Avataren und UI fehlen.
+20 konkrete Schritte im PROJECT_STATUS.
+OpenGenesisLINK main a520063837,
+Stable ee15af8e, keine Serveränderung;
+Vorläufer-CI 44118051656 mit 5
+success + 1 canceled macOS-ARM-Runner
+insgesamt failure, nicht grün.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: 256×256-HQ-16-Materialatlas im Vulkan-Zweitfenster
 
 Vorhandener privater Mode8-HQ-Shader

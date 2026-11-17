@@ -5006,6 +5006,19 @@ int invalidate_live_world_region() {
     world_device.camera_mesh_generation=0;
     world_device.world_to_clip.fill(0.f);
     auto& frames=world_device.persistent;
+    // Source-bound WSI pipelines have MORE live vertex bindings than
+    // geometry. A mesh barrier clears their RGB/UV/slot sidecars, even
+    // after old GPU submit fences signal. Keep every referenced VkBuffer
+    // until the SDL/X11 owner detaches and destroys this swapchain.
+    // The camera was invalidated ABOVE, and blocked forbids another
+    // Vulkan present. No fence wait or resource free on this rejection.
+    if (frames.initialized && frames.submitted_any &&
+        (frames.face_tint || frames.face_uv || frames.rgba_image ||
+         frames.material_atlas)) {
+        frames.blocked=true;
+        ++world_device.region_barrier_failures;
+        return 0;
+    }
     if (frames.blocked) {
         ++world_device.region_barrier_failures;
         return 0;
@@ -5085,6 +5098,18 @@ int upload_world_geometry(const ogl_rtx_triangle* triangles, uint32_t count) {
     // Present only references swapchain images/semaphores, not VkMeshBuffers.
     auto& frames=world_device.persistent;
     if (frames.blocked) return 0;
+    // A submitted textured/tinted WSI pipeline retains the OLD mesh
+    // and all face sidecars for its lifetime. Even if a fence signals,
+    // clearing these vertex buffers makes binding1/2/3 invalid on the
+    // very next frame. Reject mutations BEFORE any GPU-fence wait and
+    // before allocating/releasing VkBuffers. Identical deduplicated
+    // snapshots returned above are safe. Detach the window before a
+    // genuine region/geometry change; depth-only WSI mesh rotation
+    // retains its existing bounded-fence acceptance policy.
+    if (frames.initialized && frames.submitted_any &&
+        (frames.face_tint || frames.face_uv || frames.rgba_image ||
+         frames.material_atlas))
+        return 0;
     // After a SUCCESSFUL region barrier the previous mesh is gone and
     // all its GPU references are retired. The FIRST mesh of the new region
     // may therefore be uploaded without a general rotation permission.

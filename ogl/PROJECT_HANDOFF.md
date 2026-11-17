@@ -256,6 +256,49 @@ kein vollständiger Vulkan-Hauptfenster-
 Terrain-/Avatar-/UI-/Alpha-/PBR-Renderer.
 Keine Server-/Benutzerprofil-Änderungen.
 
+17.11.2026 – aktuellster P05/3-/goal-Block:
+Bisherige GPU-Meshgenerationen-Rotation
+war korrekt für reine Depth-Shader,
+konnte bei laufender Tint-/UV-/RGBA-/
+2×2-/4×4-/HQ-Material-Swapchain aber
+noch gebundene Vertex-Sidecar-Buffer
+über `clear_mesh()` zerstören. Neu:
+source-bound persistent VkSwapchain
+verweigert jeden echten Meshwechsel
+einschließlich Clear VOR Fence-Retire,
+selbst bei Depth-Meshrotation-Opt-in.
+Bytegenau identischer dedup-Snapshot
+bleibt erlaubt, Depth-only-Rotation mit
+bounded fences bleibt funktionstüchtig.
+Region-Barrier invalidiert sofort Kamera,
+Sonne, World-Matrix, blockiert weitere
+Vulkan-Presents und bewahrt gebundene
+Vulkan-Buffer bis zum echten SDL-Detach.
+Danach können neue Meshgeneration und
+Clear korrekt akzeptiert werden.
+Isolierter echter HQ-X11-GPU-Test
+bestätigt 2 Presents, beide Frontbuffer-
+Pixel, Meshmutation/Region-Verweigerung
+sowie erfolgreiche Detach-Recovery.
+7 weitere Legacy-/Negativ-X11-Fälle,
+444 Python- und 41 native CTests,
+Voll-Linux-Build, native X11-GPU-
+Meshrotation, Region-Barrier und 16/32
+Presents bestanden. 20 Einzelschritte
+und offener Stand in PROJECT_STATUS.
+OpenGenesisLINK main a520063837, Stable
+v0.9.4.0 ee15af8e unverändert; PR #453
+neu, kein Viewer-Wire-Delta. Vorherige
+CI 44118051656 insgesamt failure, weil
+macOS-15 ARM ohne Runner canceled (5
+portable Jobs success, Installer skipped).
+**P05 2/20, P05/3 weiterhin offen** –
+noch keine echten authentifizierten
+OpenSim-Source-HQ-Pixel/J2C-Assets,
+kein kompletter Vulkan-Hauptfenster-
+Terrain-/Avatar-/UI-/Materialrenderer.
+Keine Server- oder Benutzerdaten geändert.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

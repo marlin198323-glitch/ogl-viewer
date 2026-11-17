@@ -180,6 +180,41 @@ Handoff und Roadmap; Server-main
 a520063837, Stable ee15af8e.
 Keine Serveränderung.
 
+P05/3 Nachtrag 17.11.2026:
+Source-bound Vulkan-WSI mit Tint/UV/
+RGBA-/Material-Sidecars darf bei noch
+bestehender und eingereichter GPU-
+Swapchain KEINE echte Meshgeneration
+rotieren/löschen, auch wenn Depth-
+Rotation-Opt-in gesetzt ist. `clear_mesh()`
+löscht sonst GPU-Bindings1–3.
+Quellidentische Dedup-Snapshots sind
+weiter zulässig; Depth-only-Rotation
+bleibt durch GPU-Fence-Retirement
+geschützt. Live-Region-Barrier muss
+sofort Kamera/Sonne/Matrizen ungültig
+machen, source-bound Swapchain sperren
+und GPU-Buffer bis zum SDL-Detach
+bewahren. Danach neue Meshgeneration.
+Synthetische echte HQ-Vulkan-X11-
+2-Frame-Pixelabnahme inkl. Mutation,
+Barrier-Rejection und Detach-Recovery,
+weitere 7 GUI-Fälle, 444 Python-/41
+native CTests, Full-Linux-Vollbuild,
+native Rotation, Region und 16/32
+Vulkan-Presents bestanden. 20 Schritte
+in PROJECT_STATUS/HANDOFF/Roadmap.
+**P05 bleibt 2/20, P05/3 offen:**
+kein authentifizierter OpenSim-Frame,
+keine J2C-Assets und kein Vulkan-Main-
+World-/Terrain-/Avatar-/UI-Renderer.
+Vorherige CI 44118051656 failure:
+5 portable Jobs success, macOS ARM
+noch vor Runner-Zuweisung canceled.
+Server main a520063837, stable
+v0.9.4.0 ee15af8e unverändert;
+neue offene PR #453, keine Serveränderung.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`
