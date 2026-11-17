@@ -89,6 +89,37 @@ OpenGenesisLINK `main=a5200638`, Stable
 `v0.9.4.0=ee15af8e` unverändert;
 keine Serveränderung.
 
+P05/3 Nachtrag 17.11.2026: In der streng
+opt-in zweiten Vulkan-SDL/X11-Swapchain
+kann der vorhandene Mode-6-Atlas-Shader
+maximal vier opaque RGBA8-Materialien
+aus einem 2×2-Atlas (64×64) darstellen.
+Neues GPU-Vertexbinding3/Location3
+transportiert den Float-Materialslot;
+bestehende World-/Tint-/UV-/RGBA-
+Gates und Meshrevision sind zwingend.
+OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE
+ist standardmäßig AUS und benötigt
+eigene Material-/Live-Quellfreigabe.
+Die 4×4-/HQ-Modi sind hier verboten;
+Shaderwahl pro Swapchain fixiert;
+in-flight Slot-Buffers nicht freigeben.
+Zwei echte Vulkan-X11-GPU-Abnahmen
+Rot/Grün bei identischen UVs und
+unterschiedlichen Slots sowie 12 X11-
+Regressionen inkl. Negativtests bestanden;
+440 Python- und 41 native CTests,
+Linux-Vollbuild, native 16/32 Vulkan-
+WSI-Frames grün. Normales OpenGL bleibt.
+**Kein authentifizierter neuer OpenSim-
+Live-Vulkan-Frame, kein Assetstreaming
+und kein vollständiges Vulkan-Hauptfenster.
+P05 bleibt 2/20, Block 3 offen.**
+Details und 20 geprüfte Schritte in
+ogl/PROJECT_STATUS.md und HANDOFF.
+Server-main a520063837, stable ee15af8e;
+keine Serveränderungen.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

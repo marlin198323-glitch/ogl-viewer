@@ -2174,7 +2174,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'p.face_tint=face_tint;',
             'ogl_dev_world_face_tint_vert_spv',
             'ogl_dev_world_face_tint_frag_spv',
-            'face_uv ? 3u : (face_tint ? 2u : 1u);',
+            'material_atlas ? 4u : (face_uv ? 3u : (face_tint ? 2u : 1u));',
             'vkCmdBindVertexBuffers(cmd,0,2,buffers,offsets);',
             'vkCmdDrawIndexed(cmd,world_device.mesh_triangle_count*3u',
         ):
@@ -2222,7 +2222,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'ogl_dev_world_uv_checker_frag_spv',
             'attributes[2].format=VK_FORMAT_R32G32_SFLOAT;',
             'bindings[2].stride=sizeof(float)*2u;',
-            'face_uv ? 3u : (face_tint ? 2u : 1u)',
+            'material_atlas ? 4u : (face_uv ? 3u : (face_tint ? 2u : 1u))',
             'vkCmdBindVertexBuffers(cmd,0,3,buffers,offsets);',
         ):
             self.assertIn(required,frame)
@@ -2250,7 +2250,7 @@ class PublicGraphicsContracts(unittest.TestCase):
             'secondary_tint_guard.restore();',
             'ogl_vulkan_world_upload_face_uvs',
             'upload_uvs(&checker_cell,1)==1',
-            'const float u=secondary_rgba_image',
+            'const float u=secondary_material_atlas ? .5f',
             'secondary-face-uv=" << (secondary_face_uv',
             'frozen_uv_mode=persistent_present(1)==0',
             'secondary_face_uv_verified=secondary_face_uv;',
@@ -2332,8 +2332,8 @@ class PublicGraphicsContracts(unittest.TestCase):
             'RGBA-image preview requires current UV and decoded image permissions',
             'SecondaryTintFlagGuard(bool tint,bool uv,bool rgba)',
             'const uint8_t test_texels[8]',
-            'upload_rgba(test_texels,2u,1u)==1',
-            'upload_rgba(test_texels,2u,1u)==0',
+            'sampled_width,sampled_height)==1',
+            'sampled_width,sampled_height)==0',
             'upload_rgba(nullptr,0u,0u)==0',
             'frozen_rgba_mode=persistent_present(1)==0',
             'secondary-rgba-image=" << (secondary_rgba_image',
@@ -2342,6 +2342,67 @@ class PublicGraphicsContracts(unittest.TestCase):
             'LLWindowSDL::oglVulkanPreviewWorldPixels(',
         ):
             self.assertIn(expected,sdl)
+
+    def test_p05_secondary_vulkan_four_material_atlas_owns_current_slot_binding3(self):
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        sdl=(ROOT/'indra/llwindow/llwindowsdl2.cpp').read_text()
+        begin=gpu.index('uint32_t present_persistent_clear_frame(')
+        end=gpu.index('// P05/3 foundation:',begin)
+        frame=gpu[begin:end]
+        for required in (
+            'OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE',
+            'std::strcmp(atlas_preview,"1")==0;',
+            'world_device.material_slot_mesh_generation!=world_device.mesh_generation',
+            'world_device.material_slot_vertex_count!=',
+            '!world_device.material_slot_count',
+            'world_device.material_slot_count>4u',
+            'world_device.rgba_width!=64u || world_device.rgba_height!=64u',
+            '(p.initialized && p.material_atlas!=material_atlas)',
+            'p.material_atlas=material_atlas;',
+            'ogl_dev_world_material_atlas_vert_spv',
+            'ogl_dev_world_material_atlas_frag_spv',
+            'bindings[3].stride=sizeof(float);',
+            'attributes[3].format=VK_FORMAT_R32_SFLOAT;',
+            'material_atlas ? 4u : (face_uv ? 3u : (face_tint ? 2u : 1u))',
+            'vkCmdBindVertexBuffers(cmd,0,4,buffers,offsets);',
+            'world_device.mesh_material_slot_vertices',
+            'vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,',
+        ):
+            self.assertIn(required,frame)
+        self.assertLess(frame.index('world_device.material_slot_mesh_generation!='),
+                        frame.index('vkAcquireNextImageKHR'))
+        self.assertLess(frame.index('(p.initialized && p.material_atlas!=material_atlas)'),
+                        frame.index('if (!p.initialized) {'))
+        upload=gpu[gpu.index('int upload_world_material_slots('):
+                   gpu.index('// First real VkImage+VkSampler source ABI:')]
+        self.assertIn('world_device.persistent.submitted_any',upload)
+        for required in (
+            'OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE',
+            'OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE',
+            'world_material_slot_generation()!=world_mesh_generation()',
+            'ogl_live_preview_detach();',
+            'material-atlas=" << (preview_atlas ? "enabled" : "disabled")',
+        ):
+            self.assertIn(required,host)
+        for required in (
+            'four-material atlas preview rejects invalid opt-in',
+            'four-material atlas preview requires RGBA+slot source and 2x2 layout',
+            'SecondaryAtlasFlagGuard',
+            'secondary_atlas_guard.restore();',
+            'ogl_vulkan_world_upload_material_slots',
+            'const ogl_rtx_face_material_slot test_slot',
+            'test_atlas.resize(64u*64u*4u,255u);',
+            'upload_slots(&test_slot,1u,2u)==1',
+            'upload_slots(&test_slot,1u,2u)==0',
+            'upload_slots(nullptr,0u,0u)==0',
+            'frozen_atlas_mode=persistent_present(1)==0',
+            'secondary-material-atlas=" << (secondary_material_atlas',
+            'secondary_atlas_verified=secondary_material_atlas;',
+            'ogl::separate_preview_two_frame_pixels(',
+        ):
+            self.assertIn(required,sdl)
 
     def test_p05_live_vulkan_preview_needs_real_x11_pixels_not_only_queue_present(self):
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()

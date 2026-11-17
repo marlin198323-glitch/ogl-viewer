@@ -2,6 +2,39 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: vierfacher Materialatlas im Vulkan-Zweitfenster
+
+Strikt opt-in integriert die bestehende
+zweite Vulkan-World-Swapchain den bereits
+privat geprüften Mode-6-Materialatlas-
+Shader (2×2; 64×64 opaque RGBA8).
+Neues Binding3/Location3 liefert exakt
+einen aktuellen Materialslot je Face,
+unverändert 3 gleiche Float-Vertexwerte.
+Alle bisherigen World-/Depth-/RGB-/UV-/
+RGBA-/Source-Gates, Swapchain-Shader-
+Freeze und in-flight-Buffer-Lifetime
+bleiben Pflicht. 4×4/HQ-Atlas-Flags
+werden in diesem Modus nicht akzeptiert.
+Echte source-identische Live-Materialien
+brauchen eine zusätzliche ausdrückliche
+Material-Atlas-Live-Source-Freigabe.
+Zwei isolierte rote/grüne Vulkan-X11-
+GPU-Abnahmen bei identischen UVs und
+verschiedenem Materialslot, je zwei
+Presents und Geometriepixel, bestanden.
+12 isolierte GUI-Tests, 440 Python- und
+41 native Tests, Linux-Fullbuild,
+native 16-/32-Present-Langläufe grün.
+Kein Assetstreaming/JPEG2000, kein
+vollständiger OpenSim-Vulkan-World-
+Renderer samt Terrain, Avataren und UI.
+**P05 bleibt 2/20, Block P05/3 offen.**
+20 tatsächliche Schritte und offene
+Voraussetzungen in PROJECT_STATUS.md.
+OpenGenesisLINK main a520063837,
+Stable ee15af8e unverändert.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: sichtbares Vulkan-RGBA8-VkImage-Sampling
 
 Der strikt opt-in gestartete zweite SDL/X11-

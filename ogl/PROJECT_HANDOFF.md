@@ -140,6 +140,48 @@ OpenGenesisLINK `main=a5200638`, Stable
 `v0.9.4.0=ee15af8e`, kein gen1-updates-Tag.
 Keine Server-/Nutzerprofile geändert.
 
+17.11.2026 – neue P05/3-/goal-Runde (20 Entwicklungsblöcke):
+Die zweite SDL/X11-Vulkan-World-Swapchain
+besitzt bei Default-AUS-Opt-in
+OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE=1
+einen echten vierteiligen 2×2-Materialatlas.
+Der vorhandene private Vulkan-Mode6-Shader
+nutzt zusätzlich Binding3/Location3 für
+source-validierte Float-Materialslots pro
+Vertex. Bestehender VkImage/VkSampler/
+Descriptor-Sampled-RGBA8-Pfad unverändert.
+Atlas exakt 64×64 opaque RGBA8, Tilezahl
+1–4 und dieselbe aktuelle GPU-Meshrevision;
+4×4-/HQ-Flags sind im Mode6 unzulässig.
+Shader-Auswahl für aktive VkSwapchain
+eingefroren; laufende GPU-WSI-Submissions
+blockieren Materialslot-Reupload/Clear.
+Echte Live-Quelle benötigt gesonderte
+RGBA- und Material-Atlas-Live-Permissions
+sowie Region-/Capture-Source-Nachweis.
+Synthetische Tests Rot/Grün mit IDENTISCHEN
+UVs und ausschließlich verschiedener
+Materialslotzahl: je zwei echte Vulkan-
+Presents, zwei X11-Geometriescans und
+Farbnachweis. Vorheriger RGBA-/UV-/
+RGB-/Sun-Renderer und OpenGL-Login
+bleiben unverändert; 12 isolierte Fälle
+(7 positive, 5 negative) ohne FATAL.
+440 Python-, 41 native CTests, kompletter
+Linux-Viewer-Build sowie 16-/32-Frame-
+WSI-Regressionen bestanden. Alle 20
+Einzelmaßnahmen in ogl/PROJECT_STATUS.md.
+OpenGenesisLINK main a520063837 und Stable
+v0.9.4.0=ee15af8e unverändert;
+vorheriger Portable-GitHub-CI 6/6 grün.
+**P05 2/20, P05/3 weiter offen**: kein
+authentifizierter OpenSim-Vulkan-Welt-
+Pixelbeleg, kein J2C-Assetstreaming,
+keine vollständige Terrain-/Avatar-/UI-
+Vulkan-Hauptfensterengine; Windows- und
+macOS-Vollviewer-Abnahme fehlt.
+Keine Produktivserver/Benutzerdaten verändert.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

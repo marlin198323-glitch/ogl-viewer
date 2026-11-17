@@ -6,6 +6,41 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungsblöcke: Vier-Material-Atlas in der Vulkan-Zweitswapchain (17.11.2026 MEZ)
+
+**Implementiert und mit echter Vulkan-/X11-GPU-Farbausgabe überprüft.** Im strikt opt-in SDL/X11-Vulkan-Zweitfenster werden jetzt die bereits privat geprüften Mode-6-Atlas-Vertex-/Fragmentshader verwendet. Ein vierter, von der OpenSim-Quelle stammender GPU-Vertexbuffer liefert einen Float-Materialslot (Binding 3, Location 3) pro Vertex; World-XYZ, Face-RGB, UV und der bestehende RGBA8-VkImage/VkSampler/Descriptor-Pfad bleiben bestehen. Ein 64×64-Pixel-Atlas enthält bis zu vier 2×2-Materialfelder. Alle bisherigen Shader-Pfade einschließlich des eigentlichen OpenGL-Hauptfensters bleiben unverändert.
+
+Der zusätzliche Opt-in-Schalter OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE=1 ist standardmäßig AUS. Er erfordert vollständige Vulkan-World-, Depth-, Sun-, Tint-, UV-, RGBA- und Source-Gates sowie OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE=1, die aktuelle Materialslot-Meshgeneration, exakt drei Slot-Vertices je Triangle, eine gültige Anzahl von 1–4 Tiles und exakt 64×64 opaque RGBA8-Pixel. In diesem Mode-6-Shader werden die Flags für Atlas16 und HQ nur bei Abwesenheit oder Wert 0 akzeptiert; andere Werte und insbesondere eine angeforderte 4×4- oder 256er-Quelle werden explizit abgewiesen. Pipeline-Atlasmodus bleibt für die Swapchain eingefroren. Laufende GPU-WSI-Submissions verhindern Materialslot-Reupload und Clear; Image-, UV- und Tint-Lifetime-Sperren gelten weiterhin. Quellenverlust trennt eine bereits bestehende Live-Vorschau.
+
+Echte OpenSim-Materialquellen benötigen darüber hinaus die ausdrücklich gesetzten OGL_VULKAN_LIVE_RGBA_SOURCE=1 und OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE=1 und einen zur bestehenden Region/Capture-/GPU-Meshgeneration passenden Material-Slot-Receipt. **Die folgenden X11-Tests nutzen synthetisch bereits dekodierte Testpixel, keinen neuen authentifizierten OpenSim-Frame.** Kein automatischer Texturasset-/J2C-Download, keine PBR-/Alpha- oder vollständige Hauptfenster-Engine.
+
+Die synthetische GPU-Abnahme verwendet zwei getrennte Viewerstarts: eine rote und eine grüne Zelle im selben 64×64-Atlas, beide mit IDENTISCHEN UVs (0.5, 0.5). Nur die Materialslot-Angabe 0 beziehungsweise 1 entscheidet über das gerenderte Farbfeld. Je Lauf wurden zwei echte vkQueuePresentKHR-Frames, zwei voneinander unabhängige X11-Frontbuffer-Geometriescans, der erwartete dominante Farbkanal, unterschiedliche Sunlight-Frames, der festgesetzte Shader-Modus und der wirksame Schutz gegen in-flight RGBA-/Slot-Änderungen geprüft. Die übrigen zehn isolierten Fälle prüfen Single-RGBA (rot/grün), UV-, Tint- und Sunlight-Legacy sowie fehlende Quellen, ungültige Atlasopt-ins, 4×4-/unklare Layoutflags und fehlendes RGBA. Alle 12 Fälle erreichten das OpenGL-Login ohne FATAL. Native 16- und 32-Frame-X11-WSI-Regressionsläufe sind ebenfalls grün.
+
+**20 tatsächlich erledigte Arbeitsschritte der /goal-Runde:**
+
+01. Linux-Mint-Desktop-Commander, Branch ogl-develop, sauberen Ausgangscommit 539d3a0d geprüft.
+02. Root-AGENTS.md und die Schutzregeln für Benutzer-Viewer, Server und OpenGL gelesen.
+03. ogl/PROJECT_HANDOFF.md und noch offene P05/3-Grenzen gelesen.
+04. ogl/PROJECT_STATUS.md und den zuletzt integrierten RGBA8-Shaderstand gelesen.
+05. Die verbindliche /goal-Phasenroadmap einschließlich 20er-Blockverfahren gelesen.
+06. OpenGenesisLINK-main read-only auf a520063837 geprüft; keine neue Protokollbasis erkannt.
+07. Stable-v0.9.4.0=ee15af8e, weiterhin fehlenden gen1-updates-Tag und WIP-PRs #443/#447/#448/#450 read-only geprüft.
+08. Letzten GitHub-Portable-Graphics-Lauf 44108179869 als vollständig erfolgreich (6/6) verifiziert; Windows-Vollinstaller übersprungen.
+09. Bestehende private Mode-6-Materialatlas-SPIR-V, Atlaspacker und GPU-Materialslot-ABI auf Kompatibilität geprüft.
+10. Neuen unabhängigen Atlas-Vorschau-Opt-in in GPU-Modul, Firestorm-Host und SDL-X11-Test mit 0/1-Validierung umgesetzt.
+11. Fail-closed-Pflichtbedingungen für aktuelles Material-Vertexbinding3, Meshgeneration, Slotzahl und 64×64-Sampled-Image eingebaut.
+12. Mode-6-Shader strikt vom 4×4-/HQ-Modus abgegrenzt, ungültige Flags vor GPU-Präsentation abgewiesen.
+13. Vorhandenen Materialatlas-Vertex-/Fragmentshader für die zweite echte VkSwapchain auswählbar gemacht.
+14. Viertes VkVertexInputBinding und VkVertexInputAttribute (float-Slot, Location 3) in die Pipeline eingebaut.
+15. Aktuelle GPU-Materialslot-VkBuffer zusammen mit XYZ, RGB, UV und Indizes vor vkCmdDrawIndexed gebunden.
+16. Shaderwahl pro Swapchain eingefroren; Versuch eines Atlas-Wechsels vor Acquire/Present getestet.
+17. Vorzeitige Materialslot-Buffer-Freigabe bei WSI-Submission ausgeschlossen; Source-/Region-Gates für reale OpenSim-Quellen erweitert.
+18. SDL-GPU-Fixture: zwei opaque Atlasfarben bei identischen UVs über materialabhängige Auswahl, zwei Presents und X11-Pixelbeleg.
+19. 12 isolierte Linux-X11-Tests mit Atlas-Rot/Grün, alten Renderpfaden und fünf negativen Freigabefällen durchgeführt.
+20. 440 Python-Tests, 41 native CTests, Linux-Vollviewer-Build plus synchronisiertes Viewer-Testpaket, native 16-/32-Frame-X11-Regressionen und git diff --check erfolgreich ausgeführt; Änderungen in Roadmap/AGENTS/Handoff dokumentiert und für GitHub bereitgestellt.
+
+**Formaler Status: P05 2/20, Block P05/3 offen.** Der authentifizierte OpenSim-Zwei-Frame-Materialbeleg, tatsächliches Assetstreaming, Gelände-/Avatar-/UI-Composition und die produktive Vulkan-Hauptfensterengine fehlen weiterhin. Portable CI ersetzt keine vollständige Windows-/macOS-Viewer-Abnahme. Uhrpflicht Clock-v1 Europe/Berlin MEZ/MESZ/UTC in P08/P13 bleibt offen. Keine produktiven Server-/Benutzerprofil-Änderungen und keine neuen Projektdateien.
+
 ## P05/3 – /goal 20 Entwicklungs-/Prüfschritte: echtes sampled RGBA8 im Vulkan-Zweitfenster (17.11.2026 MEZ)
 
 **Implementiert: Separates SDL/X11-Vulkan-Vorschaufenster kann jetzt eine echte GPU-abgetastete, dekodierte RGBA8-Testtextur über VkImage, VkImageView, VkSampler und Descriptor Set zeichnen. Zwei Farben, zwei Vulkan-Presents und unabhängige X11-Pixel wurden bestätigt. Das Hauptfenster bleibt OpenGL. Authentifizierte OpenSim-Texturasset-Übertragung und vollständige Vulkan-Hauptfensterengine weiterhin offen.**

@@ -149,6 +149,7 @@ struct OglPersistentClearFrames {
     bool face_tint = false; // independent frozen vertex-binding1 mode
     bool face_uv = false; // independent frozen vertex-binding2 checker mode
     bool rgba_image = false; // independent frozen sampled-image descriptor mode
+    bool material_atlas = false; // frozen face-material binding3, four texture tiles
     VkImage texture_image = VK_NULL_HANDLE;
     VkDeviceMemory texture_memory = VK_NULL_HANDLE;
     VkImageView texture_view = VK_NULL_HANDLE;
@@ -2706,6 +2707,32 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             return 0;
         }
     }
+    const char* atlas_preview=std::getenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
+    if (atlas_preview && std::strcmp(atlas_preview,"0")!=0 &&
+        std::strcmp(atlas_preview,"1")!=0) return 0;
+    const bool material_atlas=atlas_preview &&
+        std::strcmp(atlas_preview,"1")==0;
+    if (material_atlas) {
+        const char* atlas_source=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
+        const char* atlas16=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+        const char* atlas_hq=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+        // Mode 6 is strictly 2x2/64x64. Never silently reinterpret
+        // a live 4x4 or 256x256 atlas using the wrong shader layout.
+        if (!rgba_image || !atlas_source ||
+            std::strcmp(atlas_source,"1")!=0 ||
+            // Only four-slot layout can use the 2x2 WSI shader.
+            // Unknown values are also invalid, not implicit "off".
+            (atlas16 && std::strcmp(atlas16,"0")!=0) ||
+            (atlas_hq && std::strcmp(atlas_hq,"0")!=0) ||
+            !world_device.mesh_material_slot_vertices ||
+            world_device.material_slot_mesh_generation!=world_device.mesh_generation ||
+            world_device.material_slot_vertex_count!=
+                world_device.mesh_triangle_count*3u ||
+            !world_device.material_slot_count ||
+            world_device.material_slot_count>4u ||
+            world_device.rgba_width!=64u || world_device.rgba_height!=64u)
+            return 0;
+    }
     if (face_uv) {
         const char* uv_source=std::getenv("OGL_VULKAN_WORLD_UV_CHECKER_PROBE");
         if (!face_tint || !uv_source || std::strcmp(uv_source,"1")!=0 ||
@@ -2768,7 +2795,8 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         (p.initialized && p.sunlight!=sunlight) ||
         (p.initialized && p.face_tint!=face_tint) ||
         (p.initialized && p.face_uv!=face_uv) ||
-        (p.initialized && p.rgba_image!=rgba_image)) return 0;
+        (p.initialized && p.rgba_image!=rgba_image) ||
+        (p.initialized && p.material_atlas!=material_atlas)) return 0;
     auto proc=[&](const char* name) {
         return world_device.device_proc(world_device.device,name);
     };
@@ -2871,6 +2899,7 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             p.face_tint=face_tint;
             p.face_uv=face_uv;
             p.rgba_image=rgba_image;
+            p.material_atlas=material_atlas;
             if (world) {
                 for (VkFormat format:{VK_FORMAT_D32_SFLOAT,
                                      VK_FORMAT_D16_UNORM}) {
@@ -3155,31 +3184,39 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
         if (world) {
             VkShaderModuleCreateInfo vertex_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            vertex_info.codeSize=face_uv
+            vertex_info.codeSize=material_atlas
+                ? sizeof(ogl_dev_world_material_atlas_vert_spv)
+                : (face_uv
                 ? sizeof(ogl_dev_world_uv_checker_vert_spv)
                 : (face_tint ? sizeof(ogl_dev_world_face_tint_vert_spv)
-                             : sizeof(ogl_dev_world_vert_spv));
-            vertex_info.pCode=face_uv
+                             : sizeof(ogl_dev_world_vert_spv)));
+            vertex_info.pCode=material_atlas
+                ? ogl_dev_world_material_atlas_vert_spv
+                : (face_uv
                 ? ogl_dev_world_uv_checker_vert_spv
                 : (face_tint ? ogl_dev_world_face_tint_vert_spv
-                             : ogl_dev_world_vert_spv);
+                             : ogl_dev_world_vert_spv));
             if (vkCreateShaderModule(world_device.device,&vertex_info,nullptr,
                                      &p.vertex_shader)!=VK_SUCCESS || !p.vertex_shader)
                 return false;
             VkShaderModuleCreateInfo fragment_info{
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-            fragment_info.codeSize=rgba_image
+            fragment_info.codeSize=material_atlas
+                ? sizeof(ogl_dev_world_material_atlas_frag_spv)
+                : (rgba_image
                 ? sizeof(ogl_dev_world_rgba_sample_frag_spv)
                 : (face_uv ? sizeof(ogl_dev_world_uv_checker_frag_spv)
                 : (face_tint ? sizeof(ogl_dev_world_face_tint_frag_spv)
                 : (sunlight ? sizeof(ogl_dev_world_sunlight_frag_spv)
-                            : sizeof(ogl_dev_depth_frag_spv))));
-            fragment_info.pCode=rgba_image
+                            : sizeof(ogl_dev_depth_frag_spv)))));
+            fragment_info.pCode=material_atlas
+                ? ogl_dev_world_material_atlas_frag_spv
+                : (rgba_image
                 ? ogl_dev_world_rgba_sample_frag_spv
                 : (face_uv ? ogl_dev_world_uv_checker_frag_spv
                 : (face_tint ? ogl_dev_world_face_tint_frag_spv
                 : (sunlight ? ogl_dev_world_sunlight_frag_spv
-                            : ogl_dev_depth_frag_spv)));
+                            : ogl_dev_depth_frag_spv))));
             if (vkCreateShaderModule(world_device.device,&fragment_info,nullptr,
                                      &p.fragment_shader)!=VK_SUCCESS || !p.fragment_shader)
                 return false;
@@ -3203,23 +3240,28 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             vertex_attribute.offset=0;
             VkPipelineVertexInputStateCreateInfo vertex_input{
                 VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-            VkVertexInputBindingDescription bindings[3]{
-                vertex_binding,vertex_binding,vertex_binding};
+            VkVertexInputBindingDescription bindings[4]{
+                vertex_binding,vertex_binding,vertex_binding,vertex_binding};
             bindings[1].binding=1;
             bindings[2].binding=2;
             bindings[2].stride=sizeof(float)*2u;
-            VkVertexInputAttributeDescription attributes[3]{
-                vertex_attribute,vertex_attribute,vertex_attribute};
+            bindings[3].binding=3;
+            bindings[3].stride=sizeof(float);
+            VkVertexInputAttributeDescription attributes[4]{
+                vertex_attribute,vertex_attribute,vertex_attribute,vertex_attribute};
             attributes[1].location=1;
             attributes[1].binding=1;
             attributes[2].location=2;
             attributes[2].binding=2;
             attributes[2].format=VK_FORMAT_R32G32_SFLOAT;
+            attributes[3].location=3;
+            attributes[3].binding=3;
+            attributes[3].format=VK_FORMAT_R32_SFLOAT;
             vertex_input.vertexBindingDescriptionCount=
-                face_uv ? 3u : (face_tint ? 2u : 1u);
+                material_atlas ? 4u : (face_uv ? 3u : (face_tint ? 2u : 1u));
             vertex_input.pVertexBindingDescriptions=bindings;
             vertex_input.vertexAttributeDescriptionCount=
-                face_uv ? 3u : (face_tint ? 2u : 1u);
+                material_atlas ? 4u : (face_uv ? 3u : (face_tint ? 2u : 1u));
             vertex_input.pVertexAttributeDescriptions=attributes;
             VkPipelineInputAssemblyStateCreateInfo assembly{
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
@@ -3569,7 +3611,13 @@ uint32_t present_persistent_clear_frame(uint32_t gl_released) {
             0,sizeof(float)*(sunlight ? 20u : 16u),
             world_light_push.data());
         const VkDeviceSize offset=0;
-        if (face_uv) {
+        if (material_atlas) {
+            const VkBuffer buffers[4]{world_device.mesh_vertices,
+                world_device.mesh_tint_vertices,world_device.mesh_uv_vertices,
+                world_device.mesh_material_slot_vertices};
+            const VkDeviceSize offsets[4]{0,0,0,0};
+            vkCmdBindVertexBuffers(cmd,0,4,buffers,offsets);
+        } else if (face_uv) {
             const VkBuffer buffers[3]{world_device.mesh_vertices,
                                       world_device.mesh_tint_vertices,
                                       world_device.mesh_uv_vertices};
@@ -5376,7 +5424,9 @@ int upload_world_material_slots(const ogl_rtx_face_material_slot* slots,
         !enabled("OGL_VULKAN_WORLD_CAMERA_PROBE") ||
         !world_device.device || !world_device.device_proc ||
         !world_device.destroy_buffer || !world_device.free_memory ||
-        world_device.offscreen_world_cache.submitted)
+        world_device.offscreen_world_cache.submitted ||
+        // Binding3 may still be used by submitted Vulkan WSI commands.
+        world_device.persistent.submitted_any)
         return 0;
     if (enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") &&
         !enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE"))

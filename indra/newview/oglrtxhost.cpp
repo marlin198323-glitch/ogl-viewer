@@ -299,6 +299,10 @@ void ogl_live_preview_world_swap() {
     if (rgba_preview && std::strcmp(rgba_preview,"0")!=0 &&
         std::strcmp(rgba_preview,"1")!=0) return;
     const bool preview_rgba=flag_enabled("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE");
+    const char* atlas_preview=std::getenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
+    if (atlas_preview && std::strcmp(atlas_preview,"0")!=0 &&
+        std::strcmp(atlas_preview,"1")!=0) return;
+    const bool preview_atlas=flag_enabled("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
     if (flag_enabled("OGL_VULKAN_PREVIEW_SUNLIGHT_PROBE") &&
         (!flag_enabled("OGL_VULKAN_WORLD_LAMBERT_PROBE") ||
          !flag_enabled("OGL_VULKAN_WORLD_SUN_LIGHT_PROBE"))) return;
@@ -323,6 +327,19 @@ void ogl_live_preview_world_swap() {
          !flag_enabled("OGL_VULKAN_LIVE_RGBA_SOURCE") ||
          !world_rgba_mesh_generation || !world_mesh_generation ||
          world_rgba_mesh_generation()!=world_mesh_generation())) {
+        if (ogl_preview_attached) ogl_live_preview_detach();
+        return;
+    }
+    if (preview_atlas &&
+        (!preview_rgba ||
+         !flag_enabled("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE") ||
+         !flag_enabled("OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE") ||
+         (std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE") &&
+          std::strcmp(std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE"),"0")!=0) ||
+         (std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE") &&
+          std::strcmp(std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE"),"0")!=0) ||
+         !world_material_slot_generation || !world_mesh_generation ||
+         world_material_slot_generation()!=world_mesh_generation())) {
         if (ogl_preview_attached) ogl_live_preview_detach();
         return;
     }
@@ -435,6 +452,7 @@ void ogl_live_preview_world_swap() {
             << (preview_tint ? "enabled" : "disabled")
             << "; uv-checker=" << (preview_uv ? "enabled" : "disabled")
             << "; rgba-image=" << (preview_rgba ? "enabled" : "disabled")
+            << "; material-atlas=" << (preview_atlas ? "enabled" : "disabled")
             << "; opaque decoded RGBA8 sampling or procedural UV checks, "
                "NOT downloaded OpenSim texture/PBR/alpha/terrain/avatar/UI."
             << LL_ENDL;

@@ -307,6 +307,29 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             << LL_ENDL;
         return;
     }
+    const char* raw_atlas_mode=std::getenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
+    if (secondary_window_probe && raw_atlas_mode &&
+        std::strcmp(raw_atlas_mode,"0")!=0 &&
+        std::strcmp(raw_atlas_mode,"1")!=0) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL four-material atlas preview rejects invalid opt-in; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
+    const bool secondary_material_atlas=secondary_window_probe &&
+        ogl_pre_gl_flag("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE");
+    const char* raw_atlas16=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+    const char* raw_atlas_hq=std::getenv("OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+    if (secondary_material_atlas &&
+        (!secondary_rgba_image ||
+         !ogl_pre_gl_flag("OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE") ||
+         (raw_atlas16 && std::strcmp(raw_atlas16,"0")!=0) ||
+         (raw_atlas_hq && std::strcmp(raw_atlas_hq,"0")!=0))) {
+        LL_WARNS("OGLRenderer") <<
+            "P05 SDL four-material atlas preview requires RGBA+slot source and 2x2 layout; OpenGL follows."
+            << LL_ENDL;
+        return;
+    }
     if (secondary_face_uv &&
         (!secondary_face_tint ||
          !ogl_pre_gl_flag("OGL_VULKAN_WORLD_UV_CHECKER_PROBE"))) {
@@ -366,6 +389,21 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         ~SecondaryTintFlagGuard() { restore(); }
     } secondary_tint_guard(secondary_face_tint,secondary_face_uv,
                            secondary_rgba_image);
+    // Separate atlas guard avoids activating binding3 during the initial
+    // real main SDL-window test, which has no synthetic material sidecar.
+    struct SecondaryAtlasFlagGuard {
+        bool enabled;
+        explicit SecondaryAtlasFlagGuard(bool enabled_flag)
+            : enabled(enabled_flag) {
+            if (enabled)
+                SDL_setenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE","0",1);
+        }
+        void restore() const {
+            if (enabled)
+                SDL_setenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE","1",1);
+        }
+        ~SecondaryAtlasFlagGuard() { restore(); }
+    } secondary_atlas_guard(secondary_material_atlas);
     // A GL context can still be current during a context rebuild. Never
     // Vulkan-present to a window with an existing GL owner.
     if (SDL_GL_GetCurrentContext()!=nullptr) {
@@ -400,6 +438,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     using UploadTint = int (*)(const ogl_rtx_face_tint*,uint32_t);
     using UploadUV = int (*)(const ogl_rtx_face_uv*,uint32_t);
     using UploadRGBA = int (*)(const uint8_t*,uint32_t,uint32_t);
+    using UploadSlot = int (*)(const ogl_rtx_face_material_slot*,uint32_t,uint32_t);
     using MeshCount = uint32_t (*)();
     using SetCamera = int (*)(const ogl_rtx_frame_state*);
     const auto set_camera=reinterpret_cast<SetCamera>(
@@ -423,6 +462,8 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_face_uvs"));
     const auto upload_rgba=reinterpret_cast<UploadRGBA>(
         SDL_LoadFunction(library,"ogl_vulkan_world_upload_rgba_image"));
+    const auto upload_slots=reinterpret_cast<UploadSlot>(
+        SDL_LoadFunction(library,"ogl_vulkan_world_upload_material_slots"));
     const auto mesh_count=reinterpret_cast<MeshCount>(
         SDL_LoadFunction(library,"ogl_vulkan_world_gpu_triangle_count"));
     const auto start=reinterpret_cast<ogl_module_start_fn>(
@@ -464,6 +505,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
     bool secondary_face_tint_verified=false;
     bool secondary_face_uv_verified=false;
     bool secondary_rgba_verified=false;
+    bool secondary_atlas_verified=false;
     bool secondary_material_busy_verified=false;
     uint32_t secondary_sunlight_frames=0;
     uint32_t secondary_window_stage=0;
@@ -1082,6 +1124,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                     // all rendering below targets a distinct SDL X11 window.
                     detach();
                     secondary_tint_guard.restore();
+                    secondary_atlas_guard.restore();
                     void* preview_display=nullptr;
                     U64 preview_xid=0;
                     int pw=0,ph=0;
@@ -1120,15 +1163,38 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                         // always come from real source-qualified OpenSim.
                         const bool green_uv_test=secondary_face_uv &&
                             ogl_pre_gl_flag("OGL_VULKAN_SDL_PREGL_UV_GREEN_TEST");
-                        const float u=secondary_rgba_image
-                            ? (green_uv_test ? .75f : .25f)
-                            : (green_uv_test ? .375f : .125f);
+                        const float u=secondary_material_atlas ? .5f :
+                            (secondary_rgba_image ? (green_uv_test ? .75f : .25f)
+                                                  : (green_uv_test ? .375f : .125f));
                         const float v=secondary_rgba_image ? .5f : .125f;
                         const ogl_rtx_face_uv checker_cell{{u,v,u,v,u,v}};
                         // Two opaque decoded test texels, NOT downloaded
                         // OpenSim/JPEG2000 assets or a texture cache.
                         const uint8_t test_texels[8]{
                             255u,0u,0u,255u,0u,255u,0u,255u};
+                        // Test-only 2x2/64x64 atlas with one red and one
+                        // green tile. Both runs pass identical UVs (.5,.5)
+                        // and differ ONLY in the GPU material-slot binding3.
+                        std::vector<uint8_t> test_atlas;
+                        if (secondary_material_atlas) {
+                            test_atlas.resize(64u*64u*4u,255u);
+                            for (uint32_t y=0;y<64u;++y)
+                                for (uint32_t x=0;x<64u;++x) {
+                                    const size_t pixel=(size_t(y)*64u+x)*4u;
+                                    test_atlas[pixel]=x<32u ? 255u : 0u;
+                                    test_atlas[pixel+1]=x<32u ? 0u : 255u;
+                                    test_atlas[pixel+2]=0u;
+                                }
+                        }
+                        const float slot_index=green_uv_test ? 1.f : 0.f;
+                        const ogl_rtx_face_material_slot test_slot{{
+                            slot_index,slot_index,slot_index}};
+                        const uint8_t* sampled_pixels=secondary_material_atlas
+                            ? test_atlas.data() : test_texels;
+                        const uint32_t sampled_width=secondary_material_atlas
+                            ? 64u : 2u;
+                        const uint32_t sampled_height=1u*
+                            (secondary_material_atlas ? 64u : 1u);
                         const bool uploaded_secondary=uploaded_geometry &&
                             (!secondary_face_tint ||
                              (upload_tints &&
@@ -1136,8 +1202,12 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                                              : &blue_face,1)==1)) &&
                             (!secondary_face_uv ||
                              (upload_uvs && upload_uvs(&checker_cell,1)==1)) &&
+                            (!secondary_material_atlas ||
+                             (upload_slots &&
+                              upload_slots(&test_slot,1u,2u)==1)) &&
                             (!secondary_rgba_image ||
-                             (upload_rgba && upload_rgba(test_texels,2u,1u)==1));
+                             (upload_rgba && upload_rgba(sampled_pixels,
+                                 sampled_width,sampled_height)==1));
                         if (uploaded_secondary) secondary_window_stage=2;
                         const bool attached_secondary=uploaded_secondary &&
                             attach(preview_display,preview_xid,pw,ph)==1;
@@ -1213,8 +1283,12 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                         ? &white_face : &blue_face,1)==0)) &&
                                 (!secondary_face_uv || (upload_uvs &&
                                     upload_uvs(&checker_cell,1)==0)) &&
+                                (!secondary_material_atlas || (upload_slots &&
+                                    upload_slots(&test_slot,1u,2u)==0 &&
+                                    upload_slots(nullptr,0u,0u)==0)) &&
                                 (!secondary_rgba_image || (upload_rgba &&
-                                    upload_rgba(test_texels,2u,1u)==0 &&
+                                    upload_rgba(sampled_pixels,
+                                        sampled_width,sampled_height)==0 &&
                                     upload_rgba(nullptr,0u,0u)==0));
                             auto* dpy=static_cast<Display*>(preview_display);
                             auto center_color=[&]() -> int {
@@ -1267,9 +1341,17 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                     persistent_count()==1;
                                 SDL_setenv("OGL_VULKAN_PREVIEW_RGBA_IMAGE_PROBE","1",1);
                             }
+                            bool frozen_atlas_mode=true;
+                            if (secondary_material_atlas) {
+                                SDL_setenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE","0",1);
+                                frozen_atlas_mode=persistent_present(1)==0 &&
+                                    persistent_count()==1;
+                                SDL_setenv("OGL_VULKAN_PREVIEW_MATERIAL_ATLAS_PROBE","1",1);
+                            }
                             camera.sun_direction[0]=1.f;
                             camera.sun_direction[2]=0.f;
-                            if (frozen_shader_mode && frozen_tint_mode &&
+                            if (frozen_atlas_mode &&
+                                frozen_shader_mode && frozen_tint_mode &&
                                 frozen_uv_mode && frozen_rgba_mode &&
                                 secondary_material_busy_verified &&
                                 first_component>=0 && set_camera(&camera)==1 &&
@@ -1288,6 +1370,7 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
                                         secondary_face_tint_verified=secondary_face_tint;
                                         secondary_face_uv_verified=secondary_face_uv;
                                         secondary_rgba_verified=secondary_rgba_image;
+                                        secondary_atlas_verified=secondary_material_atlas;
                                         break;
                                     }
                                     SDL_Delay(3);
@@ -1340,6 +1423,9 @@ void ogl_probe_real_sdl_window_before_gl(SDL_Window* window) {
             : "not-requested") <<
         ", secondary-rgba-image=" << (secondary_rgba_image
             ? (secondary_rgba_verified ? "verified" : "failed")
+            : "not-requested") <<
+        ", secondary-material-atlas=" << (secondary_material_atlas
+            ? (secondary_atlas_verified ? "verified" : "failed")
             : "not-requested") <<
         ", secondary-material-busy=" << (secondary_face_tint
             ? (secondary_material_busy_verified ? "verified" : "failed")
