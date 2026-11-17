@@ -421,6 +421,84 @@ def p05_live_preview_evidence(log_text: str, confirmed_frames: int):
     return count
 
 
+# Summarize actual log severity records, not ordinary prose containing
+# words such as "fatal errors: 0". The two libcurl/LLCoreHTTP layers may
+# each log ONE 502 response; never represent log rows as unique requests.
+OGL_LOG_LEVEL = re.compile(
+    r"^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z "
+    r"(ERROR|FATAL|WARNING) #")
+OGL_LOG_TIME = re.compile(r"^(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")
+MATERIAL_SOURCE_STATUS = re.compile(
+    r"P05 decoded material diagnostic: scan=(\d+) "
+    r"mode=(single|atlas4|atlas16|atlas-hq) "
+    r"state=(ready|batch-ineligible|no-eligible-tiles|decoded-unavailable) "
+    r"triangles=(\d+) tiles=(\d+) image_bytes=(\d+)")
+MATERIAL_MODES = frozenset(("single", "atlas4", "atlas16", "atlas-hq"))
+MATERIAL_STATES = frozenset((
+    "ready", "batch-ineligible", "no-eligible-tiles", "decoded-unavailable"))
+
+
+def viewer_network_texture_health(log_text: str):
+    """Counts only and UTC timestamps; never copy URLs, tokens or UUIDs."""
+    result = dict(errors=0, warnings=0, policy502=0, callback502=0,
+                  ce_callback502=0, other502=0, downrez=0,
+                  first502=None, last502=None, max_502_per_minute=0,
+                  texture404=0, texture_fetch_fail=0, texture_mark_missing=0,
+                  texture_load_downscale_rows=0, texture_load_downscale_max_seen=0,
+                  material_scans=0, material_ready=0, material_last=None)
+    minute_counts = {}
+    for line in log_text.splitlines():
+        m = OGL_LOG_LEVEL.match(line)
+        if m:
+            if m.group(1) in ("ERROR","FATAL"):
+                result["errors"] += 1
+            else:
+                result["warnings"] += 1
+        if "Low system memory detected, emergency downrezzing" in line:
+            result["downrez"] += 1
+        if "Texture missing from server (404)" in line:
+            result["texture404"] += 1
+        if "Fetch failure, setting as missing" in line:
+            result["texture_fetch_fail"] += 1
+        if "Marking image as missing" in line:
+            result["texture_mark_missing"] += 1
+        if "Texture will be downscaled immediately after loading." in line:
+            result["texture_load_downscale_rows"] += 1
+            # Firestorm emits a throttled ONCE (Nth time seen) warning.
+            # This is a threshold marker, NOT a distinct texture count.
+            marker = re.search(r"ONCE \((\d+)(?:st|nd|rd|th) time seen\)", line)
+            if marker:
+                result["texture_load_downscale_max_seen"] = max(
+                    result["texture_load_downscale_max_seen"],
+                    int(marker.group(1)))
+        if "Http_502" in line:
+            stamp = OGL_LOG_TIME.match(line)
+            if stamp:
+                utc = stamp.group(1)
+                result["first502"] = result["first502"] or utc
+                result["last502"] = utc
+                minute = utc[:16]  # YYYY-MM-DDTHH:MM, no URL/account values
+                minute_counts[minute] = minute_counts.get(minute, 0) + 1
+            if "#CoreHttp#" in line and "stageAfterCompletion" in line:
+                result["policy502"] += 1
+            elif "#CoreHTTP#" in line and "onCompleted" in line:
+                result["callback502"] += 1
+                if "cannot POST url " in line and "/CE/" in line:
+                    result["ce_callback502"] += 1
+            else:
+                result["other502"] += 1
+        if "P05 decoded material diagnostic:" in line:
+            decoded = MATERIAL_SOURCE_STATUS.search(line)
+            if decoded:
+                scan, mode, state, triangles, tiles, count = decoded.groups()
+                result["material_scans"] += 1
+                result["material_ready"] += (state == "ready")
+                result["material_last"] = (
+                    int(scan), mode, state, int(triangles), int(tiles), int(count))
+    result["max_502_per_minute"] = max(minute_counts.values(), default=0)
+    return result
+
+
 def report():
     print("OGL Viewer – local Linux Mint test")
     print("Binary:", "present" if BINARY.is_file() else "missing")
@@ -434,16 +512,48 @@ def report():
         # Numeric counts only: avoid leaking account names, URLs or credentials.
         text = LOG.read_text(errors="replace")
         print("Log file:", LOG)
-        print("Error entries:", len(re.findall(r"\b(?:ERROR|FATAL)\b", text)))
-        print("Warning entries:", len(re.findall(r"\bWARNING\b", text)))
-        # Aggregate specific failures without printing the private URLs,
-        # account identifiers or scene/object IDs in the log.
-        http502 = len(re.findall(r"\bHttp_502\b", text))
-        downrez = text.count("Low system memory detected")
+        health = viewer_network_texture_health(text)
+        print("Error entries:", health["errors"])
+        print("Warning entries:", health["warnings"])
+        # Individual libcurl policy errors and HTTP completion callbacks
+        # can refer to the SAME failed request. These are not request counts.
+        http502 = health["policy502"] + health["callback502"] + health["other502"]
+        downrez = health["downrez"]
         if http502 or downrez:
             print(f"OpenSim/texture warning indicators: {http502} HTTP 502 "
                   f"log entries, {downrez} texture memory-downrez entries "
                   "(may include repeated reports for one incident)")
+        if http502:
+            print("HTTP 502 log layers: "
+                  f"policy={health['policy502']} callbacks={health['callback502']} "
+                  f"CE_POST_callbacks={health['ce_callback502']} "
+                  f"other={health['other502']}; paired policy/callback "
+                  "records may describe one failed request")
+            print("HTTP 502 UTC window: "
+                  f"{health['first502'] or 'unknown'} to "
+                  f"{health['last502'] or 'unknown'}; "
+                  f"peak_log_rows_per_minute={health['max_502_per_minute']}")
+        if downrez:
+            print(f"Texture pressure: emergency downrez warnings={downrez}; "
+                  "system/VRAM cause not proven; not evidence of a Vulkan failure")
+        if (health["texture404"] or health["texture_fetch_fail"] or
+            health["texture_mark_missing"] or
+            health["texture_load_downscale_rows"]):
+            print("Texture fetch/decode warning layers: "
+                  f"missing_404={health['texture404']} "
+                  f"fetch_fail={health['texture_fetch_fail']} "
+                  f"marked_missing={health['texture_mark_missing']} "
+                  f"downscaled_after_load_log_rows={health['texture_load_downscale_rows']} "
+                  f"highest_throttled_seen={health['texture_load_downscale_max_seen']}; "
+                  "layered warnings are not counts of distinct failed assets")
+        if health["material_last"] is not None:
+            scan,mode,state,triangles,tiles,image_bytes=health["material_last"]
+            print("P05 decoded texture source: "
+                  f"reports={health['material_scans']} "
+                  f"ready={health['material_ready']} "
+                  f"latest_scan={scan} mode={mode} state={state} "
+                  f"triangles={triangles} tiles={tiles} bytes={image_bytes}; "
+                  "diagnostic only, not a source-qualified Vulkan frame")
         # Experimental CPU/cache acceleration is opt-in. Only report
         # aggregate counters; never texture UUIDs or account information.
         cache_events = re.findall(

@@ -6,6 +6,39 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs- und Logprüfschritte: sichere OpenSim-Texturdiagnose und echte Log-Fehlertrennung (17.11.2026 MEZ)
+
+**Ausgangspunkt und Nutzerlogs (nur LESEN, keine Live-Viewer-/Serveränderung):** Der laufende Linux-Mint-OGL-Viewer ist erfolgreich in einer OpenSim-3D-Welt angemeldet und zeichnet echte OpenGL-Frames; in `OGL.log` wurde **kein** P05-source-validierter Vulkan-Welt-/X11-Zweiframe-Nachweis aufgezeichnet. Wiederholte HTTP 502 bei `/CE/`-POSTs werden von LLCoreHttp sowohl auf Policy- als auch Completion-Ebene protokolliert, dürfen also nicht zu einer künstlichen Anzahl eindeutiger fehlgeschlagener Requests addiert werden. Daneben stehen Texture-404-, Fetch-Failure-, Mark-Missing-, emergency-downrez- und gedrosselte downscale-on-load-Warnungen. Die jüngste Diagnose ergab in einer fortlaufenden Logmomentaufnahme 352 Policy- und 352 Completion-502-Zeilen, 133 serverseitige Texture-404-Einträge, 134 Fetch-Failure- und 134 Mark-Missing-Zeilen, 12 Low-Memory-Downrez-Warnungen und sieben gedrosselte On-Load-Downscale-Zeilen mit einem Marker `400th time seen` (ein Marker, **keine 400 eindeutigen Assets**). Mehrere Logschichten können denselben Texturfehler darstellen. Ein read-only Hostsnapshot zeigte 31 GiB RAM mit rund 15 GiB verfügbar, 2,0 GiB/2,0 GiB genutzten Swap und NVIDIA RTX 4070 SUPER mit rund 5.979/12.282 MiB belegtem VRAM; daraus lässt sich die Ursache der früheren Downrez-Warnungen **nicht** definitiv ableiten. HTTP-502 sind aus Viewerlogs allein nicht serverseitig ursächlich zuzuordnen.
+
+**Implementierung:** `ogl/scripts/ogl-test-report.py` trennt nun echte ISO-UTC-Log-Severity-Zeilen von bloßen Wörtern `fatal errors: 0`, berichtet LLCoreHttp-Policy und LLCoreHTTP-Completion separat, isoliert `/CE/`-POST-Callbacks, die Zeitspanne und Peak-Logzeilen je Minute und zählt fehlende Texture-404, Fetch-Failure, als missing markierte Assets, explizite Textur-Speicher-Downrez-Events und das größte gedrosselte `ONCE (Nth time seen)`-Schwellensignal. **Keine** privaten URLs, URLs mit Tokens, Objekt-UUIDs oder Avatarinformationen werden im Report wiedergegeben. Diese aggregierten Zähler sind keine eindeutigen Request-/Asset-Zahlen.
+
+**Echte source-seitige Diagnose:** Im bestehenden `LLPipeline`-OpenSim-Deferred-Scanner wird unter dem separaten **standardmäßig AUS** gesetzten Entwickler-Opt-in `OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1` eine minimale, nichtidentifizierende Zusammenfassung der **bereits vom Firestorm-Decoder gelieferten** CPU-RGBA-Quelldaten erzeugt. Maximal die ersten drei und anschließend jeder 64. reale qualifizierte Source-Scan erzeugen eine Statuszeile `P05 decoded material diagnostic: scan=N mode=single|atlas4|atlas16|atlas-hq state=ready|batch-ineligible|no-eligible-tiles|decoded-unavailable triangles=N tiles=N image_bytes=N`. Die Vorschau lädt oder dekodiert **keine** Bilder neu, erstellt kein GL-Readback, setzt keine Vulkan-Flags automatisch und legt weder Texture-UUID noch Rohpixel im Log ab. Der bestehende Report erkennt nur streng eingeschränkte numerische Quellenstatus-Zeilen; `ready` ist **KEIN** authentifizierter Vulkan-GPU-Weltbeleg. Normaler OpenGL-Start und reguläre Shaderflags bleiben unberührt.
+
+**20 tatsächlich bearbeitete Schritte dieser Runde:**
+
+01. Linux-Mint Remote Commander, sauberen Branch `ogl-develop` und Ausgangscommit `87c57f15` gelesen.
+02. `AGENTS.md` samt Datenschutz-/Default-OFF-/Server-Veränderungsverbot geprüft.
+03. `ogl/PROJECT_HANDOFF.md` samt P05/3-OpenSim-Beweisgrenze gelesen.
+04. `ogl/PROJECT_STATUS.md` und letzte GPU-Mesh-Lifetime-Runde geprüft.
+05. Die bindende `/goal`-Roadmap einschließlich 20er-Phasenregel gelesen.
+06. Letzte GitHub-Plattform-CI `44125956817`: 6/6 native portable Jobs bestanden, Windows-Vollinstaller skipped.
+07. OpenGenesisLINK-`main` read-only auf neues `c18193a3fb` (Web-Profile-Feed-Default) und weiterhin `v0.9.4.0=ee15af8e` geprüft; kein neuer Viewer-Wire-Schnittstellenbedarf.
+08. Fehlenden `gen1-updates`-Releasekanal sowie offenen WIP-PR-Stand #443/#447/#448/#450/#453 read-only geprüft.
+09. Aktuelle OGL-/Firestorm-Logs samt Dateialter, 3D-Loginstatus, OpenGL-Frame und fehlendem Vulkan-Livereceipt **ohne Änderung der laufenden Viewerprozesse** gelesen.
+10. Warning-Verursacher kategorisiert: `/CE/`-502-Callbacks, Texture-404, fehlende Assets, Fetch-Failure, Low-Memory-Downrez und throttled On-Load-Downscale.
+11. Bestehenden `LLViewerFetchedTexture`-/`LLImageRaw`-/Materialatlas-Decoder im Deferred-Scanner ohne Asset-Neuladen analysiert.
+12. Separates, Default-OFF Opt-in `OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1` im existierenden Scanner hinzugefügt.
+13. Quellendiagnose auf erste drei plus jedes 64. Sample begrenzt, zur Vermeidung von Per-Face-Spam bei schwachen Textur-/Netzbedingungen.
+14. Nichtidentifizierende Modi und Source-Status eingeführt; kein Avatar, Region, Asset-UUID, URL, Passwort oder Raw-Image im Log.
+15. Bestehenden Logreport um **severity-verankerte** ERROR/FATAL/WARNING-Logzeilen statt Wortzählung erweitert.
+16. HTTP 502 nach Policy/Completion und anonymisierten `/CE/`-POST-Callbacks, UTC-Fenster und Peak-Zeilen/Minute getrennt.
+17. Texture-404-, Fetch-Failure-, Missing-, Emergency-Downrez- und throttled On-Load-Downscale-Klassen gesondert aufgezeichnet (kein Zählen vermeintlich eindeutiger Assets).
+18. Neun neue Python-Unitregressionen (insgesamt **453/453 PASS**) für echte Warnzeilen, Paarbildung, Source-Mode-Whitelists, Redaction, Limitierung und fehlenden GPU-Beweis sowie isolierte CLI-Logfixture ohne URL-Leak geprüft.
+19. Linux-Fullviewer kompiliert und Testmanifest synchronisiert; **41/41 native CTests**, native echte Vulkan-X11-16-/32-Frame-Langläufe und **drei** isolierte GUI-X11-Smokes (Sun-Legacy, HQ-Atlas, fehlende World-HQ-Permission) bestanden, OpenGL-Login ohne FATAL.
+20. Hostspezifischen Read-Only-RAM-/Swap-/GPU-Snapshot erhoben, aktuelle Logänderungen erneut geprüft, `git diff --check` durchgeführt, bestehende Status-/Roadmap-/Handoff-/AGENTS-Dateien aktualisiert, Commit/Push und GitHub-CI getrennt geprüft.
+
+**Phase bleibt P05 2/20, Block P05/3 OFFEN.** Kein authentifizierter OpenSim-Vulkan-Pixelnachweis, kein Vulkan-Hauptfenster-Renderer und keine neue Assetservice-/J2C-Downloadpipeline umgesetzt. Das HTTP-502-/Texture-404-Problem ist diagnostiziert, **nicht behoben**; keine Serverkonfiguration verändert und keine laufende Benutzersitzung neu gestartet. Alle Änderungen nur im bestehenden `ogl-develop`-Repository.
+
 ## P05/3 – /goal 20 Entwicklungs- und Prüfschritte: Quellgebundene Vulkan-WSI-Mesh-Lifetime (17.11.2026 MEZ)
 
 **Befund und Behebung:** Die bisherige native Vulkan-Tiefenpipeline durfte nach einem begrenzten VkFence-Wait die Mesh-VkBuffer einer laufenden persistenten Swapchain austauschen. Die bereits integrierten source-qualifizierten Shader für echte Face-RGB-, UV-, RGBA8-, 2×2-, 4×4- und HQ-Materialdaten benutzen aber zusätzlich GPU-Vertexbindungen 1–3. Der alte Meshwechsel zerstörte auch deren Sidecar-Buffer, obwohl die eingerichtete Pipeline/Swapchain weiterlebte. Neu verweigert `upload_world_geometry()` deshalb eine jede tatsächliche Meshrotation/Löschung, solange `frames.initialized && frames.submitted_any` und ein quellgebundener Tint-/UV-/RGBA-/Material-Shader aktiv sind – **auch bei expliziter Depth-Mesh-Rotation-Permission**. Die Prüfung liegt vor GPU-Fence-Waits, Allokation, Mesh-Löschung oder Generationwechsel. Identische, nach vollständigen Bytes deduplizierte Meshes bleiben unverändert erlaubt; Depth-only-Rotation nutzt weiter den ursprünglichen bounded-fence-Pfad.

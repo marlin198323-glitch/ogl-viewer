@@ -2,6 +2,45 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 17.11.2026: Log-/OpenSim-Texturquellen-Diagnose ohne Live-Renderer-Eingriff
+
+Read-only Nutzerlogprüfung zeigte echtes
+OpenSim-3D-Login und OpenGL, aber KEIN
+P05-source-qualifiziertes Vulkan-Present.
+Viele Http_502 bei /CE/-POSTs werden
+in Policy- und Completion-Schicht
+parallel geloggt; daneben Texture 404,
+Fetch Failure/Mark Missing, Not-Enough-
+Memory Downrez und throttled On-Load-
+Texturherunterskalierung. Der neue
+Report zählt Severity-Logs korrekt,
+aggregiert 502 nach Logschichten,
+UTC-Zeitfenster und Peak/Minute sowie
+getrennte Texture-Fehler und Speicher-
+Warnungen ohne URLs oder Asset-UUIDs.
+Ein neues Default-OFF Entwickleropt-in
+`OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1`
+liefert im existierenden Deferred-
+Scanner nur begrenzte Statusdaten
+bereits dekodierter CPU-Texturen,
+Modus und Freigabestatus; maximal
+die ersten drei und jeder 64. Scan.
+No fetch, no GL readback, no forced
+Vulkan Present, kein Pixelbeweis.
+453 Python-/41 native CTests,
+Linux Fullbuild, 3 X11-GPU-/Fallback-
+Smokes und native 16/32-GPU-Frames
+bestanden. **P05 bleibt 2/20; P05/3
+ist OFFEN.** Authentifizierte Vulkan-
+OpenSim-World-Pixel, echte Streaming-
+Cache-Integration, Terrain-/Avatar-/
+UI-Vulkan-Hauptfenster fehlen.
+502-/404-Serverstörung NICHT behoben,
+keine Server-/Viewer-Änderung zur
+laufenden Nutzer-Sitzung.
+OpenGenesisLINK-main c18193a3fb,
+Stable ee15af8e.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: sichere Vulkan-Mesh-/Material-Lifetime bei Regionwechsel
 
 Source-qualifizierte zweite Vulkan-

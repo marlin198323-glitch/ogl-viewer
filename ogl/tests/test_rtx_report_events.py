@@ -71,6 +71,145 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertIn("RTX validated diagnostic shadow rays:", source)
         self.assertIn("eligible candidate objects;", source)
 
+    def test_network_health_pairs_layered_502_without_claiming_unique_requests(self):
+        raw = (
+            "2026-11-17T16:58:40Z WARNING #CoreHttp# "
+            "stageAfterCompletion : failed Bad Gateway (Http_502)\n"
+            "2026-11-17T16:58:40Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'http://demo.invalid:9000/CE/test-private-id'\n"
+            "2026-11-17T16:59:10Z WARNING #CoreHttp# "
+            "stageAfterCompletion : failed Bad Gateway (Http_502)\n"
+            "2026-11-17T16:59:11Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'http://demo.invalid:9000/CE/private-other'\n"
+        )
+        health=module.viewer_network_texture_health(raw)
+        self.assertEqual((health['policy502'],health['callback502'],
+                          health['ce_callback502'],health['other502']),
+                         (2,2,2,0))
+        self.assertEqual(health['warnings'],4)
+        self.assertEqual(health['max_502_per_minute'],2)
+        self.assertEqual(health['first502'],'2026-11-17T16:58:40Z')
+        self.assertEqual(health['last502'],'2026-11-17T16:59:11Z')
+        self.assertNotIn('test-private-id',str(health))
+        self.assertNotIn('demo.invalid',str(health))
+
+    def test_network_health_unpaired_errors_never_invent_request_count(self):
+        raw = (
+            "2026-11-17T16:58:40Z WARNING #CoreHttp# "
+            "stageAfterCompletion : Bad Gateway (Http_502)\n"
+            "2026-11-17T16:58:41Z WARNING #Other# "
+            "receiveFailure : Http_502\n"
+            "2026-11-17T16:58:42Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot GET url "
+            "'https://example.invalid/test'\n"
+        )
+        h=module.viewer_network_texture_health(raw)
+        self.assertEqual((h['policy502'],h['callback502'],
+                          h['ce_callback502'],h['other502']), (1,1,0,1))
+
+    def test_network_health_requires_genuine_log_level(self):
+        raw=(
+            "2026-11-17T16:58:40Z INFO #Inventory# fatal errors: 0 "
+            "WARNING strings not log levels\n"
+            "2026-11-17T16:58:42Z WARNING #Texture# mild texture issue\n"
+            "2026-11-17T16:58:43Z ERROR #Texture# invalid asset\n"
+            "2026-11-17T16:58:44Z FATAL #Crash# actual failure\n"
+            "arbitrary ERROR / WARNING text\n"
+        )
+        h=module.viewer_network_texture_health(raw)
+        self.assertEqual((h['errors'],h['warnings']),(2,1))
+
+    def test_texture_memory_warning_is_not_necessarily_vulkan(self):
+        raw=(
+            "2026-11-17T16:56:43Z WARNING #Texture# "
+            "Low system memory detected, emergency downrezzing off screen textures\n"
+            "2026-11-17T16:56:50Z WARNING #Texture# "
+            "Low system memory detected, emergency downrezzing off screen textures\n")
+        h=module.viewer_network_texture_health(raw)
+        self.assertEqual(h['downrez'],2)
+        self.assertEqual(h['callback502'],0)
+        self.assertEqual(h['material_scans'],0)
+
+    def test_material_diagnostic_accepts_only_bounded_numeric_status(self):
+        raw=(
+            "2026-11-17T17:00:00Z INFO #OGLRenderer# "
+            "P05 decoded material diagnostic: scan=1 mode=atlas-hq "
+            "state=decoded-unavailable triangles=128 tiles=4 image_bytes=0\n"
+            "2026-11-17T17:00:01Z INFO #OGLRenderer# "
+            "P05 decoded material diagnostic: scan=64 mode=atlas-hq "
+            "state=ready triangles=128 tiles=4 image_bytes=262144\n"
+            "2026-11-17T17:00:02Z INFO #OGLRenderer# "
+            "P05 decoded material diagnostic: scan=65 mode=untrusted-name "
+            "state=ready triangles=42 tiles=4 image_bytes=20\n"
+        )
+        h=module.viewer_network_texture_health(raw)
+        self.assertEqual(h['material_scans'],2)
+        self.assertEqual(h['material_ready'],1)
+        self.assertEqual(h['material_last'],
+                         (64,'atlas-hq','ready',128,4,262144))
+
+    def test_texture_fetch_failure_stages_are_distinct_log_rows(self):
+        raw=(
+            "2026-11-17T17:00:00Z WARNING #Texture# "
+            "Texture missing from server (404): http://server.invalid/a-private-id\n"
+            "2026-11-17T17:00:01Z WARNING #Texture# "
+            "bad-id Fetch failure, setting as missing, decode_priority 10\n"
+            "2026-11-17T17:00:02Z WARNING #Texture# "
+            "bad-id: Marking image as missing\n"
+        )
+        stats=module.viewer_network_texture_health(raw)
+        self.assertEqual(stats["texture404"],1)
+        self.assertEqual(stats["texture_fetch_fail"],1)
+        self.assertEqual(stats["texture_mark_missing"],1)
+        self.assertEqual(stats["errors"],0)
+        self.assertNotIn('a-private-id',str(stats))
+        self.assertNotIn('server.invalid',str(stats))
+
+    def test_texture_downscale_once_marker_is_threshold_not_distinct_count(self):
+        raw=(
+            "2026-11-17T17:00:00Z WARNING #Texture# "
+            "ONCE (100th time seen): Texture will be downscaled immediately after loading.\n"
+            "2026-11-17T17:00:01Z WARNING #Texture# "
+            "ONCE (400th time seen): Texture will be downscaled immediately after loading.\n"
+            "2026-11-17T17:00:02Z WARNING #Texture# "
+            "ONCE (200th time seen): Texture will be downscaled immediately after loading.\n"
+        )
+        stats=module.viewer_network_texture_health(raw)
+        self.assertEqual(stats["texture_load_downscale_rows"],3)
+        self.assertEqual(stats["texture_load_downscale_max_seen"],400)
+        self.assertEqual(stats["downrez"],0)
+
+    def test_no_diagnostic_source_is_no_gpu_proof(self):
+        health=module.viewer_network_texture_health(
+            "2026-11-17T16:56:42Z INFO #OGLRTX# "
+            "OGL RTX CPU scene snapshot: triangles=1024 revision=1\n")
+        self.assertEqual(health['material_scans'],0)
+        self.assertIsNone(health['material_last'])
+        src=script.read_text()
+        self.assertIn('diagnostic only, not a source-qualified Vulkan frame',src)
+
+    def test_live_decoded_material_debug_is_opt_in_and_rate_bounded(self):
+        source=(Path(__file__).resolve().parents[2]/
+                'indra/newview/pipeline.cpp').read_text()
+        for token in (
+            'OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS',
+            'source_debug &&',
+            'std::strcmp(source_debug,"1")==0',
+            'source_debug_scans<=3u',
+            'source_debug_scans%64u==0u',
+            'P05 decoded material diagnostic: scan=',
+            'already decoded CPU source only; no Vulkan GPU proof.',
+            'batch-ineligible', 'decoded-unavailable',
+            'no-eligible-tiles', 'atlas-hq',
+        ):
+            self.assertIn(token,source)
+        idx=source.index('P05 decoded material diagnostic: scan=')
+        submit=source.index('ogl_rtx_submit_deferred_world_triangles(')
+        self.assertLess(idx,submit)
+        self.assertNotIn('LLUUID',source[idx-1600:submit])
+
     def test_warning_indicators_not_sensitive_details(self):
         source = script.read_text()
         self.assertIn("OpenSim/texture warning indicators:", source)

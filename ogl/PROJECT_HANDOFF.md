@@ -299,6 +299,48 @@ kein kompletter Vulkan-Hauptfenster-
 Terrain-/Avatar-/UI-/Materialrenderer.
 Keine Server- oder Benutzerdaten geändert.
 
+17.11.2026 – letzter /goal-20er-Block mit Live-Log-Lesung:
+Auf Linux Mint bestehendes OGL.log READ-ONLY
+geprüft; echtes OpenSim-Login/3D-Welt,
+normale OpenGL-Frames, aber 0 authentifizierte
+P05-Vulkan-X11-World-Sourcereceipts. Wiederholte
+`/CE/`-POSTs liefern Http_502 in zwei
+LLCoreHttp-Logebenen; zusätzlich echte
+Textur-404, Fetch-Failure, Mark-Missing,
+niedriger-Texturspeicher-Downrez und
+gedrosselte On-Load-Downscale-Warnungen.
+Einige Zeilen gehören zu einem Ereignis,
+keine absoluten eindeutigen Requestzahlen.
+Gesundheitsreport unterscheidet jetzt
+ERROR/FATAL/WARNING nur als Severity,
+502 Policy/Callback/CE-POST und UTC-Peak,
+Texture-404/Fetch/Missing/Downrez/Load-
+Downscale und privaten ID-freien Material-
+Quellenstatus. Der vorhandene Real-OpenSim-
+Deferred-Materialscanner loggt bei
+`OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1`
+(DEFAULT AUS) maximal 3 Anfangs- und dann
+jede 64. Bereits-dekodierte-Source-Probe
+als Modus + source-status + bounded numeric
+counts. Kein Asset-Fetch, GL-Readback,
+Texture-UUID oder neues GPU-Receipt.
+453 Python-/41 native CTests,
+Linux-Fullviewer-Build + Manifest,
+3 isolierte X11-GUI-Smokes, native
+16/32-GPU-Presents, OpenGL weiterhin
+funktionsfähig. 20 Schritte in
+PROJECT_STATUS.md, Roadmap/AGENTS aktualisiert.
+OpenGenesisLINK main c18193a3fb (Web
+Profile Feed), stable ee15af8e; keine
+viewerwire Protokollanpassung/Serveränderung.
+**P05 2/20, P05/3 weiterhin offen**:
+kein echter OpenSim-Vulkan-2-Frame-Weltbeleg,
+kein vollständiger Hauptfenster-Vulkan-
+Terrain-/Avatar-/UI-/Asset-Renderer.
+HTTP 502/Texture 404 nicht behoben.
+Laufendes Nutzerprofil/Nutzerviewer
+nicht angefasst.
+
 Linux-Mint-PC: jam-MS-7D28
 Desktop-Commander-ID: 3a1e9ba9-ea8a-4650-b8f7-84f8f653f20d
 Projektpfad: /home/jam/Schreibtisch/OGL-Viewer/ogl-firestorm

@@ -215,6 +215,42 @@ Server main a520063837, stable
 v0.9.4.0 ee15af8e unverändert;
 neue offene PR #453, keine Serveränderung.
 
+P05/3 – Read-only Live-Log-Audit 17.11.2026:
+Das laufende OGL.log zeigt OpenSim-3D-Login
+mit OpenGL-Renderer, aber KEINE reale
+OpenSim-Vulkan-Two-Frame-Weltquelle.
+`/CE/`-POST-502-Responses liefern in
+LLCoreHttp Policy UND Completion doppelt
+erscheinende Logzeilen. Weitere Diagnose:
+Texture-404, Fetch-Failure, Mark-Missing,
+Not-Enough-Texture-Memory-Downrez sowie
+throttled On-Load-Downscale (ONCE-N).
+Bericht `ogl/scripts/ogl-test-report.py`
+trennt ab sofort tatsächliche Severity,
+502-Policy/Callbacks und CE-POST-Errors,
+UTC-Fenster/Peak, Texture-404-Fetch/
+Missing/Downrez/Downscale-Schwellensignale;
+keine privaten UUIDs/URLs im Report.
+Neuer ausschließlich opt-in Source-Status
+aus dem bestehenden echten OpenSim-
+Deferred-Scanner:
+`OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1`;
+nur bestehende decoded CPU data,
+erste 3, anschließend jeder 64. Scan,
+Modus und bounded status counters,
+KEIN J2C-Fetch/GL-Readback oder GPU-Beleg.
+453 Python-/41 native CTests, Linux-
+Vollbuild, drei X11-GPU-Smokes und
+16/32 native GPU-Vulkan-Presents grün.
+**P05 unverändert 2/20, P05/3 OFFEN**.
+HTTP-502/Texture404 nicht gelöst,
+kein authentifizierter OpenSim-Weltbeleg,
+kein Vulkan-Main-World-/UI-/Avatar-
+Terrain-/Assetrenderer. Kein Eingriff
+in laufenden Viewer, Nutzerprofile oder
+Produktivserver. OpenGenesisLINK main
+c18193a3fb, stable ee15af8e unverändert.
+
 Verbindliche externe Serverquelle für jeden neuen /goal-Lauf:
 https://github.com/opengenesislink/opengenesislinkserver
 `main`, Stable `v0.9.4.0`, Release-/Updatekanal `gen1-updates`

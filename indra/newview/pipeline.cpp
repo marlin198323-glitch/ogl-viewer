@@ -10447,6 +10447,45 @@ void LLPipeline::renderDeferredLighting()
                                 decoded_rgba,image_w,image_h);
                         }
                     }
+                    // Optional, privacy-safe decoded-image readiness
+                    // diagnostic. This is OBSERVATION of the viewer's
+                    // existing, already-decoded CPU buffers, never a new
+                    // asset fetch/decode or GL texture readback. Neither
+                    // UUIDs nor network URLs, region names, user data,
+                    // camera positions or raw texture bytes are logged.
+                    const char* source_debug=std::getenv(
+                        "OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS");
+                    if (rgba_scan && source_debug &&
+                        std::strcmp(source_debug,"1")==0) {
+                        static std::uint32_t source_debug_scans=0;
+                        ++source_debug_scans;
+                        // First three + one in 64 bounded source scans;
+                        // no per-face log spam in regions under load.
+                        if (source_debug_scans<=3u ||
+                            source_debug_scans%64u==0u) {
+                            const char* mode=atlas_hq_scan ? "atlas-hq" :
+                                (atlas16_scan ? "atlas16" :
+                                (atlas_scan ? "atlas4" : "single"));
+                            const char* state=atlas_scan && !atlas_valid ?
+                                "batch-ineligible" :
+                                atlas_scan && !atlas_tile_count ?
+                                "no-eligible-tiles" :
+                                !atlas_scan && !homogeneous_rgba ?
+                                "batch-ineligible" :
+                                decoded_rgba.empty() ?
+                                "decoded-unavailable" : "ready";
+                            LL_INFOS("OGLRenderer")
+                                << "P05 decoded material diagnostic: scan="
+                                << source_debug_scans
+                                << " mode=" << mode
+                                << " state=" << state
+                                << " triangles=" << triangles.size()
+                                << " tiles=" << (atlas_scan ? atlas_tile_count : 0u)
+                                << " image_bytes=" << decoded_rgba.size()
+                                << "; already decoded CPU source only; no Vulkan GPU proof."
+                                << LL_ENDL;
+                        }
+                    }
                     ogl_rtx_submit_deferred_world_triangles(
                         triangles.front().position,
                         tint_scan ? face_tints.front().rgb : nullptr,
