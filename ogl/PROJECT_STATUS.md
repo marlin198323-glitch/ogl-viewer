@@ -6,6 +6,39 @@ Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
 
+## P05/3 – /goal 20 Entwicklungs- und Prüfschritte: echten 256px-HQ-OpenSim-Materialquellen-Hostpfad freischalten (18.11.2026 MEZ)
+
+**Echte, bislang verdeckte Implementierungslücke gefunden und korrigiert:** Der schon vorhandene Firestorm-Deferred-Scanner in `indra/newview/pipeline.cpp` darf bei `OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE=1` und sämtlichen übergeordneten Live-/RGBA-/Atlas16-Quellfreigaben aus maximal 16 bereits decodierten Opaque-Materialbildern einen **256×256 RGBA8-Atlas** packen. Das bestehende private Vulkan-Modul in `ogl/modules/rtx/ogl_rtx_module.cpp` besitzt hierfür bereits den zulässigen 256px VkImage-/Mode8-Shadermodus. Der reale Hostübergang `ogl_rtx_submit_deferred_world_triangles()` in `indra/newview/oglrtxhost.cpp` blockierte dagegen **ungeachtet des HQ-Modus jedes decodierte Bild über 64 Pixel** in Höhe oder Breite. Selbst eine korrekt aufgebaute, echte Quelle konnte somit den HQ-Hostübergang nie erreichen. Das war keine GPU-/Shader-Grenze, sondern ein vorgeschalteter falscher Dimensionscheck.
+
+**Neuer nativer, plattformneutraler Vertrag:** `ogl::deferred_rgba_source_extent_allowed()` im bestehenden `ogl_world_shadow_policy.h` prüft vier getrennte Quellarten, bevor der Host irgendeine `live_deferred_*`-Borrowed-Pointer-/Capture-Markierung setzt: NULL-Quelle **nur** mit (0,0), Single-Opaque-RGBA1 **1..64 pro Kante**, 2×2-/4×4-Legacyatlas **exakt 64×64**, 4×4-HQ **exakt 256×256**. Die HQ-Zulassung braucht zusätzlich alle expliziten Flagwerte `=1` für World-Meshupload, Face-Tint, UV, RGBA-Probe, Live-RGBA, Material-Atlas World/Live, 16-Material-Atlas World/Live und HQ-Atlas World/Live. HQ ohne Elternmodus, HQ ohne ausdrückliche Live-Genehmigung, falsche Maße und ein zu großes Bild im Legacy-Modus bleiben abgewiesen. Der normale OpenGL-Renderpfad und das benutzte OpenSim-Protokoll bleiben unverändert.
+
+**Stale-Receipt-Schutz:** Bei einer ungültigen, fehlenden oder falsch freigegebenen echten Scanner-Quelle invalidiert der Host vor der Rückgabe `live_deferred_capture_valid`, `live_deferred_receipt_epoch`, `live_deferred_mesh_generation` und `world_inputs_live_logged`. Ein abgewiesener neuer Scan darf dadurch nicht den GPU-Quellbeleg einer alten Region/Materialgeneration für einen späteren privaten Vulkan-Frame erben. Die vorhandene Vulkan-Swapchain-Lifetime und der OpenGL-Fallback bleiben erhalten.
+
+**20 belegte Umsetzungsschritte dieser Runde:**
+
+01. Linux-Mint-PC ausschließlich über Remote Desktop Commander geprüft; Ausgangsbranch `ogl-develop`, HEAD `1c720ce8`, sauberer Tree.
+02. `AGENTS.md` einschließlich Default-off-/Kein-Servereingriff-Anweisungen gelesen.
+03. `ogl/PROJECT_HANDOFF.md` samt P05/3-Quell-GPU-Abnahmegrenze gelesen.
+04. `ogl/PROJECT_STATUS.md` und vorangegangene Textur-Face-Diagnoserunde gelesen.
+05. `ogl/GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md` einschließlich 20er-Blockverfahren geprüft.
+06. Letzte CI `44349669951` read-only: **6/6 portable Grafik-Jobs erfolgreich** (Ubuntu x64/ARM, Windows x64/ARM, macOS Intel/ARM), Windows-x64-Vollinstaller durch Gate übersprungen.
+07. Externe OpenGenesisLINK-Serverquelle read-only: `main=62cc44447cf8`, Stable `v0.9.4.0=ee15af8e`, `gen1-updates` fehlt; keine Serverkonfiguration geändert.
+08. Aktuelles gespeichertes `OGL.log` gelesen: OpenSim-Login/GL-Welt, noch 0 authentifizierte Vulkan-Weltbelege; 180 Texture-404, 183 FetchFailure/MarkedMissing, 387 CE-POST-502-Callbacks (potenziell reguläre leere EventQueue), 8 Emergency-Downrez.
+09. Den echten HQ-Scanner mit `ogl_rtx_pack_rgba_atlas_4x4_hq()`, dem 256px-Image und den strikt angeforderten Live-Quellflags auditiert.
+10. Den früher unbeachteten **64px-Hardstop** bei `ogl_rtx_submit_deferred_world_triangles()` als echte P05-HQ-Blockade lokalisiert.
+11. Im bestehenden plattformneutralen Policy-Header eine streng begrenzte `deferred_rgba_source_extent_allowed()`-Freigabe ergänzt.
+12. Nichttexturierte CPU-Snapshots ohne Rohbild erhalten: Null-Pointer nur mit Bildmaß (0,0) akzeptiert; keine fiktiven GPU-Bildbelege.
+13. Den unveränderten Single-Image-Weg explizit auf 1..64 Pixel je Kante begrenzt.
+14. Bestehenden 2×2-/4×4-Atlasmodus strikt auf 64×64 und gültige Elternmodi begrenzt.
+15. HQ nur bei exakt **256×256** und vollständiger World-/Live-Atlas-/RGBA-/Tint-/UV-/Mesh-Freigabekette erlaubt.
+16. Den realen Hostübergang auf die neue Policy vor Pointer- und Provenienzübernahme umgestellt.
+17. Bei fehlgeschlagener Scanner-Quellfreigabe vorhandene Live-Region-/Mesh-/GPU-Receipts invalidiert, um Stale-Frame-Übernahme zu verhindern.
+18. Native C++-Regressionen (vollständige/fehlende HQ-Genehmigung, 256/255/257-Maße, Legacy-, Null- und Elternmodus-Grenzen) sowie fünf neue Python-Quellcode-/Provenienz-Verträge hinzugefügt: **468/468 Python-Tests**, **41/41 native CTests**.
+19. Linux-Vollviewer und synchronisiertes Testmanifest erfolgreich gebaut; native echte X11-/Vulkan-GPU-Regressionen mit **16 und 32 Presents**, Region-Barrier/Retirement sowie Meshrotation erfolgreich.
+20. Eigenständig isolierten Vulkan-HQ-X11-Viewer mit synthetischen Testpixeln gestartet: sekundäres GPU-Fenster inklusive HQ-/Tint-/UV-/RGBA-/Atlas-Prüfungen `verified`, danach OpenGL-`STATE_LOGIN_WAIT` ohne FATAL. Separater Negativstart mit fehlender HQ-World-Flag: GPU-HQ-Vorschau vor Präsentation verworfen und OpenGL-Login erfolgreich. Keine Änderungen an laufendem Benutzerprofil/Server; `git diff --check`, Status-/Roadmap-/Handoff-/AGENTS-Dokumentation, Commit-/Push-/CI-Prüfung durchgeführt.
+
+**Formaler Projektstand P05 weiterhin 2/20, Block P05/3 OFFEN.** Der nachweislich korrigierte *Host-Quellpfad* macht echte 256px-Bilder erstmals an dieser Stelle zulässig; er liefert jedoch **keinen** authentifizierten Live-OpenSim-Zwei-Frame-Weltbeleg. Die bisherigen OpenSim-Materialscans sind zudem bei Terrain-/Ray-Ankern und gemischten nicht-opaquen Materialien noch all-or-nothing; echter Asset-/J2C-Streaming-/Cacheausbau, Alpha/PBR, Avatare/Terrain-Komposition und Vulkan-Main-Window fehlen. Positiver X11-HQ-GPU-Test nutzt ausschließlich **synthetische** bereits dekodierte Testtexturen und bestätigt nicht die tatsächliche OpenSim-Live-Quelle. Kein Produktivserver verändert.
+
 ## P05/3 – /goal 20er-Runde: OpenSim-EventQueue-502 korrekt klassifizieren und Materialquellen-Faces auf CPU verifizieren (18.11.2026 MEZ)
 
 **Neuer OpenSim-Protokollbefund:** Im verbindlichen OpenGenesisLINK-Repository ist `POST /CE/{UUID}` die **EventQueueGet**-Long-Poll-Capability. `OpenSim/Region/ClientStack/Linden/Caps/EventQueue/EventQueueGetModule.cs`, Methode `NoEvents()`, antwortet bei einer gültigen, **leeren** EventQueue bewusst mit **HTTP 502**, bei fehlender Queue mit 404. Das servereigene Dokument `doc/NexVerse/MESH_UPLOAD_EVENTQUEUE_502_DIAGNOSTICS.md` bestätigt diese Semantik. Ein bloßes `/CE/`-502 aus dem Viewer-Log beweist **keine** defekte Mainland-Region, keinen Proxyfehler und keinen Mesh-Uploadfehler. Deshalb sind die früheren Formulierungen in dieser älteren Statushistorie, die alle `/CE/`-502 als Serverstörung bezeichneten, zu weitgehend. Normale Poll-Antworten NICHT blind auf HTTP 200 ändern. Echte Nicht-`/CE/`-502 und beobachtete Funktionsausfälle dagegen gezielt untersuchen.

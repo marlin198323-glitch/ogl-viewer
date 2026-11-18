@@ -1,4 +1,5 @@
 #include "ogl/ogl_rtx_api.h"
+#include "ogl/ogl_world_shadow_policy.h"
 #include "../../../indra/newview/oglrtxhost.h"
 #include <array>
 #include <cassert>
@@ -16,6 +17,51 @@
 #endif
 
 void log_cb(int, const char*) {}
+
+// Actual P05 host source-extent policy, independent of GPU/OS.
+// The former unconditional 64px limit made 256px HQ source uploads
+// impossible even after LLPipeline had successfully packed 16 tiles.
+static void test_deferred_live_rgba_source_extent_policy() {
+    using ogl::deferred_rgba_source_extent_allowed;
+    const auto permitted=[](bool pixels,unsigned w,unsigned h,
+        bool atlas,bool sixteen,bool hq,bool source) {
+        return deferred_rgba_source_extent_allowed(
+            pixels,w,h,atlas,sixteen,hq,source);
+    };
+    assert(permitted(false,0,0,false,false,false,false));
+    assert(permitted(false,0,0,true,true,true,false));
+    assert(!permitted(false,1,0,false,false,false,false));
+    assert(!permitted(false,0,1,true,true,true,true));
+    // Existing decoded single-image path, max 64 per edge.
+    assert(permitted(true,1,1,false,false,false,false));
+    assert(permitted(true,64,32,false,false,false,false));
+    assert(permitted(true,64,64,false,false,false,false));
+    assert(!permitted(true,0,64,false,false,false,false));
+    assert(!permitted(true,64,0,false,false,false,false));
+    assert(!permitted(true,65,64,false,false,false,false));
+    assert(!permitted(true,64,65,false,false,false,false));
+    assert(!permitted(true,256,256,false,false,false,true));
+    // 2x2 and 4x4 legacy atlas have an EXACT 64x64 extent.
+    assert(permitted(true,64,64,true,false,false,false));
+    assert(permitted(true,64,64,true,true,false,false));
+    assert(!permitted(true,63,64,true,false,false,false));
+    assert(!permitted(true,64,63,true,true,false,false));
+    assert(!permitted(true,256,256,true,false,false,true));
+    assert(!permitted(true,64,64,false,true,false,false));
+    // Real 4x4 HQ: only full 256x256 and the complete live chain.
+    assert(permitted(true,256,256,true,true,true,true));
+    assert(!permitted(true,256,256,true,true,true,false));
+    assert(!permitted(true,256,256,true,false,true,true));
+    assert(!permitted(true,256,256,false,true,true,true));
+    assert(!permitted(true,64,64,true,true,true,true));
+    assert(!permitted(true,255,256,true,true,true,true));
+    assert(!permitted(true,256,255,true,true,true,true));
+    assert(!permitted(true,257,256,true,true,true,true));
+    assert(!permitted(true,256,257,true,true,true,true));
+    std::fprintf(stdout,
+        "P05 real deferred HQ source extent: 256x256 full source "
+        "accepted, missing flags/shape/legacy oversize denied PASS\n");
+}
 
 // Independent platform-neutral native tests for the new LIVE Firestorm
 // LLImageRaw RGB/RGBA -> 64px Vulkan-source conversion. No image cache,
@@ -240,6 +286,7 @@ static void test_opensim_raw_thumbnail_policy() {
 
 int main(int argc, char** argv) {
     assert(argc == 2);
+    test_deferred_live_rgba_source_extent_policy();
     test_opensim_raw_thumbnail_policy();
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     assert(library);

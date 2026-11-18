@@ -2,6 +2,52 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 18.11.2026: Real-OpenSim-HQ-Source-Host-64px-Blockade korrigiert
+
+Der reale OpenSim-Deferred-Scanner
+konnte schon ein 256×256 RGBA8-
+Bild mit bis zu 16 Materialien aus
+bereits vom Viewer decodierten
+opaque Rohbildern bauen. Der Host
+`ogl_rtx_submit_deferred_world_triangles`
+blockierte zuvor JEDE Bitmap über
+64px und verwarf so den HQ-Pfad
+noch vor der GPU-Quellübernahme.
+Die neue gemeinsame Policy erlaubt
+exakt 256×256 nur bei allen
+ausdrücklichen World-/Live-/Tint-/
+UV-/RGBA-/Atlas4-/Atlas16-/HQ-/
+Mesh-Flags mit Wert 1.
+Legacy single 1..64, 2×2/4×4
+Atlas 64×64 bleiben strikt getrennt;
+Fehlfreigaben, 255/257/64-HQ oder
+oversize Legacy werden abgewiesen.
+Abgelehnte echte Scans invalidieren
+alten Capture-/Region-/Mesh-Receipt
+statt stale Materialquellen zu
+recyceln. Portable Policy und Host
+auf Linux kompiliert, 468 Python-
+Tests, 41 native CTests, 16/32
+echte Vulkan-X11 GPU-Presents,
+Region-Barrier/Meshrotation,
+isolierter HQ-positive-GUI-
+GPU-Pixelbeleg und HQ-negative
+OpenGL-Login-Fallback erfolgreich.
+GitHub-CI 44349669951 zuvor
+6/6 portable Jobs PASS.
+**P05 bleibt 2/20, P05/3 offen.**
+Die Tests sind synthetisch; echte
+OpenSim-WSI-2-Frame-Source, Texture-
+Asset-/J2C-Streaming, Terrain/
+Avatare/Alpha/PBR und Vulkan-Main-
+Window fehlen. Terrain-/Ray-Anker
+und andere ineligible Materialflächen
+können die Real-Atlas-Batchfreigabe
+noch blockieren, trotz beseitigtem
+64px-Hostlimit. Keine serverseitigen
+oder Benutzerprofil-Änderungen.
+20 Arbeitsschritte im PROJECT_STATUS.
+
 ### Aktueller P05/3-Checkpoint – 18.11.2026: EventQueueGet 502 richtig klassifiziert; Real-OpenSim Material-Faces nach Herkunft prüfbar
 
 /CE/<UUID> ist im OpenGenesisLINK-

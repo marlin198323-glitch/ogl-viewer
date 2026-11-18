@@ -1801,11 +1801,48 @@ void ogl_rtx_submit_deferred_world_triangles(
     unsigned image_width,unsigned image_height,unsigned count)
 {
 #if LL_LINUX || LL_WINDOWS
+    // The real scanner can produce a 256x256 HQ 4x4 material atlas.
+    // The original unconditional 64px host gate silently discarded
+    // legitimate HQ source captures before their GPU-generation checks.
+    // Match the exact source mode here, before setting any live pointers
+    // or source-provenance state; no invalid image may become a receipt.
+    const auto source_opted_in=[](const char* key) {
+        const char* value=std::getenv(key);
+        return value && std::strcmp(value,"1")==0;
+    };
+    const bool atlas_mode=source_opted_in(
+        "OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE");
+    const bool atlas16_mode=source_opted_in(
+        "OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE");
+    const bool hq_mode=source_opted_in(
+        "OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE");
+    const bool hq_source_authorized=
+        source_opted_in("OGL_VULKAN_WORLD_MESH_UPLOAD") &&
+        source_opted_in("OGL_VULKAN_WORLD_FACE_TINT_PROBE") &&
+        source_opted_in("OGL_VULKAN_WORLD_UV_CHECKER_PROBE") &&
+        source_opted_in("OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE") &&
+        source_opted_in("OGL_VULKAN_LIVE_RGBA_SOURCE") &&
+        atlas_mode &&
+        source_opted_in("OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE") &&
+        atlas16_mode &&
+        source_opted_in("OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE") &&
+        hq_mode &&
+        source_opted_in("OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE");
     if (!triangle_xyz || count==0 ||
         count>OGL_RTX_MAX_SCENE_TRIANGLES ||
-        (decoded_rgba && (!image_width || image_width>64 ||
-                          !image_height || image_height>64)))
+        !ogl::deferred_rgba_source_extent_allowed(
+            decoded_rgba!=nullptr,image_width,image_height,
+            atlas_mode,atlas16_mode,hq_mode,hq_source_authorized)) {
+        // A rejected real scanner batch is NOT permission to keep an
+        // older accepted material's region/mesh receipt. It may have
+        // come from a new scene or an invalidated decoded image.
+        // The next real-world swap will detach any stale preview.
+        live_deferred_capture_valid=false;
+        live_deferred_receipt_epoch=0;
+        live_deferred_mesh_generation=0;
+        world_inputs_live_logged=false;
         return;
+    }
     // All borrowed arrays and pixel buffers are owned by the REAL
     // deferred scanner and consumed synchronously on the render thread.
     static_assert(sizeof(ogl_rtx_face_tint)==sizeof(float)*3,

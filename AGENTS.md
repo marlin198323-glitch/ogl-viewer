@@ -5,6 +5,44 @@ https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
 
+P05/3 18.11.2026 /goal 20 neue
+Entwicklungs-/Testschritte: echte
+OpenSim-HQ-Materialquelle war trotz
+256×256 CPU-Atlas und GPU-Mode8
+durch ein vergessenes 64px-Limit im
+Host `ogl_rtx_submit_deferred_world_triangles`
+unerreichbar. Neuer shared policy guard
+`ogl::deferred_rgba_source_extent_allowed`
+prüft NULL/0, Single ≤64, Legacy-
+Atlas exakt 64, HQ exakt 256 mit
+vollständiger Default-Off Live-
+Source-Kette; alle Flags strikt '=1'.
+Fehlgates und falsche Bildmaße
+invalidieren unmittelbar vorübergehend
+alte Real-Defer-Quelle/Region/Mesh,
+kein stale Vulkan-Receipt.
+468 Python-Tests, 41 CTests,
+Linux-Fullbuild und Stage, native
+X11 Vulkan 16/32-GPU-Presents/
+Region-/Meshrotation erfolgreich,
+isoliertes synthetisches Vulkan-
+HQ-Zweitfenster inkl. echten GPU-
+Pixeln und OpenGL-Login sowie
+negativer Missing-HQ-Gate-OpenGL-
+Fallback getestet. Vorherige CI
+44349669951 6/6 erfolgreich.
+P05 trotzdem 2/20, P05/3 OFFEN:
+kein authentifizierter OpenSim-
+GPU-Weltpixel, kein neuer echter
+J2C-Assetdownload, kein vollständiges
+Main-Window-Vulkan. Terrain-/Ray-
+Anker und gemischte Materialflächen
+können echten Live-Atlas weiterhin
+all-or-nothing verhindern.
+Keine Server-, Benutzerprofil-
+oder Live-Sitzungsänderungen;
+siehe PROJECT_STATUS.md 20 Schritte.
+
 P05/3 18.11.2026: Die /CE/-502 aus
 dem OGL.log sind laut originalem
 OpenGenesisLINK-EventQueueGetModule

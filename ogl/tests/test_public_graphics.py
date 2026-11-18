@@ -2462,6 +2462,94 @@ class PublicGraphicsContracts(unittest.TestCase):
         ):
             self.assertIn(required,sdl)
 
+    def test_p05_real_opensim_hq_scanner_was_choked_by_legacy_64px_host(self):
+        pipeline=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        source=host[host.index('void ogl_rtx_submit_deferred_world_triangles('):
+                    host.index('// All borrowed arrays and pixel buffers are owned',
+                               host.index('void ogl_rtx_submit_deferred_world_triangles('))]
+        self.assertIn('image_w=atlas_hq_scan ? 256u : 64u;',pipeline)
+        self.assertIn('image_h=atlas_hq_scan ? 256u : 64u;',pipeline)
+        self.assertIn('ogl_rtx_pack_rgba_atlas_4x4_hq(',pipeline)
+        self.assertIn('ogl::deferred_rgba_source_extent_allowed(',source)
+        self.assertIn('decoded_rgba!=nullptr,image_width,image_height,',source)
+        self.assertNotIn('image_width>64',source)
+        self.assertNotIn('image_height>64',source)
+        self.assertLess(source.index('deferred_rgba_source_extent_allowed('),
+                        host.index('live_deferred_capture_call=true;')-
+                        host.index('void ogl_rtx_submit_deferred_world_triangles('))
+
+    def test_p05_hq_host_accepts_only_complete_explicit_live_source_chain(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        start=host.index('void ogl_rtx_submit_deferred_world_triangles(')
+        gate=host[start:host.index('// All borrowed arrays',start)]
+        for required in (
+            'OGL_VULKAN_WORLD_MESH_UPLOAD',
+            'OGL_VULKAN_WORLD_FACE_TINT_PROBE',
+            'OGL_VULKAN_WORLD_UV_CHECKER_PROBE',
+            'OGL_VULKAN_WORLD_RGBA_IMAGE_PROBE',
+            'OGL_VULKAN_LIVE_RGBA_SOURCE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_PROBE',
+            'OGL_VULKAN_LIVE_MATERIAL_ATLAS_SOURCE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_16_PROBE',
+            'OGL_VULKAN_LIVE_MATERIAL_ATLAS_16_SOURCE',
+            'OGL_VULKAN_WORLD_MATERIAL_ATLAS_HQ_PROBE',
+            'OGL_VULKAN_LIVE_MATERIAL_ATLAS_HQ_SOURCE',
+            'std::strcmp(value,"1")==0',
+            'hq_source_authorized',
+        ):
+            self.assertIn(required,gate)
+        self.assertIn('atlas_mode,atlas16_mode,hq_mode,hq_source_authorized',gate)
+
+    def test_p05_hq_source_host_rejection_drops_stale_receipt(self):
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        start=host.index('void ogl_rtx_submit_deferred_world_triangles(')
+        gate=host[start:host.index('// All borrowed arrays',start)]
+        assert_at=gate.index('!ogl::deferred_rgba_source_extent_allowed(')
+        for field in (
+            'live_deferred_capture_valid=false;',
+            'live_deferred_receipt_epoch=0;',
+            'live_deferred_mesh_generation=0;',
+            'world_inputs_live_logged=false;',
+        ):
+            self.assertIn(field,gate[assert_at:])
+        self.assertLess(gate.index('live_deferred_capture_valid=false;'),
+                        gate.index('return;',assert_at))
+        self.assertNotIn('live_deferred_capture_call=true;',gate)
+
+    def test_p05_portable_source_extent_policy_preserves_64px_legacy_modes(self):
+        header=(ROOT/'ogl/modules/include/ogl/ogl_world_shadow_policy.h').read_text()
+        first=header.index('inline bool deferred_rgba_source_extent_allowed(')
+        section=header[first:header.index('// A secondary Vulkan SDL QA preview',first)]
+        for required in (
+            'if (!pixels_present) return width==0u && height==0u;',
+            'if (atlas16_mode && !atlas_mode) return false;',
+            'atlas_mode && atlas16_mode && hq_source_authorized',
+            'width==256u && height==256u;',
+            'if (atlas_mode) return width==64u && height==64u;',
+            'width>=1u && width<=64u',
+            'height>=1u && height<=64u',
+        ):
+            self.assertIn(required,section)
+        self.assertNotIn('std::getenv(',section)
+
+    def test_p05_hq_source_extent_policy_exercised_in_native_gpu_bridge(self):
+        native=(ROOT/'ogl/modules/rtx/frame_bridge_test.cpp').read_text()
+        self.assertIn('#include "ogl/ogl_world_shadow_policy.h"',native)
+        self.assertIn('test_deferred_live_rgba_source_extent_policy();',native)
+        for required in (
+            'permitted(true,256,256,true,true,true,true)',
+            'permitted(true,256,256,true,true,true,false)',
+            'permitted(true,64,64,false,false,false,false)',
+            'permitted(true,64,64,true,true,false,false)',
+            'permitted(true,257,256,true,true,true,true)',
+            'permitted(false,0,0,true,true,true,false)',
+        ):
+            self.assertIn(required,native)
+        gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
+        self.assertIn('const uint32_t max_source_edge=hq_requested ? 256u : 64u;',gpu)
+        self.assertIn('width!=(hq_requested ? 256u : 64u)',gpu)
+
     def test_p05_secondary_vulkan_hq_256_atlas_mode8_live_source_and_gpu(self):
         gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()

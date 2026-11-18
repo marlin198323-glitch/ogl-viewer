@@ -5,6 +5,53 @@ Branch: ogl-develop
 Git-Remote: https://github.com/marlin198323-glitch/ogl-viewer.git
 
 
+18.11.2026 – /goal neue 20er-Runde:
+Echte P05-HQ-Source-Blockade behoben.
+Der LLPipeline-OpenSim-Decoder packt
+bei vollständigen Source-Gates bis
+zu 16 opaque RGBA8-Texturen bereits
+in einen 256×256-HQ-Materialatlas,
+während der Host vorher noch jedes
+Bild >64px strikt ablehnte. Neuer
+portabler CPU-Policy-Guard
+`ogl::deferred_rgba_source_extent_allowed`
+im bestehenden `ogl_world_shadow_policy.h`:
+Single 1..64, Atlas 2×2/4×4 exakt 64,
+HQ 4×4 exakt 256 nur mit kompletter
+World/Live/Mesh/Tint/UV/RGBA-/Atlas/
+Atlas16-/HQ-Genehmigungskette. Kein
+HQ-/Image-Upsize durch unvollständige
+Flags, kein Vererben alter GPU-Source:
+abgewiesene Real-Scanner-Source
+invalidiert capture_valid, epoch,
+mesh_generation und live-log-status.
+Nativen C++-Regressionen für Source-
+Modi und 5 Python-Tests ergänzt;
+468 Python-Tests, 41 CTests,
+Linux-Fullbuild + Stage, native 16/
+32 X11 GPU-Presents + Region- und
+Meshrotation grün. Isolierter positiver
+HQ-GPU-Zweitfenster-/OpenGL-Login
+und negativer fehlender HQ-World-Flag-
+GUI-Test erfolgreich, OHNE FATAL,
+jeweils isoliertes Testprofil.
+Vorläufer-CI 44349669951 6/6
+portable Plattform-Jobs erfolgreich.
+OpenGenesisLINK main 62cc44447cf8,
+Stable ee15af8e. Keine Server-/
+Nutzerprofil-/Live-Sitzungsänderung.
+**P05 2/20, P05/3 OFFEN**:
+authentifizierte echte OpenSim-Welt-
+HQ-Quelle mit zwei Vulkan-Presents
+weiter unbewiesen; Terrain-/Ray-Anker
+und unsupported Alpha/PBR können
+den aktuellen Batch weiterhin
+all-or-nothing sperren. Kein
+vollständiger Vulkan-Hauptfenster-
+Renderer, kein neuer Asset-Download.
+Siehe PROJECT_STATUS.md für alle
+20 einzeln dokumentierten Schritte.
+
 18.11.2026 /goal 20er-Runde: /CE/ HTTP 502 ist
 in OpenGenesisLINK EventQueueGetModule.NoEvents()
 bei leerer gültiger Queue ein beabsichtigter

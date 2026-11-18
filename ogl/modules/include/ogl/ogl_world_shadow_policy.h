@@ -75,6 +75,26 @@ inline bool present_coupled_retry_due(
              present_coupled_retry_delay(failures));
 }
 
+// P05 real OpenSim decoded RGBA8 material-source extent gate.
+// The 256x256 HQ scanner must not be dropped by the old 64x64 host ABI.
+// Keep 1..64px single-image and exact 64x64 atlas modes separate;
+// high-quality 256x256 requires the complete, explicit live source chain.
+// Null decoded pixels may still submit diagnostic geometry without ever
+// establishing a source-qualified textured Vulkan receipt.
+inline bool deferred_rgba_source_extent_allowed(
+    bool pixels_present, uint32_t width, uint32_t height,
+    bool atlas_mode, bool atlas16_mode, bool hq_mode,
+    bool hq_source_authorized) noexcept {
+    if (!pixels_present) return width==0u && height==0u;
+    if (atlas16_mode && !atlas_mode) return false;
+    if (hq_mode)
+        return atlas_mode && atlas16_mode && hq_source_authorized &&
+               width==256u && height==256u;
+    if (atlas_mode) return width==64u && height==64u;
+    return width>=1u && width<=64u &&
+           height>=1u && height<=64u;
+}
+
 // A secondary Vulkan SDL QA preview is strictly one attempt per REAL
 // source. After 16 frames, user close, failure or Vulkan teardown, do not
 // reopen for the same region+deferred capture+GPU mesh. Allow precisely one
