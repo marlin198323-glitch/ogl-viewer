@@ -2,6 +2,45 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 18.11.2026: EventQueueGet 502 richtig klassifiziert; Real-OpenSim Material-Faces nach Herkunft prüfbar
+
+/CE/<UUID> ist im OpenGenesisLINK-
+Quellcode die EventQueueGet-Capability;
+NoEvents() erzeugt bei leerer aktiver
+Queue absichtlich HTTP 502. Diese
+Logzeilen sind ohne tatsächlichen
+Viewer-Funktionsausfall KEIN Nachweis
+für eine defekte Mainland-Region.
+Der Testreport ordnet CE-POST-502 und
+andere 502 ab jetzt getrennt ein;
+CE-Nachweis über echten URL-Pfad,
+niemals URL-/Token-Ausgabe.
+Texture-404 bleibt gesondert:
+GetAssetsModule -> GetTexture ->
+IAssetService prüfen.
+Für die P05 GPU-Material-Quellen
+zählt der echte opt-in Deferred-
+Scanner pro geprüfter Face-Quelle
+eligible, missing/placeholder und
+unsupported. Bereits dekodierte
+Firestorm-CPU-Bilder, kein zusätzlicher
+Download/J2C-Decoder/GL-Readback,
+nur numerische, gedrosselte Logdaten.
+463 Python-/41 native CTests,
+Linux-Vollbuild/Manifest,
+native Vulkan-X11 16/32 und Region,
+isolierter OpenGL-X11-Login grün.
+Zusätzliche 3 alte GUI-Smokes nicht
+ausgeführt: /tmp QA-Helfer fehlte
+nach Reboot. P05 weiterhin 2/20,
+P05/3 noch offen; es fehlen
+authentifizierte OpenSim-WSI-Welt-
+Pixel mit zwei GPU-Frames, echte
+Texture-Asset-Pipeline und voll-
+ständige Vulkan-Hauptfensterengine.
+OpenGenesisLINK main 62cc44447cf8,
+stable ee15af8e; keine Serveränderung.
+
 ### Aktueller P05/3-Checkpoint – 17.11.2026: Log-/OpenSim-Texturquellen-Diagnose ohne Live-Renderer-Eingriff
 
 Read-only Nutzerlogprüfung zeigte echtes

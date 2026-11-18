@@ -4,6 +4,45 @@ Kanonisches Repository:
 https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
+
+P05/3 18.11.2026: Die /CE/-502 aus
+dem OGL.log sind laut originalem
+OpenGenesisLINK-EventQueueGetModule
+bei einer gültigen, leeren Queue
+eine beabsichtigte NoEvents()-Antwort.
+Nicht pauschal Proxy-/Mesh-Fehler
+diagnostizieren, kein ungeprüftes
+Server-Protokoll ändern. Andere
+502 und Texture-404 gesondert prüfen
+(GetAssetsModule/GetTexture/AssetService).
+Report trennt URL-Pfad-qualifiziertes
+EventQueueGet-POST-502, andere HTTP-
+502, Texture-404/Fetch/MarkMissing.
+Der echte Deferred-Firestorm-Scanner
+liefert mit ausschließlich explizitem
+OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1
+weitere bounded Material-Face-Zähler:
+eligible, missing-or-placeholder,
+unsupported; KEINE Assets, Namen,
+UUIDs, URLs, Bildbytes, neue Fetches.
+463 Python-/41 native CTests,
+Full Linux Build/Manifest, Vulkan-X11
+16/32-Frames, Region-Barrier und
+isolierter OpenGL-Login PASS.
+Der alte /tmp GUI-Testhelfer fehlt
+seit Reboot; keine ungetesteten drei
+separaten GUI-Smokes als grün melden.
+Letzte CI 44134366081: 5/6 success,
+macOS ARM ohne Runner canceled.
+P05 weiterhin 2/20, P05/3 OFFEN,
+kein authentifizierter OpenSim-Vulkan-
+Weltpixelbeleg, keine vollständige
+Vulkan-Main-Engine oder J2C-Quelle.
+Server main 62cc44447cf8,
+Stable ee15af8e; keine
+Produktivserveränderungen.
+
+
 P05/3 Nachtrag 15.11.2026: Echte OpenSim-Vulkan-
 Zweitfenster-Pixel sind erst nach ZWEI verschiedenen
 source-validierten GPU-Presents samt voneinander

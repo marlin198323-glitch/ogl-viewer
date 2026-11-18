@@ -4,6 +4,42 @@ Aktuelles Projekt: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Git-Remote: https://github.com/marlin198323-glitch/ogl-viewer.git
 
+
+18.11.2026 /goal 20er-Runde: /CE/ HTTP 502 ist
+in OpenGenesisLINK EventQueueGetModule.NoEvents()
+bei leerer gültiger Queue ein beabsichtigter
+Long-Poll-Status; NICHT pauschal Proxyfehler.
+GetTexture-/ViewerAsset-404, FetchFail und
+MarkMissing bleiben separat zu prüfen.
+OGL-Testreport trennt echte /CE/-POST-502,
+andere 502, Severity, Texture-404 und
+optionale Quelle; URL-Pfad statt Query-
+String-Zufallstreffer. Der reale Firestorm-
+Deferred-Scanner protokolliert bei
+OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1
+(standardmäßig AUS) zusätzlich für aktuell
+gesehene Material-Faces die Anzahl
+eligible / missing-or-placeholder /
+unsupported ohne Namen, UUIDs, URL,
+Bilddaten oder neue Downloads. GPU-Source-
+Beweis ist das NICHT. 463 Python-Tests,
+41 CTests, Linux-Fullbuild + Manifest,
+16/32-FRAME und Region-GPU-X11-Tests,
+ein isolierter OpenGL-X11-Login bestanden.
+Alter ungetrackter /tmp GUI-Helfer nach
+Reboot nicht mehr vorhanden, deshalb
+keine zusätzlichen 3 GUI-Smoketest-Erfolge
+behaupten. Frühere CI 44134366081:
+5 von 6 portable success, macOS ARM ohne
+Runner canceled -> Gesamt failure.
+Server-main 62cc44447cf8; stable ee15af8e.
+Kein produktiver Server geändert.
+Formal P05 2/20, P05/3 OFFEN; echte
+OpenSim-2Frame-Vulkan-Welt/Assets und
+Hauptfenster fehlen. 20 einzelne Maßnahmen
+im PROJECT_STATUS.md.
+
+
 15.11.2026 – neue P05/3-Entwicklungsrunde (20 reale
 Prüfschritte): Die streng opt-in aktivierte zweite
 SDL/X11-Vulkan-Weltvorschau erfordert für einen

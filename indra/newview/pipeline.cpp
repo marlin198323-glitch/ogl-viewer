@@ -9699,6 +9699,12 @@ void LLPipeline::renderDeferredLighting()
                 if (atlas_scan) face_material_slots.reserve(ogl_triangle_budget);
                 std::uint32_t atlas_tile_count=0;
                 bool atlas_valid=atlas_scan && triangles.empty();
+                // Optional source diagnostics: count texture-entry faces
+                // only, never identifiers, addresses, asset bytes or URLs.
+                // These are face eligibility counts, NOT failed downloads.
+                std::uint32_t rgba_eligible_faces=0;
+                std::uint32_t rgba_missing_image_faces=0;
+                std::uint32_t rgba_unsupported_faces=0;
                 const LLVector3 eye = camera->getOrigin();
                 size_t near_terrain_triangles=0;
                 size_t mid_terrain_triangles=0;
@@ -10118,6 +10124,7 @@ void LLPipeline::renderDeferredLighting()
                         // Actual image bytes are inspected ONLY after
                         // geometry passes the scanner's acceptance policy.
                         LLViewerFetchedTexture* face_image=nullptr;
+                        bool image_missing_or_placeholder=false;
                         if (rgba_scan && face_uv_transform_valid &&
                             !volume_object->mTextureAnimp) {
                             const LLTextureEntry* te=volume_object->getTE(f);
@@ -10136,8 +10143,18 @@ void LLPipeline::renderDeferredLighting()
                             }
                             if (face_image &&
                                 (face_image->isMissingAsset() ||
-                                 face_image==LLViewerFetchedTexture::sDefaultImagep.get()))
+                                 face_image==LLViewerFetchedTexture::sDefaultImagep.get())) {
+                                image_missing_or_placeholder=true;
                                 face_image=nullptr;
+                            }
+                        }
+                        if (rgba_scan) {
+                            if (face_image)
+                                ++rgba_eligible_faces;
+                            else if (image_missing_or_placeholder)
+                                ++rgba_missing_image_faces;
+                            else
+                                ++rgba_unsupported_faces;
                         }
                         if (tint_scan) {
                             // This is real per-face texture-entry diffuse
@@ -10482,6 +10499,9 @@ void LLPipeline::renderDeferredLighting()
                                 << " triangles=" << triangles.size()
                                 << " tiles=" << (atlas_scan ? atlas_tile_count : 0u)
                                 << " image_bytes=" << decoded_rgba.size()
+                                << " eligible_faces=" << rgba_eligible_faces
+                                << " missing_image_faces=" << rgba_missing_image_faces
+                                << " unsupported_faces=" << rgba_unsupported_faces
                                 << "; already decoded CPU source only; no Vulkan GPU proof."
                                 << LL_ENDL;
                         }

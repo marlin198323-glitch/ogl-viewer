@@ -428,11 +428,17 @@ OGL_LOG_LEVEL = re.compile(
     r"^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z "
     r"(ERROR|FATAL|WARNING) #")
 OGL_LOG_TIME = re.compile(r"^(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")
+# Match the actual /CE/ POST URL path, never an incidental query string or
+# error message containing "/CE/". The opaque token is NOT extracted.
+CE_EVENTQUEUE_POST = re.compile(
+    r"cannot POST url 'https?://[^/'\s]+/CE/[^/'?\s]+'")
 MATERIAL_SOURCE_STATUS = re.compile(
     r"P05 decoded material diagnostic: scan=(\d+) "
     r"mode=(single|atlas4|atlas16|atlas-hq) "
     r"state=(ready|batch-ineligible|no-eligible-tiles|decoded-unavailable) "
-    r"triangles=(\d+) tiles=(\d+) image_bytes=(\d+)")
+    r"triangles=(\d+) tiles=(\d+) image_bytes=(\d+)"
+    r"(?: eligible_faces=(\d+) missing_image_faces=(\d+) "
+    r"unsupported_faces=(\d+))?")
 MATERIAL_MODES = frozenset(("single", "atlas4", "atlas16", "atlas-hq"))
 MATERIAL_STATES = frozenset((
     "ready", "batch-ineligible", "no-eligible-tiles", "decoded-unavailable"))
@@ -443,9 +449,11 @@ def viewer_network_texture_health(log_text: str):
     result = dict(errors=0, warnings=0, policy502=0, callback502=0,
                   ce_callback502=0, other502=0, downrez=0,
                   first502=None, last502=None, max_502_per_minute=0,
+                  non_ce_callback502=0,
                   texture404=0, texture_fetch_fail=0, texture_mark_missing=0,
                   texture_load_downscale_rows=0, texture_load_downscale_max_seen=0,
-                  material_scans=0, material_ready=0, material_last=None)
+                  material_scans=0, material_ready=0, material_last=None,
+                  material_faces_last=None)
     minute_counts = {}
     for line in log_text.splitlines():
         m = OGL_LOG_LEVEL.match(line)
@@ -483,18 +491,24 @@ def viewer_network_texture_health(log_text: str):
                 result["policy502"] += 1
             elif "#CoreHTTP#" in line and "onCompleted" in line:
                 result["callback502"] += 1
-                if "cannot POST url " in line and "/CE/" in line:
+                if CE_EVENTQUEUE_POST.search(line):
                     result["ce_callback502"] += 1
+                else:
+                    result["non_ce_callback502"] += 1
             else:
                 result["other502"] += 1
         if "P05 decoded material diagnostic:" in line:
             decoded = MATERIAL_SOURCE_STATUS.search(line)
             if decoded:
-                scan, mode, state, triangles, tiles, count = decoded.groups()
+                (scan, mode, state, triangles, tiles, count,
+                 eligible, missing, unsupported) = decoded.groups()
                 result["material_scans"] += 1
                 result["material_ready"] += (state == "ready")
                 result["material_last"] = (
                     int(scan), mode, state, int(triangles), int(tiles), int(count))
+                result["material_faces_last"] = (
+                    (int(eligible), int(missing), int(unsupported))
+                    if eligible is not None else None)
     result["max_502_per_minute"] = max(minute_counts.values(), default=0)
     return result
 
@@ -529,6 +543,19 @@ def report():
                   f"CE_POST_callbacks={health['ce_callback502']} "
                   f"other={health['other502']}; paired policy/callback "
                   "records may describe one failed request")
+            if health["ce_callback502"]:
+                # OpenGenesisLINK EventQueueGetModule.NoEvents() returns 502
+                # for a valid, currently empty long-poll queue. Do not
+                # present ordinary /CE/ polls as a broken proxy/server.
+                print("OpenSim EventQueueGet /CE/: "
+                      f"{health['ce_callback502']} POST 502 callback log rows; "
+                      "a normal empty long-poll can return 502 by design, "
+                      "NOT independently a server/proxy failure")
+            if health["non_ce_callback502"] or health["other502"]:
+                print("Other HTTP 502: "
+                      f"non_CE_callbacks={health['non_ce_callback502']} "
+                      f"other_layer_rows={health['other502']}; "
+                      "inspect request/service errors separately")
             print("HTTP 502 UTC window: "
                   f"{health['first502'] or 'unknown'} to "
                   f"{health['last502'] or 'unknown'}; "
@@ -546,6 +573,10 @@ def report():
                   f"downscaled_after_load_log_rows={health['texture_load_downscale_rows']} "
                   f"highest_throttled_seen={health['texture_load_downscale_max_seen']}; "
                   "layered warnings are not counts of distinct failed assets")
+            if health["texture404"]:
+                print("Texture 404 investigation: GetAssetsModule/GetTexture "
+                      "capability, IAssetService availability and asset "
+                      "responses; unrelated to normal /CE/ empty long-polls")
         if health["material_last"] is not None:
             scan,mode,state,triangles,tiles,image_bytes=health["material_last"]
             print("P05 decoded texture source: "
@@ -554,6 +585,12 @@ def report():
                   f"latest_scan={scan} mode={mode} state={state} "
                   f"triangles={triangles} tiles={tiles} bytes={image_bytes}; "
                   "diagnostic only, not a source-qualified Vulkan frame")
+            if health["material_faces_last"] is not None:
+                eligible,missing,unsupported=health["material_faces_last"]
+                print("P05 decoded source face eligibility: "
+                      f"eligible={eligible} missing_or_placeholder={missing} "
+                      f"unsupported={unsupported}; per-scanned-face counters, "
+                      "not failed texture-download counts")
         # Experimental CPU/cache acceleration is opt-in. Only report
         # aggregate counters; never texture UUIDs or account information.
         cache_events = re.findall(

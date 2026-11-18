@@ -181,6 +181,150 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(stats["texture_load_downscale_max_seen"],400)
         self.assertEqual(stats["downrez"],0)
 
+    def test_eventqueue_normal_empty_poll_is_not_asserted_as_server_failure(self):
+        log=(
+            "2026-11-18T16:00:00Z WARNING #CoreHttp# "
+            "stageAfterCompletion : Bad Gateway (Http_502)\n"
+            "2026-11-18T16:00:00Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'http://mainland.invalid:9000/CE/a-private-token'\n"
+        )
+        data=module.viewer_network_texture_health(log)
+        self.assertEqual(data["ce_callback502"],1)
+        self.assertEqual(data["non_ce_callback502"],0)
+        self.assertEqual(data["policy502"],1)
+        self.assertNotIn("mainland.invalid",str(data))
+        src=script.read_text()
+        self.assertIn("OpenSim EventQueueGet /CE/: ",src)
+        self.assertIn("a normal empty long-poll can return 502 by design",src)
+        self.assertIn("NOT independently a server/proxy failure",src)
+
+    def test_non_eventqueue_502_reports_separate_callback(self):
+        log=(
+            "2026-11-18T16:00:00Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'http://server.invalid/CAPS/GetTexture?key=PRIVATE'\n"
+        )
+        data=module.viewer_network_texture_health(log)
+        self.assertEqual(data["callback502"],1)
+        self.assertEqual(data["ce_callback502"],0)
+        self.assertEqual(data["non_ce_callback502"],1)
+        self.assertNotIn("PRIVATE",str(data))
+        self.assertIn("non_CE_callbacks=",script.read_text())
+
+    def test_mixed_eventqueue_and_other_502_are_independent(self):
+        log=(
+            "2026-11-18T16:00:00Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'http://mainland.invalid:9000/CE/private'\n"
+            "2026-11-18T16:00:01Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot GET url "
+            "'http://mainland.invalid:9000/CAPS/GetTexture'\n"
+            "2026-11-18T16:00:01Z WARNING #Other# Http_502\n"
+        )
+        data=module.viewer_network_texture_health(log)
+        self.assertEqual((data["ce_callback502"],
+                          data["non_ce_callback502"],
+                          data["other502"]), (1,1,1))
+        self.assertEqual(data["warnings"],3)
+
+    def test_eventqueue_502_requires_real_ce_url_path_not_query(self):
+        log=(
+            "2026-11-18T16:00:01Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'https://mainland.invalid/not-ce?ref=/CE/not-the-path'\n"
+            "2026-11-18T16:00:02Z WARNING #CoreHTTP# "
+            "onCompleted : [Http_502] cannot POST url "
+            "'https://mainland.invalid/CE/private-token'\n"
+        )
+        stats=module.viewer_network_texture_health(log)
+        self.assertEqual(stats["ce_callback502"],1)
+        self.assertEqual(stats["non_ce_callback502"],1)
+        self.assertEqual(stats["callback502"],2)
+        self.assertNotIn("private-token",str(stats))
+
+    def test_only_policy_502_never_proves_eventqueue(self):
+        raw=("2026-11-18T16:00:00Z WARNING #CoreHttp# "
+             "stageAfterCompletion : Bad Gateway (Http_502)\n")
+        stats=module.viewer_network_texture_health(raw)
+        self.assertEqual(stats["policy502"],1)
+        self.assertEqual(stats["ce_callback502"],0)
+        self.assertEqual(stats["non_ce_callback502"],0)
+
+    def test_decoded_source_face_diagnostics_are_all_numeric(self):
+        line=(
+            "2026-11-18T16:00:00Z INFO #OGLRenderer# "
+            "P05 decoded material diagnostic: scan=64 mode=atlas-hq "
+            "state=decoded-unavailable triangles=1024 tiles=3 "
+            "image_bytes=0 eligible_faces=27 missing_image_faces=8 "
+            "unsupported_faces=11; already decoded CPU source only"
+        )
+        stats=module.viewer_network_texture_health(line)
+        self.assertEqual(stats["material_scans"],1)
+        self.assertEqual(stats["material_ready"],0)
+        self.assertEqual(stats["material_faces_last"],(27,8,11))
+        self.assertEqual(stats["material_last"],
+                         (64,"atlas-hq","decoded-unavailable",1024,3,0))
+
+    def test_legacy_material_source_log_remains_backward_compatible(self):
+        old=(
+            "P05 decoded material diagnostic: scan=3 mode=single "
+            "state=ready triangles=32 tiles=0 image_bytes=16384"
+        )
+        stats=module.viewer_network_texture_health(old)
+        self.assertEqual(stats["material_last"],(3,"single","ready",32,0,16384))
+        self.assertIsNone(stats["material_faces_last"])
+
+    def test_next_old_source_without_faces_cannot_inherit_new_counters(self):
+        new=(
+            "P05 decoded material diagnostic: scan=1 mode=single state=ready "
+            "triangles=1 tiles=0 image_bytes=4 eligible_faces=1 "
+            "missing_image_faces=2 unsupported_faces=3"
+        )
+        old=(
+            "P05 decoded material diagnostic: scan=2 mode=single state=ready "
+            "triangles=1 tiles=0 image_bytes=4"
+        )
+        stats=module.viewer_network_texture_health(new+"\n"+old)
+        self.assertEqual(stats["material_scans"],2)
+        self.assertIsNone(stats["material_faces_last"])
+
+    def test_invalid_material_face_ids_not_allowed_in_decoded_summary(self):
+        malicious=(
+            "P05 decoded material diagnostic: scan=1 mode=atlas-hq "
+            "state=ready triangles=2 tiles=1 image_bytes=4 "
+            "eligible_faces=PRIVATE missing_image_faces=1 unsupported_faces=1"
+        )
+        stats=module.viewer_network_texture_health(malicious)
+        self.assertEqual(stats["material_scans"],1)
+        self.assertIsNone(stats["material_faces_last"])
+        self.assertNotIn("PRIVATE",str(stats))
+
+    def test_real_scanner_source_face_diagnostic_remains_opt_in(self):
+        pipeline=(Path(__file__).resolve().parents[2]/
+                  "indra/newview/pipeline.cpp").read_text()
+        for token in (
+            "std::uint32_t rgba_eligible_faces=0;",
+            "std::uint32_t rgba_missing_image_faces=0;",
+            "std::uint32_t rgba_unsupported_faces=0;",
+            "image_missing_or_placeholder=true;",
+            "++rgba_eligible_faces",
+            "++rgba_missing_image_faces",
+            "++rgba_unsupported_faces",
+            "OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS",
+            'std::strcmp(source_debug,"1")==0',
+            'source_debug_scans%64u==0u',
+            '" eligible_faces=" << rgba_eligible_faces',
+            '" missing_image_faces=" << rgba_missing_image_faces',
+            '" unsupported_faces=" << rgba_unsupported_faces',
+        ):
+            self.assertIn(token,pipeline)
+        self.assertLess(
+            pipeline.index("image_missing_or_placeholder=true;"),
+            pipeline.index("P05 decoded material diagnostic: scan="))
+        self.assertIn("Texture 404 investigation: GetAssetsModule/GetTexture",
+                      script.read_text())
+
     def test_no_diagnostic_source_is_no_gpu_proof(self):
         health=module.viewer_network_texture_health(
             "2026-11-17T16:56:42Z INFO #OGLRTX# "

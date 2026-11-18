@@ -1,10 +1,45 @@
 # OGL Firestorm – aktueller Projektstand
 
-Stand: 17.11.2026
+Stand: 18.11.2026
 Repository: https://github.com/marlin198323-glitch/ogl-viewer
 Branch: ogl-develop
 Verbindlicher Auftrag: GOAL_DUAL_GRID_AND_VIEWER_ROADMAP_2026_11_01.md
 Übernahme in neuen Chats: PROJECT_HANDOFF.md und AGENTS.md (Repo-Wurzel)
+
+## P05/3 – /goal 20er-Runde: OpenSim-EventQueue-502 korrekt klassifizieren und Materialquellen-Faces auf CPU verifizieren (18.11.2026 MEZ)
+
+**Neuer OpenSim-Protokollbefund:** Im verbindlichen OpenGenesisLINK-Repository ist `POST /CE/{UUID}` die **EventQueueGet**-Long-Poll-Capability. `OpenSim/Region/ClientStack/Linden/Caps/EventQueue/EventQueueGetModule.cs`, Methode `NoEvents()`, antwortet bei einer gültigen, **leeren** EventQueue bewusst mit **HTTP 502**, bei fehlender Queue mit 404. Das servereigene Dokument `doc/NexVerse/MESH_UPLOAD_EVENTQUEUE_502_DIAGNOSTICS.md` bestätigt diese Semantik. Ein bloßes `/CE/`-502 aus dem Viewer-Log beweist **keine** defekte Mainland-Region, keinen Proxyfehler und keinen Mesh-Uploadfehler. Deshalb sind die früheren Formulierungen in dieser älteren Statushistorie, die alle `/CE/`-502 als Serverstörung bezeichneten, zu weitgehend. Normale Poll-Antworten NICHT blind auf HTTP 200 ändern. Echte Nicht-`/CE/`-502 und beobachtete Funktionsausfälle dagegen gezielt untersuchen.
+
+**Aktuelles, nur lesend geprüftes Viewer-Log:** Aus der zuletzt vorhandenen Sitzung 17.11.2026, 21:12:23–21:34:01 UTC: 386 LLCoreHttp-Policy-502-Einträge und 387 `/CE/`-POST-502-Completion-Einträge. Diese Logschichten sind kein eindeutiger Request-Zähler. Der OpenSim-Login und die OpenGL-Welt liefen; keine authentifizierte P05-Vulkan-Weltquelle / keine zwei echten OpenSim-Vulkan-X11-Frames im Log. Unabhängig hiervon: 180 `Texture missing from server (404)`, 183 Fetch-Failure und 183 Mark-Missing-Logzeilen, 8 Emergency-Downrez und 6 gedrosselte Load-Downscale-Logzeilen (höchste Schwellenausgabe 300). Unterschiedliche Texture-Warning-Schichten können dieselben fehlenden Assets beschreiben; **keine** Behauptung über 180 eindeutige fehlende Bilder. Die Texture-404-Gegenstelle liegt auf dem tatsächlichen GetTexture-/ViewerAsset-CAPs-/IAssetService-Pfad und muss unabhängig von der regulären EventQueue beurteilt werden.
+
+**Neue P05-Materialquellen-Funktion:** `indra/newview/pipeline.cpp` zählt unter dem bereits bestehenden **nur bei Opt-in aktiven** `OGL_VULKAN_LIVE_MATERIAL_DIAGNOSTICS=1` jetzt pro real untersuchter LLVolumeFace den Status `eligible_faces`, `missing_image_faces` (explizit als fehlend markiert oder Default/Placeholder) und `unsupported_faces` (z.B. unzulässiges UV, animierte, Alpha-/PBR-Materialien oder keine geeignete LLTextureEntry-Quelle). Diese Zahlen hängen an der vorhandenen gedrosselten `P05 decoded material diagnostic`-Zeile, die nur die **ersten drei und dann jedes 64.** qualifizierte Real-OpenSim-Scanner-Sample berichtet. Sie lösen **keinen** neuen Download, Decode, Cache- oder GL-Readback aus und geben **keine** Asset-/Avatar-UUID, Texturbytes, URL oder Koordinaten weiter. Es handelt sich um geprüfte CPU-Material-**Face-Eignung**, **keinen** nachgewiesenen Vulkan-Renderframe und keine eindeutigen 404-Requestzählungen.
+
+**Verbesserter Logreport:** `ogl/scripts/ogl-test-report.py` trennt `/CE/`-EventQueue-POST-502 ausdrücklich von 502 anderer CAPs/Requests. Die `/CE/`-Erkennung verwendet eine echte `http(s)://Host/CE/Token`-Pfadprüfung; ein zufällig im Querystring vorkommendes `/CE/` darf nicht falsch klassifiziert werden. Policy- und Completion-Zeilen werden nicht doppelt als unterschiedliche Requests ausgegeben. Dem berechtigten Hinweis `/CE/` kann im gesunden Long-Poll-Protokoll normal sein folgt eine gesonderte konkrete Diagnose für Texture-404: `GetAssetsModule`, `GetTexture`-CAP und `IAssetService`. Die optionale Material-Face-Telemetrie bleibt rückwärtskompatibel zu alten `P05 decoded material diagnostic`-Logzeilen ohne Zähler und kann keine veralteten Zahlen aus einem vorherigen Log-Event erben. Der Report gibt keinerlei Tokens/Assetidentitäten aus.
+
+**20 tatsächlich erledigte Entwicklungsschritte/Prüfungen:**
+
+01. Via Linux-Mint Remote Commander Branch `ogl-develop` und sauberen Ausgangscommit `1731ef52` geprüft.
+02. `AGENTS.md` einschließlich Rendererauswahl, Default-Off, Datenschutz und Verbot unfreigegebener Produktivserveränderungen gelesen.
+03. `ogl/PROJECT_HANDOFF.md` und offene echte OpenSim-Vulkan-Beweisgrenze gelesen.
+04. `ogl/PROJECT_STATUS.md` einschließlich vorheriger Live-Texturtelemetrie geprüft.
+05. Bindende `/goal`-Roadmap und 20er-Arbeitsformat erneut abgeglichen.
+06. CI des Ausgangscommits `44134366081`: fünf portable Plattformjobs `success`; macOS ARM64 ohne zugewiesenen Runner `cancelled`; gesamte CI daher `failure`, kein nachgewiesener Quellcodefehler; Installer skipped.
+07. OpenGenesisLINK-`main=62cc44447cf8` read-only auf neue HG-/SYS.API-Änderungen geprüft; Stable `v0.9.4.0=ee15af8e`, fehlender `gen1-updates`-Tag und offene PRs #443/#447/#448/#450 getrennt kontrolliert.
+08. Bereits belegte serverseitige `EventQueueGetModule.NoEvents()`-502-Semantik gegen die bestehende Diagnose dokumentiert; kein pauschaler CE-Proxyfehler mehr behauptet.
+09. Aktuelle Viewer-Logs READ-ONLY zu echtem OpenGL-Welterfolg, fehlenden Vulkan-Live-Receipts, `/CE/`-Status, Texture-404 und Downrez-Warnungen ausgewertet.
+10. `LLPipeline`-Scanner für bereits dekodierte `LLViewerFetchedTexture`, Legacy/Atlas/HQ-Gates und opt-in Quelldiagnose auditiert.
+11. Pro tatsächlicher Quellmaterial-Face-Zuordnung zählbare berechtigte Texturbilder eingeführt.
+12. Explizit defekte und Default-Placeholder-Bilder als getrennte Face-Ursache erfasst.
+13. Sonstige nicht vom GPU-Shader akzeptierte OpenSim-Faces als separate Unsupported-Klasse erfasst; keine neue Alpha/PBR-Zulassung simuliert.
+14. Bestehende Source-Status-Logzeile mit numerischen Face-Eignungszählern ergänzt, streng Default-OFF und gedrosselt.
+15. `/CE/`-502 im Report als potentiell regulären EventQueueGet-Long-Poll klassifiziert; andere 502 gesondert erhalten.
+16. CE-Pfadfilter gegen `/CE/`-Vorkommen nur im Querystring gehärtet; keine Token-/URL-Offenlegung.
+17. Textur-404 als separaten `GetAssetsModule/GetTexture/IAssetService`-Diagnosepfad gekennzeichnet.
+18. Neun neue EventQueue-/P05-Regressionsfälle plus ein adversarialer Pfadfiltertest implementiert; zusammen **463/463 Python-Tests** und isolierter CLI-Report mit privaten Beispiel-URLs ohne Leak bestanden.
+19. C++-Linux-Vollviewer erfolgreich kompiliert, Paket-Manifest synchronisiert; **41/41 native CTests** und Vulkan-X11 16-/32-Frame-/Region-Barrier-GPU-Regressionen bestanden.
+20. Isolierter Xvfb-OpenGL-Login `STATE_LOGIN_WAIT` ohne FATAL mit temporärem eigenem Profil bestanden; veralteter unversionierter `/tmp/ogl-p05-rgba-smoke.py`-Helfer nach Rechnerneustart fehlte (seine zusätzlichen drei GUI-Smokes **nicht** behauptet); `git diff --check`, bestehende vier Projekt-MDs und Commit-/Push-/CI-Prüfung durchgeführt.
+
+**Formaler Stand unverändert P05 2/20, P05/3 OFFEN:** Kein authentifizierter zweifacher OpenSim-Vulkan-X11-Weltpixelbeleg, keine echte neue Texturasset-/J2C-Downloadpipeline, kein vollständiger Vulkan-Hauptfenster-Renderer für Terrain/Avatar/Alpha/PBR/UI. Standard-OpenGL, bestehende Testprofile und alle Produktivserver bleiben unangetastet.
 
 ## P05/3 – /goal 20 Entwicklungs- und Logprüfschritte: sichere OpenSim-Texturdiagnose und echte Log-Fehlertrennung (17.11.2026 MEZ)
 
