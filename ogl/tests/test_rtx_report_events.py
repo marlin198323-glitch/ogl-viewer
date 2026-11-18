@@ -132,6 +132,69 @@ class RTXSceneLogTests(unittest.TestCase):
         self.assertEqual(h['callback502'],0)
         self.assertEqual(h['material_scans'],0)
 
+    def test_material_subset_numeric_log_is_privacy_safe_and_partial(self):
+        log=(
+            "2026-11-18T17:32:00Z INFO #OGLRenderer# "
+            "P05 decoded material diagnostic: scan=64 mode=atlas-hq "
+            "state=ready triangles=42 tiles=8 image_bytes=262144 "
+            "eligible_faces=55 missing_image_faces=3 unsupported_faces=9 "
+            "material_subset=1 subset_skipped_faces=12 "
+            "subset_skipped_triangles=6; already decoded CPU source only; "
+            "no Vulkan GPU proof.\n"
+            "2026-11-18T17:32:01Z INFO #OGLRenderer# "
+            "P05 deferred capture receipt: epoch=2 capture=3 "
+            "triangles=42 mesh_generation=19 scope=material-subset; "
+            "actual Firestorm deferred scan, not GPU proof.\n"
+        )
+        stats=module.viewer_network_texture_health(log)
+        self.assertEqual(stats["material_scans"],1)
+        self.assertEqual(stats["material_ready"],1)
+        self.assertEqual(stats["material_subset_last"],(1,12,6))
+        self.assertEqual(stats["material_subset_receipts"],1)
+        self.assertEqual(stats["material_faces_last"],(55,3,9))
+        self.assertEqual(stats["material_last"],
+                         (64,"atlas-hq","ready",42,8,262144))
+
+    def test_material_subset_old_log_does_not_inherit_new_skip_counters(self):
+        new=("P05 decoded material diagnostic: scan=64 mode=atlas16 "
+             "state=ready triangles=8 tiles=2 image_bytes=16384 "
+             "eligible_faces=7 missing_image_faces=0 unsupported_faces=2 "
+             "material_subset=1 subset_skipped_faces=2 subset_skipped_triangles=1")
+        old=("P05 decoded material diagnostic: scan=65 mode=single "
+             "state=ready triangles=2 tiles=0 image_bytes=16")
+        stats=module.viewer_network_texture_health(new+"\n"+old)
+        self.assertEqual(stats["material_scans"],2)
+        self.assertIsNone(stats["material_subset_last"])
+        self.assertIsNone(stats["material_faces_last"])
+
+    def test_partial_source_receipt_keeps_backward_compatible_gpu_parser(self):
+        line=(
+            "P05 deferred capture receipt: epoch=4 capture=12 "
+            "triangles=128 mesh_generation=19 scope=material-subset; "
+            "actual Firestorm deferred scan, not GPU proof."
+        )
+        matched=module.P05_CAPTURE.search(line)
+        self.assertIsNotNone(matched)
+        self.assertEqual(tuple(map(int,matched.groups())),
+                         (4,12,128,19))
+        self.assertEqual(module.viewer_network_texture_health(line)
+                         ["material_subset_receipts"],1)
+
+    def test_material_subset_receipt_only_matches_numeric_scoped_source(self):
+        events=(
+            "P05 deferred capture receipt: epoch=1 capture=4 triangles=3 "
+            "mesh_generation=7 scope=legacy-scene; not GPU proof\n"
+            "P05 deferred capture receipt: epoch=1 capture=5 triangles=3 "
+            "mesh_generation=7 scope=material-subset; not GPU proof\n"
+            "P05 deferred capture receipt: epoch=1 capture=SECRET triangles=3 "
+            "mesh_generation=7 scope=material-subset; not GPU proof\n"
+        )
+        stats=module.viewer_network_texture_health(events)
+        self.assertEqual(stats["material_subset_receipts"],1)
+        self.assertNotIn("SECRET",str(stats))
+        self.assertIn('P05 real material-only CPU source captures:',
+                      script.read_text())
+
     def test_material_diagnostic_accepts_only_bounded_numeric_status(self):
         raw=(
             "2026-11-17T17:00:00Z INFO #OGLRenderer# "
@@ -719,6 +782,47 @@ class RTXSceneLogTests(unittest.TestCase):
                 "suppressed_retries=0 mesh_generation=11 "
                 "source_capture=3 region_epoch=2; "
                 "GL owns the SDL window, NO Vulkan present.\n")
+
+    def test_p05_material_subset_invalidation_revokes_stale_gpu_world_proof(self):
+        baseline=module.p05_live_gpu_evidence(self.p05_coupled())
+        self.assertEqual(
+            baseline["status"],"visible_world_swap_private_gpu_confirmed")
+        invalidated=self.p05_coupled()+(
+            "P05 material subset source invalidated: epoch=2; "
+            "no current eligible material image/mesh.\n"
+        )
+        result=module.p05_live_gpu_evidence(invalidated)
+        self.assertEqual(result["status"],"no_current_region_capture")
+        self.assertEqual(result["accepted_capture_events"],1)
+        self.assertEqual(result["completed_gpu_frames"],0)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
+        self.assertEqual(result["last_nonclear_pixels"],0)
+        self.assertEqual(
+            module.p05_live_preview_evidence(invalidated,1),0)
+        self.assertEqual(
+            module.p05_live_preview_x11_pixels(invalidated,1,2),0)
+
+    def test_p05_invalid_subset_invalidation_epoch_does_not_erase_current_capture(self):
+        log=self.p05_coupled()+(
+            "P05 material subset source invalidated: epoch=1; "
+            "not the current region\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(
+            result["status"],"visible_world_swap_private_gpu_confirmed")
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],1)
+
+    def test_p05_new_material_source_after_invalidation_needs_fresh_gpu_frames(self):
+        log=self.p05_coupled()+(
+            "P05 material subset source invalidated: epoch=2\n"
+            "P05 deferred capture receipt: epoch=2 capture=4 "
+            "triangles=12 mesh_generation=12 scope=material-subset; "
+            "actual Firestorm deferred scan, not GPU proof.\n"
+        )
+        result=module.p05_live_gpu_evidence(log)
+        self.assertEqual(result["status"],"capture_accepted_gpu_pending")
+        self.assertEqual(result["accepted_capture_events"],2)
+        self.assertEqual(result["confirmed_world_swap_private_gpu_frames"],0)
 
     def test_p05_separate_vulkan_sdl_preview_is_real_source_qualified(self):
         base=self.p05_coupled()

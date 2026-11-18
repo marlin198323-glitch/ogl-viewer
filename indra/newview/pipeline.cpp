@@ -35,6 +35,7 @@
 #include "../../ogl/modules/include/ogl/ogl_scene_scan_schedule.h" // low-FPS initial snapshot
 #include "../../ogl/modules/include/ogl/ogl_scene_ray_visibility.h" // exact camera-ray anchors
 #include "../../ogl/modules/include/ogl/ogl_scene_snapshot_policy.h" // bounded partial-scene guard
+#include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h" // material-only source selection gate
 #include <chrono>
 #include <cmath>
 #include <unordered_set>
@@ -9677,6 +9678,15 @@ void LLPipeline::renderDeferredLighting()
                     std::strcmp(atlas_hq_flag,"1")==0 &&
                     atlas_hq_live && std::strcmp(atlas_hq_live,"1")==0;
                 const std::uint32_t atlas_capacity=atlas16_scan ? 16u : 4u;
+                // A partial, source-verified textured VOLUME batch can
+                // coexist with unsupported terrain/objects in the actual
+                // OpenGL scene. It is a separate explicit developer opt-in;
+                // it NEVER claims to be a complete rendered world.
+                const char* subset_flag=std::getenv(
+                    "OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE");
+                const bool material_subset_scan=atlas_scan &&
+                    ogl_triangle_budget>1024u && subset_flag &&
+                    std::strcmp(subset_flag,"1")==0;
                 // Opaque per-face LLTextureEntry diffuse RGB only; no
                 // pixels, images, texture IDs or other avatar/asset data.
                 // Never create the tint vector in normal OpenGL mode.
@@ -9695,6 +9705,13 @@ void LLPipeline::renderDeferredLighting()
                 // than FOUR unique opaque legacy diffuse images.
                 // Stable face-first slot ordering, paired 1:1 with XYZ/RGB/UV.
                 std::array<LLPointer<LLViewerFetchedTexture>,16> atlas_images{};
+                // Only the explicit material-only subset preflights a
+                // unique texture once into an OWNED opaque CPU thumbnail.
+                // No image cache mutation, forced decoder or GL readback.
+                // Max 16 * 64 * 64 * 4 bytes, no private asset IDs.
+                std::array<std::vector<std::uint8_t>,16> subset_opaque_tiles{};
+                std::array<std::uint32_t,16> subset_tile_widths{};
+                std::array<std::uint32_t,16> subset_tile_heights{};
                 std::vector<ogl_rtx_face_material_slot> face_material_slots;
                 if (atlas_scan) face_material_slots.reserve(ogl_triangle_budget);
                 std::uint32_t atlas_tile_count=0;
@@ -9705,11 +9722,14 @@ void LLPipeline::renderDeferredLighting()
                 std::uint32_t rgba_eligible_faces=0;
                 std::uint32_t rgba_missing_image_faces=0;
                 std::uint32_t rgba_unsupported_faces=0;
+                std::uint32_t material_subset_skipped_faces=0;
+                std::uint32_t material_subset_skipped_triangles=0;
                 const LLVector3 eye = camera->getOrigin();
                 size_t near_terrain_triangles=0;
                 size_t mid_terrain_triangles=0;
                 size_t far_terrain_triangles=0;
-                if (ogl_triangle_budget > 1024 && ogl_rtx_region)
+                if (ogl_triangle_budget > 1024 && ogl_rtx_region &&
+                    !material_subset_scan)
                 {
                     const LLVector3 region_origin =
                         ogl_rtx_region->getOriginAgent();
@@ -10042,8 +10062,12 @@ void LLPipeline::renderDeferredLighting()
                                           prepass_fallback_objects);
                     exact_camera_hit_samples =
                         ogl::count_camera_hit_samples(closest);
-                    exact_camera_anchors=ogl::append_camera_hit_triangles(
-                        closest,triangles,ogl_triangle_budget);
+                    // Source-only material batches still use actual
+                    // camera rays to prioritize geometry; they cannot
+                    // pretend that a ray-anchor has diffuse image/UV.
+                    if (!material_subset_scan)
+                        exact_camera_anchors=ogl::append_camera_hit_triangles(
+                            closest,triangles,ogl_triangle_budget);
                 }
                 const size_t max_per_object =
                     ogl_triangle_budget > 1024 ? 128u : 512u;
@@ -10156,6 +10180,15 @@ void LLPipeline::renderDeferredLighting()
                             else
                                 ++rgba_unsupported_faces;
                         }
+                        if (material_subset_scan &&
+                            (!face_image || !face_image->isRawImageValid())) {
+                            // No forced asset fetch or image decode here.
+                            // Skip this face rather than invalidating an
+                            // otherwise eligible textured material batch.
+                            ++material_subset_skipped_faces;
+                            continue;
+                        }
+                        bool face_tint_valid=!material_subset_scan;
                         if (tint_scan) {
                             // This is real per-face texture-entry diffuse
                             // tint, NOT a sampled diffuse/albedo texture.
@@ -10170,10 +10203,15 @@ void LLPipeline::renderDeferredLighting()
                                 for (unsigned axis=0;axis<3;++axis)
                                     valid=valid && std::isfinite(rgba.mV[axis]) &&
                                         rgba.mV[axis]>=0.f && rgba.mV[axis]<=1.f;
+                                face_tint_valid=valid;
                                 if (valid)
                                     for (unsigned axis=0;axis<3;++axis)
                                         face_tint.rgb[axis]=rgba.mV[axis];
                             }
+                        }
+                        if (material_subset_scan && !face_tint_valid) {
+                            ++material_subset_skipped_faces;
+                            continue;
                         }
                         const S32 face_triangles = llmin(
                             llmin(face.mNumIndices / 3,face_triangle_budget),
@@ -10233,7 +10271,51 @@ void LLPipeline::renderDeferredLighting()
                                 for (S32 axis = 0; axis < 3; ++axis)
                                     triangle.position[v * 3 + axis] = vertex.mV[axis];
                             }
-                            if (valid && ogl::is_valid_triangle(triangle)) {
+                            const bool geometry_valid=
+                                valid && ogl::is_valid_triangle(triangle);
+                            if (material_subset_scan) {
+                                std::uint32_t slot=0;
+                                while (slot<atlas_tile_count &&
+                                       atlas_images[slot].get()!=face_image)
+                                    ++slot;
+                                const bool new_slot=slot==atlas_tile_count;
+                                const bool slot_available=
+                                    !new_slot || atlas_tile_count<atlas_capacity;
+                                bool decoded_source_ready=face_image &&
+                                    face_image->isRawImageValid();
+                                if (decoded_source_ready && slot_available &&
+                                    new_slot && geometry_valid &&
+                                    uv_triangle_valid && face_tint_valid) {
+                                    // Test REAL Firestorm-decoded RGBA while
+                                    // holding the source image data lock;
+                                    // alpha/PBR or malformed pixels can
+                                    // never poison the remaining atlas.
+                                    LLPointer<LLImageRaw> raw=
+                                        face_image->getRawImage();
+                                    decoded_source_ready=raw.notNull();
+                                    if (decoded_source_ready) {
+                                        LLImageDataSharedLock lock(raw.get());
+                                        decoded_source_ready=
+                                            ogl_rtx_thumbnail_opaque_rgba8(
+                                                raw->getData(),
+                                                std::size_t(std::max(
+                                                    0,raw->getDataSize())),
+                                                raw->getWidth(),raw->getHeight(),
+                                                raw->getComponents(),
+                                                subset_opaque_tiles[slot],
+                                                subset_tile_widths[slot],
+                                                subset_tile_heights[slot]);
+                                    }
+                                }
+                                if (!ogl::live_material_subset_triangle_eligible(
+                                        geometry_valid,decoded_source_ready,
+                                        uv_triangle_valid,face_tint_valid,
+                                        slot_available)) {
+                                    ++material_subset_skipped_triangles;
+                                    continue;
+                                }
+                            }
+                            if (geometry_valid) {
                                 triangles.emplace_back(triangle);
                                 if (tint_scan) face_tints.push_back(face_tint);
                                 if (uv_scan)
@@ -10306,7 +10388,13 @@ void LLPipeline::renderDeferredLighting()
                 const float camera_alignment = ogl_last_sample_triangles ?
                     camera_forward*ogl_last_sample_forward : 1.f;
                 bool publish_geometry = !triangles.empty();
-                if (ogl_triangle_budget > 1024 && publish_geometry) {
+                // The ordinary depth/terrain snapshot completeness
+                // heuristic MUST NOT reject a deliberately partial
+                // textured-volume batch for lacking its own ray anchors.
+                // This is restricted to the explicit atlas subset mode;
+                // host/GPU source and image readiness gates still apply.
+                if (ogl_triangle_budget > 1024 && publish_geometry &&
+                    !material_subset_scan) {
                     const bool geometry_acceptable =
                         ogl::should_publish_scene_snapshot(
                             ogl_last_sample_triangles,
@@ -10413,6 +10501,24 @@ void LLPipeline::renderDeferredLighting()
                         std::array<OGLRgbaTileView,16> tile_views{};
                         bool decoded=true;
                         for (std::uint32_t slot=0;slot<atlas_tile_count;++slot) {
+                            if (material_subset_scan) {
+                                // Reuse the exact validated source captured
+                                // from this scan. The raw Firestorm image
+                                // could be evicted while collecting later
+                                // objects; the owned thumbnail is immutable.
+                                if (subset_opaque_tiles[slot].empty() ||
+                                    !subset_tile_widths[slot] ||
+                                    !subset_tile_heights[slot]) {
+                                    decoded=false;
+                                    break;
+                                }
+                                tile_views[slot]=OGLRgbaTileView{
+                                    subset_opaque_tiles[slot].data(),
+                                    subset_opaque_tiles[slot].size(),
+                                    subset_tile_widths[slot],
+                                    subset_tile_heights[slot]};
+                                continue;
+                            }
                             if (atlas_images[slot].isNull() ||
                                 !atlas_images[slot]->isRawImageValid()) {
                                 decoded=false;
@@ -10502,6 +10608,11 @@ void LLPipeline::renderDeferredLighting()
                                 << " eligible_faces=" << rgba_eligible_faces
                                 << " missing_image_faces=" << rgba_missing_image_faces
                                 << " unsupported_faces=" << rgba_unsupported_faces
+                                << " material_subset=" << (material_subset_scan ? 1 : 0)
+                                << " subset_skipped_faces="
+                                << material_subset_skipped_faces
+                                << " subset_skipped_triangles="
+                                << material_subset_skipped_triangles
                                 << "; already decoded CPU source only; no Vulkan GPU proof."
                                 << LL_ENDL;
                         }
@@ -10519,6 +10630,13 @@ void LLPipeline::renderDeferredLighting()
                         image_w,image_h,
                         static_cast<unsigned>(triangles.size()));
                     ogl_has_scene_snapshot=true;
+                } else if (material_subset_scan) {
+                    // A newly scanned source with ZERO suitable textured
+                    // triangles is NOT a license to replay a previous
+                    // region/material receipt. Invalidate only the private
+                    // deferred source; never alter OpenGL world geometry.
+                    ogl_rtx_submit_deferred_world_triangles(
+                        nullptr,nullptr,nullptr,nullptr,0u,nullptr,0u,0u,0u);
                 }
                 // Empty rotating subsets are normal in busy OpenSim regions.
                 // Keep the last safe snapshot until real region change.

@@ -63,6 +63,37 @@ static void test_deferred_live_rgba_source_extent_policy() {
         "accepted, missing flags/shape/legacy oversize denied PASS\n");
 }
 
+// Material-subset policy is CPU-only, portable, and never authorizes a
+// synthetic, anonymous or unsupported world face as a real texture.
+static void test_live_opensim_material_subset_policy() {
+    using ogl::live_material_subset_triangle_eligible;
+    assert(live_material_subset_triangle_eligible(
+        true,true,true,true,true));
+    // A single unsuitable face must be excluded, not poison valid slots.
+    assert(!live_material_subset_triangle_eligible(
+        false,true,true,true,true)); // invalid transformed geometry
+    assert(!live_material_subset_triangle_eligible(
+        true,false,true,true,true)); // missing/undecoded asset
+    assert(!live_material_subset_triangle_eligible(
+        true,true,false,true,true)); // UV not finite/transformable
+    assert(!live_material_subset_triangle_eligible(
+        true,true,true,false,true)); // invalid/alpha tint
+    assert(!live_material_subset_triangle_eligible(
+        true,true,true,true,false)); // >4/>16 unique material overflow
+    // Reusing an already mapped material is valid even when full.
+    assert(live_material_subset_triangle_eligible(
+        true,true,true,true,true));
+    for (unsigned unavailable=0;unavailable<5;++unavailable) {
+        bool flags[5]{true,true,true,true,true};
+        flags[unavailable]=false;
+        assert(!live_material_subset_triangle_eligible(
+            flags[0],flags[1],flags[2],flags[3],flags[4]));
+    }
+    std::fprintf(stdout,
+        "P05 live OpenSim material-only subset: valid faces retained; "
+        "missing/PBR/UV/alpha/capacity/invalid geometry excluded PASS\n");
+}
+
 // Independent platform-neutral native tests for the new LIVE Firestorm
 // LLImageRaw RGB/RGBA -> 64px Vulkan-source conversion. No image cache,
 // user login, OpenGL readback, external asset, or GPU dependency.
@@ -287,6 +318,7 @@ static void test_opensim_raw_thumbnail_policy() {
 int main(int argc, char** argv) {
     assert(argc == 2);
     test_deferred_live_rgba_source_extent_policy();
+    test_live_opensim_material_subset_policy();
     test_opensim_raw_thumbnail_policy();
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     assert(library);

@@ -114,6 +114,8 @@ def scene_selection_at_revision(log_text: str, revision: int):
 # network addresses, camera coordinates or texture identifiers is parsed.
 P05_SESSION = re.compile(r"P05 deferred evidence session: begin=1")
 P05_REGION = re.compile(r"P05 deferred region boundary: epoch=(\d+)")
+P05_SUBSET_INVALIDATED = re.compile(
+    r"P05 material subset source invalidated: epoch=(\d+)")
 P05_CAPTURE = re.compile(
     r"P05 deferred capture receipt: epoch=(\d+) capture=(\d+) "
     r"triangles=(\d+) mesh_generation=(\d+)"
@@ -159,7 +161,7 @@ def p05_gpu_silhouette_evidence(log_text: str, confirmed_frames: int):
         return result
     text=log_text[session:]
     # Never revive old GPU evidence after teleport or a new mesh capture.
-    for marker in (P05_REGION, P05_CAPTURE):
+    for marker in (P05_REGION, P05_CAPTURE, P05_SUBSET_INVALIDATED):
         occurrences=list(marker.finditer(text))
         if occurrences:
             text=text[occurrences[-1].start():]
@@ -224,6 +226,19 @@ def p05_live_gpu_evidence(log_text: str):
             epoch = new_epoch if new_epoch>0 else None
             latest = None
             accepted = invalid_gpu = completed = camera_completed = visible = 0
+            coupled_receipts = coupled_confirmed = last_coupled_frame = 0
+            last_coupled_visible_swaps = 0
+            pending_coupled = None
+            capacity = 0
+            lit_pixels = mean_luminance = 0
+            continue
+        # A real scanner that selected no valid opaque material faces
+        # revokes the previous region/capture proof. Do not report past
+        # Vulkan GPU pixels as proof of the currently empty subset.
+        invalidated = P05_SUBSET_INVALIDATED.search(line)
+        if invalidated and epoch==int(invalidated.group(1)):
+            latest = None
+            completed = camera_completed = visible = 0
             coupled_receipts = coupled_confirmed = last_coupled_frame = 0
             last_coupled_visible_swaps = 0
             pending_coupled = None
@@ -369,7 +384,7 @@ def p05_live_preview_x11_pixels(log_text: str, confirmed_frames: int,
     if session<0:
         return 0
     current=log_text[session:]
-    for pattern in (P05_REGION,P05_CAPTURE):
+    for pattern in (P05_REGION,P05_CAPTURE,P05_SUBSET_INVALIDATED):
         occurrences=list(pattern.finditer(current))
         if occurrences:
             current=current[occurrences[-1].start():]
@@ -402,7 +417,7 @@ def p05_live_preview_evidence(log_text: str, confirmed_frames: int):
     if session<0:
         return 0
     current=log_text[session:]
-    for pattern in (P05_REGION, P05_CAPTURE):
+    for pattern in (P05_REGION, P05_CAPTURE, P05_SUBSET_INVALIDATED):
         occurrences=list(pattern.finditer(current))
         if occurrences:
             current=current[occurrences[-1].start():]
@@ -438,7 +453,9 @@ MATERIAL_SOURCE_STATUS = re.compile(
     r"state=(ready|batch-ineligible|no-eligible-tiles|decoded-unavailable) "
     r"triangles=(\d+) tiles=(\d+) image_bytes=(\d+)"
     r"(?: eligible_faces=(\d+) missing_image_faces=(\d+) "
-    r"unsupported_faces=(\d+))?")
+    r"unsupported_faces=(\d+))?"
+    r"(?: material_subset=([01]) subset_skipped_faces=(\d+) "
+    r"subset_skipped_triangles=(\d+))?")
 MATERIAL_MODES = frozenset(("single", "atlas4", "atlas16", "atlas-hq"))
 MATERIAL_STATES = frozenset((
     "ready", "batch-ineligible", "no-eligible-tiles", "decoded-unavailable"))
@@ -453,7 +470,8 @@ def viewer_network_texture_health(log_text: str):
                   texture404=0, texture_fetch_fail=0, texture_mark_missing=0,
                   texture_load_downscale_rows=0, texture_load_downscale_max_seen=0,
                   material_scans=0, material_ready=0, material_last=None,
-                  material_faces_last=None)
+                  material_faces_last=None, material_subset_last=None,
+                  material_subset_receipts=0)
     minute_counts = {}
     for line in log_text.splitlines():
         m = OGL_LOG_LEVEL.match(line)
@@ -497,11 +515,19 @@ def viewer_network_texture_health(log_text: str):
                     result["non_ce_callback502"] += 1
             else:
                 result["other502"] += 1
+        # An actual material-subset source is partial real OpenSim
+        # geometry, NOT proof of a complete textured Vulkan world.
+        if re.search(
+            r"P05 deferred capture receipt: epoch=\d+ capture=\d+ "
+            r"triangles=\d+ mesh_generation=\d+ scope=material-subset;",
+            line):
+            result["material_subset_receipts"] += 1
         if "P05 decoded material diagnostic:" in line:
             decoded = MATERIAL_SOURCE_STATUS.search(line)
             if decoded:
                 (scan, mode, state, triangles, tiles, count,
-                 eligible, missing, unsupported) = decoded.groups()
+                 eligible, missing, unsupported, subset_mode,
+                 skipped_faces, skipped_triangles) = decoded.groups()
                 result["material_scans"] += 1
                 result["material_ready"] += (state == "ready")
                 result["material_last"] = (
@@ -509,6 +535,10 @@ def viewer_network_texture_health(log_text: str):
                 result["material_faces_last"] = (
                     (int(eligible), int(missing), int(unsupported))
                     if eligible is not None else None)
+                result["material_subset_last"] = (
+                    (int(subset_mode), int(skipped_faces),
+                     int(skipped_triangles))
+                    if subset_mode is not None else None)
     result["max_502_per_minute"] = max(minute_counts.values(), default=0)
     return result
 
@@ -591,6 +621,18 @@ def report():
                       f"eligible={eligible} missing_or_placeholder={missing} "
                       f"unsupported={unsupported}; per-scanned-face counters, "
                       "not failed texture-download counts")
+            if health["material_subset_last"] is not None:
+                selected,skipped_faces,skipped_triangles=(
+                    health["material_subset_last"])
+                print("P05 material-only selected source subset: "
+                      f"active={selected} skipped_faces={skipped_faces} "
+                      f"skipped_triangles={skipped_triangles}; "
+                      "opaque volume faces only, not terrain/avatar/"
+                      "alpha/PBR or a complete Vulkan world")
+        if health["material_subset_receipts"]:
+            print("P05 real material-only CPU source captures: "
+                  f"{health['material_subset_receipts']} log receipts; "
+                  "partial OpenSim geometry, NOT a full Vulkan world proof")
         # Experimental CPU/cache acceleration is opt-in. Only report
         # aggregate counters; never texture UUIDs or account information.
         cache_events = re.findall(

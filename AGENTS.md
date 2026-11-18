@@ -5,6 +5,54 @@ https://github.com/marlin198323-glitch/ogl-viewer
 Arbeitsbranch: ogl-develop
 
 
+P05/3 18.11.2026, neue /goal
+20er-Runde: Separater Default-OFF
+OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE=1
+nur bei aktivem echtem Developer-
+Live-Atlas-Quellenpfad.
+Vorher jedes Atlas-Mesh durch
+untexturierte Terrain-/Ray-Anker
+und ungeeignete Alpha/PBR/fehlende
+OpenSim-Faces all-or-nothing
+unbrauchbar. Jetzt echte source-
+gebundene Volume-Dreiecke,
+TE-RGB und UV 1:1 statt Anker,
+invalides/undecodiertes Bild,
+PBR/Alpha/fehlendes UV/Atlas-
+Überlauf ausgeschlossen, belegte
+Slotnummern wiederverwendbar.
+Einmalige per-slot `LLImageRaw`-
+SharedLock-Opacity-/Bounds-
+Prüfung, danach bounded owned
+64px RGBA-Thumbnail zum
+Packen, keinerlei Fetch/Decode-
+Trigger oder GL-Readback.
+Neuer numerischer Marker
+`P05 material subset source invalidated:
+epoch=N` verhindert im Logreport
+stale Source-/GPU-/X11-Beweise nach
+leeren Subset-Scans; epoch-gebunden.
+Leerer Folge-Scan invalidiert
+alten Capture-Receipt. Host-
+Log `scope=material-subset`,
+Reporter anonymisiert übersprungene
+Faces/Triangles, alte Logs
+rückwärtskompatibel. 483 Python-
+Tests, 41 CTests, Linux-Fullbuild/
+Stage, Vulkan-X11 16/32, Region/
+Mesh und drei getrennte isolierte
+OpenGL/HQ-GUI-Smokes erfolgreich.
+Dies ist nur ein realquellenfähiger
+PARTIELLER Vulkan-Material-Batch,
+KEIN authentifizierter neuer
+OpenSim-Vulkan-Weltbeleg, keine
+Vulkan-Hauptfensterengine oder
+neue Asset-/J2C-Pipeline.
+P05 2/20, P05/3 offen.
+Keine Produktions-/Benutzer-
+Viewer-Änderung. Details in
+PROJECT_STATUS/HANDOFF/Roadmap.
+
 P05/3 18.11.2026 /goal 20 neue
 Entwicklungs-/Testschritte: echte
 OpenSim-HQ-Materialquelle war trotz

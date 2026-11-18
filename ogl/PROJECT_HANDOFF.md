@@ -5,6 +5,60 @@ Branch: ogl-develop
 Git-Remote: https://github.com/marlin198323-glitch/ogl-viewer.git
 
 
+18.11.2026 – /goal 20er-Runde:
+Der echte Firestorm-/OpenSim-Scanner
+sperrte bisher jeden Materialatlas
+wegen vorangestellter untexturierter
+Terrain-/Ray-Anker und einzelnen
+ungeeigneten Volumenflächen.
+Neues **Default-OFF** `OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE=1`
+nur mit bestehender vollständiger
+World-/Live-Atlas-Quelle:
+Teilbatch aus echten priorisierten
+OpenSim-Volumen-XYZ/TE-RGB/UVs,
+ohne Ray-/Terrain-Anker. Ineligible
+Alpha/PBR/animierte/fehlende/undecodierte
+und fehlerhafte Pixel/UVs werden
+übersprungen, niemals falsche
+Texturslots zugewiesen; 4/16 Slots,
+bestehende Slots bei voller Liste
+weiter nutzbar. Neue Bildslots
+einmalig unter `LLImageDataSharedLock`
+aus schon dekodierten Firestorm-
+Rohdaten auf opaque geprüft,
+eigene 64px-RGBA8-Snapshots im
+gleichen Scan für Atlas-Packing
+weiterverwendet (kein Fetch/GL-Readback).
+Ein leerer Real-Subset-Scan schreibt
+den numerischen `P05 material subset
+source invalidated: epoch=N`-Marker.
+Der Logvalidator löscht dann alten
+GPU-/X11-Pixelbeleg desselben Epochs,
+nicht fremder Regionen (3 Tests).
+Empty Batch -> vorheriger Real-
+Source-Receipt invalidiert.
+Host zeigt `scope=material-subset`,
+Report getrennte Zahlen für
+subset_skipped_faces/-triangles,
+alte Logform kompatibel; kein
+kompletter Vulkan-Welt-Beweis.
+483 Python-/41 native CTests,
+Linux-Fullbuild+Manifest, native
+Vulkan-X11 16/32+Region/Mesh,
+isolierte OpenGL/HQ-pos/HQ-neg
+X11 GUI-Smokes erfolgreich,
+CLI-Privacy-Fixture grün.
+Vorläufer-CI 44353260860 6/6 grün,
+OpenGenesisLINK main 62cc44447cf8,
+Stable ee15af8e. Kein Server/
+Live-Viewer/Nutzerprofil verändert.
+Formal P05 2/20; P05/3 OFFEN,
+authentifizierter realer
+OpenSim-GPU-Zweiframe-Nachweis,
+J2C-Stream, Full-Terrain/Avatar/
+Alpha/PBR/UI-Hauptfenster fehlen.
+20 Schritte in PROJECT_STATUS.md.
+
 18.11.2026 – /goal neue 20er-Runde:
 Echte P05-HQ-Source-Blockade behoben.
 Der LLPipeline-OpenSim-Decoder packt

@@ -95,6 +95,20 @@ inline bool deferred_rgba_source_extent_allowed(
            height>=1u && height<=64u;
 }
 
+// P05/3 strict opt-in material-only deferred batch selection.
+// This batch intentionally represents ONLY compatible textured volume
+// triangles, never terrain, ray anchors, alpha/PBR or the entire OpenSim
+// scene. The caller must separately require live region/capture provenance,
+// real decoded pixels, a current material-slot sidecar and Vulkan gates.
+// Rejecting an unsuitable face must NOT poison otherwise valid material
+// geometry, and a new slot must not exceed the active atlas capacity.
+inline bool live_material_subset_triangle_eligible(
+    bool world_triangle_valid,bool decoded_source_ready,
+    bool uv_valid,bool opaque_tint_valid,bool atlas_slot_available) noexcept {
+    return world_triangle_valid && decoded_source_ready && uv_valid &&
+           opaque_tint_valid && atlas_slot_available;
+}
+
 // A secondary Vulkan SDL QA preview is strictly one attempt per REAL
 // source. After 16 frames, user close, failure or Vulkan teardown, do not
 // reopen for the same region+deferred capture+GPU mesh. Allow precisely one

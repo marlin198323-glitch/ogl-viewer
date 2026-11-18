@@ -1730,6 +1730,12 @@ void ogl_rtx_submit_world_triangles(const float *triangle_xyz, unsigned count) {
                     << " capture=" << live_deferred_receipts
                     << " triangles=" << count
                     << " mesh_generation=" << live_deferred_mesh_generation
+                    << " scope=" << ((atlas_needed &&
+                        [] {
+                            const char* value=std::getenv(
+                                "OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE");
+                            return value && std::strcmp(value,"1")==0;
+                        }()) ? "material-subset" : "legacy-scene")
                     << "; actual Firestorm deferred scan, not GPU proof."
                     << LL_ENDL;
             }
@@ -1841,6 +1847,12 @@ void ogl_rtx_submit_deferred_world_triangles(
         live_deferred_receipt_epoch=0;
         live_deferred_mesh_generation=0;
         world_inputs_live_logged=false;
+        if (source_opted_in("OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE"))
+            LL_INFOS("OGLRenderer")
+                << "P05 material subset source invalidated: epoch="
+                << live_world_region_epoch
+                << "; no current eligible material image/mesh."
+                << LL_ENDL;
         return;
     }
     // All borrowed arrays and pixel buffers are owned by the REAL

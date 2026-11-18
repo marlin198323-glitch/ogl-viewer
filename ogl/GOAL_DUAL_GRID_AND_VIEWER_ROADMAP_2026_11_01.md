@@ -2,6 +2,57 @@
 
 Stand: 01.11.2026 | Hauptbranch: ogl-develop
 
+### Aktueller P05/3-Checkpoint – 18.11.2026: Separater echter OpenSim-Material-Teilbatch ohne unberechtigte Terrain-/Ray-Textur
+
+Bisher verhinderte schon ein
+untexturierter Terrain-/Ray-Anker
+oder ein einzelner ungeeigneter
+Volume-Face die gültige 4/16er-
+RGBA8-Atlas-Source. Neuer expliziter
+Default-AUS-Teilbatch-
+Schalter `OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE=1`
+nur mit vollständiger Live-Atlas-
+Quelle und Developer-Budget.
+Echte OpenSim-Volumes/Kamera-/Ray-
+Rangordnung bleiben bestehen, nur
+nicht source-qualifizierte Anker
+und Flächen werden vom **partiellen**
+texturierten Vulkan-Batch ausgeschlossen.
+Neue Bildslots prüfen bereits
+vom Firestorm-Decoder gelieferte
+opaque RGB/RGBA-Quelle einmalig
+unter SharedLock, behalten eigene
+64px-Thumbnails bis zum Packen des
+64/256px-Atlas; kein neuer Asset-
+Download, Cache-Mutation, GL-Readback.
+Slot-Reuse erlaubt, Überlauf/ungültige
+UV/Alpha/PBR/Fehlbilder verworfen.
+Neue anonyme Teilbatch-Invalidierungs-
+Markierung je Region-Epoch setzt auch
+den GPU-/Zweitfenster-Pixelnachweis
+im Testreport zurück, damit keine
+alte Quelle als aktuell gilt.
+Null-Batch invalidiert alte GPU-
+Provenienz, Receipt nun mit
+`scope=material-subset`, numerische
+Quelle/Skip-Diagnose im bestehenden
+Reporter. 483 Python-Tests/41 native
+CTests/Full-Linux-Build+Stage,
+16/32 Vulkan-X11-Präsentationen,
+Region-/Mesh-Regression, drei isolierte
+GUI-X11-Fälle inklusive HQ-Positive/
+Missing-Flag-Negative grün. CLI-
+Reporting redigiert Tokens. 20
+Schritte in PROJECT_STATUS.
+**P05 weiterhin 2/20, P05/3 offen.**
+Keine authentifizierte echte OpenSim-
+Vulkan-Source-2-Frame-Weltpixelprobe,
+kein vollständiges Vulkan-Hauptfenster
+für Terrain/Avatare/Alpha/PBR/UI,
+kein neuer J2C-/Assetfetch.
+Keine Produktivserver- oder Nutzer-
+Viewer-Änderung.
+
 ### Aktueller P05/3-Checkpoint – 18.11.2026: Real-OpenSim-HQ-Source-Host-64px-Blockade korrigiert
 
 Der reale OpenSim-Deferred-Scanner

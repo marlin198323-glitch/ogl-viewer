@@ -2550,6 +2550,151 @@ class PublicGraphicsContracts(unittest.TestCase):
         self.assertIn('const uint32_t max_source_edge=hq_requested ? 256u : 64u;',gpu)
         self.assertIn('width!=(hq_requested ? 256u : 64u)',gpu)
 
+    def test_p05_partial_material_source_is_separate_default_off_optin(self):
+        source=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        assert_start=source.index('const char* subset_flag=std::getenv(')
+        gate=source[assert_start:assert_start+360]
+        self.assertIn('"OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE"',gate)
+        self.assertIn('const bool material_subset_scan=atlas_scan &&',gate)
+        self.assertIn('ogl_triangle_budget>1024u && subset_flag &&',gate)
+        self.assertIn('std::strcmp(subset_flag,"1")==0',gate)
+        self.assertLess(source.index('const bool atlas_hq_scan='),
+                        assert_start)
+        self.assertLess(assert_start,source.index('if (ogl_triangle_budget > 1024 && ogl_rtx_region &&'))
+
+    def test_p05_partial_material_source_bypasses_only_untextured_anchors(self):
+        source=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        self.assertIn('if (ogl_triangle_budget > 1024 && ogl_rtx_region &&\n'
+                      '                    !material_subset_scan)',source)
+        self.assertIn('if (!material_subset_scan)\n'
+                      '                        exact_camera_anchors=ogl::append_camera_hit_triangles(',source)
+        self.assertIn('exact_camera_hit_samples =\n'
+                      '                        ogl::count_camera_hit_samples(closest);',source)
+        self.assertIn('if (ogl_triangle_budget > 1024 && publish_geometry &&\n'
+                      '                    !material_subset_scan)',source)
+        # The real object-source collection is NOT replaced by fake geometry.
+        self.assertIn('for (const auto& candidate : candidates)',source)
+        self.assertIn('volume_object->getTEImage(static_cast<U8>(f))',source)
+        self.assertIn('const LLVolumeFace& face = volume->getVolumeFace(f)',source)
+
+    def test_p05_partial_material_source_skips_unready_and_unsupported_faces(self):
+        source=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        for expected in (
+            '(!face_image || !face_image->isRawImageValid())',
+            '++material_subset_skipped_faces;',
+            'bool face_tint_valid=!material_subset_scan;',
+            'face_tint_valid=valid;',
+            'material_subset_scan && !face_tint_valid',
+            'ogl::live_material_subset_triangle_eligible(',
+            'geometry_valid,',
+            'decoded_source_ready=face_image &&',
+            'face_image->isRawImageValid();',
+            'ogl_rtx_thumbnail_opaque_rgba8(',
+            'uv_triangle_valid,face_tint_valid,',
+            '++material_subset_skipped_triangles;',
+            'triangles.emplace_back(triangle);',
+        ):
+            self.assertIn(expected,source)
+        self.assertLess(
+            source.index('if (material_subset_scan &&\n'
+                         '                            (!face_image ||'),
+            source.index('triangles.emplace_back(triangle);'))
+        self.assertIn('!te->getGLTFRenderMaterial()',source)
+        self.assertIn('te->getMaterialParams().isNull()',source)
+        self.assertIn('!volume_object->mTextureAnimp',source)
+        self.assertIn('diffuse.mV[3]>=0.999f',source)
+
+    def test_p05_partial_material_source_atlas_overflow_skipped_not_relabelled(self):
+        source=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        a=source.index('const bool slot_available=\n'
+                       '                                    !new_slot || atlas_tile_count<atlas_capacity;')
+        part=source[a:a+2800]
+        self.assertIn('atlas_images[slot].get()!=face_image',source)
+        self.assertIn('!new_slot || atlas_tile_count<atlas_capacity',part)
+        self.assertIn('uv_triangle_valid,face_tint_valid,',part)
+        self.assertIn('slot_available))',part)
+        self.assertIn('continue;',part)
+        self.assertLess(part.index('slot_available))'),
+                        part.index('triangles.emplace_back(triangle);'))
+        # No slot sidecar for skipped geometry, no spill to slot 16.
+        self.assertIn('atlas_tile_count<atlas_capacity',source)
+        self.assertIn('face_material_slots.push_back(',source)
+        self.assertIn('face_material_slots.size()==triangles.size()',source)
+
+    def test_p05_partial_material_source_empty_scan_invalidates_old_receipt(self):
+        source=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        self.assertIn('} else if (material_subset_scan) {\n'
+                      '                    // A newly scanned source with ZERO',source)
+        self.assertIn('ogl_rtx_submit_deferred_world_triangles(\n'
+                      '                        nullptr,nullptr,nullptr,nullptr,0u,nullptr,0u,0u,0u)',source)
+        first=host.index('void ogl_rtx_submit_deferred_world_triangles(')
+        guard=host[first:host.index('// All borrowed arrays',first)]
+        for f in ('live_deferred_capture_valid=false;',
+                  'live_deferred_receipt_epoch=0;',
+                  'live_deferred_mesh_generation=0;',
+                  'world_inputs_live_logged=false;'):
+            self.assertIn(f,guard)
+        # Normal OpenGL/scanner paths must not use this partial mode.
+        self.assertIn('const bool material_subset_scan=atlas_scan &&',source)
+
+    def test_p05_material_subset_preflights_opaque_decoded_images_once_per_tile(self):
+        scanner=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        for expected in (
+            'std::array<std::vector<std::uint8_t>,16> subset_opaque_tiles{};',
+            'std::array<std::uint32_t,16> subset_tile_widths{};',
+            'std::array<std::uint32_t,16> subset_tile_heights{};',
+            'const bool new_slot=slot==atlas_tile_count;',
+            'decoded_source_ready && slot_available &&',
+            'new_slot && geometry_valid &&',
+            'LLPointer<LLImageRaw> raw=',
+            'LLImageDataSharedLock lock(raw.get());',
+            'decoded_source_ready=',
+            'ogl_rtx_thumbnail_opaque_rgba8(',
+            'subset_opaque_tiles[slot],',
+            'subset_tile_widths[slot],',
+            'subset_tile_heights[slot]);',
+        ):
+            self.assertIn(expected,scanner)
+        first=scanner.index('const bool new_slot=slot==atlas_tile_count;')
+        last=scanner.index('ogl::live_material_subset_triangle_eligible(',first)
+        self.assertLess(scanner.index('LLImageDataSharedLock lock(raw.get());',first),
+                        last)
+        self.assertIn('atlas_tile_count<atlas_capacity',scanner[first:last])
+
+    def test_p05_material_subset_pack_reuses_owned_opaque_tile_snapshots(self):
+        scanner=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        first=scanner.index('if (material_subset_scan) {\n'
+                            '                                // Reuse the exact validated source')
+        last=scanner.index('LLPointer<LLImageRaw> raw=atlas_images[slot]->getRawImage();',
+                           first)
+        part=scanner[first:last]
+        self.assertIn('subset_opaque_tiles[slot].empty()',part)
+        self.assertIn('subset_opaque_tiles[slot].data()',part)
+        self.assertIn('subset_opaque_tiles[slot].size()',part)
+        self.assertIn('subset_tile_widths[slot]',part)
+        self.assertIn('subset_tile_heights[slot]',part)
+        self.assertIn('continue;',part)
+        # Still use the trusted Firestorm raw image path for the old modes.
+        self.assertIn('atlas_images[slot]->isRawImageValid()',part)
+        self.assertIn('ogl_rtx_pack_rgba_atlas_4x4_hq(',scanner)
+
+    def test_p05_material_subset_keeps_real_provenance_and_qualifies_scope(self):
+        source=(ROOT/'indra/newview/pipeline.cpp').read_text()
+        host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
+        reporter=(ROOT/'ogl/scripts/ogl-test-report.py').read_text()
+        native=(ROOT/'ogl/modules/rtx/frame_bridge_test.cpp').read_text()
+        self.assertIn('#include "../../ogl/modules/include/ogl/ogl_world_shadow_policy.h"',source)
+        self.assertIn('live_material_subset_triangle_eligible(',native)
+        self.assertIn('test_live_opensim_material_subset_policy();',native)
+        self.assertIn('scope=" << ((atlas_needed &&',host)
+        self.assertIn('"material-subset" : "legacy-scene"',host)
+        self.assertIn('OGL_VULKAN_LIVE_MATERIAL_SUBSET_SOURCE',host)
+        self.assertIn('P05 real material-only CPU source captures:',reporter)
+        self.assertIn('partial OpenSim geometry, NOT a full Vulkan world proof',reporter)
+        self.assertIn('ogl_rtx_submit_deferred_world_triangles(',source)
+        self.assertIn('atlas_scan && atlas_valid && !decoded_rgba.empty()',source)
+
     def test_p05_secondary_vulkan_hq_256_atlas_mode8_live_source_and_gpu(self):
         gpu=(ROOT/'ogl/modules/rtx/ogl_rtx_module.cpp').read_text()
         host=(ROOT/'indra/newview/oglrtxhost.cpp').read_text()
